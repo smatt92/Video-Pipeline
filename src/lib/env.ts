@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { driverEnvSchema } from './drivers/env';
+import { storageEnvSchema } from './storage/env';
 
 /**
  * The single place process.env is read.
@@ -39,17 +40,10 @@ const coreEnvSchema = z.object({
    */
   SUPABASE_SERVICE_ROLE_KEY: nonEmpty('SUPABASE_SERVICE_ROLE_KEY'),
 
-  // ── Cloudflare R2 ─────────────────────────────────────────────────────────
-  R2_ACCOUNT_ID: nonEmpty('R2_ACCOUNT_ID'),
-  R2_ACCESS_KEY_ID: nonEmpty('R2_ACCESS_KEY_ID'),
-  R2_SECRET_ACCESS_KEY: nonEmpty('R2_SECRET_ACCESS_KEY'),
-  R2_BUCKET: nonEmpty('R2_BUCKET'),
-  /**
-   * Public base URL for objects that must be reachable without a signature — an R2
-   * custom domain or r2.dev subdomain. Lands in `assets.public_url`.
-   */
-  R2_PUBLIC_BASE_URL: z.url().optional(),
-  R2_ENDPOINT: z.url().optional(),
+  // ── Object storage ────────────────────────────────────────────────────────
+  // Vendor-specific storage configuration is declared in `src/lib/storage/env.ts` and
+  // composed in below, for the same reason driver credentials are: nothing in the core
+  // of the application should know which object store is behind the interface.
 
   // ── Trigger.dev ───────────────────────────────────────────────────────────
   TRIGGER_PROJECT_REF: nonEmpty('TRIGGER_PROJECT_REF'),
@@ -85,7 +79,7 @@ const coreEnvSchema = z.object({
   CIRCUIT_BREAKER_COOLDOWN_MS: positiveInt('CIRCUIT_BREAKER_COOLDOWN_MS').default(60_000),
 });
 
-const envSchema = coreEnvSchema.extend(driverEnvSchema.shape);
+const envSchema = coreEnvSchema.extend(driverEnvSchema.shape).extend(storageEnvSchema.shape);
 
 export type Env = z.infer<typeof envSchema>;
 

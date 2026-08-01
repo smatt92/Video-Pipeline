@@ -47,13 +47,14 @@ pnpm check:enums "$DATABASE_URL"    # hand-written enums vs live CHECK constrain
 ```
 
 `pnpm check:vendors` fails if a vendor name appears anywhere in `src/` outside
-`src/lib/drivers/` and `src/lib/publish/`. When it fires, the fix is almost never to move
+`src/lib/drivers/`, `src/lib/publish/` and `src/lib/storage/`. When it fires, the fix is almost never to move
 the string — it is that the driver interface is missing something the caller needed.
 
 ## Layout
 
 ```
-src/lib/drivers/      all vendor code, and nothing else anywhere
+src/lib/drivers/      all generation-vendor code, and nothing else anywhere
+src/lib/storage/      StorageDriver interface + the object-store implementation
 src/lib/db/           generated types + enums + clients
 src/trigger/          pipeline stages, numbered 01–11
 src/app/              control plane only — IDs and URLs, never media bytes
@@ -63,8 +64,8 @@ supabase/migrations/  forward-only
 ## Three things that will bite you
 
 1. **No media bytes through a Vercel route.** 4.5 MB hard cap, not configurable. Browser
-   ↔ R2 by presigned URL; worker ↔ R2 direct. `src/lib/r2.ts` hands out URLs and nothing
-   else.
+   ↔ bucket by presigned URL; worker ↔ bucket direct. `src/lib/storage/` hands out URLs
+   and nothing else — the vendor behind it is a config value.
 2. **`APP_URL` must be publicly reachable.** Vendors POST webhooks to it. Pointed at
    localhost, deliveries silently never arrive and every generation hangs until timeout.
    Use a tunnel in development.

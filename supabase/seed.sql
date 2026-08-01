@@ -51,7 +51,7 @@ insert into integrations (slug, kind, is_enabled) values
   ('anthropic',  'llm',     false),
   ('higgsfield', 'video',   false),
   ('fal',        'video',   false),
-  ('r2',         'storage', false)
+  ('supabase-storage', 'storage', false)
 on conflict (slug) do nothing;
 
 insert into driver_health (driver) values ('higgsfield'), ('fal')

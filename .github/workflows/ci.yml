@@ -44,7 +44,7 @@ jobs:
       # ── The rule with teeth (CLAUDE.md rule 1) ───────────────────────────
       # First, because it is the cheapest and the one most likely to be violated by a
       # well-meaning shortcut.
-      - name: No vendor names outside the driver layer
+      - name: No vendor names outside the driver, publish and storage layers
         run: pnpm check:vendors
 
       - name: Typecheck
@@ -90,10 +90,11 @@ jobs:
           SUPABASE_URL: https://ci.invalid
           SUPABASE_ANON_KEY: ci
           SUPABASE_SERVICE_ROLE_KEY: ci
-          R2_ACCOUNT_ID: ci
-          R2_ACCESS_KEY_ID: ci
-          R2_SECRET_ACCESS_KEY: ci
-          R2_BUCKET: ci
+          STORAGE_DRIVER: supabase-storage
+          SUPABASE_STORAGE_BUCKET: ci
+          SUPABASE_S3_ACCESS_KEY_ID: ci
+          SUPABASE_S3_SECRET_ACCESS_KEY: ci
+          SUPABASE_S3_REGION: us-east-1
           TRIGGER_PROJECT_REF: proj_ci
           TRIGGER_SECRET_KEY: tr_ci
           ANTHROPIC_API_KEY: ci
