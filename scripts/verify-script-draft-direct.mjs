@@ -53,8 +53,13 @@ const { structureHash } = await import(`${BUILD}/script/structure-hash.js`);
 const { scriptRowFor } = await import(`${BUILD}/script/run.js`);
 const { priceFromRates, llmCostRows } = await import(`${BUILD}/cost/llm.js`);
 
-// ── Postgres, over psql. No pg module is a dependency and adding one to run a script is a
-//    poor trade; `--csv -t` gives a parseable result without inventing a serialisation.
+// ── Postgres, over psql.
+//
+// The rest of `scripts/` moved to the `pg` client; this file did not, and the reason is
+// narrow. Its value is the recorded stage 3 run — the script, the two cost rows, the
+// structure hash — produced by exactly this code against the real Anthropic API. Rewriting
+// the transport underneath a harness whose output is the evidence would mean the evidence
+// no longer corresponds to any code that ran. It needs psql; nothing else here does.
 // `-A -t`: unaligned, tuples only, no CSV quoting. Every query below returns one column,
 // so there is no separator to collide with — and CSV would wrap JSON results in quotes it
 // then doubles internally, which is a parsing problem invented for no gain.
