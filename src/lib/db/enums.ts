@@ -80,6 +80,69 @@ export const costEntryKind = z.enum(['estimate', 'reconcile', 'refund']);
 
 export const driverHealthState = z.enum(['closed', 'open', 'half_open']);
 
+// ── Studio lane (migration 0003) ────────────────────────────────────────────
+
+export const studioSessionStatus = z.enum(['active', 'archived', 'capped']);
+
+/**
+ * Where a row came from.
+ *
+ * `studio_unmanaged` is the honest label for work done through a vendor MCP server we do
+ * not control: no idempotency key we issued, no cost we can attribute. Rows marked this
+ * way must carry `cost_inr = null`, never zero — zero is a claim, null is the truth, and
+ * the cost dashboard has to be able to tell the difference.
+ */
+export const rowOrigin = z.enum(['pipeline', 'studio', 'studio_unmanaged']);
+
+/**
+ * `rough_cut` is ffmpeg concat for review — "does this hang together?". `final` is the
+ * Remotion composition with captions, hook text and safe areas. Only finals carry cost.
+ */
+export const renderKind = z.enum(['rough_cut', 'final']);
+
+// ── Integrations (migration 0003) ───────────────────────────────────────────
+
+export const integrationKind = z.enum([
+  'llm',
+  'video',
+  'audio',
+  'storage',
+  'mcp',
+  'channel',
+]);
+
+export const mcpAuthMode = z.enum(['none', 'bearer', 'oauth']);
+
+// ── Audio-first timing (migration 0004) ────────────────────────────────────
+
+/**
+ * Whether a shot's duration was planned or measured.
+ *
+ * `derived_from_vo` means the number came from real word timings, so the clip was
+ * generated to fit actual speech. When a shot looks mistimed, this tells you whether the
+ * estimate was wrong or the delivery was.
+ */
+export const shotDurationSource = z.enum(['authored', 'derived_from_vo']);
+
+/**
+ * Phoneme rules are honoured by only some TTS models and silently ignored by the rest;
+ * alias substitution works everywhere. Prefer `alias` unless the target model is known to
+ * support phonemes — a silently ignored rule is worse than an ugly one that works.
+ */
+export const pronunciationKind = z.enum(['alias', 'phoneme']);
+
+/** CMU is more predictable than IPA for this purpose. */
+export const phoneticAlphabet = z.enum(['cmu', 'ipa']);
+
+export const integrationEvent = z.enum([
+  'created',
+  'rotated',
+  'verified',
+  'failed',
+  'disabled',
+  'enabled',
+]);
+
 export type ConceptStatus = z.infer<typeof conceptStatus>;
 export type ShotStatus = z.infer<typeof shotStatus>;
 export type GenerationKind = z.infer<typeof generationKind>;
@@ -88,6 +151,13 @@ export type AssetKind = z.infer<typeof assetKind>;
 export type RenderFormat = z.infer<typeof renderFormat>;
 export type CostEntryKind = z.infer<typeof costEntryKind>;
 export type DriverHealthState = z.infer<typeof driverHealthState>;
+export type StudioSessionStatus = z.infer<typeof studioSessionStatus>;
+export type RowOrigin = z.infer<typeof rowOrigin>;
+export type RenderKind = z.infer<typeof renderKind>;
+export type IntegrationKind = z.infer<typeof integrationKind>;
+export type McpAuthMode = z.infer<typeof mcpAuthMode>;
+export type ShotDurationSource = z.infer<typeof shotDurationSource>;
+export type PronunciationKind = z.infer<typeof pronunciationKind>;
 
 /**
  * Consumed by `pnpm check:enums`. Maps each enum above to the table and column whose
@@ -108,4 +178,14 @@ export const ENUM_CONSTRAINT_MAP = {
   'metrics_snapshots.age_bucket': metricsAgeBucket,
   'cost_ledger.entry_kind': costEntryKind,
   'driver_health.state': driverHealthState,
+  'studio_sessions.status': studioSessionStatus,
+  'generations.origin': rowOrigin,
+  'renders.origin': rowOrigin,
+  'renders.kind': renderKind,
+  'integrations.kind': integrationKind,
+  'mcp_servers.auth_mode': mcpAuthMode,
+  'integration_events.event': integrationEvent,
+  'shots.duration_source': shotDurationSource,
+  'pronunciations.kind': pronunciationKind,
+  'pronunciations.alphabet': phoneticAlphabet,
 } as const;

@@ -32,14 +32,27 @@ on conflict (id) do nothing;
 -- audit trail that makes cost-per-video defensible.
 -- ─────────────────────────────────────────────────────────────
 
-insert into rate_card (driver, model, unit, unit_cost, currency, effective_from)
+-- ON CONFLICT targets the expression index from migration 0003, not a plain column list:
+-- `endpoint` is nullable, and NULLs never compare equal, so the index keys on
+-- coalesce(endpoint, '') to keep "one rate per endpoint per date" actually unique.
+insert into rate_card (driver, model, endpoint, unit, unit_cost, currency, is_verified, source_note, effective_from)
 values
-  ('higgsfield', 'dop-lite',      'credit', 0.0, 'USD', '1970-01-01T00:00:00Z'),
-  ('higgsfield', 'dop-turbo',     'credit', 0.0, 'USD', '1970-01-01T00:00:00Z'),
-  ('higgsfield', 'dop-standard',  'credit', 0.0, 'USD', '1970-01-01T00:00:00Z'),
-  ('higgsfield', 'soul',          'credit', 0.0, 'USD', '1970-01-01T00:00:00Z'),
-  ('fal',        'placeholder',   'second', 0.0, 'USD', '1970-01-01T00:00:00Z')
-on conflict (driver, model, effective_from) do nothing;
+  ('higgsfield', 'dop-lite',     '/v1/image2video/dop', 'credit', 0.0, 'USD', false, 'placeholder — replace with an observed credit delta', '1970-01-01T00:00:00Z'),
+  ('higgsfield', 'dop-turbo',    '/v1/image2video/dop', 'credit', 0.0, 'USD', false, 'placeholder — replace with an observed credit delta', '1970-01-01T00:00:00Z'),
+  ('higgsfield', 'dop-standard', '/v1/image2video/dop', 'credit', 0.0, 'USD', false, 'placeholder — replace with an observed credit delta', '1970-01-01T00:00:00Z'),
+  ('higgsfield', 'soul',         '/v1/text2image/soul', 'credit', 0.0, 'USD', false, 'placeholder — replace with an observed credit delta', '1970-01-01T00:00:00Z'),
+  ('fal',        'placeholder',  null,                  'second', 0.0, 'USD', false, 'placeholder — the fal driver exists to prove the interface', '1970-01-01T00:00:00Z')
+on conflict (driver, model, coalesce(endpoint, ''), effective_from) do nothing;
+
+-- Integrations the settings page expects to find. Disabled and unverified: a row here is
+-- a slot to fill in, not a working credential. A pipeline task must refuse to select an
+-- integration that has never verified.
+insert into integrations (slug, kind, is_enabled) values
+  ('anthropic',  'llm',     false),
+  ('higgsfield', 'video',   false),
+  ('fal',        'video',   false),
+  ('r2',         'storage', false)
+on conflict (slug) do nothing;
 
 insert into driver_health (driver) values ('higgsfield'), ('fal')
 on conflict (driver) do nothing;

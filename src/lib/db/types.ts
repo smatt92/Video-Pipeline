@@ -301,9 +301,12 @@ export type Database = {
           idempotency_key: string
           kind: string
           model: string
+          origin: string
+          parent_generation_id: string | null
           request_payload: Json
           shot_id: string | null
           status: string
+          studio_session_id: string | null
           submitted_at: string
           unit_cost_snapshot: number | null
           wait_token: string | null
@@ -322,9 +325,12 @@ export type Database = {
           idempotency_key: string
           kind: string
           model: string
+          origin?: string
+          parent_generation_id?: string | null
           request_payload: Json
           shot_id?: string | null
           status?: string
+          studio_session_id?: string | null
           submitted_at?: string
           unit_cost_snapshot?: number | null
           wait_token?: string | null
@@ -343,9 +349,12 @@ export type Database = {
           idempotency_key?: string
           kind?: string
           model?: string
+          origin?: string
+          parent_generation_id?: string | null
           request_payload?: Json
           shot_id?: string | null
           status?: string
+          studio_session_id?: string | null
           submitted_at?: string
           unit_cost_snapshot?: number | null
           wait_token?: string | null
@@ -353,13 +362,180 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "generations_parent_generation_id_fkey"
+            columns: ["parent_generation_id"]
+            isOneToOne: false
+            referencedRelation: "generations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "generations_shot_id_fkey"
             columns: ["shot_id"]
             isOneToOne: false
             referencedRelation: "shots"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "generations_studio_session_id_fkey"
+            columns: ["studio_session_id"]
+            isOneToOne: false
+            referencedRelation: "studio_sessions"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      integration_checks: {
+        Row: {
+          check_name: string
+          checked_at: string
+          detail: string | null
+          id: string
+          integration_id: string
+          passed: boolean
+        }
+        Insert: {
+          check_name: string
+          checked_at?: string
+          detail?: string | null
+          id?: string
+          integration_id: string
+          passed: boolean
+        }
+        Update: {
+          check_name?: string
+          checked_at?: string
+          detail?: string | null
+          id?: string
+          integration_id?: string
+          passed?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_checks_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "integrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      integration_events: {
+        Row: {
+          detail: string | null
+          event: string
+          id: string
+          integration_id: string | null
+          occurred_at: string
+        }
+        Insert: {
+          detail?: string | null
+          event: string
+          id?: string
+          integration_id?: string | null
+          occurred_at?: string
+        }
+        Update: {
+          detail?: string | null
+          event?: string
+          id?: string
+          integration_id?: string | null
+          occurred_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_events_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "integrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      integrations: {
+        Row: {
+          config: Json
+          created_at: string
+          id: string
+          is_enabled: boolean
+          kind: string
+          last_4: string | null
+          last_error: string | null
+          last_verified_at: string | null
+          profile_id: string | null
+          slug: string
+          vault_secret_id: string | null
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          kind: string
+          last_4?: string | null
+          last_error?: string | null
+          last_verified_at?: string | null
+          profile_id?: string | null
+          slug: string
+          vault_secret_id?: string | null
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          kind?: string
+          last_4?: string | null
+          last_error?: string | null
+          last_verified_at?: string | null
+          profile_id?: string | null
+          slug?: string
+          vault_secret_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integrations_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mcp_servers: {
+        Row: {
+          allowed_tools: string[] | null
+          auth_mode: string
+          created_at: string
+          id: string
+          is_enabled: boolean
+          last_verified_at: string | null
+          name: string
+          url: string
+          vault_secret_id: string | null
+        }
+        Insert: {
+          allowed_tools?: string[] | null
+          auth_mode: string
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          last_verified_at?: string | null
+          name: string
+          url: string
+          vault_secret_id?: string | null
+        }
+        Update: {
+          allowed_tools?: string[] | null
+          auth_mode?: string
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          last_verified_at?: string | null
+          name?: string
+          url?: string
+          vault_secret_id?: string | null
+        }
+        Relationships: []
       }
       metrics_snapshots: {
         Row: {
@@ -421,6 +597,60 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          created_at: string
+          currency: string
+          display_name: string | null
+          email: string
+          id: string
+          onboarding_completed_at: string | null
+          onboarding_first_video_render_id: string | null
+          onboarding_step: number
+          timezone: string
+          usd_inr_rate: number | null
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          display_name?: string | null
+          email: string
+          id: string
+          onboarding_completed_at?: string | null
+          onboarding_first_video_render_id?: string | null
+          onboarding_step?: number
+          timezone?: string
+          usd_inr_rate?: number | null
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          display_name?: string | null
+          email?: string
+          id?: string
+          onboarding_completed_at?: string | null
+          onboarding_first_video_render_id?: string | null
+          onboarding_step?: number
+          timezone?: string
+          usd_inr_rate?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_onboarding_first_video_render_id_fkey"
+            columns: ["onboarding_first_video_render_id"]
+            isOneToOne: false
+            referencedRelation: "renders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_onboarding_first_video_render_id_fkey"
+            columns: ["onboarding_first_video_render_id"]
+            isOneToOne: false
+            referencedRelation: "v_render_cost"
+            referencedColumns: ["render_id"]
+          },
+        ]
+      }
       prompts: {
         Row: {
           created_at: string
@@ -463,6 +693,39 @@ export type Database = {
           template?: string
           version?: number
           win_rate?: number | null
+        }
+        Relationships: []
+      }
+      pronunciations: {
+        Row: {
+          alphabet: string | null
+          created_at: string
+          grapheme: string
+          id: string
+          kind: string
+          language: string
+          notes: string | null
+          replacement: string
+        }
+        Insert: {
+          alphabet?: string | null
+          created_at?: string
+          grapheme: string
+          id?: string
+          kind: string
+          language?: string
+          notes?: string | null
+          replacement: string
+        }
+        Update: {
+          alphabet?: string | null
+          created_at?: string
+          grapheme?: string
+          id?: string
+          kind?: string
+          language?: string
+          notes?: string | null
+          replacement?: string
         }
         Relationships: []
       }
@@ -564,8 +827,11 @@ export type Database = {
           currency: string
           driver: string
           effective_from: string
+          endpoint: string | null
           id: string
+          is_verified: boolean
           model: string
+          source_note: string | null
           unit: string
           unit_cost: number
         }
@@ -573,8 +839,11 @@ export type Database = {
           currency?: string
           driver: string
           effective_from?: string
+          endpoint?: string | null
           id?: string
+          is_verified?: boolean
           model: string
+          source_note?: string | null
           unit: string
           unit_cost: number
         }
@@ -582,8 +851,11 @@ export type Database = {
           currency?: string
           driver?: string
           effective_from?: string
+          endpoint?: string | null
           id?: string
+          is_verified?: boolean
           model?: string
+          source_note?: string | null
           unit?: string
           unit_cost?: number
         }
@@ -597,6 +869,8 @@ export type Database = {
           format: string
           height: number
           id: string
+          kind: string
+          origin: string
           render_ms: number | null
           script_id: string
           status: string
@@ -611,6 +885,8 @@ export type Database = {
           format: string
           height: number
           id?: string
+          kind?: string
+          origin?: string
           render_ms?: number | null
           script_id: string
           status?: string
@@ -625,6 +901,8 @@ export type Database = {
           format?: string
           height?: number
           id?: string
+          kind?: string
+          origin?: string
           render_ms?: number | null
           script_id?: string
           status?: string
@@ -763,6 +1041,7 @@ export type Database = {
           created_at: string
           description: string
           duration_s: number
+          duration_source: string
           id: string
           idx: number
           prompt_id: string | null
@@ -775,6 +1054,7 @@ export type Database = {
           created_at?: string
           description: string
           duration_s: number
+          duration_source?: string
           id?: string
           idx: number
           prompt_id?: string | null
@@ -787,6 +1067,7 @@ export type Database = {
           created_at?: string
           description?: string
           duration_s?: number
+          duration_source?: string
           id?: string
           idx?: number
           prompt_id?: string | null
@@ -810,6 +1091,66 @@ export type Database = {
           },
           {
             foreignKeyName: "shots_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      studio_sessions: {
+        Row: {
+          channel_id: string | null
+          cost_inr: number
+          created_at: string
+          id: string
+          input_tokens: number
+          model: string
+          output_tokens: number
+          script_id: string | null
+          spend_cap_inr: number | null
+          status: string
+          title: string | null
+          transcript: Json
+        }
+        Insert: {
+          channel_id?: string | null
+          cost_inr?: number
+          created_at?: string
+          id?: string
+          input_tokens?: number
+          model: string
+          output_tokens?: number
+          script_id?: string | null
+          spend_cap_inr?: number | null
+          status?: string
+          title?: string | null
+          transcript?: Json
+        }
+        Update: {
+          channel_id?: string | null
+          cost_inr?: number
+          created_at?: string
+          id?: string
+          input_tokens?: number
+          model?: string
+          output_tokens?: number
+          script_id?: string | null
+          spend_cap_inr?: number | null
+          status?: string
+          title?: string | null
+          transcript?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "studio_sessions_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "studio_sessions_script_id_fkey"
             columns: ["script_id"]
             isOneToOne: false
             referencedRelation: "scripts"
@@ -850,6 +1191,75 @@ export type Database = {
         }
         Relationships: []
       }
+      vo_takes: {
+        Row: {
+          asset_id: string | null
+          characters_billed: number | null
+          chunk_idx: number
+          cost_inr: number | null
+          created_at: string
+          driver: string
+          id: string
+          language: string
+          model: string
+          offset_s: number
+          script_id: string
+          seed: number | null
+          text_in: string
+          voice_id: string
+          word_timings: Json
+        }
+        Insert: {
+          asset_id?: string | null
+          characters_billed?: number | null
+          chunk_idx?: number
+          cost_inr?: number | null
+          created_at?: string
+          driver: string
+          id?: string
+          language?: string
+          model: string
+          offset_s?: number
+          script_id: string
+          seed?: number | null
+          text_in: string
+          voice_id: string
+          word_timings?: Json
+        }
+        Update: {
+          asset_id?: string | null
+          characters_billed?: number | null
+          chunk_idx?: number
+          cost_inr?: number | null
+          created_at?: string
+          driver?: string
+          id?: string
+          language?: string
+          model?: string
+          offset_s?: number
+          script_id?: string
+          seed?: number | null
+          text_in?: string
+          voice_id?: string
+          word_timings?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vo_takes_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vo_takes_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       v_cost_per_1k_views: {
@@ -872,6 +1282,23 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "renders_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_script_cost: {
+        Row: {
+          cost_inr: number | null
+          generations_used: number | null
+          generations_wasted: number | null
+          script_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shots_script_id_fkey"
             columns: ["script_id"]
             isOneToOne: false
             referencedRelation: "scripts"
