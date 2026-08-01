@@ -225,8 +225,10 @@ async function writeSecretsAndVerify(
 
   if (!integration) {
     throw new Error(
-      `No integrations row for "${slug}". The seed creates one per catalogue entry — this ` +
-        'database has not been seeded.',
+      `No integrations row for "${slug}". Migration 0014 creates one per catalogue entry, ` +
+        'so this database is behind — run `supabase db push`. (Before 0014 these rows were ' +
+        'in seed.sql, which `db push` does not apply; that is what this message used to be ' +
+        'about and it sent people looking in the wrong place.)',
     );
   }
 

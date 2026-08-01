@@ -21,6 +21,7 @@
     "prebuild": "node scripts/check-public-env.mjs",
     "check:public-env": "node scripts/check-public-env.mjs",
     "check:drift": "node scripts/check-drift.mjs",
+    "check:catalog": "node scripts/check-catalog-rows.mjs",
     "verify:vault": "node scripts/verify-vault.mjs",
     "verify:storage": "node --env-file-if-exists=.env.local scripts/verify-storage.mjs",
     "verify:script": "tsc -p tsconfig.verify.json && node --env-file-if-exists=.env.local scripts/verify-script-draft.mjs",

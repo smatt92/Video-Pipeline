@@ -96,6 +96,53 @@ Two things in particular have never run against a real Supabase instance:
 **To verify:** `supabase link --project-ref <ref> && supabase db push`, then
 `pnpm check:enums "<uri>"` against the hosted database, then the trigger test above.
 
+### 3a. ~~`db push` produces a database the wizard cannot be walked on~~ — RESOLVED in 0014
+
+Found while the first `supabase db push` was running, and it would have blocked the wizard
+at step 2 with an error that named the wrong cause.
+
+`db push` applies migrations. It does not apply `supabase/seed.sql` — that runs on
+`db reset`, and its own first line said it "never runs against production". Four of the
+five catalogue integrations lived only in that file, and the application never creates
+them: `configureAndVerify` and `verifyIntegration` both look the row up by slug and
+*throw* when it is absent. It is a lookup, not an upsert.
+
+Measured, not reasoned about — 0001–0013 applied to an empty database with no seed:
+
+| Table | After a migrations-only apply |
+|---|---|
+| `integrations` | `elevenlabs` only — from 0004, which used a migration |
+| `driver_health` | empty |
+| `rate_card` | `anthropic` (0006) + `elevenlabs` (0004); no video placeholders |
+
+So steps 2 (storage), 3 (LLM) and 4 (video) each threw "this database has not been
+seeded". Step 5 (audio) worked, by the accident of 0004 having put its integration row in
+a migration while the rest went to the seed. That inconsistency is the tell: this repo had
+already demonstrated the right placement once and not followed it.
+
+**Which of the two kinds: evolution.** No document specified these rows as seed data and
+then required them elsewhere on its own page — this is not the `cost_ledger_has_subject`
+shape. They were fixture data behind a settings screen that rendered fixtures, and they
+became a precondition the day the onboarding Server Actions began reading them by slug.
+The second case that tested the original decision was a hosted deployment, which is the
+first environment where "local-only" and "required" could contradict each other.
+
+The rule it settles: **a row the application requires in order to function belongs in a
+migration, in every environment.** `seed.sql` is for local convenience and nothing else.
+One row survives there — a dev channel — and it passes that test, because onboarding step
+8 creates a real channel itself.
+
+The duplication between `INTEGRATION_CATALOG` and the migration is real and is what
+produced the bug, so it is now checked rather than remembered: `pnpm check:catalog`
+applies the migrations to a scratch database — no seed — and fails if any catalogue slug
+has no row, or has one with the wrong `kind`. Both failure modes were provoked
+deliberately before the check was trusted.
+
+**Verified:** migrations-only apply now yields 5 integrations, 2 `driver_health` rows and
+10 `rate_card` rows; `check:catalog`, `check:drift`, `pnpm check` and `pnpm build` all
+pass. **Not verified:** that the hosted project has had 0014 pushed. Re-run
+`supabase db push` before walking the wizard.
+
 ### 3b. The onboarding step actions have never called a vendor
 
 Steps 1, 2, 3, 6 and 8 are Server Actions writing rows this codebase controls, and their

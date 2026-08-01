@@ -143,8 +143,9 @@ export async function verifyIntegration(db: Db, slug: string): Promise<VerifyOut
 
   if (lookupError || !integration) {
     throw new Error(
-      `No integrations row for "${slug}". The seed creates one per catalogue entry; ` +
-        `this database has not been seeded, or the slug drifted.`,
+      `No integrations row for "${slug}". Migration 0014 creates one per catalogue entry; ` +
+        `this database is behind that migration, or the catalogue slug drifted from it — ` +
+        `\`pnpm check:catalog\` distinguishes the two.`,
     );
   }
 

@@ -1,10 +1,19 @@
--- Local development seed. Applied by `supabase db reset`; never runs against production.
+-- Local development convenience. Applied by `supabase db reset`; never runs against
+-- production, and after migration 0014 nothing the application requires lives here.
 --
--- Two things Phase 1 cannot start without:
---   1. a channel row, because concepts.channel_id is NOT NULL and Phase 1 enters
---      concepts by hand;
---   2. rate_card rows, because a submit refuses to proceed when it cannot price the
---      call (CLAUDE.md rule 5 — the cost row is written before the result comes back).
+-- That distinction is the point, and it was learned the hard way: `supabase db push`
+-- applies migrations and not this file, so the `integrations` and `driver_health` rows that
+-- used to sit here were absent on a freshly pushed database — and the onboarding actions
+-- look an integration up by slug and throw when it is missing. Three wizard steps could not
+-- be walked at all. 0014 moved every row the app requires into a migration, and
+-- `pnpm check:catalog` now fails if a new driver is added to the catalogue without one.
+--
+-- The test for anything added below: if the application throws, blocks or renders wrongly
+-- without this row on a fresh production database, it does not belong in this file.
+
+-- The one survivor, and it passes that test: onboarding step 8 creates a real channel
+-- itself, so production never needs this. It exists so a local developer can insert a
+-- concept by hand — `concepts.channel_id` is NOT NULL — without walking the wizard first.
 
 insert into channels (id, name, platform, niche, handle, is_active)
 values (
@@ -16,45 +25,3 @@ values (
   true
 )
 on conflict (id) do nothing;
-
--- ─────────────────────────────────────────────────────────────
--- Rate card
---
--- ⚠️  THE NUMBERS BELOW ARE PLACEHOLDERS AND ARE ALMOST CERTAINLY WRONG. ⚠️
---
--- Higgsfield prices in credits and does not publish a public rate table; the real
--- per-endpoint credit cost has to be read off your own account after a real run. Until
--- these are replaced with observed values, every rupee figure the dashboard shows is
--- fiction — it will be internally consistent and externally meaningless.
---
--- Replace by inserting a new row with a later effective_from. Do not UPDATE these:
--- the ledger snapshots unit cost per generation, and rewriting history breaks the
--- audit trail that makes cost-per-video defensible.
--- ─────────────────────────────────────────────────────────────
-
--- ON CONFLICT targets the expression index from migration 0006, not a plain column list:
--- `endpoint` is nullable, and NULLs never compare equal, so the index keys on
--- coalesce(endpoint, '') to keep "one rate per endpoint per date" actually unique. `unit`
--- joined the key in 0006, when a call priced in two units — input and output tokens —
--- turned out to collide with itself.
-insert into rate_card (driver, model, endpoint, unit, unit_cost, currency, is_verified, source_note, effective_from)
-values
-  ('higgsfield', 'dop-lite',     '/v1/image2video/dop', 'credit', 0.0, 'USD', false, 'placeholder — replace with an observed credit delta', '1970-01-01T00:00:00Z'),
-  ('higgsfield', 'dop-turbo',    '/v1/image2video/dop', 'credit', 0.0, 'USD', false, 'placeholder — replace with an observed credit delta', '1970-01-01T00:00:00Z'),
-  ('higgsfield', 'dop-standard', '/v1/image2video/dop', 'credit', 0.0, 'USD', false, 'placeholder — replace with an observed credit delta', '1970-01-01T00:00:00Z'),
-  ('higgsfield', 'soul',         '/v1/text2image/soul', 'credit', 0.0, 'USD', false, 'placeholder — replace with an observed credit delta', '1970-01-01T00:00:00Z'),
-  ('fal',        'placeholder',  null,                  'second', 0.0, 'USD', false, 'placeholder — the fal driver exists to prove the interface', '1970-01-01T00:00:00Z')
-on conflict (driver, model, coalesce(endpoint, ''), unit, effective_from) do nothing;
-
--- Integrations the settings page expects to find. Disabled and unverified: a row here is
--- a slot to fill in, not a working credential. A pipeline task must refuse to select an
--- integration that has never verified.
-insert into integrations (slug, kind, is_enabled) values
-  ('anthropic',  'llm',     false),
-  ('higgsfield', 'video',   false),
-  ('fal',        'video',   false),
-  ('supabase-storage', 'storage', false)
-on conflict (slug) do nothing;
-
-insert into driver_health (driver) values ('higgsfield'), ('fal')
-on conflict (driver) do nothing;

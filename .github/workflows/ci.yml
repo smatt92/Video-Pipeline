@@ -78,6 +78,16 @@ jobs:
       - name: No drift between migrations and committed types
         run: pnpm check:drift "$DATABASE_URL"
 
+      # ── Every catalogue integration must exist after a push, not a reset ──
+      # `supabase db push` applies migrations and not seed.sql. Four integrations once
+      # lived only in the seed, and the onboarding actions look them up by slug and throw
+      # when absent — so three wizard steps could not be walked on a fresh production
+      # database. This applies the migrations alone and fails if a catalogue slug has no
+      # row. Deliberately after the seed-inclusive apply above: it builds its own scratch
+      # database precisely so the seed cannot rescue it.
+      - name: Catalogue rows exist without the seed
+        run: pnpm check:catalog "$DATABASE_URL"
+
       - name: Build
         run: pnpm build
         env:
