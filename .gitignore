@@ -46,3 +46,11 @@ next-env.d.ts
 
 # compiled library for `pnpm verify:script` (tsconfig.verify.json)
 /.verify-build/
+
+# generated migration bundles for the Supabase SQL editor (`pnpm db:bundle`)
+#
+# Deliberately not committed. A bundle is a byte-for-byte copy of every migration it
+# carries, so committing one doubles the diff of every schema change — and a stale bundle
+# is worse than none: it looks authoritative and silently omits whatever landed after it
+# was written. Regenerate it when you need it; it takes no network.
+/supabase/bundles/

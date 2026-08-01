@@ -31,12 +31,68 @@ before it discovers what it is missing.
 
 ```bash
 export DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/kiln
-for f in supabase/migrations/*.sql; do psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f"; done
+pnpm db:push                        # applies migrations, records them, safe to re-run
 psql "$DATABASE_URL" -f supabase/seed.sql
 pnpm db:types:nodocker
 ```
 
 See `docs/decisions/0005-type-generation-without-docker.md`.
+
+## When something is wrong
+
+```bash
+pnpm doctor
+```
+
+Runs the environment checks in dependency order and names the one that is actually
+broken: connection string, reachability, Vault, which migrations are applied, enums,
+and whether the rows the wizard needs exist. Every failure in this project so far has
+looked like three other failures until something distinguished them; this is that thing.
+
+Exit codes: `0` all passed · `1` something failed · `2` something could not be checked.
+
+### Applying migrations when the CLI will not
+
+`supabase db push` needs the CLI, a login, and an open Postgres port. Two ways around it,
+neither of which needs Docker or the CLI:
+
+```bash
+pnpm db:push                        # over DATABASE_URL, with psql
+pnpm db:push --dry-run              # what it would apply, applying nothing
+pnpm db:bundle                      # one .sql file to paste into the browser
+```
+
+Both write the same ledger the CLI uses — `supabase_migrations.schema_migrations` — so
+a CLI that starts working later reads that history as its own and reports the project up
+to date rather than replaying everything.
+
+`db:push` applies each migration and its ledger row in **one transaction**. Postgres has
+transactional DDL, so a failure leaves nothing behind and the ledger can never claim a
+migration that did not land. It stops at the first failure and prints what it applied and
+what it skipped.
+
+`db:bundle` is the path that always works: it needs no psql and no open database port,
+only the browser, which reaches Supabase over 443 like any other site. If `pnpm doctor`
+says the connection times out or has no route, stop diagnosing the network and paste the
+file. The whole bundle is one transaction with a guard at the top, so pasting it twice
+raises a plain-English error and rolls back rather than half-applying.
+
+**If the schema exists but nothing is recorded** — someone pasted SQL into the editor —
+re-running fails on `already exists`, and the fix is the opposite of the usual one:
+
+```bash
+pnpm db:push --baseline 0001,0002   # record as applied WITHOUT running
+```
+
+`pnpm doctor` detects this case and says so. Confirm with it before baselining: a
+baselined migration that never actually ran leaves a database claiming to be somewhere it
+is not.
+
+**Which connection string.** Use **Session mode** from Project Settings → Database →
+Connection string — host ends `.pooler.supabase.com`, port 5432. It is IPv4 and safe for
+schema changes. The direct `db.<ref>.supabase.co` host is IPv6-only on current projects,
+which is what breaks most laptops, and port 6543 is the transaction pooler, which is for
+application traffic rather than DDL. `pnpm doctor` warns about both.
 
 ## Checks
 
@@ -46,6 +102,7 @@ pnpm check:vendors                  # CLAUDE.md rule 1, the one with teeth
 pnpm check:public-env               # only two vars may be client-published
 pnpm check:enums "$DATABASE_URL"    # hand-written enums vs live CHECK constraints
 pnpm check:drift "$DATABASE_URL"    # migrations ↔ committed types
+pnpm check:catalog "$DATABASE_URL"  # every catalogue integration has a row after a push
 ```
 
 `check:public-env` also runs as `prebuild`, so it fires on every `pnpm build` — locally,

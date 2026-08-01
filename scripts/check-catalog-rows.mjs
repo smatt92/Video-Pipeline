@@ -24,7 +24,9 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
+
+import { catalogEntries } from './lib/catalog.mjs';
 
 const adminUrl = process.argv[2] ?? process.env.DATABASE_URL;
 if (!adminUrl) {
@@ -32,7 +34,6 @@ if (!adminUrl) {
   process.exit(2);
 }
 
-const CATALOG = 'src/lib/drivers/catalog.ts';
 const scratch = `kiln_catalog_${process.pid}`;
 
 function psql(url, args) {
@@ -48,28 +49,6 @@ function withDatabase(url, name) {
   return u.toString();
 }
 
-/**
- * The catalogue's slugs and kinds, read out of the source rather than a compiled build.
- *
- * A regex over TypeScript is a liability when it silently matches nothing, so the count is
- * asserted below — a parse that finds no integrations fails the check rather than passing
- * it vacuously. That is the only failure mode of reading it this way that matters: a check
- * that quietly stops checking is worse than no check.
- */
-function catalogEntries() {
-  const src = readFileSync(CATALOG, 'utf8');
-  const start = src.indexOf('INTEGRATION_CATALOG');
-  if (start === -1) throw new Error(`INTEGRATION_CATALOG not found in ${CATALOG}`);
-
-  const body = src.slice(start);
-  const entries = [];
-  const re = /slug:\s*'([^']+)',\s*\n\s*label:[^\n]*\n\s*kind:\s*'([^']+)'/g;
-
-  let m;
-  while ((m = re.exec(body)) !== null) entries.push({ slug: m[1], kind: m[2] });
-  return entries;
-}
-
 let created = false;
 
 process.on('exit', () => {
@@ -82,16 +61,9 @@ process.on('exit', () => {
 });
 process.on('SIGINT', () => process.exit(130));
 
+// Throws rather than returning an empty list if the descriptor shape changed — a check
+// that quietly stops checking would report PASS forever. See scripts/lib/catalog.mjs.
 const entries = catalogEntries();
-
-if (entries.length < 2) {
-  console.error(
-    `Parsed ${entries.length} integrations out of ${CATALOG}, which cannot be right.\n` +
-      'The descriptor shape changed and this check stopped checking. Fix the pattern in ' +
-      'catalogEntries() before trusting a pass.',
-  );
-  process.exit(1);
-}
 
 psql(adminUrl, ['-q', '-c', `drop database if exists ${scratch}`]);
 psql(adminUrl, ['-q', '-c', `create database ${scratch}`]);
