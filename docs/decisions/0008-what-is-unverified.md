@@ -110,7 +110,48 @@ that `profiles.id` actually equals `auth.users.id` in practice given there is no
 (§3), and that the magic-link round trip lands on `/auth/callback` with a usable code.
 Walking the wizard on the preview is the test.
 
-### 5. The Higgsfield driver surface
+### 5. Stage 3 has never called the model
+
+`src/trigger/03-script.ts` and everything under it — the prompt, the schema, the structure
+hash, the ledger write — is written and has never made a request. There is no
+`ANTHROPIC_API_KEY` in this environment. That is the *only* thing missing:
+`api.anthropic.com` answers here (401, so the host is reached and the request is
+unauthenticated), which makes this the one vendor leg that a key alone would unblock.
+
+What has been proven, and it is not nothing:
+
+- **The schema catches what a constrained decode cannot.** Nine cases run against the real
+  compiled schema: a beat silently dropped from `vo_text`, a missing hook, non-monotonic
+  timestamps, a stage direction that would be read aloud, beat counts outside 3–5, a null
+  CTA (legal), and `vo_text` repunctuated relative to the beats (also legal). All nine
+  behave.
+- **The structure hash survives word substitution.** Rewriting every word of a script —
+  hook, all four beats, CTA — produces the *same* hash. Changing the beat count or the
+  pacing produces a different one. That is the anti-template guard doing the job §0.2 of
+  ARCHITECTURE.md gives it; a hash that changed with the words would call the same video
+  made twelve times "unique", which is the claim the policy disbelieves.
+- **The ledger constraints hold against real rows.** Charging one script twice is rejected
+  by `cost_ledger_script_entry_key`; replaying a failed draft is rejected by the
+  idempotency key; a row with no subject is rejected by `cost_ledger_has_subject`; and
+  `v_script_cost` attributes a failed draft to the concept's first script version exactly
+  once (₹1.3275 on v1, ₹1.3275 on v2 in the worked case, not ₹1.77 on both).
+
+What is unproven is everything downstream of an actual response: whether the model returns
+this schema reliably, what a real draft reads like, what the real token counts and
+therefore the real cost per script are, and whether `stop_reason: 'refusal'` and
+`max_tokens` are handled correctly in practice rather than in principle.
+
+**To verify:** `ANTHROPIC_API_KEY=… pnpm verify:script`. It runs `runScriptDraft` — the
+same function the Trigger task calls, not a copy — against a real Supabase project, and
+prints the generated script and the cost rows it reads back from the database. It has no
+offline mode on purpose.
+
+One rate card note that belongs here: the two `anthropic` rows are the **only**
+`is_verified` rows in the table, and the reason is narrow — the vendor publishes the
+number. Every video and voice rate stays unverified until someone watches a credit balance
+move, because nobody publishes those.
+
+### 6. The Higgsfield driver surface
 
 Not written yet, but the interface in `src/lib/drivers/types.ts` encodes assumptions taken
 from reading the SDK rather than from calling it — chiefly that webhooks carry a shared
@@ -129,5 +170,5 @@ and that cancel is best-effort. See 0004.
 
 ## Closing this file
 
-Delete it when all five sections are verified and the results are recorded. Until then,
+Delete it when every section is verified and the results are recorded. Until then,
 treat anything it lists as a plausible implementation rather than a working one.

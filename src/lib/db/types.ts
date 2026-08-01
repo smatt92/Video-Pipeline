@@ -189,45 +189,61 @@ export type Database = {
       }
       cost_ledger: {
         Row: {
+          concept_id: string | null
           cost_inr: number | null
           cost_usd: number
           driver: string
           entry_kind: string
           generation_id: string | null
           id: string
+          idempotency_key: string | null
           occurred_at: string
           quantity: number
           render_id: string | null
+          script_id: string | null
           unit: string
           usd_inr_rate: number | null
         }
         Insert: {
+          concept_id?: string | null
           cost_inr?: number | null
           cost_usd: number
           driver: string
           entry_kind?: string
           generation_id?: string | null
           id?: string
+          idempotency_key?: string | null
           occurred_at?: string
           quantity: number
           render_id?: string | null
+          script_id?: string | null
           unit: string
           usd_inr_rate?: number | null
         }
         Update: {
+          concept_id?: string | null
           cost_inr?: number | null
           cost_usd?: number
           driver?: string
           entry_kind?: string
           generation_id?: string | null
           id?: string
+          idempotency_key?: string | null
           occurred_at?: string
           quantity?: number
           render_id?: string | null
+          script_id?: string | null
           unit?: string
           usd_inr_rate?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "cost_ledger_concept_id_fkey"
+            columns: ["concept_id"]
+            isOneToOne: false
+            referencedRelation: "concepts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "cost_ledger_generation_id_fkey"
             columns: ["generation_id"]
@@ -248,6 +264,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_render_cost"
             referencedColumns: ["render_id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_cost"
+            referencedColumns: ["script_id"]
           },
         ]
       }
@@ -925,6 +955,13 @@ export type Database = {
             referencedRelation: "scripts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "renders_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_cost"
+            referencedColumns: ["script_id"]
+          },
         ]
       }
       reviews: {
@@ -1096,6 +1133,13 @@ export type Database = {
             referencedRelation: "scripts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "shots_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_cost"
+            referencedColumns: ["script_id"]
+          },
         ]
       }
       studio_sessions: {
@@ -1155,6 +1199,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "scripts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "studio_sessions_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_cost"
+            referencedColumns: ["script_id"]
           },
         ]
       }
@@ -1258,6 +1309,13 @@ export type Database = {
             referencedRelation: "scripts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "vo_takes_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_cost"
+            referencedColumns: ["script_id"]
+          },
         ]
       }
     }
@@ -1287,24 +1345,25 @@ export type Database = {
             referencedRelation: "scripts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "renders_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_cost"
+            referencedColumns: ["script_id"]
+          },
         ]
       }
       v_script_cost: {
         Row: {
           cost_inr: number | null
+          draft_cost_inr: number | null
+          generation_cost_inr: number | null
           generations_used: number | null
           generations_wasted: number | null
           script_id: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "shots_script_id_fkey"
-            columns: ["script_id"]
-            isOneToOne: false
-            referencedRelation: "scripts"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Functions: {

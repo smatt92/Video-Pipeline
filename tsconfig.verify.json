@@ -1,0 +1,29 @@
+{
+  // Compile the pipeline library to plain CommonJS so a verification script can run it in
+  // Node directly.
+  //
+  // Zero new dependencies, on purpose. The obvious alternative is tsx or ts-node, and
+  // CLAUDE.md says to ask before adding a dependency it does not name — for a build step
+  // that exists only to run one script, a tsconfig is a cheaper answer than a question.
+  //
+  // CommonJS specifically: the source uses extensionless relative imports, which Node's
+  // ESM resolver rejects and its CJS resolver has always accepted. `moduleResolution:
+  // node10` for the same reason — it finds `@anthropic-ai/sdk/helpers/zod` by path, and
+  // Node honours the package's exports map at require time regardless.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "module": "commonjs",
+    "moduleResolution": "node10",
+    "outDir": ".verify-build",
+    "rootDir": ".",
+    "isolatedModules": false,
+    "incremental": false,
+    "jsx": "react-jsx",
+    "declaration": false,
+    "sourceMap": true
+  },
+  // Only what the verification path needs. Compiling the app would pull in JSX, Next
+  // internals and the two root layouts for no benefit.
+  "include": ["src/lib/script/**/*.ts", "src/lib/cost/**/*.ts", "src/lib/prompts/**/*.ts"]
+}

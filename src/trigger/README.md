@@ -10,9 +10,18 @@ a concrete instruction rather than a conversation.
 03-script.ts      06-voice.ts            09-metadata.ts
 ```
 
-Phase 1 builds `05-generate.ts` first, then `03-script.ts` and `04-prompt-compile.ts`
-behind it — the generate leg is proved against the real API before anything automates
-what feeds it.
+Phase 1 planned to build `05-generate.ts` first, then `03-script.ts` and
+`04-prompt-compile.ts` behind it — the generate leg proved against the real API before
+anything automates what feeds it.
+
+That order inverted for a reason outside the code: the video and voice hosts are refused
+at this environment's egress policy and Anthropic is not, so stage 3 is the only leg that
+can be run for real before a preview deploy exists. `05-generate.ts` still gates the rest
+of the pipeline; it just stopped being the first thing written.
+
+`03-script.ts` is a wrapper. Its logic is in `src/lib/script/run.ts` so the same function
+can be run outside Trigger by `pnpm verify:script` — a verification path with its own copy
+of the logic verifies the copy.
 
 Every task in here: has a concurrency limit, is replayable from any prior stage's output,
 writes its failure states as rows, and writes a cost row wherever money moved.

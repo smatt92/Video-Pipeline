@@ -43,3 +43,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# compiled library for `pnpm verify:script` (tsconfig.verify.json)
+/.verify-build/

@@ -1,0 +1,151 @@
+import type { Db } from '../db/server';
+import type { TokenUsage } from '../script/draft';
+import { currentRate, type Rate } from './rate-card';
+
+/**
+ * Pricing and ledgering an LLM call.
+ *
+ * Two rows per call, not one. Input and output tokens are priced 5× apart, so a single
+ * blended row would fail the ledger's own arithmetic — `quantity × unit_cost` would not
+ * equal `cost_usd`, and a ledger whose rows do not multiply out is a ledger nobody can
+ * check. Migration 0006 keys them on (script_id, entry_kind, unit) so a retry cannot
+ * double-write either of them.
+ *
+ * ── Why these are written as `reconcile`, not `estimate` ─────────────────────
+ *
+ * Rule 5 says the row goes in at submit time, before the result comes back, because the
+ * headline metric cannot be backfilled. That rule is written for the generation legs,
+ * where submit and result are minutes or hours apart and the vendor answers by webhook.
+ *
+ * A Messages call is synchronous and priced on tokens that do not exist until it returns:
+ * there is no honest estimate to write beforehand. The input token count is not knowable
+ * without a separate billed count_tokens call, and the output count is not knowable at all.
+ * So the row is written immediately on return, in the same task, before anything is done
+ * with the script — and it is written as `reconcile` because that is what it is: actual
+ * spend, not a forecast.
+ *
+ * The property rule 5 is actually protecting — that no money moves without a row — holds.
+ * The row is written even when the draft failed, because a refusal and a truncation are
+ * billed exactly like a success.
+ */
+
+const DRIVER = 'anthropic';
+
+export interface LlmLedgerRow {
+  unit: 'input_token' | 'output_token';
+  quantity: number;
+  unitCostUsd: number;
+  costUsd: number;
+  costInr: number;
+  rateId: string;
+}
+
+export type LlmPricing =
+  | { priced: true; rows: LlmLedgerRow[]; totalUsd: number; totalInr: number; usdInrRate: number }
+  | { priced: false; reason: 'no_rate_card_entry' | 'rate_unverified'; detail: string };
+
+function row(unit: LlmLedgerRow['unit'], quantity: number, rate: Rate, usdInrRate: number): LlmLedgerRow {
+  const costUsd = quantity * rate.unitCostUsd;
+  return {
+    unit,
+    quantity,
+    unitCostUsd: rate.unitCostUsd,
+    costUsd,
+    costInr: costUsd * usdInrRate,
+    rateId: rate.id,
+  };
+}
+
+/**
+ * Price a completed call. Returns a refusal rather than a zero when either rate is missing
+ * or unverified — Addendum 01: unverified means no rupee figure anywhere, and a zero would
+ * render as a real cost of nothing.
+ */
+export async function priceLlmCall(
+  db: Db,
+  q: { model: string; endpoint: string; usage: TokenUsage; usdInrRate: number },
+): Promise<LlmPricing> {
+  const [input, output] = await Promise.all([
+    currentRate(db, { driver: DRIVER, model: q.model, endpoint: q.endpoint, unit: 'input_token' }),
+    currentRate(db, { driver: DRIVER, model: q.model, endpoint: q.endpoint, unit: 'output_token' }),
+  ]);
+
+  if (!input.found) return { priced: false, reason: input.reason, detail: input.detail };
+  if (!output.found) return { priced: false, reason: output.reason, detail: output.detail };
+
+  const rows = [
+    row('input_token', q.usage.inputTokens, input.rate, q.usdInrRate),
+    row('output_token', q.usage.outputTokens, output.rate, q.usdInrRate),
+  ];
+
+  return {
+    priced: true,
+    rows,
+    totalUsd: rows.reduce((n, r) => n + r.costUsd, 0),
+    totalInr: rows.reduce((n, r) => n + r.costInr, 0),
+    usdInrRate: q.usdInrRate,
+  };
+}
+
+/**
+ * Write the ledger rows for a drafting call.
+ *
+ * Two shapes, because a billed call does not always produce a script:
+ *
+ *   succeeded — charged to the script, keyed on (script_id, entry_kind, unit). A second
+ *               charge against the same script row is rejected by the database. A redraft
+ *               is a new script *version*, so it is a new row and a new charge, which is
+ *               correct: it was a second call.
+ *
+ *   failed    — charged to the concept, keyed on a caller-supplied idempotency key derived
+ *               from the task run id. There is no natural key here and there must not be
+ *               one by concept: two refusals on the same concept are two real charges.
+ *
+ * `upsert ... ignoreDuplicates` rather than `insert` so a task-level retry after a partial
+ * write lands on the same rows instead of failing. The first write is the true one —
+ * overwriting would let a later, differently-priced replay silently restate history.
+ */
+export type LlmCostSubject =
+  | { kind: 'script'; scriptId: string; conceptId: string }
+  | { kind: 'failed_draft'; conceptId: string; idempotencyKey: string };
+
+export async function writeLlmCost(
+  db: Db,
+  subject: LlmCostSubject,
+  pricing: Extract<LlmPricing, { priced: true }>,
+): Promise<void> {
+  const base = {
+    driver: DRIVER,
+    entry_kind: 'reconcile',
+    usd_inr_rate: pricing.usdInrRate,
+  };
+
+  const rows = pricing.rows.map((r) => ({
+    ...base,
+    concept_id: subject.conceptId,
+    script_id: subject.kind === 'script' ? subject.scriptId : null,
+    idempotency_key:
+      subject.kind === 'failed_draft' ? `${subject.idempotencyKey}:${r.unit}` : null,
+    unit: r.unit,
+    quantity: r.quantity,
+    cost_usd: r.costUsd,
+    cost_inr: r.costInr,
+  }));
+
+  const onConflict =
+    subject.kind === 'script' ? 'script_id,entry_kind,unit' : 'idempotency_key';
+
+  const { error } = await db
+    .from('cost_ledger')
+    .upsert(rows, { onConflict, ignoreDuplicates: true });
+
+  if (error) {
+    // Not swallowed. Money moved and the row did not land, which is the one accounting
+    // failure this project cannot tolerate quietly — cost-per-video cannot be backfilled.
+    const what =
+      subject.kind === 'script' ? `script ${subject.scriptId}` : `concept ${subject.conceptId}`;
+    throw new Error(
+      `Cost ledger write failed for ${what} after the call was billed: ${error.message}`,
+    );
+  }
+}
