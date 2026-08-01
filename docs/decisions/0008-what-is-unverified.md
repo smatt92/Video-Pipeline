@@ -264,6 +264,33 @@ from reading the SDK rather than from calling it — chiefly that webhooks carry
 secret in a header rather than a signature, that `withPolling` must be explicitly disabled,
 and that cancel is best-effort. See 0004.
 
+### 6. Stage 5 — every part of it
+
+Submit, callback, confirmation and ingest are all written and none has run. The vendor host
+is refused here and a webhook cannot reach a sandbox, so this is the leg with the least
+evidence behind it in the whole project.
+
+Unproven, in order of how much rests on it:
+
+- **The confirmation is the security control and has never been exercised.** The callback
+  carries a shared secret rather than a signature, so a leaked secret forges a completion.
+  The only thing preventing a forged completion from landing an asset is that the status
+  URL is *constructed* in `drivers/video-status.ts` from our own stored job id, never taken
+  from the request. Steps 4 and 6 of the Gate 4 runbook exist to break this deliberately.
+- **The status vocabulary.** `confirm.ts` matches the vendor's status strings with regexes
+  read from documentation. A different spelling leaves a confirmed generation stuck at
+  `queued` — visible, at least, rather than silently wrong.
+- **`/v1/job-sets/{id}` as the status path**, and `results.raw.url` as the asset location.
+- **Ingest is not wired at all**, and says so: `confirmAndIngest` returns the URL and marks
+  the enqueue `TODO(gate-4)`. A generation that succeeds with no `assets` row is the
+  expected state at this gate, not a bug.
+- **The ffmpeg normalisation has never been executed.** h264 / yuv420p / 1080x1920 / 30fps,
+  scale-then-pad rather than crop. Runs in a Trigger container this environment cannot reach.
+
+**To verify:** walk `docs/decisions/0009-gate-4-runbook.md`. It is written step by step
+with what each should produce and what a failure at that point means, because three of
+those failures look identical from the outside and have different causes.
+
 ## Gates, and where each can run
 
 | Gate | Runnable in this environment? |

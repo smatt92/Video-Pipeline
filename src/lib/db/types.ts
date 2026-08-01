@@ -19,8 +19,11 @@ export type Database = {
           id: string
           kind: string
           meta: Json
+          normalize_error: string | null
+          normalized_at: string | null
           public_url: string | null
-          r2_key: string
+          source_meta: Json | null
+          storage_key: string
           width: number | null
         }
         Insert: {
@@ -32,8 +35,11 @@ export type Database = {
           id?: string
           kind: string
           meta?: Json
+          normalize_error?: string | null
+          normalized_at?: string | null
           public_url?: string | null
-          r2_key: string
+          source_meta?: Json | null
+          storage_key: string
           width?: number | null
         }
         Update: {
@@ -45,8 +51,11 @@ export type Database = {
           id?: string
           kind?: string
           meta?: Json
+          normalize_error?: string | null
+          normalized_at?: string | null
           public_url?: string | null
-          r2_key?: string
+          source_meta?: Json | null
+          storage_key?: string
           width?: number | null
         }
         Relationships: [
@@ -55,6 +64,13 @@ export type Database = {
             columns: ["generation_id"]
             isOneToOne: false
             referencedRelation: "generations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "v_unconfirmed_terminal_generations"
             referencedColumns: ["id"]
           },
         ]
@@ -255,6 +271,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "cost_ledger_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "v_unconfirmed_terminal_generations"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "cost_ledger_render_id_fkey"
             columns: ["render_id"]
             isOneToOne: false
@@ -382,6 +405,7 @@ export type Database = {
         Row: {
           attempt: number
           completed_at: string | null
+          confirmed_at: string | null
           cost_inr: number | null
           credits_spent: number | null
           driver: string
@@ -406,6 +430,7 @@ export type Database = {
         Insert: {
           attempt?: number
           completed_at?: string | null
+          confirmed_at?: string | null
           cost_inr?: number | null
           credits_spent?: number | null
           driver: string
@@ -430,6 +455,7 @@ export type Database = {
         Update: {
           attempt?: number
           completed_at?: string | null
+          confirmed_at?: string | null
           cost_inr?: number | null
           credits_spent?: number | null
           driver?: string
@@ -457,6 +483,13 @@ export type Database = {
             columns: ["parent_generation_id"]
             isOneToOne: false
             referencedRelation: "generations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generations_parent_generation_id_fkey"
+            columns: ["parent_generation_id"]
+            isOneToOne: false
+            referencedRelation: "v_unconfirmed_terminal_generations"
             referencedColumns: ["id"]
           },
           {
@@ -1786,6 +1819,55 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_script_vo_status"
             referencedColumns: ["script_id"]
+          },
+        ]
+      }
+      v_unconfirmed_terminal_generations: {
+        Row: {
+          completed_at: string | null
+          external_job_id: string | null
+          id: string | null
+          shot_id: string | null
+          status: string | null
+          webhook_received_at: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          external_job_id?: string | null
+          id?: string | null
+          shot_id?: string | null
+          status?: string | null
+          webhook_received_at?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          external_job_id?: string | null
+          id?: string | null
+          shot_id?: string | null
+          status?: string | null
+          webhook_received_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generations_shot_id_fkey"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "shots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generations_shot_id_fkey"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "v_shot_readiness"
+            referencedColumns: ["shot_id"]
+          },
+          {
+            foreignKeyName: "generations_shot_id_fkey"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "v_unresolved_shots"
+            referencedColumns: ["shot_id"]
           },
         ]
       }
