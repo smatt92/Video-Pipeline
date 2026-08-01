@@ -145,7 +145,7 @@ export type LlmCostSubject =
  * same script and the old key rejected the second one. Also what makes cost-per-stage
  * answerable — the first question anyone asks when cost per video is higher than expected.
  */
-export type PipelineStage = '03-script' | '04-shotlist';
+export type PipelineStage = '03-script' | '04-shotlist' | '06-voice';
 
 /**
  * Write the ledger rows for a drafting call.

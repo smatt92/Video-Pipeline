@@ -23,7 +23,8 @@
     "check:drift": "node scripts/check-drift.mjs",
     "verify:vault": "node scripts/verify-vault.mjs",
     "verify:storage": "node --env-file-if-exists=.env.local scripts/verify-storage.mjs",
-    "verify:script": "tsc -p tsconfig.verify.json && node --env-file-if-exists=.env.local scripts/verify-script-draft.mjs"
+    "verify:script": "tsc -p tsconfig.verify.json && node --env-file-if-exists=.env.local scripts/verify-script-draft.mjs",
+    "test:timings": "tsc -p tsconfig.verify.json && node scripts/test-voice-timings.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

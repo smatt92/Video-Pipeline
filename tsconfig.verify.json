@@ -28,6 +28,7 @@
   "include": [
     "src/lib/script/**/*.ts",
     "src/lib/shots/**/*.ts",
+    "src/lib/voice/**/*.ts",
     "src/lib/cost/**/*.ts",
     "src/lib/prompts/**/*.ts"
   ]

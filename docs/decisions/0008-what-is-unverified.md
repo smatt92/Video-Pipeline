@@ -165,6 +165,57 @@ that `profiles.id` actually equals `auth.users.id` in practice given there is no
 (§3), and that the magic-link round trip lands on `/auth/callback` with a usable code.
 Walking the wizard on the preview is the test.
 
+### 4b. Stage 6 has never called the voice vendor
+
+`api.elevenlabs.io` is refused by this environment's egress policy, so every shape in
+`src/lib/drivers/audio-tts.ts` is read from documentation. What is unproven, in order of
+how likely it is to be wrong:
+
+- **The response shape.** `normalized_alignment` with three parallel arrays. If the real
+  field is named differently or nested, the Zod parse fails and stage 6 returns
+  `bad_response` rather than producing wrong timings — which is the correct failure, but it
+  is still a failure that only a real call reveals.
+- **`request-id` as a response *header*.** Stitching depends on it entirely. If it arrives
+  in the body instead, every chunk becomes an independent generation and the voice drifts
+  mid-script — and that failure is silent, because nothing errors.
+- **The error strings.** `too_many_concurrent_requests` and `system_busy` are mapped to
+  different dispositions (queue versus jittered backoff) and matched by regex against the
+  response body. A different spelling collapses both into `upstream`, which backs off when
+  it should queue.
+- **The character caps.** 5k for `eleven_v3`, 10k for `eleven_multilingual_v2`. Chunking
+  refuses to exceed them, so a wrong cap means either rejected requests or chunks smaller
+  than they need to be.
+
+What *is* proven is the part that does not need the vendor. `pnpm test:timings` exercises
+the character→word converter and the shot-duration derivation across sixteen cases: word
+boundaries, whitespace belonging to no word, mismatched array lengths throwing rather than
+pairing silently, offsets across a chunk seam, a silent shot keeping its authored duration,
+and a drifted span falling back rather than collapsing to zero. It also asserts the schema
+**rejects** a response carrying only the raw `alignment` — on the fixture's own numbers,
+timings drawn from the raw alignment put a shot boundary 0.4s early on a line containing a
+currency substitution.
+
+Two of those tests failed on first run. Both were wrong expectations of mine, not wrong
+code — which is the argument for having written them.
+
+The fixture in `src/lib/voice/__fixtures__/` is **hand-built from documentation, not
+captured.** Its README says so, and replacing it is the verification.
+
+**To verify:** with a key in `.env.local` and the host reachable,
+
+```
+curl -s -X POST \
+  "https://api.elevenlabs.io/v1/text-to-speech/<voice_id>/with-timestamps" \
+  -H "xi-api-key: $ELEVENLABS_API_KEY" -H "content-type: application/json" \
+  -d '{"text":"GTA cost $5.","model_id":"eleven_v3"}' \
+  -D headers.txt -o src/lib/voice/__fixtures__/documented-shape.json
+grep -i '^request-id' headers.txt   # proves the stitching assumption
+pnpm test:timings                    # must pass unchanged against the real response
+```
+
+If `test:timings` fails against a captured response, the converter was written against a
+fiction and the failing assertion names which part.
+
 ### 5. Stage 3 has never called the model
 
 `src/trigger/03-script.ts` and everything under it — the prompt, the schema, the structure

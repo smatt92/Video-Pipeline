@@ -282,6 +282,13 @@ export type Database = {
             referencedRelation: "v_script_cost"
             referencedColumns: ["script_id"]
           },
+          {
+            foreignKeyName: "cost_ledger_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_vo_status"
+            referencedColumns: ["script_id"]
+          },
         ]
       }
       credit_purchases: {
@@ -880,10 +887,44 @@ export type Database = {
         }
         Relationships: []
       }
+      pronunciation_dictionaries: {
+        Row: {
+          created_at: string
+          id: string
+          language: string
+          name: string
+          rules_changed_at: string
+          synced_at: string | null
+          vendor_dictionary_id: string | null
+          vendor_version_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          language?: string
+          name: string
+          rules_changed_at?: string
+          synced_at?: string | null
+          vendor_dictionary_id?: string | null
+          vendor_version_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          language?: string
+          name?: string
+          rules_changed_at?: string
+          synced_at?: string | null
+          vendor_dictionary_id?: string | null
+          vendor_version_id?: string | null
+        }
+        Relationships: []
+      }
       pronunciations: {
         Row: {
           alphabet: string | null
           created_at: string
+          dictionary_id: string | null
           grapheme: string
           id: string
           kind: string
@@ -894,6 +935,7 @@ export type Database = {
         Insert: {
           alphabet?: string | null
           created_at?: string
+          dictionary_id?: string | null
           grapheme: string
           id?: string
           kind: string
@@ -904,6 +946,7 @@ export type Database = {
         Update: {
           alphabet?: string | null
           created_at?: string
+          dictionary_id?: string | null
           grapheme?: string
           id?: string
           kind?: string
@@ -911,7 +954,22 @@ export type Database = {
           notes?: string | null
           replacement?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "pronunciations_dictionary_id_fkey"
+            columns: ["dictionary_id"]
+            isOneToOne: false
+            referencedRelation: "pronunciation_dictionaries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pronunciations_dictionary_id_fkey"
+            columns: ["dictionary_id"]
+            isOneToOne: false
+            referencedRelation: "v_pronunciation_locators"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       publications: {
         Row: {
@@ -1116,6 +1174,13 @@ export type Database = {
             referencedRelation: "v_script_cost"
             referencedColumns: ["script_id"]
           },
+          {
+            foreignKeyName: "renders_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_vo_status"
+            referencedColumns: ["script_id"]
+          },
         ]
       }
       reviews: {
@@ -1309,6 +1374,13 @@ export type Database = {
             referencedRelation: "v_script_cost"
             referencedColumns: ["script_id"]
           },
+          {
+            foreignKeyName: "shots_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_vo_status"
+            referencedColumns: ["script_id"]
+          },
         ]
       }
       studio_sessions: {
@@ -1376,6 +1448,13 @@ export type Database = {
             referencedRelation: "v_script_cost"
             referencedColumns: ["script_id"]
           },
+          {
+            foreignKeyName: "studio_sessions_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_vo_status"
+            referencedColumns: ["script_id"]
+          },
         ]
       }
       trend_signals: {
@@ -1419,10 +1498,12 @@ export type Database = {
           cost_inr: number | null
           created_at: string
           driver: string
+          duration_s: number | null
           id: string
           language: string
           model: string
           offset_s: number
+          request_id: string | null
           script_id: string
           seed: number | null
           text_in: string
@@ -1436,10 +1517,12 @@ export type Database = {
           cost_inr?: number | null
           created_at?: string
           driver: string
+          duration_s?: number | null
           id?: string
           language?: string
           model: string
           offset_s?: number
+          request_id?: string | null
           script_id: string
           seed?: number | null
           text_in: string
@@ -1453,10 +1536,12 @@ export type Database = {
           cost_inr?: number | null
           created_at?: string
           driver?: string
+          duration_s?: number | null
           id?: string
           language?: string
           model?: string
           offset_s?: number
+          request_id?: string | null
           script_id?: string
           seed?: number | null
           text_in?: string
@@ -1483,6 +1568,13 @@ export type Database = {
             columns: ["script_id"]
             isOneToOne: false
             referencedRelation: "v_script_cost"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "vo_takes_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_vo_status"
             referencedColumns: ["script_id"]
           },
         ]
@@ -1516,6 +1608,42 @@ export type Database = {
           last_purchase_at: string | null
           next_expiry: string | null
           slug: string | null
+        }
+        Relationships: []
+      }
+      v_pronunciation_locators: {
+        Row: {
+          id: string | null
+          language: string | null
+          name: string | null
+          never_synced: boolean | null
+          rules: number | null
+          stale: boolean | null
+          synced_at: string | null
+          vendor_dictionary_id: string | null
+          vendor_version_id: string | null
+        }
+        Insert: {
+          id?: string | null
+          language?: string | null
+          name?: string | null
+          never_synced?: never
+          rules?: never
+          stale?: never
+          synced_at?: string | null
+          vendor_dictionary_id?: string | null
+          vendor_version_id?: string | null
+        }
+        Update: {
+          id?: string | null
+          language?: string | null
+          name?: string | null
+          never_synced?: never
+          rules?: never
+          stale?: never
+          synced_at?: string | null
+          vendor_dictionary_id?: string | null
+          vendor_version_id?: string | null
         }
         Relationships: []
       }
@@ -1563,6 +1691,13 @@ export type Database = {
             referencedRelation: "v_script_cost"
             referencedColumns: ["script_id"]
           },
+          {
+            foreignKeyName: "renders_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_vo_status"
+            referencedColumns: ["script_id"]
+          },
         ]
       }
       v_script_cost: {
@@ -1573,6 +1708,20 @@ export type Database = {
           generations_used: number | null
           generations_wasted: number | null
           script_id: string | null
+        }
+        Relationships: []
+      }
+      v_script_vo_status: {
+        Row: {
+          characters_billed: number | null
+          fully_stitched: boolean | null
+          script_id: string | null
+          shots: number | null
+          shots_timed: number | null
+          takes: number | null
+          total_duration_s: number | null
+          vo_chars: number | null
+          vo_text: string | null
         }
         Relationships: []
       }
@@ -1631,6 +1780,13 @@ export type Database = {
             referencedRelation: "v_script_cost"
             referencedColumns: ["script_id"]
           },
+          {
+            foreignKeyName: "shots_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_vo_status"
+            referencedColumns: ["script_id"]
+          },
         ]
       }
       v_unresolved_shots: {
@@ -1659,6 +1815,13 @@ export type Database = {
             columns: ["script_id"]
             isOneToOne: false
             referencedRelation: "v_script_cost"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "shots_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_vo_status"
             referencedColumns: ["script_id"]
           },
         ]

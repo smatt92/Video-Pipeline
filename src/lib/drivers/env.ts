@@ -52,6 +52,11 @@ export const driverEnvSchema = z.object({
 
   HIGGSFIELD_API_BASE_URL: z.url().default('https://platform.higgsfield.ai'),
 
+  // ── ElevenLabs ────────────────────────────────────────────────────────────
+  // Local-development fallback only, like the others. The authoritative source is the
+  // integration record, whose credential lives in Vault.
+  ELEVENLABS_API_KEY: nonEmpty('ELEVENLABS_API_KEY').optional(),
+
   // ── fal.ai ────────────────────────────────────────────────────────────────
   // The second driver. Its job is to keep the interface honest; it is not on the
   // critical path, so it may be absent in environments that only exercise the primary.
