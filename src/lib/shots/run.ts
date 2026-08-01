@@ -66,6 +66,7 @@ export function shotRowsFor(p: {
       script_id: p.scriptId,
       idx: s.idx,
       description: s.description,
+      shot_kind: s.shotKind,
       // Provisional and labelled as such. Stage 6 overwrites it from real word timings and
       // flips duration_source, which is the audio-first inversion 0004 exists for: the
       // cheap artifact defines the timeline the expensive one satisfies.
@@ -179,7 +180,7 @@ export async function runShotlist(
   // and produces unresolved shots with a note, not an error.
   const { data: libraryRows } = await db
     .from('prompts')
-    .select('id, name, driver, model, template, params, tags, version');
+    .select('id, name, driver, model, template, params, tags, version, is_active, win_rate');
 
   const library: LibraryPrompt[] = (libraryRows ?? []).map((p) => ({
     id: p.id,
@@ -193,13 +194,20 @@ export async function runShotlist(
         : {},
     tags: p.tags ?? [],
     version: p.version,
+    isActive: p.is_active,
+    winRate: p.win_rate === null ? null : Number(p.win_rate),
   }));
 
   const compiled = new Map(
     shotlist.shots.map((s) => [
       s.idx,
       compileShot(
-        { description: s.description, intent: s.intent, durationS: s.authoredDurationS },
+        {
+          description: s.description,
+          intent: s.intent,
+          durationS: s.authoredDurationS,
+          shotKind: s.shotKind,
+        },
         library,
         videoDriver,
       ),

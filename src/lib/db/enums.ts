@@ -174,6 +174,28 @@ export type PronunciationKind = z.infer<typeof pronunciationKind>;
 export const concurrencySource = z.enum(['default', 'tier', 'manual']);
 export type ConcurrencySource = z.infer<typeof concurrencySource>;
 
+/**
+ * What kind of frame a shot is — the signal a generation recipe is selected on.
+ *
+ * Mirrors src/lib/shots/kinds.ts, which carries the descriptions. Closed because an open
+ * vocabulary stops matching within a month: three spellings of one idea return nothing,
+ * and the failure reads as "no recipe yet" rather than as "your tags disagree".
+ */
+export const shotKind = z.enum([
+  'establishing',
+  'subject_medium',
+  'detail_macro',
+  'action_insert',
+  'environment_move',
+  'abstract',
+  'graphic_plate',
+]);
+export type ShotKind = z.infer<typeof shotKind>;
+
+/** Where a library recipe came from. Closed so "what produced our working recipes?" is answerable. */
+export const promptProvenance = z.enum(['claude-code-mcp', 'manual', 'imported']);
+export type PromptProvenance = z.infer<typeof promptProvenance>;
+
 export const ENUM_CONSTRAINT_MAP = {
   'channels.platform': channelPlatform,
   'concepts.status': conceptStatus,
@@ -200,4 +222,6 @@ export const ENUM_CONSTRAINT_MAP = {
   'pronunciations.kind': pronunciationKind,
   'pronunciations.alphabet': phoneticAlphabet,
   'integrations.concurrency_source': concurrencySource,
+  'shots.shot_kind': shotKind,
+  'prompts.discovered_in': promptProvenance,
 } as const;

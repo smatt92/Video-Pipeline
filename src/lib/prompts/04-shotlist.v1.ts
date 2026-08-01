@@ -29,6 +29,8 @@
  * failure rather than a silently wrong timeline.
  */
 
+import { shotKindMenu } from '../shots/kinds';
+
 export const PROMPT_ID = '04-shotlist';
 export const PROMPT_VERSION = 1;
 export const PROMPT_REF = `${PROMPT_ID}.v${PROMPT_VERSION}`;
@@ -55,6 +57,9 @@ occasionally two points share one. Decide from what is being said.
 WHAT YOU RETURN
 For each shot, in order:
 
+- kind: which of the shot kinds below this frame is. Pick from the list; it is closed.
+  This is what a generation recipe gets selected on, so it has to describe the frame you
+  actually wrote, not the one you would prefer to have written.
 - covers: the exact stretch of the voiceover spoken over this shot, copied VERBATIM from
   the vo_text you were given. Character for character, including punctuation. The shots'
   covers strings, concatenated in order, must reconstruct the whole vo_text with nothing
@@ -75,6 +80,13 @@ from a library of recipes that have actually been tested, and a plausible-soundi
 parameter you invented would cost real money to discover was wrong. Describe the shot;
 something downstream translates it.
 
+SHOT KINDS
+{{SHOT_KINDS}}
+
+Do not use every kind, and do not cycle through them for the sake of it. Pick the one that
+fits each frame. If two videos in a row would produce the same sequence of kinds, the
+problem is the shots, not the vocabulary.
+
 VISUAL VARIETY
 Consecutive shots should differ in more than their subject. If every shot is a
 medium-close on a talking subject, the video is a slideshow with a voiceover. Vary the
@@ -84,7 +96,7 @@ WHAT NOT TO WRITE
 No text overlays or on-screen captions — those are added at assembly and describing them
 here duplicates a decision made elsewhere. No shot that depends on a specific real person,
 logo or trademark. No "cut to", "we see", "camera pans" phrasing in the description; write
-the frame, not the edit instruction.`;
+the frame, not the edit instruction.`.replace('{{SHOT_KINDS}}', shotKindMenu());
 
 export function buildUserMessage(input: ShotlistPromptInput): string {
   const beats = input.beats

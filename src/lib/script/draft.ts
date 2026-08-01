@@ -46,6 +46,27 @@ const ENDPOINT = '/v1/messages';
  *  tokens; the headroom is for the reasoning, not the output. */
 const MAX_TOKENS = 8_000;
 
+/**
+ * ── Do not lower the reasoning effort to save money ──────────────────────────
+ *
+ * Thinking is on by default on this model and dominates the bill: a real run produced 924
+ * output tokens for a 415-character script, so roughly 70% of the ₹3.01 was reasoning.
+ * Disabling it is the obvious cost lever and it is the wrong one.
+ *
+ * The arithmetic first. At thirty scripts a month the saving is about ₹63, against ₹300 to
+ * ₹1200 of video generation *per video*. It is a rounding error on the number that matters.
+ *
+ * The real argument is compliance. `structure_hash` exists because YouTube's
+ * inauthentic-content policy disqualifies "templated scripts with minor substitutions"
+ * (ARCHITECTURE.md §0.2), and the defence is that the beat structure genuinely varies per
+ * concept. Three real drafts produced 3, 4 and 4 beats, with a CTA twice out of three —
+ * the model deciding structure from the material rather than filling a fixed skeleton.
+ * Reasoning is the most likely source of that variation, so lowering effort trades
+ * monetisation margin for a rounding error.
+ *
+ * Revisit on quality grounds if the scripts get worse. Never on cost.
+ */
+
 export interface TokenUsage {
   inputTokens: number;
   outputTokens: number;

@@ -467,6 +467,13 @@ export type Database = {
             referencedColumns: ["shot_id"]
           },
           {
+            foreignKeyName: "generations_shot_id_fkey"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "v_unresolved_shots"
+            referencedColumns: ["shot_id"]
+          },
+          {
             foreignKeyName: "generations_studio_session_id_fkey"
             columns: ["studio_session_id"]
             isOneToOne: false
@@ -813,9 +820,12 @@ export type Database = {
           discovered_in: string | null
           driver: string
           id: string
+          is_active: boolean
           model: string
           name: string
           params: Json
+          retired_at: string | null
+          retired_reason: string | null
           sample_output_url: string | null
           tags: string[] | null
           template: string
@@ -827,9 +837,12 @@ export type Database = {
           discovered_in?: string | null
           driver: string
           id?: string
+          is_active?: boolean
           model: string
           name: string
           params?: Json
+          retired_at?: string | null
+          retired_reason?: string | null
           sample_output_url?: string | null
           tags?: string[] | null
           template: string
@@ -841,9 +854,12 @@ export type Database = {
           discovered_in?: string | null
           driver?: string
           id?: string
+          is_active?: boolean
           model?: string
           name?: string
           params?: Json
+          retired_at?: string | null
+          retired_reason?: string | null
           sample_output_url?: string | null
           tags?: string[] | null
           template?: string
@@ -1211,6 +1227,7 @@ export type Database = {
           idx: number
           prompt_id: string | null
           script_id: string
+          shot_kind: string | null
           status: string
           vo_char_end: number | null
           vo_char_start: number | null
@@ -1228,6 +1245,7 @@ export type Database = {
           idx: number
           prompt_id?: string | null
           script_id: string
+          shot_kind?: string | null
           status?: string
           vo_char_end?: number | null
           vo_char_start?: number | null
@@ -1245,6 +1263,7 @@ export type Database = {
           idx?: number
           prompt_id?: string | null
           script_id?: string
+          shot_kind?: string | null
           status?: string
           vo_char_end?: number | null
           vo_char_start?: number | null
@@ -1488,6 +1507,16 @@ export type Database = {
         }
         Relationships: []
       }
+      v_recipe_gaps: {
+        Row: {
+          active_recipes: number | null
+          scripts_blocked: number | null
+          seconds_waiting: number | null
+          shot_kind: string | null
+          shots_waiting: number | null
+        }
+        Relationships: []
+      }
       v_render_cost: {
         Row: {
           cost_inr: number | null
@@ -1532,8 +1561,10 @@ export type Database = {
           duration_source: string | null
           generatable: boolean | null
           idx: number | null
+          matching_recipes: number | null
           script_id: string | null
           shot_id: string | null
+          shot_kind: string | null
           status: string | null
         }
         Insert: {
@@ -1543,8 +1574,10 @@ export type Database = {
           duration_source?: string | null
           generatable?: never
           idx?: number | null
+          matching_recipes?: never
           script_id?: string | null
           shot_id?: string | null
+          shot_kind?: string | null
           status?: string | null
         }
         Update: {
@@ -1554,9 +1587,41 @@ export type Database = {
           duration_source?: string | null
           generatable?: never
           idx?: number | null
+          matching_recipes?: never
           script_id?: string | null
           shot_id?: string | null
+          shot_kind?: string | null
           status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shots_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shots_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_cost"
+            referencedColumns: ["script_id"]
+          },
+        ]
+      }
+      v_unresolved_shots: {
+        Row: {
+          channel_name: string | null
+          compile_note: string | null
+          concept_title: string | null
+          description: string | null
+          duration_s: number | null
+          idx: number | null
+          matching_recipes: number | null
+          script_id: string | null
+          shot_id: string | null
+          shot_kind: string | null
         }
         Relationships: [
           {

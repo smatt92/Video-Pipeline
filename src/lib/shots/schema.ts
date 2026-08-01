@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { SHOT_KIND_KEYS } from './kinds';
+
 /**
  * The shape a shotlist must arrive in, and the rules a decode constraint cannot express.
  *
@@ -13,6 +15,9 @@ import { z } from 'zod';
  */
 
 export const ShotDraftSchema = z.object({
+  kind: z
+    .enum(SHOT_KIND_KEYS as [string, ...string[]])
+    .describe('What kind of frame this is. The signal a generation recipe is selected on.'),
   covers: z
     .string()
     .min(1)
@@ -36,6 +41,8 @@ export interface ResolvedShot {
   idx: number;
   description: string;
   intent: string;
+  /** From the closed vocabulary. Enforced by the decode constraint, so never invalid. */
+  shotKind: string;
   covers: string;
   voCharStart: number;
   voCharEnd: number;
@@ -98,6 +105,7 @@ export function resolveShotSpans(shotlist: Shotlist, voText: string): ResolveRes
       idx,
       description: shot.description,
       intent: shot.intent,
+      shotKind: shot.kind,
       covers,
       voCharStart: at,
       voCharEnd: end,

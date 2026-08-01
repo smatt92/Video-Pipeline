@@ -1,21 +1,33 @@
 -- Migration 0009 — shots need to say which words they cover, and whether they compiled
 --
--- Two gaps found while building stage 4. Both are the shape the earlier ones were: a
--- design that was correct for the case in front of it, used by a stage that arrived later.
+-- Three gaps found while building stage 4. Two are the usual shape — a design correct for
+-- the case in front of it, used by a stage that arrived later. Section 1 is not: it is a
+-- specification error, of the same class as `cost_ledger_has_subject` in 0006.
+--
+-- The distinction is worth keeping because the fixes differ. Evolution you absorb;
+-- a spec that contradicts itself on its own page you catch by re-reading before writing
+-- the schema.
 
 -- ─────────────────────────────────────────────────────────────
 -- 1. A shot has to know which speech it covers
 --
--- Migration 0004 inverted the DAG so voice runs ahead of video: word timings define the
--- beat boundaries, and those boundaries set `shots.duration_s` with
--- `duration_source = 'derived_from_vo'`. That is the right ordering and it is currently
--- uncomputable, because nothing connects a shot to a range of speech.
+-- ** A SPECIFICATION ERROR, not an evolution. **
 --
--- The assumption underneath 0004 is that shots and beats are one-to-one. They are not, and
--- stage 4 is where that becomes obvious: a 3-beat script routinely wants 5 or 6 shots,
--- because a beat is an argument and a shot is a camera. As soon as one beat produces two
--- shots, "the beat's word timings set the shot's duration" has no answer for which half of
--- the words belongs to which shot.
+-- Addendum 02 §1 specifies that word timings derive shot durations, and the schema it
+-- specifies gives `shots` no link to a range of speech. It was uncomputable as written, on
+-- the page that wrote it — the same class of mistake as `cost_ledger_has_subject` in 0006,
+-- where a constraint was written without checking it against a stage the same document
+-- already described.
+--
+-- Migration 0004 encoded that inversion faithfully: voice runs ahead of video, word timings
+-- define the beat boundaries, and those boundaries set `shots.duration_s` with
+-- `duration_source = 'derived_from_vo'`. Faithful to a spec that could not be implemented.
+--
+-- The assumption underneath is that shots and beats are one-to-one. They are not, and stage
+-- 4 is where that becomes obvious: a 3-beat script routinely wants 5 or 6 shots, because a
+-- beat is an argument and a shot is a camera. The first real run split one beat into a slow
+-- wide and a fast cut. As soon as one beat produces two shots, "the beat's word timings set
+-- the shot's duration" has no answer for which half of the words belongs to which.
 --
 -- Character offsets into `scripts.vo_text` rather than a beat index, because `vo_text` is
 -- the exact string sent for synthesis and word timings come back aligned to it. A beat
