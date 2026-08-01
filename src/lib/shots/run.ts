@@ -180,7 +180,7 @@ export async function runShotlist(
   // and produces unresolved shots with a note, not an error.
   const { data: libraryRows } = await db
     .from('prompts')
-    .select('id, name, driver, model, template, params, tags, version, is_active, win_rate');
+    .select('id, name, driver, model, template, params, tags, version, is_active, win_rate, times_compiled, last_compiled_at, accepts_character_ref');
 
   const library: LibraryPrompt[] = (libraryRows ?? []).map((p) => ({
     id: p.id,
@@ -196,23 +196,32 @@ export async function runShotlist(
     version: p.version,
     isActive: p.is_active,
     winRate: p.win_rate === null ? null : Number(p.win_rate),
+    timesCompiled: p.times_compiled,
+    lastCompiledAt: p.last_compiled_at,
+    acceptsCharacterRef: p.accepts_character_ref,
   }));
 
-  const compiled = new Map(
-    shotlist.shots.map((s) => [
-      s.idx,
-      compileShot(
-        {
-          description: s.description,
-          intent: s.intent,
-          durationS: s.authoredDurationS,
-          shotKind: s.shotKind,
-        },
-        library,
-        videoDriver,
-      ),
-    ]),
-  );
+  // Sequential, not a map — each shot's choice depends on what the previous ones took, so
+  // that one recipe cannot compile a whole video and cannot appear twice running. Rotation
+  // is a property of the shotlist, not of any single shot.
+  const compiled = new Map<number, ReturnType<typeof compileShot>>();
+  const chosen: string[] = [];
+
+  for (const s of shotlist.shots) {
+    const outcome = compileShot(
+      {
+        description: s.description,
+        intent: s.intent,
+        durationS: s.authoredDurationS,
+        shotKind: s.shotKind,
+      },
+      library,
+      videoDriver,
+      chosen,
+    );
+    compiled.set(s.idx, outcome);
+    if (outcome.resolved) chosen.push(outcome.promptId);
+  }
 
   // ── 5. The rows ────────────────────────────────────────────────────────────
   //
@@ -236,6 +245,16 @@ export async function runShotlist(
       );
     }
     throw new Error(`Shot insert failed after a billed call: ${insertError?.message}`);
+  }
+
+  // Record the draws. After the insert, so a failed write does not inflate an exposure
+  // counter for shots that do not exist — the counter drives rotation, and a phantom draw
+  // pushes a recipe down the queue for a video that was never made.
+  for (const promptId of chosen) {
+    const { error } = await db.rpc('record_recipe_compile', { p_prompt_id: promptId });
+    // Logged, not thrown. The shots are written and generatable; a missed counter degrades
+    // rotation slightly and is not worth failing a whole shotlist over.
+    if (error) log.error('recipe counter not recorded', { promptId, error: error.message });
   }
 
   // ── 6. The cost row ────────────────────────────────────────────────────────

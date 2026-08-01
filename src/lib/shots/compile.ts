@@ -32,6 +32,12 @@ export interface LibraryPrompt {
   isActive: boolean;
   /** Null until generations exist. Ordering falls back to version when it is. */
   winRate: number | null;
+  /** Exposure. Rises on every compile, good clip or not. */
+  timesCompiled: number;
+  /** Drives least-recently-used rotation within a rank tier. */
+  lastCompiledAt: string | null;
+  /** Proven to carry a character reference through to the output. */
+  acceptsCharacterRef: boolean;
 }
 
 export interface CompileInput {
@@ -40,7 +46,17 @@ export interface CompileInput {
   durationS: number;
   /** From the closed vocabulary in `kinds.ts`. Null on shots written before it existed. */
   shotKind: string | null;
+  /** Set when a recurring character must appear. Requires a recipe that carries the ref. */
+  characterId?: string | null;
 }
+
+/**
+ * Recipes already chosen for other shots in the same script, in order.
+ *
+ * Passed in rather than read from the database because the decision is per-script and the
+ * rows do not exist yet — stage 4 compiles the whole shotlist before writing any of it.
+ */
+export type ScriptSoFar = readonly string[];
 
 export type CompileOutcome =
   | {
@@ -87,10 +103,12 @@ export function fillTemplate(
  *   2. `prompts.is_active` is true.
  *   3. `shots.shot_kind` appears in `prompts.tags`.
  *
- * Then, among the survivors, ordered by:
+ *   4. If the shot has a `character_id`, the recipe must accept a character reference.
+ *      A recipe that does not carries no way to keep the person consistent, and silently
+ *      dropping the reference generates a stranger — which destroys the one asset that
+ *      compounds (Addendum 04 §3).
  *
- *   a. `win_rate` descending, **nulls last**.
- *   b. `version` descending.
+ * Then selection, which is **not** simply "take the best one".
  *
  * ── Why tags, and why a closed vocabulary ────────────────────────────────────
  *
@@ -106,25 +124,67 @@ export function fillTemplate(
  * across them silently returns nothing — the worst failure available here, because it
  * reads as "no recipe yet" rather than as "your tags disagree".
  *
- * ── Why win_rate ordering degrades rather than waits ─────────────────────────
+ * ── Rotation: tier by rank, then least-recently-used ────────────────────────
  *
- * `win_rate` is backfilled from generation outcomes and no generation has ever run, so it
- * is null everywhere. Sorting by it alone is a coin toss wearing a confident interface;
- * refusing to sort until it exists means the library is unusable until it is fully
- * measured. Nulls last, then version, gives a defensible order today that quietly
- * improves into a real ranking as evidence arrives — and never silently prefers an
- * unmeasured recipe to a measured one.
+ * Taking the top-ranked recipe every time is what produced the problem this section
+ * exists for: one recipe compiled three of seven shots on the first real shotlist, and
+ * would have kept doing that on every script forever. `structure_hash` protects script
+ * variety and nothing protected visual variety — and repeated identical camera moves are
+ * more legible to a policy reviewer than beat structure is, because a reviewer watches
+ * rather than diffs.
  *
+ * So: rank the candidates, keep everything within the top tier, and pick the
+ * **least recently compiled** member of that tier.
+ *
+ * Least-recently-used rather than random, for three reasons.
+ *
+ *   Random can repeat by chance. LRU cannot: it guarantees the spread that random only
+ *   makes likely, which matters when the thing being spread is a compliance signal.
+ *
+ *   Random is unreproducible. Stage 4 must be replayable from stage 3's output
+ *   (CLAUDE.md), and "replay produced different vendor parameters" makes a cost
+ *   investigation impossible. LRU is a pure function of stored state, so a replay against
+ *   the same state gives the same answer, and against a grown library gives a *better* one
+ *   — which is the correct behaviour rather than a compromise.
+ *
+ *   Random cannot be explained. `compile_note` says which recipe was chosen and why; "the
+ *   dice said so" is not a reason anyone can act on when a clip comes back wrong.
+ *
+ * Weighting by `win_rate` is not an alternative to this, it is the tier definition. Once
+ * win rates exist, the tier is "recipes within `TIER_MARGIN` of the best", and LRU picks
+ * inside it — so a measurably worse recipe never gets rotated in for the sake of variety,
+ * and equally good ones share the load. Until then every unmeasured recipe is one tier and
+ * rotation is pure LRU, which is exactly right for the state of the evidence.
+ *
+ * ── And never twice in a row within one script ───────────────────────────────
+ *
+ * A hard constraint on top of the ordering, not a preference. Three slow push-ins in a
+ * thirty-second video is visible to a viewer, not just to a policy reviewer, and the tier
+ * ordering alone would allow it whenever one recipe is genuinely the least-recently-used
+ * twice running. If an alternative exists the previous shot's recipe is excluded outright;
+ * if none exists it is used again and the note says so, because refusing to compile a shot
+ * over an aesthetic preference would be worse than repeating a camera.
  * ── Ties are reported, not hidden ────────────────────────────────────────────
  *
  * When several recipes fit equally, the note says so. Which one was chosen is arbitrary,
  * and an arbitrary choice that presents as a decision is how a worse recipe quietly wins
  * for a month.
  */
+/**
+ * How close to the best a recipe must rank to stay in the rotation tier.
+ *
+ * Only meaningful once win rates exist. Five points: a recipe landing 60% of the time is
+ * not meaningfully worse than one landing 62%, and excluding it concentrates every shot of
+ * that kind onto one camera for a difference inside the noise of a small sample.
+ */
+const TIER_MARGIN = 0.05;
+
 export function compileShot(
   shot: CompileInput,
   library: LibraryPrompt[],
   driver: string,
+  /** Recipes already chosen for earlier shots in this script, in order. */
+  scriptSoFar: ScriptSoFar = [],
 ): CompileOutcome {
   if (library.length === 0) {
     return {
@@ -158,19 +218,9 @@ export function compileShot(
     };
   }
 
-  const candidates = forDriver
-    .filter((p) => p.tags.includes(shot.shotKind!))
-    // win_rate desc with nulls last, then version desc. See the note above.
-    .sort((a, b) => {
-      if (a.winRate !== b.winRate) {
-        if (a.winRate === null) return 1;
-        if (b.winRate === null) return -1;
-        return b.winRate - a.winRate;
-      }
-      return b.version - a.version;
-    });
+  const byKind = forDriver.filter((p) => p.tags.includes(shot.shotKind!));
 
-  if (candidates.length === 0) {
+  if (byKind.length === 0) {
     const kindsAvailable = [...new Set(forDriver.flatMap((p) => p.tags))].sort();
     return {
       resolved: false,
@@ -182,7 +232,56 @@ export function compileShot(
     };
   }
 
-  const prompt = candidates[0];
+  // A character reference that cannot be carried is not a degraded result, it is a
+  // different person. Refused rather than dropped.
+  const eligible = shot.characterId
+    ? byKind.filter((p) => p.acceptsCharacterRef)
+    : byKind;
+
+  if (eligible.length === 0) {
+    return {
+      resolved: false,
+      note:
+        `This shot carries a character reference and no "${shot.shotKind}" recipe for ` +
+        `"${driver}" is marked as carrying one through. ${byKind.length} recipe` +
+        `${byKind.length === 1 ? '' : 's'} match the kind but would drop the reference and ` +
+        'generate a different-looking person, which is worse than not generating it.',
+    };
+  }
+
+  // Rank, then take the tier. Nulls rank last and form their own tier, so an unmeasured
+  // recipe never displaces a measured one.
+  const ranked = [...eligible].sort((a, b) => {
+    if (a.winRate !== b.winRate) {
+      if (a.winRate === null) return 1;
+      if (b.winRate === null) return -1;
+      return b.winRate - a.winRate;
+    }
+    return b.version - a.version;
+  });
+
+  const best = ranked[0].winRate;
+  const tier =
+    best === null
+      ? ranked.filter((p) => p.winRate === null)
+      : ranked.filter((p) => p.winRate !== null && best - p.winRate <= TIER_MARGIN);
+
+  // Never the same camera twice running inside one script, if there is any alternative.
+  const previous = scriptSoFar[scriptSoFar.length - 1];
+  const withoutRepeat = tier.filter((p) => p.id !== previous);
+  const rotatable = withoutRepeat.length > 0 ? withoutRepeat : tier;
+  const forcedRepeat = withoutRepeat.length === 0 && tier.length > 0 && previous !== undefined
+    && tier.some((p) => p.id === previous);
+
+  // Least recently compiled first. Never-compiled sorts earliest, so a new recipe is used
+  // before an established one — which is what makes a freshly discovered recipe actually
+  // enter circulation rather than sitting behind whichever one is already ahead.
+  const prompt = [...rotatable].sort((a, b) => {
+    const at = a.lastCompiledAt ?? '';
+    const bt = b.lastCompiledAt ?? '';
+    if (at !== bt) return at < bt ? -1 : 1;
+    return a.timesCompiled - b.timesCompiled;
+  })[0];
 
   const filled = fillTemplate(prompt.template, {
     description: shot.description,
@@ -200,10 +299,6 @@ export function compileShot(
     };
   }
 
-  const tie = candidates.filter(
-    (c) => c.winRate === prompt.winRate && c.version === prompt.version,
-  ).length;
-
   return {
     resolved: true,
     promptId: prompt.id,
@@ -220,9 +315,13 @@ export function compileShot(
     },
     note:
       `Compiled from "${prompt.name}" v${prompt.version} ` +
-      `(${prompt.winRate === null ? 'win rate unmeasured' : `win rate ${(prompt.winRate * 100).toFixed(0)}%`})` +
-      (tie > 1
-        ? `. ${tie} recipes tied on rank — the choice between them is arbitrary until win rates exist.`
-        : '.'),
+      `(${prompt.winRate === null ? 'win rate unmeasured' : `win rate ${(prompt.winRate * 100).toFixed(0)}%`}, ` +
+      `used ${prompt.timesCompiled}x). ` +
+      (tier.length > 1
+        ? `Rotated: ${tier.length} recipes in the top tier, this one least recently used.`
+        : `Only recipe in the top tier — this kind has no rotation until a second is discovered.`) +
+      (forcedRepeat
+        ? ' Repeats the previous shot, because no alternative exists for this kind.'
+        : ''),
   };
 }

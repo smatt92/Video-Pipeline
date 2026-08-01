@@ -47,6 +47,15 @@ export const RecipeInputSchema = z.object({
   tags: z.array(z.enum(SHOT_KIND_KEYS as [string, ...string[]])).min(1),
   sampleOutputUrl: z.url().optional().or(z.literal('')),
   discoveredIn: z.enum(['claude-code-mcp', 'manual', 'imported']),
+  /**
+   * Whether this recipe was *observed* to carry a character reference through to the
+   * output. Orthogonal to tags — a character can appear in any framing.
+   *
+   * Only tick it if you watched the clip and the person was the right person. Compilation
+   * refuses to use a recipe without it for a shot that has a character, and a wrongly
+   * ticked box turns that refusal into a stranger in your video.
+   */
+  acceptsCharacterRef: z.boolean().default(false),
 });
 
 export type RecipeInput = z.infer<typeof RecipeInputSchema>;
@@ -69,6 +78,21 @@ export interface Recipe {
   createdAt: string;
   /** How many shots have been compiled from it. Why it can never be hard-deleted. */
   shotsUsing: number;
+  /** Exposure — rises on every compile, good clip or not. */
+  timesCompiled: number;
+  /** Value — rises only when a published render contains a clip from it. */
+  timesShipped: number;
+  lastCompiledAt: string | null;
+  acceptsCharacterRef: boolean;
+}
+
+export interface KindCoverage {
+  shotKind: string;
+  activeRecipes: number;
+  compiles: number;
+  ships: number;
+  /** Share of this kind's compiles taken by its busiest recipe. 1.0 = one camera, always. */
+  topRecipeShare: number | null;
 }
 
 export type SaveResult =
@@ -176,6 +200,7 @@ export async function saveRecipe(db: Db, input: RecipeInput): Promise<SaveResult
       tags: parsed.data.tags,
       version,
       discovered_in: parsed.data.discoveredIn,
+      accepts_character_ref: parsed.data.acceptsCharacterRef,
       sample_output_url: parsed.data.sampleOutputUrl || null,
       is_active: true,
       // Left null on purpose. Backfilled from generation success and QA outcomes; no
@@ -230,7 +255,7 @@ export async function listRecipes(db: Db): Promise<Recipe[]> {
   const [{ data: rows }, { data: usage }] = await Promise.all([
     db
       .from('prompts')
-      .select('id, name, driver, model, template, params, tags, version, is_active, retired_at, retired_reason, discovered_in, sample_output_url, win_rate, created_at')
+      .select('id, name, driver, model, template, params, tags, version, is_active, retired_at, retired_reason, discovered_in, sample_output_url, win_rate, created_at, times_compiled, times_shipped, last_compiled_at, accepts_character_ref')
       .order('name')
       .order('version', { ascending: false }),
     db.from('shots').select('prompt_id').not('prompt_id', 'is', null),
@@ -261,7 +286,34 @@ export async function listRecipes(db: Db): Promise<Recipe[]> {
     winRate: p.win_rate === null ? null : Number(p.win_rate),
     createdAt: p.created_at,
     shotsUsing: counts.get(p.id) ?? 0,
+    timesCompiled: p.times_compiled,
+    timesShipped: p.times_shipped,
+    lastCompiledAt: p.last_compiled_at,
+    acceptsCharacterRef: p.accepts_character_ref,
   }));
+}
+
+/**
+ * Recipes per shot kind, and how concentrated their use is.
+ *
+ * One active recipe is a warning rather than a tick: every shot of that kind in every video
+ * gets the same camera, and repeated identical camera moves are more legible to a policy
+ * reviewer than beat structure is — a reviewer watches, they do not diff.
+ */
+export async function kindCoverage(db: Db): Promise<KindCoverage[]> {
+  const { data } = await db
+    .from('v_recipe_coverage')
+    .select('shot_kind, active_recipes, compiles, ships, top_recipe_share');
+
+  return (data ?? [])
+    .filter((r): r is typeof r & { shot_kind: string } => r.shot_kind !== null)
+    .map((r) => ({
+      shotKind: r.shot_kind,
+      activeRecipes: Number(r.active_recipes ?? 0),
+      compiles: Number(r.compiles ?? 0),
+      ships: Number(r.ships ?? 0),
+      topRecipeShare: r.top_recipe_share === null ? null : Number(r.top_recipe_share),
+    }));
 }
 
 export interface RecipeGap {

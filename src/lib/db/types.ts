@@ -816,11 +816,13 @@ export type Database = {
       }
       prompts: {
         Row: {
+          accepts_character_ref: boolean
           created_at: string
           discovered_in: string | null
           driver: string
           id: string
           is_active: boolean
+          last_compiled_at: string | null
           model: string
           name: string
           params: Json
@@ -829,15 +831,19 @@ export type Database = {
           sample_output_url: string | null
           tags: string[] | null
           template: string
+          times_compiled: number
+          times_shipped: number
           version: number
           win_rate: number | null
         }
         Insert: {
+          accepts_character_ref?: boolean
           created_at?: string
           discovered_in?: string | null
           driver: string
           id?: string
           is_active?: boolean
+          last_compiled_at?: string | null
           model: string
           name: string
           params?: Json
@@ -846,15 +852,19 @@ export type Database = {
           sample_output_url?: string | null
           tags?: string[] | null
           template: string
+          times_compiled?: number
+          times_shipped?: number
           version?: number
           win_rate?: number | null
         }
         Update: {
+          accepts_character_ref?: boolean
           created_at?: string
           discovered_in?: string | null
           driver?: string
           id?: string
           is_active?: boolean
+          last_compiled_at?: string | null
           model?: string
           name?: string
           params?: Json
@@ -863,6 +873,8 @@ export type Database = {
           sample_output_url?: string | null
           tags?: string[] | null
           template?: string
+          times_compiled?: number
+          times_shipped?: number
           version?: number
           win_rate?: number | null
         }
@@ -1507,6 +1519,17 @@ export type Database = {
         }
         Relationships: []
       }
+      v_recipe_coverage: {
+        Row: {
+          active_recipes: number | null
+          compiles: number | null
+          ships: number | null
+          shot_kind: string | null
+          top_recipe_share: number | null
+          total_recipes: number | null
+        }
+        Relationships: []
+      }
       v_recipe_gaps: {
         Row: {
           active_recipes: number | null
@@ -1668,6 +1691,10 @@ export type Database = {
       pgp_armor_headers: {
         Args: { "": string }
         Returns: Record<string, unknown>[]
+      }
+      record_recipe_compile: {
+        Args: { p_prompt_id: string }
+        Returns: undefined
       }
     }
     Enums: {

@@ -2,7 +2,7 @@ import { RecipeForm, RecipeRow } from '@/components/library/recipe-form';
 import { Panel, SectionHeader } from '@/components/settings/parts';
 import { serverClient } from '@/lib/db/server';
 import { INTEGRATION_CATALOG } from '@/lib/drivers/catalog';
-import { listRecipes, recipeGaps, unresolvedShots } from '@/lib/prompts/library';
+import { kindCoverage, listRecipes, recipeGaps, unresolvedShots } from '@/lib/prompts/library';
 import { shotKind } from '@/lib/shots/kinds';
 
 /**
@@ -20,10 +20,11 @@ export const metadata = { title: 'Kiln — prompt library' };
 
 export default async function PromptLibraryPage() {
   const db = serverClient();
-  const [recipes, gaps, blocked] = await Promise.all([
+  const [recipes, gaps, blocked, coverage] = await Promise.all([
     listRecipes(db),
     recipeGaps(db),
     unresolvedShots(db),
+    kindCoverage(db),
   ]);
 
   const drivers = [
@@ -123,6 +124,82 @@ export default async function PromptLibraryPage() {
             state.
           </p>
         )}
+      </Panel>
+
+      {/* ── Coverage: one recipe is a warning, not a tick ─────────────────── */}
+      <Panel className="mb-6">
+        <div
+          className="flex items-baseline gap-3 border-b px-4 py-3"
+          style={{ borderColor: 'var(--border-subtle)' }}
+        >
+          <span className="text-[13.5px] font-medium">Coverage per shot kind</span>
+          <span
+            className="max-w-[62ch] text-[11.5px] leading-relaxed"
+            style={{ color: 'var(--text-faint)' }}
+          >
+            One recipe is a warning. Every shot of that kind, in every video, gets the same
+            camera — and repeated camera moves are more legible to a policy reviewer than
+            beat structure is, because a reviewer watches rather than diffs.
+          </span>
+        </div>
+
+        <table className="w-full text-[12px]">
+          <thead>
+            <tr style={{ color: 'var(--text-faint)' }}>
+              {['shot kind', 'recipes', 'compiled', 'shipped', 'top share'].map((h, i) => (
+                <th
+                  key={h}
+                  className={`px-4 py-2 font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] ${
+                    i === 0 ? 'text-left' : 'text-right'
+                  }`}
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {coverage.map((c) => {
+              // Nothing, one, or several. The middle case is the one that needs a colour.
+              const tone =
+                c.activeRecipes === 0
+                  ? 'var(--text-faint)'
+                  : c.activeRecipes === 1
+                    ? 'var(--state-review)'
+                    : 'var(--state-live)';
+              // Concentration only means something once there is a choice to concentrate.
+              const concentrated =
+                c.activeRecipes > 1 && c.topRecipeShare !== null && c.topRecipeShare > 0.6;
+
+              return (
+                <tr key={c.shotKind} style={{ color: 'var(--text-secondary)' }}>
+                  <td className="px-4 py-2 font-mono text-[11.5px]">{c.shotKind}</td>
+                  <td className="px-4 py-2 text-right font-mono" style={{ color: tone }}>
+                    {c.activeRecipes}
+                    {c.activeRecipes === 1 && ' · one camera'}
+                  </td>
+                  <td className="px-4 py-2 text-right font-mono">{c.compiles}</td>
+                  <td className="px-4 py-2 text-right font-mono">{c.ships}</td>
+                  <td
+                    className="px-4 py-2 text-right font-mono"
+                    style={{ color: concentrated ? 'var(--state-review)' : undefined }}
+                  >
+                    {c.topRecipeShare === null ? '—' : `${(c.topRecipeShare * 100).toFixed(0)}%`}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        <p
+          className="border-t px-4 py-3 text-[11.5px] leading-relaxed"
+          style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-muted)' }}
+        >
+          Top share is how much of a kind&rsquo;s use went to its busiest recipe. High with
+          several recipes available means rotation is not spreading — which is a bug, not a
+          preference. Shipped stays at zero until stage 10 exists.
+        </p>
       </Panel>
 
       {/* ── The blocked shots themselves ─────────────────────────────────── */}

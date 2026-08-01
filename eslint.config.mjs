@@ -13,7 +13,16 @@ const compat = new FlatCompat({ baseDirectory: __dirname });
 const eslintConfig = [
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
   {
-    ignores: ['node_modules/**', '.next/**', 'out/**', 'build/**', 'next-env.d.ts'],
+    // .verify-build is tsc output for `pnpm verify:script` — CommonJS on purpose, so
+    // linting it reports require() as an error against code nobody wrote.
+    ignores: [
+      'node_modules/**',
+      '.next/**',
+      'out/**',
+      'build/**',
+      '.verify-build/**',
+      'next-env.d.ts',
+    ],
   },
   {
     rules: {

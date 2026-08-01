@@ -168,6 +168,19 @@ export function RecipeForm({ drivers }: { drivers: string[] }) {
         </span>
       </fieldset>
 
+      <label className="flex items-start gap-2 text-[12.5px]">
+        <input type="checkbox" name="accepts_character_ref" className="mt-[3px]" />
+        <span>
+          Carries a character reference
+          <span className="block text-[11.5px]" style={{ color: 'var(--text-faint)' }}>
+            Only tick this if you watched the clip and the person was the right person.
+            Compilation refuses to use a recipe without it for a shot that has a character,
+            and a wrongly ticked box turns that refusal into a stranger in the video.
+            Orthogonal to shot kind — a character can appear in any framing.
+          </span>
+        </span>
+      </label>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-[5px]">
           <Label>Sample output URL</Label>
@@ -230,7 +243,7 @@ export function RecipeRow({ recipe }: { recipe: Recipe }) {
         <span className="ml-auto font-mono text-[11px]" style={{ color: 'var(--text-faint)' }}>
           {recipe.winRate === null ? 'win rate unmeasured' : `${(recipe.winRate * 100).toFixed(0)}% win`}
           {' · '}
-          {recipe.shotsUsing} shot{recipe.shotsUsing === 1 ? '' : 's'}
+          compiled {recipe.timesCompiled}× · shipped {recipe.timesShipped}×
         </span>
       </div>
 
@@ -244,6 +257,14 @@ export function RecipeRow({ recipe }: { recipe: Recipe }) {
             {t}
           </span>
         ))}
+        {recipe.acceptsCharacterRef && (
+          <span
+            className="rounded-xs px-[6px] py-[2px] font-mono text-[10.5px]"
+            style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+          >
+            carries character ref
+          </span>
+        )}
         <span className="font-mono text-[10.5px]" style={{ color: 'var(--text-faint)' }}>
           {recipe.discoveredIn ?? 'provenance unrecorded'}
         </span>

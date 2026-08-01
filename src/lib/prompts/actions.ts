@@ -48,6 +48,7 @@ export async function saveRecipeAction(
       params: String(formData.get('params') ?? ''),
       tags: formData.getAll('tags').map(String),
       sampleOutputUrl: String(formData.get('sample_output_url') ?? ''),
+      acceptsCharacterRef: formData.get('accepts_character_ref') === 'on',
       // Defaulted to the MCP session, because that is what this table is for. Anything
       // else has to be chosen deliberately, so "manual" never becomes the accidental
       // provenance on a recipe nobody actually tested.
