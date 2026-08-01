@@ -1,0 +1,223 @@
+/*
+ * Kiln — design tokens.
+ *
+ * Three layers, and the boundary between them is enforced by lint:
+ *
+ *   1. PRIMITIVES  --k-*      raw OKLCH ramps. This file only. Never referenced by a
+ *                             component, ever. `pnpm lint` fails the build if one appears
+ *                             outside src/styles/.
+ *   2. SEMANTIC    --surface-*, --text-*, --border-*, --accent, --state-*
+ *                             what a thing means, not what colour it is. Components use
+ *                             these and nothing else.
+ *   3. COMPONENT   --sidebar-*, --glyph-*
+ *                             where a single component needs a value the semantic layer
+ *                             shouldn't have to know about.
+ *
+ * The point of the split is that swapping the accent is one line in the semantic layer,
+ * not a search-and-replace through forty components. If you find yourself wanting a
+ * primitive in a component, the semantic layer is missing a name — add the name.
+ *
+ * OKLCH rather than hex because lightness is perceptually uniform: L=0.6 looks equally
+ * bright at every hue. That matters here specifically, because status colours sit next to
+ * arbitrary video thumbnails and have to hold their weight against them.
+ */
+
+:root {
+  /* ══════════════════════════════════════════════════════════════════════════
+   * LAYER 1 — PRIMITIVES.  Nothing outside this file may reference these.
+   * ══════════════════════════════════════════════════════════════════════════ */
+
+  /* Neutral ramp. Slightly warm (hue 70) rather than pure grey — pure neutrals next to
+   * video thumbnails read as dead, and the warmth is what stops the chrome looking like
+   * every other dark dashboard. */
+  --k-neutral-0: oklch(0.145 0.006 70);
+  --k-neutral-1: oklch(0.178 0.007 70);
+  --k-neutral-2: oklch(0.213 0.008 70);
+  --k-neutral-3: oklch(0.255 0.009 70);
+  --k-neutral-4: oklch(0.312 0.009 70);
+  --k-neutral-5: oklch(0.392 0.009 70);
+  --k-neutral-6: oklch(0.487 0.008 70);
+  --k-neutral-7: oklch(0.586 0.007 70);
+  --k-neutral-8: oklch(0.682 0.006 70);
+  --k-neutral-9: oklch(0.772 0.005 70);
+  --k-neutral-10: oklch(0.855 0.004 70);
+  --k-neutral-11: oklch(0.925 0.003 70);
+  --k-neutral-12: oklch(0.975 0.002 70);
+
+  /* The accent. Ember — this is a kiln. Not Linear purple, not Vercel blue. */
+  --k-ember-3: oklch(0.34 0.075 48);
+  --k-ember-5: oklch(0.52 0.135 48);
+  --k-ember-6: oklch(0.62 0.163 48);
+  --k-ember-7: oklch(0.702 0.171 48);
+  --k-ember-8: oklch(0.775 0.142 52);
+  --k-ember-10: oklch(0.885 0.075 58);
+
+  /* Status hues. Each is used for exactly one meaning; see the semantic layer. */
+  --k-amber-6: oklch(0.75 0.145 78);
+  --k-amber-3: oklch(0.36 0.062 78);
+  --k-blue-6: oklch(0.68 0.118 235);
+  --k-blue-3: oklch(0.34 0.055 235);
+  --k-green-6: oklch(0.72 0.135 152);
+  --k-green-3: oklch(0.34 0.055 152);
+  --k-red-6: oklch(0.655 0.185 22);
+  --k-red-3: oklch(0.34 0.085 22);
+  --k-violet-6: oklch(0.68 0.13 295);
+  --k-violet-3: oklch(0.34 0.06 295);
+
+  /* ══════════════════════════════════════════════════════════════════════════
+   * LAYER 2 — SEMANTIC.  Components use these.
+   * ══════════════════════════════════════════════════════════════════════════ */
+
+  /* Surfaces, darkest to lightest. -0 is the page, -3 is a raised popover. */
+  --surface-0: var(--k-neutral-0);
+  --surface-1: var(--k-neutral-1);
+  --surface-2: var(--k-neutral-2);
+  --surface-3: var(--k-neutral-3);
+  --surface-inset: oklch(0.125 0.006 70);
+
+  --text-primary: var(--k-neutral-12);
+  --text-secondary: var(--k-neutral-9);
+  --text-muted: var(--k-neutral-7);
+  --text-faint: var(--k-neutral-6);
+  --text-on-accent: var(--k-neutral-0);
+
+  --border-subtle: var(--k-neutral-2);
+  --border-default: var(--k-neutral-3);
+  --border-strong: var(--k-neutral-4);
+  --border-focus: var(--k-ember-7);
+
+  /* ── The accent. Swap these three lines and the whole product changes. ──── */
+  --accent: var(--k-ember-7);
+  --accent-hover: var(--k-ember-8);
+  --accent-muted: var(--k-ember-3);
+  --accent-contrast: var(--text-on-accent);
+
+  /* Pipeline states. One hue each, and the hue is the whole signal — nothing else in
+   * the interface is allowed to be coloured, which is what makes these readable at a
+   * glance across forty rows. */
+  --state-drafting: var(--k-neutral-7);
+  --state-drafting-bg: var(--k-neutral-2);
+  --state-generating: var(--k-violet-6);
+  --state-generating-bg: var(--k-violet-3);
+  --state-review: var(--k-amber-6);
+  --state-review-bg: var(--k-amber-3);
+  --state-blocked: var(--k-red-6);
+  --state-blocked-bg: var(--k-red-3);
+  --state-ready: var(--k-blue-6);
+  --state-ready-bg: var(--k-blue-3);
+  --state-live: var(--k-green-6);
+  --state-live-bg: var(--k-green-3);
+  --state-killed: var(--k-neutral-5);
+  --state-killed-bg: var(--k-neutral-1);
+
+  --danger: var(--k-red-6);
+  --danger-muted: var(--k-red-3);
+
+  /* ── Radii. Deliberately not Tailwind's defaults — tighter, and the jump from
+   *    control to container is larger, which is most of what stops it reading as a
+   *    default install. ─────────────────────────────────────────────────────── */
+  --radius-xs: 3px;
+  --radius-sm: 5px;
+  --radius-md: 7px;
+  --radius-lg: 11px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* ── Spacing. A 3px-derived scale rather than Tailwind's 4px, so density reads
+   *    slightly tighter than the default everyone recognises. ────────────────── */
+  --space-1: 3px;
+  --space-2: 6px;
+  --space-3: 9px;
+  --space-4: 12px;
+  --space-5: 18px;
+  --space-6: 24px;
+  --space-7: 33px;
+  --space-8: 48px;
+  --space-9: 66px;
+
+  /* ── Motion. See the reduced-motion block at the bottom of this file. ─────── */
+  --duration-instant: 70ms;
+  --duration-fast: 130ms;
+  --duration-medium: 220ms;
+  --duration-slow: 400ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  --shadow-raised: 0 1px 2px oklch(0 0 0 / 0.4), 0 4px 16px oklch(0 0 0 / 0.28);
+  --shadow-overlay: 0 8px 40px oklch(0 0 0 / 0.55);
+  /* Dimmer behind a modal. Semantic because components must not write raw colour —
+     the lint rule caught exactly this on its first run. */
+  --overlay-scrim: oklch(0 0 0 / 0.55);
+
+  /* ══════════════════════════════════════════════════════════════════════════
+   * LAYER 3 — COMPONENT
+   * ══════════════════════════════════════════════════════════════════════════ */
+
+  --sidebar-width: 260px;
+  --sidebar-bg: var(--surface-1);
+  --sidebar-item-active-bg: var(--surface-3);
+
+  --glyph-size: 9px;
+  --topbar-height: 52px;
+}
+
+/*
+ * Light theme.
+ *
+ * Dark is the default and the design is built for it — video previews read better
+ * against dark chrome, and status colour carries weight because nothing competes. Light
+ * is a courtesy, so it remaps the semantic layer only. No component knows this exists.
+ */
+:root[data-theme='light'] {
+  --surface-0: var(--k-neutral-12);
+  --surface-1: oklch(0.985 0.002 70);
+  --surface-2: var(--k-neutral-11);
+  --surface-3: var(--k-neutral-10);
+  --surface-inset: var(--k-neutral-11);
+
+  --text-primary: var(--k-neutral-1);
+  --text-secondary: var(--k-neutral-4);
+  --text-muted: var(--k-neutral-5);
+  --text-faint: var(--k-neutral-6);
+
+  --border-subtle: var(--k-neutral-10);
+  --border-default: var(--k-neutral-9);
+  --border-strong: var(--k-neutral-8);
+
+  --accent: var(--k-ember-6);
+  --accent-hover: var(--k-ember-5);
+  --accent-muted: var(--k-ember-10);
+  --accent-contrast: var(--k-neutral-12);
+
+  --sidebar-bg: var(--k-neutral-11);
+  --sidebar-item-active-bg: var(--k-neutral-12);
+
+  --shadow-raised: 0 1px 2px oklch(0 0 0 / 0.08), 0 4px 16px oklch(0 0 0 / 0.06);
+  --shadow-overlay: 0 8px 40px oklch(0 0 0 / 0.14);
+  --overlay-scrim: oklch(0.145 0.006 70 / 0.35);
+}
+
+/*
+ * Reduced motion.
+ *
+ * 0.01ms, never 0. A zero-duration transition may not fire `transitionend` at all, and
+ * anything driving a state machine off that event hangs forever — the accessibility fix
+ * becomes a functional bug for exactly the users who asked for it.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-instant: 0.01ms;
+    --duration-fast: 0.01ms;
+    --duration-medium: 0.01ms;
+    --duration-slow: 0.01ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
