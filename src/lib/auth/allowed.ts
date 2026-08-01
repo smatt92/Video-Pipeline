@@ -9,6 +9,11 @@ import { readAuthConfig } from './config';
  * middleware runs on the Edge runtime, where a Proxy over the environment resolves to
  * `undefined` and an allowlist compared against `undefined` admits everyone.
  *
+ * `ALLOWED_EMAIL` holds a comma-separated list — see `parseAllowlist` for why it stopped
+ * being one address. Membership is exact after trimming and lower-casing; there is no
+ * domain matching, because `@company.com` as an allowlist entry is how a workspace holding
+ * live vendor credentials acquires users nobody chose.
+ *
  * ── Why an allowlist and not "is authenticated" ──────────────────────────────
  *
  * Settings holds every vendor credential in the product. A Supabase project accepts
@@ -33,7 +38,7 @@ export function checkEmail(email: string | null | undefined): AuthDecision {
   if (!config.ok) return { ok: false, reason: 'unconfigured' };
 
   const candidate = email?.trim().toLowerCase();
-  if (!candidate || candidate !== config.config.allowedEmail.toLowerCase()) {
+  if (!candidate || !config.config.allowedEmails.includes(candidate)) {
     return { ok: false, reason: 'not_allowed' };
   }
 

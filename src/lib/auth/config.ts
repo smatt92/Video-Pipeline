@@ -54,17 +54,58 @@ function read(name: RequiredVar): string | null {
   return dynamic ? dynamic : null;
 }
 
+/**
+ * ── ALLOWED_EMAIL is a list ──────────────────────────────────────────────────
+ *
+ * It was a single address, because the spec said "the single address permitted to sign
+ * in" and Kiln is single-tenant. Then two addresses arrived in one variable, comma
+ * separated, and an exact-match comparison refused *both* of them — including the one that
+ * was spelled correctly. A gate that locks out the person configuring it is not failing
+ * safe, it is failing.
+ *
+ * Single-tenant is still the design: this is not multi-user, there are no per-user
+ * permissions, and everyone on the list sees the same workspace and the same credentials.
+ * What changed is only how many people are trusted with that one workspace, which was
+ * always going to be more than one the moment a second person needed to look at it.
+ *
+ * Malformed entries are dropped individually and *named*, never silently included and
+ * never allowed to poison the whole list. Getting `ALLOWED_EMAIL` slightly wrong should
+ * cost the entry that is wrong, not every entry beside it.
+ */
+const EMAIL_SHAPE = /^[^\s@,]+@[^\s@,]+\.[^\s@,]+$/;
+
+export interface AllowlistParse {
+  allowed: string[];
+  /** Entries that are not email-shaped. Surfaced, never silently dropped. */
+  malformed: string[];
+}
+
+export function parseAllowlist(raw: string | null): AllowlistParse {
+  const entries = (raw ?? '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+
+  return {
+    allowed: entries.filter((e) => EMAIL_SHAPE.test(e)),
+    malformed: entries.filter((e) => !EMAIL_SHAPE.test(e)),
+  };
+}
+
 export interface AuthConfig {
   supabaseUrl: string;
   supabaseAnonKey: string;
-  allowedEmail: string;
+  allowedEmails: string[];
+  /** Entries in ALLOWED_EMAIL that were not email-shaped, for the 503 page and the log. */
+  malformedEmails: string[];
 }
 
 export type AuthConfigResult =
   | { ok: true; config: AuthConfig }
   /** Names only. A misconfiguration report that quotes values is a credential leak with
-   *  a helpful tone. */
-  | { ok: false; missing: RequiredVar[] };
+   *  a helpful tone. Malformed *email* entries are the one exception — an address is not
+   *  a secret, and naming the typo is the entire point. */
+  | { ok: false; missing: RequiredVar[]; malformedEmails: string[] };
 
 /**
  * Read the gate's configuration.
@@ -79,14 +120,23 @@ export type AuthConfigResult =
  */
 export function readAuthConfig(): AuthConfigResult {
   const missing = REQUIRED_VARS.filter((name) => read(name) === null);
-  if (missing.length > 0) return { ok: false, missing };
+  const { allowed, malformed } = parseAllowlist(read('ALLOWED_EMAIL'));
+
+  // A set variable containing nothing usable is a missing variable. Reporting it as
+  // present would send someone to check their Supabase keys.
+  if (allowed.length === 0 && !missing.includes('ALLOWED_EMAIL')) {
+    missing.push('ALLOWED_EMAIL');
+  }
+
+  if (missing.length > 0) return { ok: false, missing, malformedEmails: malformed };
 
   return {
     ok: true,
     config: {
       supabaseUrl: read('NEXT_PUBLIC_SUPABASE_URL')!,
       supabaseAnonKey: read('NEXT_PUBLIC_SUPABASE_ANON_KEY')!,
-      allowedEmail: read('ALLOWED_EMAIL')!,
+      allowedEmails: allowed,
+      malformedEmails: malformed,
     },
   };
 }

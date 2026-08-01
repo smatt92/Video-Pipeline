@@ -500,3 +500,158 @@ export async function createChannel(_prev: StepState, formData: FormData): Promi
     return fail(err);
   }
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Credit purchases — the expiry clock, entered by hand
+// ═════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Record a credit purchase.
+ *
+ * Manual because the vendor gives us nothing to read: the SDK has no account surface, and
+ * guessing an undocumented REST path to report a confident-looking balance is worse than
+ * asking. Same shape as the rate card — a number only the account holder can see.
+ *
+ * One row per purchase, because credits expire per purchase. Two top-ups are two clocks
+ * running at once, and a single "credits purchased" field is wrong the second time anyone
+ * buys any.
+ *
+ * `amount_usd` is optional and worth filling in: credits ÷ dollars is the only route to a
+ * verified per-credit rate, and a verified rate is what unblocks onboarding step 6.
+ */
+export async function recordCreditPurchase(
+  slug: string,
+  _prev: StepState,
+  formData: FormData,
+): Promise<StepState> {
+  try {
+    await currentUser();
+    const db = serverClient();
+
+    const credits = Number(String(formData.get('credits') ?? '').trim());
+    const purchasedAt = String(formData.get('purchased_at') ?? '').trim();
+    const expiryDays = Number(String(formData.get('expiry_days') ?? '90').trim());
+    const amountRaw = String(formData.get('amount_usd') ?? '').trim();
+    const note = String(formData.get('note') ?? '').trim();
+
+    if (!Number.isFinite(credits) || credits <= 0) {
+      return { status: 'error', message: 'Credits must be a positive number.' };
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(purchasedAt)) {
+      return { status: 'error', message: 'Purchase date must be a date.' };
+    }
+    if (!Number.isFinite(expiryDays) || expiryDays <= 0) {
+      return { status: 'error', message: 'Expiry window must be a positive number of days.' };
+    }
+
+    const amount = amountRaw ? Number(amountRaw) : null;
+    if (amount !== null && (!Number.isFinite(amount) || amount < 0)) {
+      return { status: 'error', message: 'Amount must be a number.' };
+    }
+
+    const { data: integration } = await db
+      .from('integrations')
+      .select('id')
+      .eq('slug', slug)
+      .maybeSingle();
+
+    if (!integration) throw new Error(`No integrations row for "${slug}".`);
+
+    const { data, error } = await db
+      .from('credit_purchases')
+      .insert({
+        integration_id: integration.id,
+        credits,
+        purchased_at: purchasedAt,
+        expiry_days: expiryDays,
+        amount_usd: amount,
+        note: note || null,
+      })
+      .select('expires_at')
+      .single();
+
+    if (error || !data) throw new Error(error?.message ?? 'Insert returned nothing.');
+
+    refresh();
+
+    // `expires_at` is a generated column and cannot be null, but the generated types mark
+    // every generated column nullable. Read defensively rather than asserted — the whole
+    // point of the column is that the date is right.
+    const expiresAt = data.expires_at;
+    if (!expiresAt) {
+      return { status: 'ok', message: `${credits} credits recorded.` };
+    }
+
+    const days = Math.round((new Date(expiresAt).getTime() - Date.now()) / 86_400_000);
+
+    return {
+      status: 'ok',
+      message: `${credits} credits recorded. They expire ${expiresAt} — ${days} days from today.`,
+    };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Concurrency override
+// ═════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Set the parallel-request ceiling by hand.
+ *
+ * Exists because the plan-tier read is informational and may simply not work — the
+ * subscription endpoint is documented but unproven here. When it does not, the ceiling
+ * falls back to a deliberately low default, and someone who knows the real limit should be
+ * able to say so without waiting for a probe to start working.
+ *
+ * Recorded as `manual`, which is not cosmetic: `verifyIntegration` refuses to overwrite a
+ * manual value with a probe result. A person who read their real limit off an invoice knows
+ * more than a fallback does, and a re-run of the check should not quietly undo them.
+ */
+export async function setConcurrency(
+  slug: string,
+  _prev: StepState,
+  formData: FormData,
+): Promise<StepState> {
+  try {
+    await currentUser();
+    const db = serverClient();
+
+    const raw = String(formData.get('concurrency_limit') ?? '').trim();
+
+    // Blank clears the override and hands the field back to the probe.
+    if (!raw) {
+      const { error } = await db
+        .from('integrations')
+        .update({ concurrency_limit: null, concurrency_source: 'default' })
+        .eq('slug', slug);
+      if (error) throw new Error(error.message);
+      refresh();
+      return {
+        status: 'ok',
+        message: 'Override cleared. The next check will set this from the account, or fall back to the safe default.',
+      };
+    }
+
+    const limit = Number(raw);
+    if (!Number.isInteger(limit) || limit < 1) {
+      return { status: 'error', message: 'Concurrency must be a whole number of at least 1.' };
+    }
+
+    const { error } = await db
+      .from('integrations')
+      .update({ concurrency_limit: limit, concurrency_source: 'manual' })
+      .eq('slug', slug);
+
+    if (error) throw new Error(error.message);
+    refresh();
+
+    return {
+      status: 'ok',
+      message: `Ceiling set to ${limit} parallel requests, recorded as manual. A check re-run will not overwrite it.`,
+    };
+  } catch (err) {
+    return fail(err);
+  }
+}

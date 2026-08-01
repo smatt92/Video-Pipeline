@@ -281,6 +281,57 @@ export type Database = {
           },
         ]
       }
+      credit_purchases: {
+        Row: {
+          amount_usd: number | null
+          created_at: string
+          credits: number
+          expires_at: string | null
+          expiry_days: number
+          id: string
+          integration_id: string
+          note: string | null
+          purchased_at: string
+        }
+        Insert: {
+          amount_usd?: number | null
+          created_at?: string
+          credits: number
+          expires_at?: string | null
+          expiry_days?: number
+          id?: string
+          integration_id: string
+          note?: string | null
+          purchased_at: string
+        }
+        Update: {
+          amount_usd?: number | null
+          created_at?: string
+          credits?: number
+          expires_at?: string | null
+          expiry_days?: number
+          id?: string
+          integration_id?: string
+          note?: string | null
+          purchased_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_purchases_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "integrations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_purchases_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "v_credit_position"
+            referencedColumns: ["integration_id"]
+          },
+        ]
+      }
       driver_health: {
         Row: {
           consecutive_failures: number
@@ -447,6 +498,13 @@ export type Database = {
             referencedRelation: "integrations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "integration_checks_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "v_credit_position"
+            referencedColumns: ["integration_id"]
+          },
         ]
       }
       integration_events: {
@@ -478,6 +536,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "integrations"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integration_events_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "v_credit_position"
+            referencedColumns: ["integration_id"]
           },
         ]
       }
@@ -517,10 +582,19 @@ export type Database = {
             referencedRelation: "integrations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "integration_secrets_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "v_credit_position"
+            referencedColumns: ["integration_id"]
+          },
         ]
       }
       integrations: {
         Row: {
+          concurrency_limit: number | null
+          concurrency_source: string
           config: Json
           created_at: string
           id: string
@@ -533,6 +607,8 @@ export type Database = {
           slug: string
         }
         Insert: {
+          concurrency_limit?: number | null
+          concurrency_source?: string
           config?: Json
           created_at?: string
           id?: string
@@ -545,6 +621,8 @@ export type Database = {
           slug: string
         }
         Update: {
+          concurrency_limit?: number | null
+          concurrency_source?: string
           config?: Json
           created_at?: string
           id?: string
@@ -1364,6 +1442,18 @@ export type Database = {
           cost_per_1k_views: number | null
           publication_id: string | null
           views: number | null
+        }
+        Relationships: []
+      }
+      v_credit_position: {
+        Row: {
+          credits_expired: number | null
+          credits_unexpired: number | null
+          days_until_expiry: number | null
+          integration_id: string | null
+          last_purchase_at: string | null
+          next_expiry: string | null
+          slug: string | null
         }
         Relationships: []
       }

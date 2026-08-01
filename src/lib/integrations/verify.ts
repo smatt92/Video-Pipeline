@@ -137,7 +137,7 @@ export async function verifyIntegration(db: Db, slug: string): Promise<VerifyOut
 
   const { data: integration, error: lookupError } = await db
     .from('integrations')
-    .select('id, config')
+    .select('id, config, concurrency_source')
     .eq('slug', slug)
     .maybeSingle();
 
@@ -171,19 +171,39 @@ export async function verifyIntegration(db: Db, slug: string): Promise<VerifyOut
   // and a probe returning something unserialisable — a Date, an Error — would be stored as
   // `{}` or throw at the driver. This is the same rule as everywhere else: never assert a
   // shape onto a value that crossed a boundary, make it satisfy the shape.
-  const learned: Json = JSON.parse(
-    JSON.stringify(Object.assign({}, ...checks.map((c) => c.config ?? {}))),
+  const learnedRaw: Record<string, unknown> = Object.assign(
+    {},
+    ...checks.map((c) => c.config ?? {}),
   );
+
+  const learned: Json = JSON.parse(JSON.stringify(learnedRaw));
 
   const existingConfig: Json =
     integration.config && typeof integration.config === 'object' && !Array.isArray(integration.config)
       ? integration.config
       : {};
 
+  // Concurrency is promoted out of `config` onto its own columns (0008). The queue reads
+  // it at run time and must not have to dig through a jsonb blob for the one number that
+  // decides how hard it hits a vendor — and `concurrency_source` is what stops a screen
+  // presenting a fallback as a reading.
+  const concurrencyLimit =
+    typeof learnedRaw.concurrency_limit === 'number' ? learnedRaw.concurrency_limit : null;
+  const concurrencySource =
+    learnedRaw.concurrency_source === 'tier' || learnedRaw.concurrency_source === 'default'
+      ? learnedRaw.concurrency_source
+      : null;
+
   const { error: updateError } = await db
     .from('integrations')
     .update({
       last_checked_at: now,
+      // A manual override is never overwritten by a probe. Someone who typed a real limit
+      // read off an invoice knows more than a fallback does, and a check re-run should not
+      // quietly undo them.
+      ...(concurrencyLimit !== null && integration.concurrency_source !== 'manual'
+        ? { concurrency_limit: concurrencyLimit, concurrency_source: concurrencySource ?? 'default' }
+        : {}),
       // Left untouched on failure. Overwriting it with null would erase the record that
       // this integration *did* work at some point, which is the first thing anyone wants
       // to know when it stops.

@@ -41,6 +41,10 @@ function blockingDependency(
 export default async function IntegrationsPage() {
   const views = await allIntegrationViews();
 
+  // Computed once on the server. A client-side `new Date()` would disagree with the
+  // generated `expires_at` across a timezone boundary and mark a live tranche lapsed.
+  const today = new Date().toISOString().slice(0, 10);
+
   const unverified = views.filter((v) => v.state !== 'verified');
 
   return (
@@ -66,7 +70,12 @@ export default async function IntegrationsPage() {
       )}
 
       {views.map((v) => (
-        <IntegrationCard key={v.slug} view={v} blockedBy={blockingDependency(v, views)} />
+        <IntegrationCard
+          key={v.slug}
+          view={v}
+          blockedBy={blockingDependency(v, views)}
+          today={today}
+        />
       ))}
     </>
   );

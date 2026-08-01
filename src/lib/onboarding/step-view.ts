@@ -38,6 +38,26 @@ export interface StepIntegrationView {
   checks: { name: string; passed: boolean; detail: string; checkedAt: string }[];
   /** Non-secret facts the last probe learned — model list, plan tier, motion count. */
   config: Record<string, unknown>;
+  /** Parallel-request ceiling, and whether anybody actually read it (0008). */
+  concurrencyLimit: number | null;
+  concurrencySource: string;
+  /** Manual credit tracking, for vendors that expose no balance but expire credits. */
+  credits: CreditPosition | null;
+}
+
+export interface CreditPosition {
+  creditsUnexpired: number;
+  creditsExpired: number;
+  nextExpiry: string | null;
+  daysUntilExpiry: number | null;
+  purchases: {
+    id: string;
+    credits: number;
+    purchasedAt: string;
+    expiresAt: string | null;
+    amountUsd: number | null;
+    note: string | null;
+  }[];
 }
 
 function stateOf(row: {
@@ -60,19 +80,37 @@ export async function integrationView(slug: string): Promise<StepIntegrationView
 
   const { data: integration } = await db
     .from('integrations')
-    .select('id, is_enabled, last_checked_at, last_verified_at, last_error, config')
+    // One string literal, not a concatenation: supabase-js infers the row type from the
+    // literal, and splitting it across lines with `+` collapses the result to an error type.
+    .select('id, is_enabled, last_checked_at, last_verified_at, last_error, config, concurrency_limit, concurrency_source')
     .eq('slug', slug)
     .maybeSingle();
 
   if (!integration) return null;
 
-  const [secrets, checksResult] = await Promise.all([
+  const [secrets, checksResult, creditPosition, purchases] = await Promise.all([
     describeSecrets(db, integration.id),
     db
       .from('integration_checks')
       .select('check_name, passed, detail, checked_at')
       .eq('integration_id', integration.id)
       .order('check_name'),
+    // Only asked for where it means something. A vendor whose credits do not expire has no
+    // clock to show, and an empty panel reads as a missing feature rather than as N/A.
+    descriptor.capabilities.creditExpiryTracking
+      ? db
+          .from('v_credit_position')
+          .select('credits_unexpired, credits_expired, next_expiry, days_until_expiry')
+          .eq('integration_id', integration.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    descriptor.capabilities.creditExpiryTracking
+      ? db
+          .from('credit_purchases')
+          .select('id, credits, purchased_at, expires_at, amount_usd, note')
+          .eq('integration_id', integration.id)
+          .order('expires_at', { ascending: false })
+      : Promise.resolve({ data: null }),
   ]);
 
   return {
@@ -95,6 +133,28 @@ export async function integrationView(slug: string): Promise<StepIntegrationView
       integration.config && typeof integration.config === 'object' && !Array.isArray(integration.config)
         ? (integration.config as Record<string, unknown>)
         : {},
+    concurrencyLimit: integration.concurrency_limit,
+    concurrencySource: integration.concurrency_source,
+    credits: descriptor.capabilities.creditExpiryTracking
+      ? {
+          creditsUnexpired: Number(creditPosition.data?.credits_unexpired ?? 0),
+          creditsExpired: Number(creditPosition.data?.credits_expired ?? 0),
+          nextExpiry: creditPosition.data?.next_expiry ?? null,
+          daysUntilExpiry:
+            creditPosition.data?.days_until_expiry === null ||
+            creditPosition.data?.days_until_expiry === undefined
+              ? null
+              : Number(creditPosition.data.days_until_expiry),
+          purchases: (purchases.data ?? []).map((p) => ({
+            id: p.id,
+            credits: Number(p.credits),
+            purchasedAt: p.purchased_at,
+            expiresAt: p.expires_at,
+            amountUsd: p.amount_usd === null ? null : Number(p.amount_usd),
+            note: p.note,
+          })),
+        }
+      : null,
   };
 }
 

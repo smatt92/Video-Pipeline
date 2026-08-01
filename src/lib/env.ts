@@ -70,13 +70,26 @@ const coreEnvSchema = z.object({
     .optional(),
 
   /**
-   * The single address permitted to sign in.
+   * The addresses permitted to sign in — a comma-separated list.
    *
-   * Settings is the highest-value target in the app — it holds every vendor credential —
-   * and "is authenticated" is not a sufficient gate when anyone can sign themselves up
-   * against a public Supabase project.
+   * Settings is the highest-value target in the app; it holds every vendor credential. "Is
+   * authenticated" is not a sufficient gate when anyone can sign themselves up against a
+   * public Supabase project.
+   *
+   * This was `z.email()`, a single address, and that was a real hazard rather than merely
+   * a limitation. `assertEnv()` validates the *whole* schema and throws if any field fails,
+   * so one comma in this variable made `serverClient()` throw — taking down every Server
+   * Action and every settings page, for a value the gate itself reads through a different
+   * path and would have handled. A field whose malformation breaks unrelated subsystems is
+   * validated at the wrong altitude.
+   *
+   * Validated loosely here, strictly in `src/lib/auth/config.ts`, which parses the list,
+   * drops malformed entries individually and names them. The gate is the place that cares.
    */
-  ALLOWED_EMAIL: z.email({ error: 'ALLOWED_EMAIL must be a single email address' }),
+  ALLOWED_EMAIL: nonEmpty('ALLOWED_EMAIL').refine(
+    (v) => v.split(',').some((e) => /^[^\s@,]+@[^\s@,]+\.[^\s@,]+$/.test(e.trim())),
+    'ALLOWED_EMAIL must contain at least one email address (comma-separated for several)',
+  ),
 
   // ── Supabase ──────────────────────────────────────────────────────────────
   // These two are the only variables in the entire schema allowed a NEXT_PUBLIC_ prefix.

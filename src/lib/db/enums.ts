@@ -163,6 +163,17 @@ export type PronunciationKind = z.infer<typeof pronunciationKind>;
  * Consumed by `pnpm check:enums`. Maps each enum above to the table and column whose
  * CHECK constraint it claims to mirror.
  */
+/**
+ * Where a parallel-request ceiling came from.
+ *
+ * Recorded because a limit that was read from the account and a limit that was assumed
+ * deserve different confidence, and a screen that cannot tell them apart will present the
+ * assumption as fact — which is how a conservative default gets quietly trusted as the real
+ * number, or a guessed-high one gets blamed on the vendor.
+ */
+export const concurrencySource = z.enum(['default', 'tier', 'manual']);
+export type ConcurrencySource = z.infer<typeof concurrencySource>;
+
 export const ENUM_CONSTRAINT_MAP = {
   'channels.platform': channelPlatform,
   'concepts.status': conceptStatus,
@@ -188,4 +199,5 @@ export const ENUM_CONSTRAINT_MAP = {
   'shots.duration_source': shotDurationSource,
   'pronunciations.kind': pronunciationKind,
   'pronunciations.alphabet': phoneticAlphabet,
+  'integrations.concurrency_source': concurrencySource,
 } as const;

@@ -88,8 +88,28 @@ function matches(pathname: string, prefixes: readonly string[]): boolean {
  * only. A misconfiguration report that quotes values is a credential leak with a helpful
  * tone.
  */
-function misconfigured(missing: readonly RequiredVar[]): NextResponse {
+/** An allowlist entry is user-supplied text going into HTML. Escaped, not trusted. */
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
+  );
+}
+
+function misconfigured(
+  missing: readonly RequiredVar[],
+  malformedEmails: readonly string[] = [],
+): NextResponse {
   const list = missing.map((v) => `<li><code>${v}</code></li>`).join('');
+
+  // Addresses are named, unlike everything else on this page. An email is not a secret,
+  // and a typo in an allowlist is invisible by construction — the gate simply refuses and
+  // says nothing, which is indistinguishable from "the magic link is broken". Naming it is
+  // the difference between a two-minute fix and an afternoon.
+  const typos = malformedEmails.length
+    ? `<p class="warn">These entries in <code>ALLOWED_EMAIL</code> are not valid addresses and
+were ignored: ${malformedEmails.map((e) => `<code>${escapeHtml(e)}</code>`).join(', ')}. A
+missing <code>.com</code> is the usual cause.</p>`
+    : '';
   const body = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -107,12 +127,14 @@ function misconfigured(missing: readonly RequiredVar[]): NextResponse {
   code { font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; color:#e6e8e9 }
   a { color:#4db6ac }
   .note { font-size:12.5px; color:#6e7679; border-top:1px solid #1e2325; padding-top:1rem }
+  .warn { color:#e0a458 }
 </style></head><body><main>
 <h1>Kiln is not configured</h1>
 <p>The gate decides who may sign in and whether setup is finished. It cannot answer either
 question, so it is refusing every request rather than serving them. These variables are
 not set on this deployment:</p>
 <ul>${list}</ul>
+${typos}
 <p>Set them and redeploy. Values are inlined into the Edge bundle at build time, so
 changing them in the dashboard does not affect a build that already shipped.</p>
 <p><a href="/login">/login</a> stays reachable, but signing in will not work until the
@@ -149,7 +171,7 @@ export async function middleware(request: NextRequest) {
   if (matches(pathname, PUBLIC_PATHS)) return NextResponse.next();
 
   const config = readAuthConfig();
-  if (!config.ok) return misconfigured(config.missing);
+  if (!config.ok) return misconfigured(config.missing, config.malformedEmails);
 
   // The response is created up front and handed to the client so that a token refresh
   // during getUser() writes its cookies somewhere that actually gets returned.

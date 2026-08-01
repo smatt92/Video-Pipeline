@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { HiggsfieldClient } from '@higgsfield/client';
 
-import type { IntegrationDescriptor } from './catalog';
+import { DEFAULT_CONCURRENCY, PLAN_TIERS, type IntegrationDescriptor } from './catalog';
 
 /**
  * Credential probes — the cheapest authenticated call each vendor offers.
@@ -21,14 +21,18 @@ import type { IntegrationDescriptor } from './catalog';
  *
  * A probe returns a list of check results, and they are not equal. `credentials` decides
  * whether the integration is usable. Everything else is worth knowing and must not gate
- * anything — the credit-balance read in particular, because the vendor SDK does not expose
- * a balance endpoint and nothing is served by blocking setup on a number we cannot get.
- * Saying so on screen is better than either failing the step or pretending the clock is
- * being watched.
+ * anything.
+ *
+ * The rule that produced that split: a check only gets to block setup if failing it means
+ * the integration cannot be used. A model list that comes back empty, a plan tier that
+ * cannot be read — those are facts worth having and terrible reasons to refuse a working
+ * credential. And a check that can *never* pass has no business existing at all; a red X
+ * that will still be red next month teaches you to ignore red Xs, which costs more than the
+ * missing fact was worth.
  */
 
 export interface CheckResult {
-  name: 'credentials' | 'round_trip' | 'balance' | 'voices' | 'models';
+  name: 'credentials' | 'round_trip' | 'voices' | 'models';
   passed: boolean;
   /** Shown to the user. Must never contain credential material. */
   detail: string;
@@ -115,12 +119,17 @@ export async function probeLlm(apiKey: string): Promise<ProbeResult> {
  * catalogue, which is also the thing shot recipes are built from, so a working credential
  * and a usable motion list are established in one call.
  *
- * **The credit balance is not read, because the SDK does not expose it.** The v2 client
- * offers generate, soul-id, upload, motions and styles — no account or balance surface at
- * all. Rather than guess an undocumented REST path and report a confident-looking number
- * from it, this returns a failed *informational* check saying the balance is unreadable.
- * Credits expire on a roughly 90-day clock and that clock matters; a screen that claims to
- * be watching it while reading nothing is worse than one that admits it cannot.
+ * **The credit balance is not probed at all.** The v2 client offers generate, soul-id,
+ * upload, motions and styles — no account or balance surface — so an earlier version
+ * reported a permanently-failing informational check saying so. That was noise rather than
+ * honesty: a red X that can never turn green teaches you to ignore red Xs, which is a worse
+ * outcome than the missing number.
+ *
+ * The balance was never the point anyway. The *expiry clock* was — credits evaporate on a
+ * roughly 90-day cycle and nothing is billed at the moment they do, so it is a cost the
+ * ledger structurally cannot see. That clock is now a manual entry, one row per purchase,
+ * in `credit_purchases` (0008). Same shape as the rate card: a number only the account
+ * holder can see, asked for rather than guessed at.
  */
 export async function probeVideo(creds: {
   apiKey: string;
@@ -156,17 +165,6 @@ export async function probeVideo(creds: {
     checks.push(failure('credentials', err));
   }
 
-  checks.push({
-    name: 'balance',
-    passed: false,
-    required: false,
-    detail:
-      'Not readable. The vendor SDK exposes no account or balance endpoint, and this ' +
-      'refuses to guess an undocumented path and report the result as a real figure. ' +
-      'Credits expire roughly 90 days from purchase — note the date somewhere you will ' +
-      'see it, because nothing here is watching that clock.',
-  });
-
   return { checks, latencyMs: Date.now() - started };
 }
 
@@ -176,14 +174,27 @@ export async function probeVideo(creds: {
 
 const ELEVENLABS_BASE = 'https://api.elevenlabs.io';
 
+function concurrencyForTier(tier: string): number | null {
+  return PLAN_TIERS.elevenlabs?.find((t) => t.tier === tier.toLowerCase())?.concurrency ?? null;
+}
+
 /**
  * Two reads: the voice list, and the subscription tier.
  *
- * The tier is the point. It decides the parallel-request ceiling the queue obeys at run
- * time, and a hardcoded number above the real limit produces a steady failure rate that
- * reads as vendor flakiness rather than as a configuration error. `PLAN_TIERS` in
- * `catalog.ts` maps a tier name to its concurrency, and the resolved number is stored on
+ * The tier decides the parallel-request ceiling the queue obeys at run time. `PLAN_TIERS`
+ * in `catalog.ts` maps a tier name to its concurrency, and the resolved number is stored on
  * the integration so the queue reads it rather than guessing.
+ *
+ * **The tier read is informational and does not gate the step.** Only `credentials` is
+ * required. The subscription path below is read from documentation and has never been
+ * called from here; if the response shape differs, failing setup over it would block a
+ * working credential on a field nobody strictly needs yet.
+ *
+ * When it cannot be read the ceiling falls back to `DEFAULT_CONCURRENCY`, and the fallback
+ * is *labelled* — `concurrency_source` records `default` rather than `tier`, so no screen
+ * can present the assumption as a reading. The direction of that guess is deliberate and
+ * asymmetric: guessing high produces a steady failure rate that looks like an unreliable
+ * vendor and sends someone debugging the wrong system for a day. Guessing low is just slow.
  *
  * Plain `fetch` rather than an SDK because no SDK for this vendor is a dependency, and
  * adding one to make two GETs would be a poor trade. **These two paths have never been
@@ -233,18 +244,31 @@ export async function probeAudio(creds: { apiKey: string }): Promise<ProbeResult
     checks.push({
       name: 'voices',
       passed: tier !== null,
-      required: true,
+      required: false,
       detail: tier
-        ? `Plan tier "${tier}". ${voiceCount} voices.`
-        : 'The subscription response carried no tier, so the concurrency ceiling is unknown.',
+        ? `Plan tier "${tier}" — concurrency ceiling ${concurrencyForTier(tier) ?? DEFAULT_CONCURRENCY}, read from the account.`
+        : `The subscription response carried no tier. Falling back to a ceiling of ${DEFAULT_CONCURRENCY}, which is an assumption and is recorded as one.`,
       config: tier
-        ? { plan_tier: tier, voice_count: voiceCount, tier_read_at: new Date().toISOString() }
-        : undefined,
+        ? {
+            plan_tier: tier,
+            voice_count: voiceCount,
+            tier_read_at: new Date().toISOString(),
+            concurrency_limit: concurrencyForTier(tier) ?? DEFAULT_CONCURRENCY,
+            concurrency_source: concurrencyForTier(tier) ? 'tier' : 'default',
+          }
+        : { voice_count: voiceCount, concurrency_limit: DEFAULT_CONCURRENCY, concurrency_source: 'default' },
     });
   } catch (err) {
-    // Required: without a tier the queue has no ceiling to obey, and inventing one is how
-    // a constant failure rate gets mistaken for an unreliable vendor.
-    checks.push(failure('voices', err));
+    // Informational. The credential works — that was established above — and blocking on a
+    // documented-but-unproven endpoint would fail a step for a field the queue can default.
+    checks.push({
+      ...failure('voices', err, false),
+      detail:
+        `Plan tier unreadable (${err instanceof Error ? redact(err.message) : String(err)}). ` +
+        `Concurrency falls back to ${DEFAULT_CONCURRENCY} — an assumption, not a reading. ` +
+        'Override it in settings if you know the real limit.',
+      config: { concurrency_limit: DEFAULT_CONCURRENCY, concurrency_source: 'default' },
+    });
   }
 
   return { checks, latencyMs: Date.now() - started };

@@ -31,7 +31,7 @@ export interface SecretFieldDescriptor {
 }
 
 export interface CheckDescriptor {
-  readonly name: 'credentials' | 'round_trip' | 'balance' | 'voices' | 'models';
+  readonly name: 'credentials' | 'round_trip' | 'voices' | 'models';
   readonly label: string;
   /** What the check actually does. Never "validates the format". */
   readonly detail: string;
@@ -55,8 +55,17 @@ export interface IntegrationDescriptor {
   readonly primary?: boolean;
   /** Capability flags. The settings UI branches on these, never on the slug. */
   readonly capabilities: {
-    /** Vendor exposes a spendable balance, and it expires. */
+    /** Vendor exposes a spendable balance the API can read. */
     readonly creditBalance: boolean;
+    /**
+     * Credits are prepaid and expire, and the vendor gives us no way to read either. The
+     * settings screen offers manual purchase entry and shows the resulting countdown.
+     *
+     * A separate flag from `creditBalance` because they are different facts: one says the
+     * number is fetchable, the other says the number matters and is not. Collapsing them
+     * would make "we can read it" and "you must type it" the same case.
+     */
+    readonly creditExpiryTracking?: boolean;
     /** Throttle ceiling comes from a plan tier that must be read and stored. */
     readonly planTierConcurrency: boolean;
   };
@@ -134,16 +143,11 @@ export const INTEGRATION_CATALOG: readonly IntegrationDescriptor[] = [
         help: 'Minimum 32 characters. Not a signature — the vendor echoes this back in a header, so it is a password rather than a proof, and anyone who obtains it can forge a completion.',
       },
     ],
-    checks: [
-      CREDENTIALS,
-      {
-        name: 'balance',
-        label: 'Credit balance + expiry',
-        detail:
-          'Credits expire roughly 90 days from purchase. That is a cost the ledger cannot see, because nothing is billed at the moment they evaporate — so the clock belongs on screen.',
-      },
-    ],
-    capabilities: { creditBalance: true, planTierConcurrency: false },
+    // Credentials only. There was a `balance` check here and it could never pass: the SDK
+    // exposes no account surface, so it reported failure forever. Removed rather than left
+    // as a permanent red X — see `creditExpiryTracking` below for what replaced it.
+    checks: [CREDENTIALS],
+    capabilities: { creditBalance: false, creditExpiryTracking: true, planTierConcurrency: false },
     notes: [
       'API access is gated to higher-tier plans.',
       'Character references can be consumed but not created on the v2 surface — mint the identity in the vendor dashboard.',
@@ -195,6 +199,21 @@ export const INTEGRATION_CATALOG: readonly IntegrationDescriptor[] = [
     rates: [{ model: 'placeholder', endpoint: null, unit: 'second' }],
   },
 ];
+
+/**
+ * The parallel-request ceiling used when nothing has established a real one.
+ *
+ * Two is the lowest limit any plan has, so it is safe against all of them. Lives here
+ * rather than beside the probe that falls back to it, and that placement is load-bearing:
+ * the settings screen renders this number, `probes.ts` imports a vendor SDK, and importing
+ * one constant from there pulled the entire SDK into the browser bundle. The build caught
+ * it — `node:fs` is not resolvable in a client bundle — which is a better outcome than a
+ * 400 kB bundle nobody looks at.
+ *
+ * Deliberately conservative. Guessing high produces a steady failure rate that reads as an
+ * unreliable vendor and sends someone debugging the wrong system; guessing low is slow.
+ */
+export const DEFAULT_CONCURRENCY = 2;
 
 /**
  * Plan tiers and their hard parallel-request ceilings, for vendors that throttle on
