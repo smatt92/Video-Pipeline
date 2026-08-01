@@ -120,6 +120,7 @@ export async function priceLlmCall(
 export function llmCostRows(subject: LlmCostSubject, pricing: Extract<LlmPricing, { priced: true }>) {
   return pricing.rows.map((r) => ({
     driver: DRIVER,
+    stage: subject.stage,
     entry_kind: 'reconcile' as const,
     usd_inr_rate: pricing.usdInrRate,
     concept_id: subject.conceptId,
@@ -134,18 +135,28 @@ export function llmCostRows(subject: LlmCostSubject, pricing: Extract<LlmPricing
 }
 
 export type LlmCostSubject =
-  | { kind: 'script'; scriptId: string; conceptId: string }
-  | { kind: 'failed_draft'; conceptId: string; idempotencyKey: string };
+  | { kind: 'script'; scriptId: string; conceptId: string; stage: PipelineStage }
+  | { kind: 'failed_draft'; conceptId: string; idempotencyKey: string; stage: PipelineStage };
+
+/**
+ * Which stage spent the money, matching the `src/trigger/` filename.
+ *
+ * Part of the ledger's idempotency key (0009), because two stages legitimately charge the
+ * same script and the old key rejected the second one. Also what makes cost-per-stage
+ * answerable — the first question anyone asks when cost per video is higher than expected.
+ */
+export type PipelineStage = '03-script' | '04-shotlist';
 
 /**
  * Write the ledger rows for a drafting call.
  *
  * Two shapes, because a billed call does not always produce a script:
  *
- *   succeeded — charged to the script, keyed on (script_id, entry_kind, unit). A second
- *               charge against the same script row is rejected by the database. A redraft
- *               is a new script *version*, so it is a new row and a new charge, which is
- *               correct: it was a second call.
+ *   succeeded — charged to the script, keyed on (script_id, stage, entry_kind, unit). A
+ *               second charge from the same stage against the same script is rejected by
+ *               the database; a charge from a *different* stage is not, because that is a
+ *               different call. A redraft is a new script version, so it is a new row and a
+ *               new charge, which is also correct.
  *
  *   failed    — charged to the concept, keyed on a caller-supplied idempotency key derived
  *               from the task run id. There is no natural key here and there must not be
@@ -163,7 +174,7 @@ export async function writeLlmCost(
   const rows = llmCostRows(subject, pricing);
 
   const onConflict =
-    subject.kind === 'script' ? 'script_id,entry_kind,unit' : 'idempotency_key';
+    subject.kind === 'script' ? 'script_id,stage,entry_kind,unit' : 'idempotency_key';
 
   const { error } = await db
     .from('cost_ledger')

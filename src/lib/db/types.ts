@@ -201,6 +201,7 @@ export type Database = {
           quantity: number
           render_id: string | null
           script_id: string | null
+          stage: string | null
           unit: string
           usd_inr_rate: number | null
         }
@@ -217,6 +218,7 @@ export type Database = {
           quantity: number
           render_id?: string | null
           script_id?: string | null
+          stage?: string | null
           unit: string
           usd_inr_rate?: number | null
         }
@@ -233,6 +235,7 @@ export type Database = {
           quantity?: number
           render_id?: string | null
           script_id?: string | null
+          stage?: string | null
           unit?: string
           usd_inr_rate?: number | null
         }
@@ -455,6 +458,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "shots"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generations_shot_id_fkey"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "v_shot_readiness"
+            referencedColumns: ["shot_id"]
           },
           {
             foreignKeyName: "generations_studio_session_id_fkey"
@@ -1190,6 +1200,8 @@ export type Database = {
       shots: {
         Row: {
           character_id: string | null
+          compile_note: string | null
+          compiled_at: string | null
           compiled_params: Json | null
           created_at: string
           description: string
@@ -1200,9 +1212,13 @@ export type Database = {
           prompt_id: string | null
           script_id: string
           status: string
+          vo_char_end: number | null
+          vo_char_start: number | null
         }
         Insert: {
           character_id?: string | null
+          compile_note?: string | null
+          compiled_at?: string | null
           compiled_params?: Json | null
           created_at?: string
           description: string
@@ -1213,9 +1229,13 @@ export type Database = {
           prompt_id?: string | null
           script_id: string
           status?: string
+          vo_char_end?: number | null
+          vo_char_start?: number | null
         }
         Update: {
           character_id?: string | null
+          compile_note?: string | null
+          compiled_at?: string | null
           compiled_params?: Json | null
           created_at?: string
           description?: string
@@ -1226,6 +1246,8 @@ export type Database = {
           prompt_id?: string | null
           script_id?: string
           status?: string
+          vo_char_end?: number | null
+          vo_char_start?: number | null
         }
         Relationships: [
           {
@@ -1436,6 +1458,15 @@ export type Database = {
       }
     }
     Views: {
+      v_cost_by_stage: {
+        Row: {
+          cost_inr: number | null
+          cost_usd: number | null
+          entries: number | null
+          stage: string | null
+        }
+        Relationships: []
+      }
       v_cost_per_1k_views: {
         Row: {
           cost_inr: number | null
@@ -1492,6 +1523,57 @@ export type Database = {
           script_id: string | null
         }
         Relationships: []
+      }
+      v_shot_readiness: {
+        Row: {
+          compile_note: string | null
+          covers_speech: boolean | null
+          duration_s: number | null
+          duration_source: string | null
+          generatable: boolean | null
+          idx: number | null
+          script_id: string | null
+          shot_id: string | null
+          status: string | null
+        }
+        Insert: {
+          compile_note?: string | null
+          covers_speech?: never
+          duration_s?: number | null
+          duration_source?: string | null
+          generatable?: never
+          idx?: number | null
+          script_id?: string | null
+          shot_id?: string | null
+          status?: string | null
+        }
+        Update: {
+          compile_note?: string | null
+          covers_speech?: never
+          duration_s?: number | null
+          duration_source?: string | null
+          generatable?: never
+          idx?: number | null
+          script_id?: string | null
+          shot_id?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shots_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shots_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_cost"
+            referencedColumns: ["script_id"]
+          },
+        ]
       }
     }
     Functions: {

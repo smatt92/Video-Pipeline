@@ -25,5 +25,10 @@
   },
   // Only what the verification path needs. Compiling the app would pull in JSX, Next
   // internals and the two root layouts for no benefit.
-  "include": ["src/lib/script/**/*.ts", "src/lib/cost/**/*.ts", "src/lib/prompts/**/*.ts"]
+  "include": [
+    "src/lib/script/**/*.ts",
+    "src/lib/shots/**/*.ts",
+    "src/lib/cost/**/*.ts",
+    "src/lib/prompts/**/*.ts"
+  ]
 }

@@ -140,7 +140,7 @@ export async function runScriptDraft(
       if (pricing.priced) {
         await writeLlmCost(
           db,
-          { kind: 'failed_draft', conceptId: concept.id, idempotencyKey: `03-script:${runId}` },
+          { kind: 'failed_draft', conceptId: concept.id, idempotencyKey: `03-script:${runId}`, stage: '03-script' },
           pricing,
         );
         costInr = pricing.totalInr;
@@ -196,7 +196,7 @@ export async function runScriptDraft(
     if (pricing.priced) {
       await writeLlmCost(
         db,
-        { kind: 'failed_draft', conceptId: concept.id, idempotencyKey: `03-script:${runId}` },
+        { kind: 'failed_draft', conceptId: concept.id, idempotencyKey: `03-script:${runId}`, stage: '03-script' },
         pricing,
       );
     }
@@ -213,7 +213,7 @@ export async function runScriptDraft(
     throw new Error(`Priced before the call and not after (${pricing.reason}): ${pricing.detail}`);
   }
 
-  await writeLlmCost(db, { kind: 'script', scriptId: script.id, conceptId: concept.id }, pricing);
+  await writeLlmCost(db, { kind: 'script', scriptId: script.id, conceptId: concept.id, stage: '03-script' }, pricing);
 
   return {
     ok: true,
