@@ -57,6 +57,34 @@ function row(unit: LlmLedgerRow['unit'], quantity: number, rate: Rate, usdInrRat
 }
 
 /**
+ * The arithmetic, with the rates already in hand.
+ *
+ * Split out from `priceLlmCall` so the sum can be computed anywhere the two rates can be
+ * read — including a verification harness that reaches Postgres directly because the REST
+ * host is unreachable. The alternative was a second copy of the multiplication in the
+ * verification path, which would verify the copy.
+ */
+export function priceFromRates(q: {
+  inputRate: Rate;
+  outputRate: Rate;
+  usage: TokenUsage;
+  usdInrRate: number;
+}): Extract<LlmPricing, { priced: true }> {
+  const rows = [
+    row('input_token', q.usage.inputTokens, q.inputRate, q.usdInrRate),
+    row('output_token', q.usage.outputTokens, q.outputRate, q.usdInrRate),
+  ];
+
+  return {
+    priced: true,
+    rows,
+    totalUsd: rows.reduce((n, r) => n + r.costUsd, 0),
+    totalInr: rows.reduce((n, r) => n + r.costInr, 0),
+    usdInrRate: q.usdInrRate,
+  };
+}
+
+/**
  * Price a completed call. Returns a refusal rather than a zero when either rate is missing
  * or unverified — Addendum 01: unverified means no rupee figure anywhere, and a zero would
  * render as a real cost of nothing.
@@ -73,19 +101,41 @@ export async function priceLlmCall(
   if (!input.found) return { priced: false, reason: input.reason, detail: input.detail };
   if (!output.found) return { priced: false, reason: output.reason, detail: output.detail };
 
-  const rows = [
-    row('input_token', q.usage.inputTokens, input.rate, q.usdInrRate),
-    row('output_token', q.usage.outputTokens, output.rate, q.usdInrRate),
-  ];
-
-  return {
-    priced: true,
-    rows,
-    totalUsd: rows.reduce((n, r) => n + r.costUsd, 0),
-    totalInr: rows.reduce((n, r) => n + r.costInr, 0),
+  return priceFromRates({
+    inputRate: input.rate,
+    outputRate: output.rate,
+    usage: q.usage,
     usdInrRate: q.usdInrRate,
-  };
+  });
 }
+
+/**
+ * The ledger rows themselves, as data.
+ *
+ * Pure, and separate from the write for the same reason the arithmetic is: this is the
+ * part worth checking. Which subject each row carries, which key makes a retry idempotent,
+ * and whether the numbers multiply out are all decided here, and none of them needs a
+ * database to decide.
+ */
+export function llmCostRows(subject: LlmCostSubject, pricing: Extract<LlmPricing, { priced: true }>) {
+  return pricing.rows.map((r) => ({
+    driver: DRIVER,
+    entry_kind: 'reconcile' as const,
+    usd_inr_rate: pricing.usdInrRate,
+    concept_id: subject.conceptId,
+    script_id: subject.kind === 'script' ? subject.scriptId : null,
+    idempotency_key:
+      subject.kind === 'failed_draft' ? `${subject.idempotencyKey}:${r.unit}` : null,
+    unit: r.unit,
+    quantity: r.quantity,
+    cost_usd: r.costUsd,
+    cost_inr: r.costInr,
+  }));
+}
+
+export type LlmCostSubject =
+  | { kind: 'script'; scriptId: string; conceptId: string }
+  | { kind: 'failed_draft'; conceptId: string; idempotencyKey: string };
 
 /**
  * Write the ledger rows for a drafting call.
@@ -105,32 +155,12 @@ export async function priceLlmCall(
  * write lands on the same rows instead of failing. The first write is the true one —
  * overwriting would let a later, differently-priced replay silently restate history.
  */
-export type LlmCostSubject =
-  | { kind: 'script'; scriptId: string; conceptId: string }
-  | { kind: 'failed_draft'; conceptId: string; idempotencyKey: string };
-
 export async function writeLlmCost(
   db: Db,
   subject: LlmCostSubject,
   pricing: Extract<LlmPricing, { priced: true }>,
 ): Promise<void> {
-  const base = {
-    driver: DRIVER,
-    entry_kind: 'reconcile',
-    usd_inr_rate: pricing.usdInrRate,
-  };
-
-  const rows = pricing.rows.map((r) => ({
-    ...base,
-    concept_id: subject.conceptId,
-    script_id: subject.kind === 'script' ? subject.scriptId : null,
-    idempotency_key:
-      subject.kind === 'failed_draft' ? `${subject.idempotencyKey}:${r.unit}` : null,
-    unit: r.unit,
-    quantity: r.quantity,
-    cost_usd: r.costUsd,
-    cost_inr: r.costInr,
-  }));
+  const rows = llmCostRows(subject, pricing);
 
   const onConflict =
     subject.kind === 'script' ? 'script_id,entry_kind,unit' : 'idempotency_key';

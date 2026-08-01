@@ -1,6 +1,6 @@
 import { priceLlmCall, writeLlmCost } from '../cost/llm';
 import type { Db } from '../db/server';
-import { DRAFT_ENDPOINT, DRAFT_MODEL, DraftError, draftScript } from './draft';
+import { DRAFT_ENDPOINT, DRAFT_MODEL, DraftError, draftScript, type DraftResult } from './draft';
 import { structureHash } from './structure-hash';
 
 /**
@@ -42,6 +42,35 @@ export type ScriptDraftResult =
   | { ok: false; code: string; detail: string; costInr: number | null };
 
 const noop = { info: () => {}, error: () => {} };
+
+/**
+ * The scripts row, as data.
+ *
+ * Pure and exported so a verification harness writes the same row production writes rather
+ * than its own approximation of it. The provenance fields are the point: `drafted_by` names
+ * the model, `draft_raw` is the model's untouched output — not the reserialised object,
+ * because provenance that has been through a round trip is provenance you edited — and
+ * `human_edit_count` stays 0 until a human touches it, which the publish gate requires to
+ * be non-zero (ARCHITECTURE.md §0.2).
+ */
+export function scriptRowFor(p: {
+  conceptId: string;
+  version: number;
+  draft: DraftResult;
+  structureHash: string;
+}) {
+  return {
+    concept_id: p.conceptId,
+    version: p.version,
+    hook: p.draft.script.hook,
+    beats: p.draft.script.beats,
+    cta: p.draft.script.cta,
+    vo_text: p.draft.script.vo_text,
+    drafted_by: p.draft.model,
+    draft_raw: p.draft.raw,
+    structure_hash: p.structureHash,
+  };
+}
 
 export async function runScriptDraft(
   payload: ScriptDraftPayload,
@@ -156,21 +185,7 @@ export async function runScriptDraft(
 
   const { data: script, error: scriptError } = await db
     .from('scripts')
-    .insert({
-      concept_id: concept.id,
-      version,
-      hook: draft.script.hook,
-      beats: draft.script.beats,
-      cta: draft.script.cta,
-      vo_text: draft.script.vo_text,
-      // Provenance. `drafted_by` names the model, `draft_raw` is the untouched output —
-      // not the reserialised object, because provenance that has been through a round trip
-      // is provenance you edited. `human_edit_count` stays 0 until a human touches it, and
-      // the publish gate requires it to be non-zero.
-      drafted_by: draft.model,
-      draft_raw: draft.raw,
-      structure_hash: hash,
-    })
+    .insert(scriptRowFor({ conceptId: concept.id, version, draft, structureHash: hash }))
     .select('id, version')
     .single();
 
