@@ -45,6 +45,14 @@ export interface IntegrationDescriptor {
   readonly checks: readonly CheckDescriptor[];
   /** Must verify before this one is offered. Storage before anything that writes. */
   readonly dependsOn?: string;
+  /**
+   * The vendor currently filling this kind's role. Exactly one per kind.
+   *
+   * This is what makes "the generator is a config value" true in code rather than in
+   * comments: the wizard asks for the *video* integration and this row answers which one,
+   * so swapping the driver is an edit here and nothing above it changes.
+   */
+  readonly primary?: boolean;
   /** Capability flags. The settings UI branches on these, never on the slug. */
   readonly capabilities: {
     /** Vendor exposes a spendable balance, and it expires. */
@@ -72,6 +80,7 @@ export const INTEGRATION_CATALOG: readonly IntegrationDescriptor[] = [
     slug: 'supabase-storage',
     label: 'Storage',
     kind: 'storage',
+    primary: true,
     secretFields: [
       { key: 'SUPABASE_S3_ACCESS_KEY_ID', label: 'S3 access key ID' },
       {
@@ -96,6 +105,7 @@ export const INTEGRATION_CATALOG: readonly IntegrationDescriptor[] = [
     slug: 'anthropic',
     label: 'Anthropic',
     kind: 'llm',
+    primary: true,
     secretFields: [{ key: 'ANTHROPIC_API_KEY', label: 'API key' }],
     checks: [
       CREDENTIALS,
@@ -112,6 +122,7 @@ export const INTEGRATION_CATALOG: readonly IntegrationDescriptor[] = [
     slug: 'higgsfield',
     label: 'Higgsfield',
     kind: 'video',
+    primary: true,
     dependsOn: 'supabase-storage',
     secretFields: [
       { key: 'HIGGSFIELD_API_KEY', label: 'API key' },
@@ -149,6 +160,7 @@ export const INTEGRATION_CATALOG: readonly IntegrationDescriptor[] = [
     slug: 'elevenlabs',
     label: 'ElevenLabs',
     kind: 'audio',
+    primary: true,
     dependsOn: 'supabase-storage',
     secretFields: [{ key: 'ELEVENLABS_API_KEY', label: 'API key' }],
     checks: [
@@ -218,3 +230,18 @@ export const AUDIO_MODEL_POLICY = [
 export const SEED_RATES = INTEGRATION_CATALOG.flatMap((i) =>
   i.rates.map((r) => ({ driver: i.slug, driverLabel: i.label, ...r })),
 );
+
+/**
+ * The vendor filling a role.
+ *
+ * Callers above the driver layer ask for a *kind* — "the video generator", "the voice" —
+ * and get a descriptor. Nothing outside this directory has to know, or be able to say,
+ * which vendor that is.
+ */
+export function primaryForKind(kind: IntegrationKindSlug): IntegrationDescriptor | null {
+  return INTEGRATION_CATALOG.find((i) => i.kind === kind && i.primary) ?? null;
+}
+
+export function descriptorFor(slug: string): IntegrationDescriptor | null {
+  return INTEGRATION_CATALOG.find((i) => i.slug === slug) ?? null;
+}

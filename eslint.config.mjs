@@ -16,6 +16,23 @@ const eslintConfig = [
     ignores: ['node_modules/**', '.next/**', 'out/**', 'build/**', 'next-env.d.ts'],
   },
   {
+    rules: {
+      /**
+       * `_`-prefixed arguments are deliberately unused.
+       *
+       * Not laziness — `useActionState` passes the previous state as the first argument
+       * and there is no way to decline it. Naming it `_prev` is the convention for "I know
+       * this is here and I am not using it"; without this the only ways to silence it are
+       * an inline disable comment on every action or leaving a permanent warning nobody
+       * reads, and a lint output with standing noise in it stops being read at all.
+       */
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+      ],
+    },
+  },
+  {
     /**
      * The design-token layer boundary.
      *

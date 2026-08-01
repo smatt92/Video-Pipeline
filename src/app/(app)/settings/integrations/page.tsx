@@ -1,174 +1,72 @@
-import {
-  CheckPill,
-  Mono,
-  NotSet,
-  Panel,
-  Row,
-  SectionHeader,
-  UnverifiedBanner,
-} from '@/components/settings/parts';
-import { Hint } from '@/components/shell/hint';
-import { PLAN_TIERS } from '@/lib/drivers/catalog';
-import { INTEGRATIONS, blockingDependency, type IntegrationView } from '@/lib/fixtures/settings';
+import { IntegrationCard } from '@/components/settings/integration-card';
+import { SectionHeader } from '@/components/settings/parts';
+import { allIntegrationViews, type StepIntegrationView } from '@/lib/onboarding/step-view';
 
 /**
  * Integrations.
  *
- * This file names no vendor. Every panel below is driven by a descriptor from the driver
- * catalogue and by capability flags on it — `creditBalance`, `planTierConcurrency` —
- * rather than by comparing a slug against a string. That is not cosmetic compliance with
- * the isolation rule: it is what makes adding a driver a catalogue entry instead of an
- * edit to this screen.
+ * Real state, read from the database: which credentials are configured (last four only),
+ * when each was last checked, whether it passed, and what the last failure said. The
+ * fixtures this screen used to render are gone — a settings page that looks authoritative
+ * while displaying fabricated verification is precisely the thing verification exists to
+ * prevent.
  *
- * Three rules hold here, all structural:
- *
- *   1. A secret never comes back to the browser. Fields are write-only — you can replace
- *      a key, never read one. The read path returns last four and a timestamp.
- *   2. Verification is a real vendor call. A well-formed key that cannot write is the
- *      failure this catches, and it only appears on a call.
- *   3. An integration that has never verified cannot be selected by a pipeline task.
- *      A refusal, not a warning.
+ * Per-request, never cached. A page that renders a stale "verified" over a credential that
+ * stopped working an hour ago is worse than one that is slow.
  */
 
-function IntegrationCard({ view }: { view: IntegrationView }) {
-  const { descriptor: d, state } = view;
-  const blockedBy = blockingDependency(view);
-  const verified = state.lastVerifiedAt !== null;
-  const tiers = PLAN_TIERS[d.slug];
+export const dynamic = 'force-dynamic';
 
-  return (
-    <Panel className="mb-4">
-      <div
-        className="flex items-center gap-3 border-b px-4 py-3"
-        style={{ borderColor: 'var(--border-subtle)' }}
-      >
-        <span className="text-[13.5px] font-medium">{d.label}</span>
-        <span className="font-mono text-[10.5px]" style={{ color: 'var(--text-faint)' }}>
-          {d.kind}
-        </span>
+/**
+ * Dependency blocking, resolved against real verification state.
+ *
+ * The descriptor names a slug it depends on; this asks whether that one actually verified,
+ * rather than whether it exists. Storage before anything that writes: a video credential
+ * that "passes" before storage works has proven nothing, because the clip generates,
+ * cannot be written anywhere, and you have paid for it.
+ */
+function blockingDependency(
+  view: StepIntegrationView,
+  all: StepIntegrationView[],
+): string | null {
+  const dependsOn = view.descriptor.dependsOn;
+  if (!dependsOn) return null;
 
-        <span className="ml-auto flex items-center gap-3">
-          <CheckPill
-            passed={verified ? true : null}
-            label={verified ? `verified ${state.lastVerifiedAt}` : 'never verified'}
-          />
-          <button
-            type="button"
-            disabled={blockedBy !== null}
-            className="rounded-sm px-[10px] py-[5px] text-[11.5px] font-medium transition-colors disabled:cursor-not-allowed"
-            style={{
-              background: blockedBy ? 'var(--surface-2)' : 'var(--accent)',
-              color: blockedBy ? 'var(--text-faint)' : 'var(--accent-contrast)',
-              transitionDuration: 'var(--duration-fast)',
-            }}
-          >
-            Test connection
-          </button>
-        </span>
-      </div>
+  const dependency = all.find((v) => v.slug === dependsOn);
+  if (!dependency) return null;
 
-      {blockedBy && (
-        <div
-          className="border-b px-4 py-2 text-[11.5px]"
-          style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-faint)' }}
-        >
-          Blocked until {blockedBy} verifies — nothing can be stored until storage works,
-          so verifying this first would prove nothing.
-        </div>
-      )}
-
-      {d.secretFields.map((f) => (
-        <Row key={f.key} label={f.label} help={f.help}>
-          <div className="flex items-center gap-3">
-            <input
-              type="password"
-              placeholder={state.last4[f.key] ? '••••••••' : 'not configured'}
-              autoComplete="off"
-              minLength={f.minLength}
-              className="w-[240px] rounded-sm border bg-transparent px-2 py-[5px] font-mono text-[12px] outline-none"
-              style={{ borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
-            />
-            {state.last4[f.key] ? <Mono>…{state.last4[f.key]}</Mono> : <NotSet />}
-          </div>
-        </Row>
-      ))}
-
-      <Row
-        label="Checks"
-        help="Each is a distinct claim. Credentials being accepted says nothing about whether a write succeeds."
-      >
-        <div className="flex flex-col gap-[6px]">
-          {d.checks.map((c) => (
-            <Hint key={c.name} content={c.detail}>
-              <CheckPill passed={state.checkResults[c.name] ?? null} label={c.label} />
-            </Hint>
-          ))}
-        </div>
-      </Row>
-
-      {d.capabilities.creditBalance && (
-        <Row
-          label="Credit balance"
-          help="Credits expire on a rolling clock. That is a cost the ledger cannot see, because nothing is billed at the moment they evaporate."
-        >
-          <div className="flex items-center gap-4">
-            {state.creditBalance === null ? <NotSet /> : <Mono>{state.creditBalance}</Mono>}
-            <span className="text-[11.5px]" style={{ color: 'var(--text-faint)' }}>
-              {state.creditsExpireAt ?? 'expiry unknown until the balance check runs'}
-            </span>
-          </div>
-        </Row>
-      )}
-
-      {d.capabilities.planTierConcurrency && tiers && (
-        <Row
-          label="Plan tier → concurrency"
-          help="Read from the account during verification, stored on the integration, and read by the queue at run time."
-        >
-          <div className="flex flex-wrap gap-[6px]">
-            {tiers.map((t) => (
-              <Hint key={t.tier} content={t.note || `${t.concurrency} parallel requests`}>
-                <span
-                  className="rounded-xs px-[6px] py-[3px] font-mono text-[11px]"
-                  style={{
-                    background: 'var(--surface-2)',
-                    color: state.planTier === t.tier ? 'var(--text-primary)' : 'var(--text-muted)',
-                  }}
-                >
-                  {t.tier} · {t.concurrency}
-                </span>
-              </Hint>
-            ))}
-          </div>
-        </Row>
-      )}
-
-      {d.notes && (
-        <Row label="Known behaviour">
-          <ul className="flex flex-col gap-1">
-            {d.notes.map((n) => (
-              <li key={n} className="text-[11.5px] leading-snug" style={{ color: 'var(--text-faint)' }}>
-                {n}
-              </li>
-            ))}
-          </ul>
-        </Row>
-      )}
-    </Panel>
-  );
+  return dependency.state === 'verified' ? null : dependency.label;
 }
 
-export default function IntegrationsPage() {
+export default async function IntegrationsPage() {
+  const views = await allIntegrationViews();
+
+  const unverified = views.filter((v) => v.state !== 'verified');
+
   return (
     <>
       <SectionHeader
         title="Integrations"
-        hint="Credentials live in Vault. Fields are write-only — a secret is never returned to the browser."
+        hint="Credentials live in Vault. Fields are write-only — a secret is never returned to the browser, only its last four characters."
       />
-      <UnverifiedBanner what="No credential has been entered and no vendor call has been made." />
 
-      {INTEGRATIONS.map((v) => (
-        <IntegrationCard key={v.descriptor.slug} view={v} />
+      {unverified.length > 0 && (
+        <div
+          className="mb-5 rounded-sm border px-3 py-2 text-[12px] leading-relaxed"
+          style={{
+            borderColor: 'var(--border-strong)',
+            background: 'var(--surface-inset)',
+            color: 'var(--text-muted)',
+          }}
+        >
+          {unverified.length} of {views.length} integrations {unverified.length === 1 ? 'is' : 'are'}{' '}
+          unverified. A pipeline task refuses to select one that has never passed a real
+          call — enabling is a statement of intent, verifying is a statement of fact.
+        </div>
+      )}
+
+      {views.map((v) => (
+        <IntegrationCard key={v.slug} view={v} blockedBy={blockingDependency(v, views)} />
       ))}
     </>
   );

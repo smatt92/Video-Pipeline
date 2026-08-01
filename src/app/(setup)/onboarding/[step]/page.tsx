@@ -1,10 +1,27 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import {
+  ChannelForm,
+  IntegrationStepForm,
+  ProfileForm,
+  RateCardForm,
+} from '@/components/onboarding/step-forms';
 import { CheckPill } from '@/components/settings/parts';
-import { GATE_STEP } from '@/lib/onboarding/gate';
 import { onboardingProgress } from '@/lib/onboarding/progress';
+import { stepIntegrationView } from '@/lib/onboarding/step-view';
 import { STEPS, isUnlocked, stepBySlug } from '@/lib/onboarding/steps';
+
+/** Relative time, coarse on purpose — the exact second helps nobody here. */
+function when(iso: string | null): string {
+  if (!iso) return '';
+  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}
 
 /**
  * The wizard.
@@ -32,6 +49,10 @@ export default async function OnboardingStepPage({
 
   const progress = await onboardingProgress();
   const completed = progress.completed;
+  const done = completed.includes(step.n);
+
+  // Null for steps that configure no vendor — 1, 6, 8, 9 and 10.
+  const view = await stepIntegrationView(step.n);
 
   const unlocked = isUnlocked(step, completed);
   const blockers = step.blockedBy
@@ -133,35 +154,67 @@ export default async function OnboardingStepPage({
           className="rounded-md border p-4"
           style={{ background: 'var(--surface-1)', borderColor: 'var(--border-subtle)' }}
         >
-          <div className="mb-3 font-mono text-[10px] uppercase tracking-[0.09em]" style={{ color: 'var(--text-faint)' }}>
-            What this step verifies
+          <div className="mb-3 flex items-center gap-3">
+            <span
+              className="font-mono text-[10px] uppercase tracking-[0.09em]"
+              style={{ color: 'var(--text-faint)' }}
+            >
+              What this step verifies
+            </span>
+            {/* Three states, never two. "never run" and "failed" are different
+                instructions to whoever is reading them. */}
+            {view && (
+              <span className="ml-auto">
+                <CheckPill
+                  passed={view.state === 'never_run' ? null : view.state === 'verified'}
+                  label={
+                    view.state === 'never_run'
+                      ? 'never run'
+                      : view.state === 'verified'
+                        ? `verified ${when(view.lastVerifiedAt)}`
+                        : `failed ${when(view.lastCheckedAt)}`
+                  }
+                />
+              </span>
+            )}
+            {done && !view && <span className="ml-auto"><CheckPill passed label="done" /></span>}
           </div>
-          <p className="mb-4 max-w-[70ch] text-[12.5px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+          <p className="mb-5 max-w-[70ch] text-[12.5px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
             {step.verification}
           </p>
 
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
-              disabled={!unlocked || Boolean(step.stubbed)}
-              className="rounded-sm px-3 py-[7px] text-[12.5px] font-medium transition-colors disabled:cursor-not-allowed"
-              style={{
-                background: unlocked && !step.stubbed ? 'var(--accent)' : 'var(--surface-2)',
-                color: unlocked && !step.stubbed ? 'var(--accent-contrast)' : 'var(--text-faint)',
-                transitionDuration: 'var(--duration-fast)',
-              }}
-            >
-              Run check
-            </button>
-            <CheckPill passed={null} label="never run" />
-          </div>
-        </div>
+          {!unlocked || step.stubbed ? (
+            <p className="text-[12px]" style={{ color: 'var(--text-faint)' }}>
+              {step.stubbed ? 'Nothing to run yet.' : 'Complete the steps above first.'}
+            </p>
+          ) : (
+            <>
+              {step.n === 1 && <ProfileForm email={progress.email} />}
+              {step.n === 6 && <RateCardForm />}
+              {step.n === 8 && <ChannelForm />}
+              {view && (
+                <IntegrationStepForm
+                  stepNumber={step.n}
+                  view={view}
+                  verification={step.verification}
+                />
+              )}
+              {step.n === 9 && (
+                <p className="text-[12px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                  Deferred. YouTube and Instagram are needed for Phase 3 publishing and
+                  nothing before it, and an MCP server is an exploration tool rather than a
+                  pipeline dependency.
+                </p>
+              )}
+            </>
+          )}
 
-        <p className="mt-4 text-[11.5px] leading-relaxed" style={{ color: 'var(--text-faint)' }}>
-          No vendor call has been made from this environment — every host is refused at the
-          egress policy. Running a check here would report a scripted result, which is why
-          nothing on this page claims to have passed.
-        </p>
+          {view?.lastError && view.state === 'failed' && (
+            <p className="mt-4 text-[11.5px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              Last recorded failure: {view.lastError}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* ── Footer nav ───────────────────────────────────────────────────── */}
@@ -189,7 +242,9 @@ export default async function OnboardingStepPage({
       <p className="mt-6 text-[11px] leading-relaxed" style={{ color: 'var(--text-faint)' }}>
         {progress.unavailable
           ? `Progress could not be read (${progress.unavailable}), so nothing above is ticked and the app stays locked. That is the gate refusing to guess, not a display bug.`
-          : `Read from profiles.onboarding_step — currently ${progress.step}. Middleware redirects every route except /onboarding/*, /settings/* and /login until step ${GATE_STEP} is reached.`}
+          : progress.outstanding.length === 0
+            ? 'Every required step has passed. The rest of the app is unlocked.'
+            : `Read from profiles.onboarding_completed_steps. Middleware redirects every route except /onboarding/*, /settings/* and /login until ${progress.outstanding.length} more required step${progress.outstanding.length === 1 ? '' : 's'} pass — a failed check advances nothing.`}
       </p>
     </div>
   );

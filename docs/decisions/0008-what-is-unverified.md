@@ -20,10 +20,29 @@ run against real APIs.* None of the below is done.
 
 ### 1. Supabase Vault — `scripts/verify-vault.mjs`
 
-**Never executed.** Reasoned from the Vault API, not observed.
+**Still never executed against Supabase Vault.** The write path now exists — migration
+0007's three SECURITY DEFINER wrappers, and `src/lib/integrations/vault.ts` above them —
+and the *wrappers* have been exercised against a stand-in schema with Vault's exact
+function signatures on a local Postgres. That proves my SQL: three secret fields become
+three rows with three separate `last_4` values, the plaintext survives the round trip,
+rotation replaces in place and stamps `rotated_at` without adding a row, an empty value is
+refused, and a delete removes the pointer and the vault row together.
+
+It proves nothing about Supabase's encryption, because `supabase_vault` is not installable
+on this machine — `pg_available_extensions` lists only `pgcrypto`. The third check in the
+script below is still the one that matters and still has not run.
+
+What *has* been proven, and is the part I would most want checked if I were reading this:
+the grant. With the Supabase roles present, `anon` and `authenticated` have EXECUTE on
+neither `integration_secrets_read` nor `integration_secret_put`, and no SELECT on
+`integration_secrets`; `service_role` has all three. Verified by `has_function_privilege`
+and then by actually running `set role anon; select * from integration_secrets_read(...)`,
+which is refused with "permission denied for function". With no RLS in Phase 1 that grant
+is the whole security model — a grant to `anon` would put every vendor credential one
+fetch away from anyone who loaded the page, since the anon key is in the client bundle.
 
 Everything in the settings design depends on Vault working, because every vendor
-credential ends up there. The script checks four things in order: the `supabase_vault`
+credential ends up there. `scripts/verify-vault.mjs` checks four things in order: the `supabase_vault`
 extension exists, `vault.create_secret()` returns an id, `vault.decrypted_secrets` returns
 *the same plaintext*, and deleting actually removes the row. The third is the one that
 matters — an extension that installs and a function that returns an id prove nothing about
@@ -54,7 +73,7 @@ subsequent GET no longer finds it.
 
 ### 3. Schema against the hosted project
 
-Migrations 0001–0005 have only ever been applied to a local Postgres 16. They apply
+Migrations 0001–0007 have only ever been applied to a local Postgres 16. They apply
 cleanly from empty, in order, and the committed types match them — `pnpm check:drift`
 proves that much and runs in CI.
 
@@ -77,11 +96,39 @@ Two things in particular have never run against a real Supabase instance:
 **To verify:** `supabase link --project-ref <ref> && supabase db push`, then
 `pnpm check:enums "<uri>"` against the hosted database, then the trigger test above.
 
+### 3b. The onboarding step actions have never called a vendor
+
+Steps 1, 2, 3, 6 and 8 are Server Actions writing rows this codebase controls, and their
+logic has been read but not run. Steps 4 and 5 additionally depend on vendor hosts that
+this environment refuses.
+
+Specifically unproven:
+
+- **The storage round trip.** Same two vendor-specific details as §2 — `forcePathStyle`
+  and the S3 keys being a separate credential from the service-role key. The wizard now
+  drives that probe with credentials read from Vault rather than the environment, which is
+  a second thing to be wrong.
+- **The voice probe's two endpoints.** `/v1/voices` and `/v1/user/subscription` are read
+  from the vendor's documentation and have never been called from here. If the
+  subscription response shape differs, step 5 fails on a required check and the plan tier
+  — which the queue reads as its concurrency ceiling — is never stored.
+- **The video probe** calls `getMotions()`, which is the cheapest authenticated read the
+  SDK actually exposes. It does **not** read the credit balance, because the v2 client has
+  no account or balance surface at all. That check is reported as failed-informational
+  with an explanation rather than guessed at; the ~90-day credit clock is not being
+  watched by anything, and the screen says so.
+- **`profiles.id = auth.users.id`.** Step 1 writes the profile against the session user's
+  id and there is no FK to enforce the correspondence (§3). If it does not hold, the gate
+  reads a row that is not the signed-in user's.
+
+**To verify:** walk the wizard on the preview. That is the whole point of it.
+
 ### 4. ~~The onboarding gate fails closed and is not wired~~ — RESOLVED
 
-**Resolved.** `src/middleware.ts` now reads `profiles.onboarding_step` through a
-session-scoped Supabase client and gates on it, and `ONBOARDING_GATE_BYPASS` is gone —
-the variable, the branch, and the line in `.env.example`. It was deleted rather than kept
+**Resolved.** `src/middleware.ts` reads `profiles.onboarding_completed_steps` through a
+session-scoped Supabase client and compares it against the required set, and
+`ONBOARDING_GATE_BYPASS` is gone — the variable, the branch, and the line in
+`.env.example`. It was deleted rather than kept
 as a fallback: a bypass that outlives its reason is a backdoor with a comment on it, and
 this one would have been the only thing standing in front of a public preview URL with
 live vendor credentials behind it.
@@ -102,6 +149,14 @@ Two things landed with it:
 - **`getUser()`, never `getSession()`.** `getSession()` reads the cookie and trusts it.
   The gate verifies with the auth server instead; a gate that trusts a value the client
   controls is not a gate.
+
+A second failure of the same kind was found and fixed afterwards: the gate *threw* on
+missing configuration, which took down `/login` with everything else and made a
+half-configured deploy indistinguishable from a bug. It now returns a 503 naming the
+absent variables. Verified against production builds in three states — no config (503
+everywhere except `/login`, which serves; `/api/webhooks/*` uninterceptable; no value
+anywhere in the page), partial config (names only the one that is missing), and config
+without a session (307 to `/login`). Fail closed means deny, not crash.
 
 **Still unverified, and this is what the preview deploy tests:** none of it has run
 against a real Supabase project. Specifically unproven — that the anon key can read
