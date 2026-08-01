@@ -18,6 +18,50 @@ run against real APIs.* None of the below is done.
 
 ## Unverified, in order of how much rests on it
 
+### 0. ~~CI has never run a single check~~ — RESOLVED, and it was every push
+
+This one belongs at the top because it invalidates a claim made in every commit message
+since the first: that CI enforces anything.
+
+**It never ran.** 25 consecutive failures, runs 1 through 25, from the Phase 1 scaffold
+(`1d524c4`, 13:03) to the pg swap (`d197d91`, 19:51). Every run died at the same step:
+
+```
+Run pnpm/action-setup@v4
+  Error: No pnpm version is specified.
+  Please specify it by one of the following ways:
+    - in the GitHub Action config with the key "version"
+    - in the package.json with the key "packageManager"
+```
+
+The shape is visible without reading a single log: every run lasted 29–47 seconds, which
+is a Postgres service container starting, a checkout, and an immediate failure. Nothing
+after `pnpm install` ever executed. Not the vendor-isolation rule, not the enum check, not
+the drift check, not `check:catalog`, not the build.
+
+**What that means for everything already claimed.** Nothing recorded in this file was
+proven by CI, only by local runs against a real Postgres. Those runs happened and their
+output is quoted, so the checks are not fiction — but "CI enforces CLAUDE.md rule 1", in
+the first commit message and repeated since, was false the whole time. A green badge was
+never present to contradict it, and nobody looked.
+
+**The second failure was hiding behind the first**, which is the part worth remembering.
+`pg` had been moved between dependency groups by editing `package.json` directly, leaving
+`pnpm-lock.yaml` stale; `pnpm install --frozen-lockfile` would have failed on the very
+next step. A pipeline that fails at step one hides every later defect, and each fix
+reveals the next — so "fixed the CI failure" is never the same claim as "CI passes".
+
+**Resolved by:** `packageManager: pnpm@10.33.0` in `package.json` rather than a `version:`
+pin in the workflow, so corepack and the action read the same number; the lockfile
+regenerated; and the action majors moved to the node24 runtime (`checkout@v7`,
+`setup-node@v7`, `pnpm/action-setup@v6` — all verified against their published
+`action.yml`, since the v5/v6 majors I would have guessed at do not all exist).
+
+**Verified before pushing:** every CI step run locally in order against a database created
+to match the service container, including `install --frozen-lockfile` and a build with
+CI's environment and nothing else. That is not the same as CI passing, and the run itself
+is the only thing that settles it.
+
 ### 1. Supabase Vault — `scripts/verify-vault.mjs`
 
 **Still never executed against Supabase Vault.** The write path now exists — migration
@@ -75,7 +119,9 @@ subsequent GET no longer finds it.
 
 Migrations 0001–0007 have only ever been applied to a local Postgres 16. They apply
 cleanly from empty, in order, and the committed types match them — `pnpm check:drift`
-proves that much and runs in CI.
+proves that much, locally. It is *configured* to run in CI and, until run 26, never once
+did: see §0. Read every "runs in CI" in this file as "is wired to run in CI" for anything
+dated before that.
 
 What that check explicitly does **not** prove is anything about the hosted project. It
 never connects to it. A hosted database can have drifted arbitrarily and this check still

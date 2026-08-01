@@ -30,11 +30,18 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/kiln
 
     steps:
-      - uses: actions/checkout@v4
+      # Action majors, not the project's Node. All three run on the node24 runtime; the
+      # v4s were on node20, which the runner now force-upgrades while warning that it
+      # will stop doing so. `node-version` below is what the project's own scripts run
+      # on and is a separate decision.
+      #
+      # pnpm/action-setup must stay before setup-node: `cache: pnpm` needs pnpm on PATH
+      # to locate the store, and it fails confusingly if the order is swapped.
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
