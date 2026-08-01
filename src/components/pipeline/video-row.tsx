@@ -60,6 +60,7 @@ export function VideoRow({ video, selected }: { video: PipelineVideo; selected?:
 
   return (
     <div
+      data-selectable
       className="group grid items-center gap-5 border-b px-5 py-3 transition-colors"
       style={{
         gridTemplateColumns: ROW_GRID,
@@ -77,9 +78,28 @@ export function VideoRow({ video, selected }: { video: PipelineVideo; selected?:
         {/* Fixed-width gutter: the glyphs differ in intrinsic width (an 11px svg vs a
             9px span), and without this the titles fail to line up by a couple of pixels
             — the kind of thing that reads as sloppy without being consciously noticed. */}
-        <span className="mt-[6px] flex w-3 shrink-0 justify-center">
+        <span className="mt-[10px] flex w-3 shrink-0 justify-center">
           <StateGlyph state={video.state} />
         </span>
+
+        {/* Placeholder first frame. Here so the accent is judged against arbitrary
+            imagery rather than only against flat chrome — the exact case OKLCH was
+            picked for. 9:16 because that is what this pipeline makes. */}
+        {video.thumb ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={video.thumb}
+            alt=""
+            className="h-[38px] w-[21px] shrink-0 rounded-xs object-cover"
+            style={{ border: '1px solid var(--border-subtle)' }}
+          />
+        ) : (
+          <span
+            aria-hidden
+            className="h-[38px] w-[21px] shrink-0 rounded-xs"
+            style={{ background: 'var(--surface-inset)', border: '1px dashed var(--border-default)' }}
+          />
+        )}
 
         <div className="min-w-0">
           <div className="flex items-baseline gap-2">

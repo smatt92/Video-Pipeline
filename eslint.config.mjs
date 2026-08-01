@@ -3,6 +3,7 @@ import { fileURLToPath } from 'url';
 import { FlatCompat } from '@eslint/eslintrc';
 
 import noPrimitiveTokens from './eslint-rules/no-primitive-tokens.mjs';
+import tokenFormRule from './eslint-rules/token-form-rule.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -24,10 +25,16 @@ const eslintConfig = [
      */
     files: ['src/app/**/*.{ts,tsx}', 'src/components/**/*.{ts,tsx}'],
     plugins: {
-      kiln: { rules: { 'no-primitive-tokens': noPrimitiveTokens } },
+      kiln: {
+        rules: {
+          'no-primitive-tokens': noPrimitiveTokens,
+          'token-form-rule': tokenFormRule,
+        },
+      },
     },
     rules: {
       'kiln/no-primitive-tokens': 'error',
+      'kiln/token-form-rule': 'error',
     },
   },
 ];

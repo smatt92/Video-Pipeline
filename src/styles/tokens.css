@@ -44,13 +44,21 @@
   --k-neutral-11: oklch(0.925 0.003 70);
   --k-neutral-12: oklch(0.975 0.002 70);
 
-  /* The accent. Ember — this is a kiln. Not Linear purple, not Vercel blue. */
-  --k-ember-3: oklch(0.34 0.075 48);
-  --k-ember-5: oklch(0.52 0.135 48);
-  --k-ember-6: oklch(0.62 0.163 48);
-  --k-ember-7: oklch(0.702 0.171 48);
-  --k-ember-8: oklch(0.775 0.142 52);
-  --k-ember-10: oklch(0.885 0.075 58);
+  /* The accent ramp. Teal.
+   *
+   * Was ember (hue 48), which collided with the amber "needs review" state 30° away —
+   * the accent was competing with a status hue, which is the thing a single-accent
+   * discipline exists to prevent. Conventional meaning wins: amber keeps "needs
+   * attention", and the accent moves out of its way.
+   *
+   * The warmth of the product lives in the neutral ramp (hue 70), where it always did.
+   * A cool accent against warm chrome is a deliberate pairing, not a compromise. */
+  --k-teal-3: oklch(0.34 0.046 195);
+  --k-teal-5: oklch(0.52 0.072 195);
+  --k-teal-6: oklch(0.62 0.088 195);
+  --k-teal-7: oklch(0.702 0.101 195);
+  --k-teal-8: oklch(0.775 0.088 197);
+  --k-teal-10: oklch(0.885 0.052 200);
 
   /* Status hues. Each is used for exactly one meaning; see the semantic layer. */
   --k-amber-6: oklch(0.75 0.145 78);
@@ -84,13 +92,43 @@
   --border-subtle: var(--k-neutral-2);
   --border-default: var(--k-neutral-3);
   --border-strong: var(--k-neutral-4);
-  --border-focus: var(--k-ember-7);
+  --border-focus: var(--k-teal-7);
 
-  /* ── The accent. Swap these three lines and the whole product changes. ──── */
-  --accent: var(--k-ember-7);
-  --accent-hover: var(--k-ember-8);
-  --accent-muted: var(--k-ember-3);
+  /* ── The accent. Repointing these is the whole swap. ─────────────────────
+   *
+   * Moving ember → teal touched exactly this block, --border-focus, and the light
+   * theme's four-line equivalent. No component file changed, which is what the layer
+   * split was for. It was not literally one line — a new primitive ramp had to exist,
+   * because the old ramp contained no teal — but nothing above the token layer knew. */
+  --accent: var(--k-teal-7);
+  --accent-hover: var(--k-teal-8);
+  --accent-muted: var(--k-teal-3);
   --accent-contrast: var(--text-on-accent);
+
+  /* The brand mark. Inherits the accent so a swap carries, but is deliberately a
+   * separate name: a logo is neither actionable nor a status, and the form rule is
+   * about meaning rather than about which variable happens to hold the colour. The
+   * lint rule caught the brand dot wearing --accent on its first run. */
+  --brand-mark: var(--accent);
+
+  /* ══════════════════════════════════════════════════════════════════════════
+   * THE FORM RULE
+   *
+   *   --accent*  may appear ONLY on interactive surfaces: buttons, links,
+   *              selection, focus. Things you can act on.
+   *   --state-*  may appear ONLY on non-interactive labels and glyphs. Things
+   *              that report.
+   *
+   *   Never the reverse.
+   *
+   * This is what keeps two colour systems legible in the same screen. Hue alone
+   * cannot do it — teal (195) and the "ready" blue (235) are only 40° apart, and
+   * at a glance across forty rows that is not a reliable distinction. Form is:
+   * a filled rounded rectangle you can press never means the same thing as a
+   * 9px dot that cannot be pressed, however similar their colour.
+   *
+   * Enforced by eslint-rules/token-form-rule.mjs, with the limits stated there.
+   * ══════════════════════════════════════════════════════════════════════════ */
 
   /* Pipeline states. One hue each, and the hue is the whole signal — nothing else in
    * the interface is allowed to be coloured, which is what makes these readable at a
@@ -184,9 +222,9 @@
   --border-default: var(--k-neutral-9);
   --border-strong: var(--k-neutral-8);
 
-  --accent: var(--k-ember-6);
-  --accent-hover: var(--k-ember-5);
-  --accent-muted: var(--k-ember-10);
+  --accent: var(--k-teal-6);
+  --accent-hover: var(--k-teal-5);
+  --accent-muted: var(--k-teal-10);
   --accent-contrast: var(--k-neutral-12);
 
   --sidebar-bg: var(--k-neutral-11);

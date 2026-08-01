@@ -49,11 +49,19 @@ export interface PipelineVideo {
   readonly durationS: number;
   readonly updatedAgo: string;
   readonly origin: 'pipeline' | 'studio';
+  /**
+   * Placeholder still, standing in for a real first frame. Present so the accent can be
+   * judged against arbitrary imagery rather than only against flat chrome — which is the
+   * situation OKLCH was chosen for in the first place. Null while a video has generated
+   * nothing to take a frame from.
+   */
+  readonly thumb: string | null;
 }
 
 export const VIDEOS: readonly PipelineVideo[] = [
   {
     id: 'v_8f2a',
+    thumb: 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2090%20160%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22hsl%28210%2C52%25%2C42%25%29%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22hsl%28250%2C46%25%2C18%25%29%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width%3D%2290%22%20height%3D%22160%22%20fill%3D%22url%28%23g%29%22/%3E%3Ccircle%20cx%3D%2262%22%20cy%3D%2246%22%20r%3D%2226%22%20fill%3D%22hsl%28210%2C60%25%2C62%25%29%22%20opacity%3D%220.35%22/%3E%3Crect%20y%3D%22112%22%20width%3D%2290%22%20height%3D%2248%22%20fill%3D%22hsl%28250%2C40%25%2C10%25%29%22%20opacity%3D%220.55%22/%3E%3C/svg%3E',
     title: 'The Vice City map leak nobody checked',
     angle: 'Debunk — the "leak" is a 2013 mod screenshot',
     channel: 'gta6',
@@ -67,6 +75,7 @@ export const VIDEOS: readonly PipelineVideo[] = [
   },
   {
     id: 'v_3c71',
+    thumb: 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2090%20160%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22hsl%2828%2C52%25%2C42%25%29%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22hsl%288%2C46%25%2C18%25%29%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width%3D%2290%22%20height%3D%22160%22%20fill%3D%22url%28%23g%29%22/%3E%3Ccircle%20cx%3D%2262%22%20cy%3D%2246%22%20r%3D%2226%22%20fill%3D%22hsl%2828%2C60%25%2C62%25%29%22%20opacity%3D%220.35%22/%3E%3Crect%20y%3D%22112%22%20width%3D%2290%22%20height%3D%2248%22%20fill%3D%22hsl%288%2C40%25%2C10%25%29%22%20opacity%3D%220.55%22/%3E%3C/svg%3E',
     title: 'Why Rockstar delayed it twice',
     angle: 'Timeline, sourced from earnings calls only',
     channel: 'gta6',
@@ -79,6 +88,7 @@ export const VIDEOS: readonly PipelineVideo[] = [
   },
   {
     id: 'v_a904',
+    thumb: 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2090%20160%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22hsl%28140%2C52%25%2C42%25%29%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22hsl%28190%2C46%25%2C18%25%29%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width%3D%2290%22%20height%3D%22160%22%20fill%3D%22url%28%23g%29%22/%3E%3Ccircle%20cx%3D%2262%22%20cy%3D%2246%22%20r%3D%2226%22%20fill%3D%22hsl%28140%2C60%25%2C62%25%29%22%20opacity%3D%220.35%22/%3E%3Crect%20y%3D%22112%22%20width%3D%2290%22%20height%3D%2248%22%20fill%3D%22hsl%28190%2C40%25%2C10%25%29%22%20opacity%3D%220.55%22/%3E%3C/svg%3E',
     title: 'Every confirmed vehicle so far',
     angle: 'Inventory — only what appeared in official trailers',
     channel: 'gta6',
@@ -92,6 +102,7 @@ export const VIDEOS: readonly PipelineVideo[] = [
   },
   {
     id: 'v_dd15',
+    thumb: 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2090%20160%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22hsl%28300%2C52%25%2C42%25%29%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22hsl%28330%2C46%25%2C18%25%29%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width%3D%2290%22%20height%3D%22160%22%20fill%3D%22url%28%23g%29%22/%3E%3Ccircle%20cx%3D%2262%22%20cy%3D%2246%22%20r%3D%2226%22%20fill%3D%22hsl%28300%2C60%25%2C62%25%29%22%20opacity%3D%220.35%22/%3E%3Crect%20y%3D%22112%22%20width%3D%2290%22%20height%3D%2248%22%20fill%3D%22hsl%28330%2C40%25%2C10%25%29%22%20opacity%3D%220.55%22/%3E%3C/svg%3E',
     title: 'The soundtrack theory that holds up',
     angle: 'Music licensing filings vs the trailer cut',
     channel: 'gta6',
@@ -104,6 +115,7 @@ export const VIDEOS: readonly PipelineVideo[] = [
   },
   {
     id: 'v_60be',
+    thumb: 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2090%20160%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22hsl%2840%2C52%25%2C42%25%29%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22hsl%2820%2C46%25%2C18%25%29%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width%3D%2290%22%20height%3D%22160%22%20fill%3D%22url%28%23g%29%22/%3E%3Ccircle%20cx%3D%2262%22%20cy%3D%2246%22%20r%3D%2226%22%20fill%3D%22hsl%2840%2C60%25%2C62%25%29%22%20opacity%3D%220.35%22/%3E%3Crect%20y%3D%22112%22%20width%3D%2290%22%20height%3D%2248%22%20fill%3D%22hsl%2820%2C40%25%2C10%25%29%22%20opacity%3D%220.55%22/%3E%3C/svg%3E',
     title: 'What the second trailer actually showed',
     angle: 'Frame-by-frame, no speculation',
     channel: 'gta6',
@@ -116,6 +128,7 @@ export const VIDEOS: readonly PipelineVideo[] = [
   },
   {
     id: 'v_1e47',
+    thumb: null,
     title: 'Untitled — map speculation',
     angle: '',
     channel: 'gta6',
@@ -128,6 +141,7 @@ export const VIDEOS: readonly PipelineVideo[] = [
   },
   {
     id: 'v_7b20',
+    thumb: 'data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2090%20160%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22hsl%280%2C52%25%2C42%25%29%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22hsl%28340%2C46%25%2C18%25%29%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect%20width%3D%2290%22%20height%3D%22160%22%20fill%3D%22url%28%23g%29%22/%3E%3Ccircle%20cx%3D%2262%22%20cy%3D%2246%22%20r%3D%2226%22%20fill%3D%22hsl%280%2C60%25%2C62%25%29%22%20opacity%3D%220.35%22/%3E%3Crect%20y%3D%22112%22%20width%3D%2290%22%20height%3D%2248%22%20fill%3D%22hsl%28340%2C40%25%2C10%25%29%22%20opacity%3D%220.55%22/%3E%3C/svg%3E',
     title: 'Top 10 GTA 6 features you missed',
     angle: 'Listicle',
     channel: 'gta6',

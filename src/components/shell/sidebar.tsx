@@ -78,7 +78,7 @@ export function Sidebar() {
         <span
           aria-hidden
           className="size-[7px] rounded-full"
-          style={{ background: 'var(--accent)' }}
+          style={{ background: 'var(--brand-mark)' }}
         />
         <span className="text-[13px] font-medium tracking-tight">Kiln</span>
         <span className="ml-auto font-mono text-[10px]" style={{ color: 'var(--text-faint)' }}>
