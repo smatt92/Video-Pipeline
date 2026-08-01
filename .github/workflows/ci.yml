@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    # The enum check talks to a real Postgres rather than a fixture, because the thing
+    # being checked is whether the code agrees with the database — a fixture would only
+    # prove the code agrees with itself.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kiln
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/kiln
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # ── The rule with teeth (CLAUDE.md rule 1) ───────────────────────────
+      # First, because it is the cheapest and the one most likely to be violated by a
+      # well-meaning shortcut.
+      - name: No vendor names outside the driver layer
+        run: pnpm check:vendors
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      # ── Migrations must apply to an empty database, in order ─────────────
+      # Forward-only means the sequence from nothing is the only sequence that matters.
+      - name: Apply migrations
+        run: |
+          for f in supabase/migrations/*.sql; do
+            echo "── $f"
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$f"
+          done
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/seed.sql
+
+      # ── The hand-written enums must match the live CHECK constraints ─────
+      - name: Enums match the schema
+        run: pnpm check:enums "$DATABASE_URL"
+
+      # ── Generated types must match the migrations ────────────────────────
+      # Catches the commit where someone edits a migration and forgets `pnpm db:types`,
+      # which otherwise shows up as a type error weeks later in unrelated code.
+      - name: DB types are up to date
+        run: |
+          cp src/lib/db/types.ts /tmp/types.committed.ts
+          pnpm db:types:nodocker
+          if ! diff -u /tmp/types.committed.ts src/lib/db/types.ts; then
+            echo
+            echo "src/lib/db/types.ts is stale. Run: pnpm db:types"
+            exit 1
+          fi
+
+      - name: Build
+        run: pnpm build
+        env:
+          # Build-time only. The real values live in the deployment environment; these
+          # exist so `next build` can complete without secrets, and are never used to
+          # reach a real service.
+          APP_URL: https://ci.invalid
+          SUPABASE_URL: https://ci.invalid
+          SUPABASE_ANON_KEY: ci
+          SUPABASE_SERVICE_ROLE_KEY: ci
+          R2_ACCOUNT_ID: ci
+          R2_ACCESS_KEY_ID: ci
+          R2_SECRET_ACCESS_KEY: ci
+          R2_BUCKET: ci
+          TRIGGER_PROJECT_REF: proj_ci
+          TRIGGER_SECRET_KEY: tr_ci
+          ANTHROPIC_API_KEY: ci
+          VIDEO_DRIVER: none
+          USD_INR_RATE: '88.5'
+          HIGGSFIELD_API_KEY: ci
+          HIGGSFIELD_API_SECRET: ci
+          HIGGSFIELD_WEBHOOK_SECRET: ci-placeholder-secret-at-least-32-chars

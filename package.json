@@ -1,0 +1,50 @@
+{
+  "name": "kiln",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:types": "supabase gen types typescript --local --schema public > src/lib/db/types.ts",
+    "db:types:nodocker": "node scripts/gen-types-nodocker.mjs \"$DATABASE_URL\" public",
+    "trigger:dev": "trigger.dev dev",
+    "trigger:deploy": "trigger.dev deploy",
+    "check:vendors": "./scripts/check-vendor-isolation.sh",
+    "check:enums": "node scripts/check-enums.mjs",
+    "check": "pnpm check:vendors && pnpm typecheck && pnpm lint"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.115.0",
+    "@aws-sdk/client-s3": "^3.1101.0",
+    "@aws-sdk/s3-request-presigner": "^3.1101.0",
+    "@fal-ai/client": "^1.10.1",
+    "@higgsfield/client": "^0.2.1",
+    "@supabase/ssr": "^0.12.4",
+    "@supabase/supabase-js": "^2.111.0",
+    "@trigger.dev/sdk": "^4.5.9",
+    "next": "15.5.22",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@supabase/postgres-meta": "0.96.6",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.5.22",
+    "supabase": "^2.111.0",
+    "tailwindcss": "^4",
+    "trigger.dev": "^4.5.9",
+    "typescript": "^5"
+  }
+}
