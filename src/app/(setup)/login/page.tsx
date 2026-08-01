@@ -1,7 +1,9 @@
-import { SIGN_IN_REFUSED } from '@/lib/auth/allowed';
-import { parseAllowlist } from '@/lib/auth/config';
+import { SIGN_IN_REFUSED } from "@/lib/auth/allowed";
+import { probeProviders } from "@/lib/auth/providers";
+import { buildInfo } from "@/lib/build-info";
+import { parseAllowlist } from "@/lib/auth/config";
 
-import { SignInForm } from './sign-in-form';
+import { SignInForm } from "./sign-in-form";
 
 /**
  * Sign in.
@@ -13,15 +15,16 @@ import { SignInForm } from './sign-in-form';
 
 // Per-request: the allowlist warning below reads the environment at request time, and a
 // prerendered copy would keep saying "configured" after the variable was fixed.
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-export const metadata = { title: 'Kiln — sign in' };
+export const metadata = { title: "Kiln — sign in" };
 
 const DENIALS: Record<string, string> = {
   not_allowed: SIGN_IN_REFUSED,
   unconfigured: SIGN_IN_REFUSED,
-  no_code: 'That sign-in link was incomplete. Request a new one.',
-  exchange_failed: 'That sign-in link has expired or was already used. Request a new one.',
+  no_code: "That sign-in link was incomplete. Request a new one.",
+  exchange_failed:
+    "That sign-in link has expired or was already used. Request a new one.",
 };
 
 export default async function LoginPage({
@@ -30,7 +33,7 @@ export default async function LoginPage({
   searchParams: Promise<{ next?: string; denied?: string }>;
 }) {
   const { next, denied } = await searchParams;
-  const safeNext = next?.startsWith('/') && !next.startsWith('//') ? next : '/';
+  const safeNext = next?.startsWith("/") && !next.startsWith("//") ? next : "/";
   const message = denied ? (DENIALS[denied] ?? DENIALS.not_allowed) : null;
 
   /**
@@ -46,19 +49,25 @@ export default async function LoginPage({
    */
   const { malformed } = parseAllowlist(process.env.ALLOWED_EMAIL ?? null);
 
+  const providers = await probeProviders();
+  const build = buildInfo();
+
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[400px] flex-col justify-center px-6 py-12">
       <div className="mb-7 flex items-center gap-2">
         <span
           aria-hidden
           className="size-[7px] rounded-full"
-          style={{ background: 'var(--brand-mark)' }}
+          style={{ background: "var(--brand-mark)" }}
         />
         <span className="text-[13px] font-medium tracking-tight">Kiln</span>
       </div>
 
       <h1 className="mb-2 text-[19px] font-medium tracking-tight">Sign in</h1>
-      <p className="mb-6 text-[13px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+      <p
+        className="mb-6 text-[13px] leading-relaxed"
+        style={{ color: "var(--text-secondary)" }}
+      >
         Single-tenant. One address is permitted, set at deploy time.
       </p>
 
@@ -66,37 +75,60 @@ export default async function LoginPage({
         <div
           className="mb-5 rounded-sm border px-3 py-2 text-[12px] leading-relaxed"
           style={{
-            borderColor: 'var(--border-strong)',
-            background: 'var(--surface-inset)',
-            color: 'var(--text-muted)',
+            borderColor: "var(--border-strong)",
+            background: "var(--surface-inset)",
+            color: "var(--text-muted)",
           }}
         >
           {message}
         </div>
       )}
 
-      <SignInForm next={safeNext} />
+      <SignInForm
+        next={safeNext}
+        googleState={providers.google}
+        googleDetail={providers.detail}
+      />
+
+      {/* The build marker.
+          Three debugging sessions have gone on a stale deployment mistaken for a code bug.
+          A visible sha turns "is my change live?" from an inference into a comparison
+          against git log — and `source` says whether the platform reported it at runtime or
+          it was baked in, because a build-time value can itself be stale. */}
+      <p
+        className="mt-8 font-mono text-[10.5px]"
+        style={{ color: "var(--text-faint)" }}
+        data-build-sha={build.sha}
+      >
+        build {build.sha}
+        {build.branch ? ` · ${build.branch}` : ""}
+        {build.source === "build" ? " · baked in at build" : ""}
+        {build.builtAt
+          ? ` · ${build.builtAt.slice(0, 16).replace("T", " ")}`
+          : ""}
+      </p>
 
       {malformed.length > 0 && (
         <div
           className="mt-6 rounded-sm border px-3 py-2 text-[11.5px] leading-relaxed"
           style={{
-            borderColor: 'var(--border-strong)',
-            background: 'var(--surface-inset)',
-            color: 'var(--state-review)',
+            borderColor: "var(--border-strong)",
+            background: "var(--surface-inset)",
+            color: "var(--state-review)",
           }}
         >
           <strong className="font-medium">
-            {`ALLOWED_EMAIL has ${malformed.length} unusable ${malformed.length === 1 ? 'entry' : 'entries'}`}
+            {`ALLOWED_EMAIL has ${malformed.length} unusable ${malformed.length === 1 ? "entry" : "entries"}`}
           </strong>
-          , ignored by the allowlist:{' '}
+          , ignored by the allowlist:{" "}
           {malformed.map((e) => (
             <code key={e} className="font-mono">
               {e}
             </code>
           ))}
-          . A missing <code className="font-mono">.com</code> is the usual cause. Anyone at
-          those addresses will request a link and never receive one.
+          . A missing <code className="font-mono">.com</code> is the usual
+          cause. Anyone at those addresses will request a link and never receive
+          one.
         </div>
       )}
     </div>

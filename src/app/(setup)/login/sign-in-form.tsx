@@ -29,12 +29,12 @@ function Submit() {
   );
 }
 
-function GoogleButton() {
+function GoogleButton({ disabled }: { disabled: boolean }) {
   const { pending } = useFormStatus();
   return (
     <button
       type="submit"
-      disabled={pending}
+      disabled={pending || disabled}
       className="flex w-full items-center justify-center gap-2 rounded-sm border px-3 py-[8px] text-[12.5px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
       style={{
         borderColor: "var(--border-default)",
@@ -47,7 +47,16 @@ function GoogleButton() {
   );
 }
 
-export function SignInForm({ next }: { next: string }) {
+export function SignInForm({
+  next,
+  googleState: providerState,
+  googleDetail,
+}: {
+  next: string;
+  /** enabled | disabled | unknown. Never hidden — see the note on the form below. */
+  googleState: "enabled" | "disabled" | "unknown";
+  googleDetail: string | null;
+}) {
   const [state, action] = useActionState(requestSignInLink, initial);
   const [googleState, googleAction] = useActionState(signInWithGoogle, initial);
 
@@ -66,11 +75,31 @@ export function SignInForm({ next }: { next: string }) {
   return (
     <div className="flex flex-col gap-4">
       {/* Google first: it is the path that works without a domain, and the one that does
-          not cost an hour per attempt when the built-in mailer rate-limits. */}
+          not cost an hour per attempt when the built-in mailer rate-limits.
+
+          Rendered even when it cannot be used. A disabled control with a reason is
+          diagnosable; an absent one is indistinguishable from a deployment that never
+          shipped it — which is exactly the ambiguity this replaced. */}
       <form action={googleAction}>
         <input type="hidden" name="next" value={next} />
-        <GoogleButton />
+        <GoogleButton disabled={providerState === "disabled"} />
       </form>
+
+      {googleDetail && (
+        <p
+          className="text-[11.5px] leading-relaxed"
+          style={{
+            color:
+              providerState === "disabled"
+                ? "var(--state-blocked)"
+                : "var(--state-review)",
+          }}
+        >
+          {providerState === "unknown" &&
+            "Cannot tell whether Google is enabled. "}
+          {googleDetail}
+        </p>
+      )}
 
       {googleState.message && (
         <p
