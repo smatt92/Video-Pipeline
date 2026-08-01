@@ -41,9 +41,21 @@ See `docs/decisions/0005-type-generation-without-docker.md`.
 ## Checks
 
 ```bash
-pnpm check                          # vendor isolation + typecheck + lint
+pnpm check                          # vendors + NEXT_PUBLIC_ guard + typecheck + lint
 pnpm check:vendors                  # CLAUDE.md rule 1, the one with teeth
+pnpm check:public-env               # only two vars may be client-published
 pnpm check:enums "$DATABASE_URL"    # hand-written enums vs live CHECK constraints
+pnpm check:drift "$DATABASE_URL"    # migrations ↔ committed types
+```
+
+`check:public-env` also runs as `prebuild`, so it fires on every `pnpm build` — locally,
+in CI, and on Vercel where it sees the real deployment environment.
+
+Against the hosted project (not runnable in CI — they need real credentials):
+
+```bash
+pnpm verify:vault                   # extension → create → read back → delete
+pnpm verify:storage                 # presign PUT → upload → read back → delete → gone
 ```
 
 `pnpm check:vendors` fails if a vendor name appears anywhere in `src/` outside
@@ -55,7 +67,7 @@ the string — it is that the driver interface is missing something the caller n
 ```
 src/lib/drivers/      all generation-vendor code, and nothing else anywhere
 src/lib/storage/      StorageDriver interface + the object-store implementation
-src/lib/db/           generated types + enums + clients
+src/lib/db/           generated types + enums; browser.ts vs server.ts
 src/trigger/          pipeline stages, numbered 01–11
 src/app/              control plane only — IDs and URLs, never media bytes
 supabase/migrations/  forward-only
@@ -72,3 +84,78 @@ supabase/migrations/  forward-only
 3. **The cost row is written before the result comes back.** Cost-per-video cannot be
    backfilled. A submit that cannot be priced refuses to run rather than proceeding
    uncosted.
+
+
+## Environment: two targets, two sets
+
+Vercel and Trigger.dev do **not** share environment variables. Every variable has to be
+set on both, or on exactly one, deliberately. A variable set on Vercel and forgotten on
+Trigger.dev produces a control plane that works and a pipeline that fails on its first
+real run.
+
+Do **not** use the Vercel Marketplace Supabase integration — it injects its own variable
+names, which collide with the ones below.
+
+Do **not** put migrations in the Vercel build step. Applying schema is a deliberate
+terminal action (`supabase db push`), not something that fires on every preview push.
+
+### Vercel — the control plane
+
+UI, auth, CRUD, enqueue, webhook receivers. Never touches media bytes.
+
+| Variable | Environments | Notes |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | All | Inlined into the client bundle |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | All | Inlined into the client bundle |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Production only** | Bypasses RLS. Never set in Development. |
+| `APP_URL` | All | Preview URL on previews is fine |
+| `WEBHOOK_CALLBACK_BASE_URL` | **Production only** | Must be the stable production domain — see below |
+| `ALLOWED_EMAIL` | All | The single address permitted to sign in |
+| `STORAGE_DRIVER` | All | |
+| `SUPABASE_STORAGE_BUCKET` | All | |
+| `SUPABASE_S3_ACCESS_KEY_ID` | All | Presigning happens server-side |
+| `SUPABASE_S3_SECRET_ACCESS_KEY` | All | |
+| `SUPABASE_S3_REGION` | All | |
+| `TRIGGER_PROJECT_REF` | All | Enqueue only |
+| `TRIGGER_SECRET_KEY` | All | Enqueue only |
+| `USD_INR_RATE` | All | Bootstrap default; `profiles.usd_inr_rate` wins once set |
+| `ANTHROPIC_API_KEY` | Production | Only if a route calls the LLM directly |
+| `VIDEO_DRIVER` | All | Webhook route resolves the driver by slug |
+| `HIGGSFIELD_WEBHOOK_SECRET` | Production | Needed to verify inbound webhooks |
+
+`HIGGSFIELD_API_KEY` / `HIGGSFIELD_API_SECRET` / `FAL_KEY` are **not** needed on Vercel —
+nothing there submits a generation.
+
+### Trigger.dev — the pipeline
+
+Orchestration, ffmpeg, Remotion, every vendor call. Deployed separately with
+`npx trigger.dev@latest deploy`.
+
+| Variable | Environments | Notes |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | All | Same value; the prefix is vestigial here |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Production only** | Workers write rows; RLS does not apply |
+| `WEBHOOK_CALLBACK_BASE_URL` | **Production only** | Submitted to vendors with each job |
+| `STORAGE_DRIVER`, `SUPABASE_STORAGE_BUCKET` | All | Workers write media directly |
+| `SUPABASE_S3_ACCESS_KEY_ID` / `_SECRET_ACCESS_KEY` / `_REGION` | All | |
+| `ANTHROPIC_API_KEY` | All | Scripts, shotlists, prompt compilation |
+| `VIDEO_DRIVER` | All | |
+| `HIGGSFIELD_API_KEY`, `HIGGSFIELD_API_SECRET` | All | This is where generations are submitted |
+| `HIGGSFIELD_WEBHOOK_SECRET` | All | Sent with each submit |
+| `HIGGSFIELD_API_BASE_URL`, `FAL_KEY` | Optional | |
+| `USD_INR_RATE` | All | Ledger rows are written here |
+| `DRIVER_TIMEOUT_MS` and the circuit-breaker vars | Optional | Defaults in `src/lib/env.ts` |
+
+`ALLOWED_EMAIL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are **not** needed on Trigger.dev —
+there is no browser and no sign-in.
+
+### Two rules that are easy to get wrong
+
+**`SUPABASE_SERVICE_ROLE_KEY` must never be set in Development** on either target. It
+bypasses row-level security completely, and a Development environment is where keys end up
+in shell history and screenshots.
+
+**`WEBHOOK_CALLBACK_BASE_URL` is not `APP_URL` and is not `VERCEL_URL`.** Preview
+deployments get a new hostname per commit, so a webhook registered against one dies on the
+next push — silently, because the vendor gets a DNS failure and you get nothing. Point it
+at the production domain, or a tunnel locally.

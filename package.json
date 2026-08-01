@@ -17,7 +17,12 @@
     "trigger:deploy": "trigger.dev deploy",
     "check:vendors": "./scripts/check-vendor-isolation.sh",
     "check:enums": "node scripts/check-enums.mjs",
-    "check": "pnpm check:vendors && pnpm typecheck && pnpm lint"
+    "check": "pnpm check:vendors && pnpm check:public-env && pnpm typecheck && pnpm lint",
+    "prebuild": "node scripts/check-public-env.mjs",
+    "check:public-env": "node scripts/check-public-env.mjs",
+    "check:drift": "node scripts/check-drift.mjs",
+    "verify:vault": "node scripts/verify-vault.mjs",
+    "verify:storage": "node --env-file-if-exists=.env.local scripts/verify-storage.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
@@ -31,6 +36,7 @@
     "next": "15.5.22",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "server-only": "^0.0.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {

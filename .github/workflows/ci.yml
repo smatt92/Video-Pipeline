@@ -47,6 +47,10 @@ jobs:
       - name: No vendor names outside the driver, publish and storage layers
         run: pnpm check:vendors
 
+      # ── Nothing but the two permitted vars may be client-published ───────
+      - name: NEXT_PUBLIC_ prefix guard
+        run: pnpm check:public-env
+
       - name: Typecheck
         run: pnpm typecheck
 
@@ -68,17 +72,11 @@ jobs:
         run: pnpm check:enums "$DATABASE_URL"
 
       # ── Generated types must match the migrations ────────────────────────
-      # Catches the commit where someone edits a migration and forgets `pnpm db:types`,
-      # which otherwise shows up as a type error weeks later in unrelated code.
-      - name: DB types are up to date
-        run: |
-          cp src/lib/db/types.ts /tmp/types.committed.ts
-          pnpm db:types:nodocker
-          if ! diff -u /tmp/types.committed.ts src/lib/db/types.ts; then
-            echo
-            echo "src/lib/db/types.ts is stale. Run: pnpm db:types"
-            exit 1
-          fi
+      # Rebuilds a scratch database from the migration sequence and diffs the regenerated
+      # types against the committed ones. Proves migrations ↔ types agreement; proves
+      # nothing about the hosted project, which this job never contacts.
+      - name: No drift between migrations and committed types
+        run: pnpm check:drift "$DATABASE_URL"
 
       - name: Build
         run: pnpm build
@@ -87,8 +85,10 @@ jobs:
           # exist so `next build` can complete without secrets, and are never used to
           # reach a real service.
           APP_URL: https://ci.invalid
-          SUPABASE_URL: https://ci.invalid
-          SUPABASE_ANON_KEY: ci
+          WEBHOOK_CALLBACK_BASE_URL: https://ci.invalid
+          ALLOWED_EMAIL: ci@ci.invalid
+          NEXT_PUBLIC_SUPABASE_URL: https://ci.invalid
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci
           SUPABASE_SERVICE_ROLE_KEY: ci
           STORAGE_DRIVER: supabase-storage
           SUPABASE_STORAGE_BUCKET: ci

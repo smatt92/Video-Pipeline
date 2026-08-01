@@ -43,7 +43,7 @@ import {
 const SLUG = 'supabase-storage';
 
 function endpoint(): string {
-  return env.SUPABASE_S3_ENDPOINT ?? `${env.SUPABASE_URL.replace(/\/$/, '')}/storage/v1/s3`;
+  return env.SUPABASE_S3_ENDPOINT ?? `${env.NEXT_PUBLIC_SUPABASE_URL.replace(/\/$/, '')}/storage/v1/s3`;
 }
 
 function assertExpiry(seconds: number): number {

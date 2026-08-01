@@ -24,19 +24,46 @@ const coreEnvSchema = z.object({
 
   // ── Application ───────────────────────────────────────────────────────────
   /**
-   * Public origin of this deployment. Vendors POST their webhooks here, so it has to be
-   * reachable from the internet — not localhost. In development use a tunnel and put
-   * the tunnel's URL here; a webhook aimed at localhost is silently never delivered,
-   * and you will spend an afternoon on it.
+   * Origin of *this* deployment. On a preview build this is the preview URL, and that is
+   * fine — it is used for links and redirects, not for callbacks.
    */
   APP_URL: z.url({ error: 'APP_URL must be an absolute URL, e.g. https://kiln.vercel.app' }),
 
-  // ── Supabase ──────────────────────────────────────────────────────────────
-  SUPABASE_URL: z.url(),
-  SUPABASE_ANON_KEY: nonEmpty('SUPABASE_ANON_KEY'),
   /**
-   * Bypasses row-level security. Server and worker only. If this ever appears in a
-   * client component or a NEXT_PUBLIC_ variable, treat it as leaked and rotate it.
+   * Stable public origin that vendors POST webhooks to. Deliberately separate from
+   * APP_URL and deliberately not derived from VERCEL_URL.
+   *
+   * Preview deployments get a new hostname on every commit, so a webhook registered
+   * against one dies on the next push — and it dies silently, because the vendor gets a
+   * DNS failure and we get nothing at all. Point this at the production domain, or at a
+   * tunnel in local development. A callback aimed at localhost is never delivered and
+   * every generation hangs until it times out.
+   */
+  WEBHOOK_CALLBACK_BASE_URL: z.url({
+    error: 'WEBHOOK_CALLBACK_BASE_URL must be an absolute, publicly reachable URL',
+  }),
+
+  /**
+   * The single address permitted to sign in.
+   *
+   * Settings is the highest-value target in the app — it holds every vendor credential —
+   * and "is authenticated" is not a sufficient gate when anyone can sign themselves up
+   * against a public Supabase project.
+   */
+  ALLOWED_EMAIL: z.email({ error: 'ALLOWED_EMAIL must be a single email address' }),
+
+  // ── Supabase ──────────────────────────────────────────────────────────────
+  // These two are the only variables in the entire schema allowed a NEXT_PUBLIC_ prefix.
+  // Next inlines anything so prefixed into the client bundle at build time, which makes
+  // the prefix a publication decision, not a naming convention. `pnpm check:public-env`
+  // fails the build if a third one ever appears.
+  NEXT_PUBLIC_SUPABASE_URL: z.url(),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: nonEmpty('NEXT_PUBLIC_SUPABASE_ANON_KEY'),
+  /**
+   * Bypasses row-level security entirely. Server and worker only, and Production only —
+   * it must never be set in a Development environment on either deploy target. If it ever
+   * acquires a NEXT_PUBLIC_ prefix or appears in a client bundle, treat it as leaked and
+   * rotate it immediately.
    */
   SUPABASE_SERVICE_ROLE_KEY: nonEmpty('SUPABASE_SERVICE_ROLE_KEY'),
 
@@ -126,12 +153,13 @@ export function assertEnv(): Env {
   const value = parsed.data;
 
   if (value.NODE_ENV === 'production') {
-    const host = new URL(value.APP_URL).hostname;
-    if (host === 'localhost' || host === '127.0.0.1') {
+    const callbackHost = new URL(value.WEBHOOK_CALLBACK_BASE_URL).hostname;
+    if (callbackHost === 'localhost' || callbackHost === '127.0.0.1') {
       throw new EnvironmentError(
-        `APP_URL is ${value.APP_URL} in production. Vendor webhooks would be delivered ` +
-          'to a host only this machine can see, and every generation would hang until it ' +
-          'timed out. Set it to the public origin of the deployment.',
+        `WEBHOOK_CALLBACK_BASE_URL is ${value.WEBHOOK_CALLBACK_BASE_URL} in production. ` +
+          'Vendor webhooks would be delivered to a host only this machine can see, every ' +
+          'generation would hang until it timed out, and nothing would say why. Set it to ' +
+          'the production domain.',
       );
     }
   }
