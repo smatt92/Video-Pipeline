@@ -23,10 +23,9 @@
  *        (or set DATABASE_URL; needs CREATE DATABASE privilege)
  */
 
-import { execFileSync } from 'node:child_process';
-import { readdirSync } from 'node:fs';
-
 import { catalogEntries } from './lib/catalog.mjs';
+import { listMigrations } from './lib/migrations.mjs';
+import { describeSqlError, rows as queryRows, withClient } from './lib/pg.mjs';
 
 const adminUrl = process.argv[2] ?? process.env.DATABASE_URL;
 if (!adminUrl) {
@@ -36,78 +35,69 @@ if (!adminUrl) {
 
 const scratch = `kiln_catalog_${process.pid}`;
 
-function psql(url, args) {
-  return execFileSync('psql', [url, ...args], {
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-}
-
 function withDatabase(url, name) {
   const u = new URL(url);
   u.pathname = `/${name}`;
   return u.toString();
 }
 
-let created = false;
-
-process.on('exit', () => {
-  if (!created) return;
-  try {
-    psql(adminUrl, ['-q', '-c', `drop database if exists ${scratch} with (force)`]);
-  } catch {
-    console.error(`warning: could not drop scratch database ${scratch}`);
-  }
-});
-process.on('SIGINT', () => process.exit(130));
-
 // Throws rather than returning an empty list if the descriptor shape changed — a check
 // that quietly stops checking would report PASS forever. See scripts/lib/catalog.mjs.
 const entries = catalogEntries();
 
-psql(adminUrl, ['-q', '-c', `drop database if exists ${scratch}`]);
-psql(adminUrl, ['-q', '-c', `create database ${scratch}`]);
-created = true;
+let created = false;
+let exitCode = 0;
+const problems = [];
+let rowCount = 0;
 
-const scratchUrl = withDatabase(adminUrl, scratch);
-
-// Migrations only. Applying the seed here would defeat the entire point.
-const migrations = readdirSync('supabase/migrations')
-  .filter((f) => f.endsWith('.sql'))
-  .sort();
-
-for (const file of migrations) {
-  try {
-    psql(scratchUrl, ['-v', 'ON_ERROR_STOP=1', '-q', '-f', `supabase/migrations/${file}`]);
-  } catch (err) {
-    console.error(`\nMigration ${file} failed to apply to an empty database:\n`);
-    console.error(err.stderr ?? err.message);
-    process.exit(1);
-  }
-}
-
-const rows = psql(scratchUrl, ['-Atq', '-c', 'select slug, kind from integrations order by slug'])
-  .trim()
-  .split('\n')
-  .filter(Boolean)
-  .map((line) => {
-    const [slug, kind] = line.split('|');
-    return { slug, kind };
+try {
+  await withClient(adminUrl, async (admin) => {
+    // CREATE DATABASE cannot run inside a transaction block, which is why this connects to
+    // the admin database rather than reusing a pooled connection elsewhere.
+    await admin.query(`drop database if exists ${scratch}`);
+    await admin.query(`create database ${scratch}`);
+    created = true;
   });
 
-const bySlug = new Map(rows.map((r) => [r.slug, r.kind]));
-const problems = [];
+  await withClient(withDatabase(adminUrl, scratch), async (client) => {
+    // Migrations only. Applying the seed here would defeat the entire point.
+    for (const m of listMigrations()) {
+      const sql = m.sql;
+      try {
+        await client.query(sql);
+      } catch (err) {
+        console.error(`\nMigration ${m.file} failed to apply to an empty database:\n`);
+        console.error(describeSqlError(err, sql));
+        process.exit(1);
+      }
+    }
 
-for (const entry of entries) {
-  const kind = bySlug.get(entry.slug);
-  if (kind === undefined) {
-    problems.push(
-      `${entry.slug} — in the catalogue, no integrations row after a migrations-only apply. ` +
-        'The onboarding action looks this row up by slug and throws when it is absent, so ' +
-        'the wizard step for it cannot be walked on a pushed database. Add it to a migration.',
-    );
-  } else if (kind !== entry.kind) {
-    problems.push(`${entry.slug} — catalogue says kind '${entry.kind}', the row says '${kind}'.`);
+    const rows = await queryRows(client, 'select slug, kind from integrations order by slug');
+    rowCount = rows.length;
+    const bySlug = new Map(rows.map((r) => [r.slug, r.kind]));
+
+    for (const entry of entries) {
+      const kind = bySlug.get(entry.slug);
+      if (kind === undefined) {
+        problems.push(
+          `${entry.slug} — in the catalogue, no integrations row after a migrations-only apply. ` +
+            'The onboarding action looks this row up by slug and throws when it is absent, so ' +
+            'the wizard step for it cannot be walked on a pushed database. Add it to a migration.',
+        );
+      } else if (kind !== entry.kind) {
+        problems.push(`${entry.slug} — catalogue says kind '${entry.kind}', the row says '${kind}'.`);
+      }
+    }
+  });
+} finally {
+  if (created) {
+    try {
+      await withClient(adminUrl, (admin) =>
+        admin.query(`drop database if exists ${scratch} with (force)`),
+      );
+    } catch {
+      console.error(`warning: could not drop scratch database ${scratch}`);
+    }
   }
 }
 
@@ -115,10 +105,12 @@ if (problems.length > 0) {
   console.error(`\n${problems.length} catalogue integration(s) unreachable on a fresh push:\n`);
   for (const p of problems) console.error(`  ✗ ${p}`);
   console.error('');
-  process.exit(1);
+  exitCode = 1;
+} else {
+  console.log(
+    `catalogue rows ok — all ${entries.length} integrations exist after migrations alone ` +
+      `(${rowCount} rows in the table).`,
+  );
 }
 
-console.log(
-  `catalogue rows ok — all ${entries.length} integrations exist after migrations alone ` +
-    `(${rows.length} rows in the table).`,
-);
+process.exit(exitCode);

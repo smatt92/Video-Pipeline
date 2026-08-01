@@ -22,6 +22,15 @@
  * from its cause. Verbatim text inside one transaction is both simpler and more honest:
  * either every statement in the file committed, or none did.
  *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Why this file imports nothing
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * It reads only `lib/migrations.mjs`, which has no dependencies of its own — no `pg`, no
+ * psql, nothing from node_modules. That is deliberate and load-bearing: this is the path
+ * that works when the others do not, and a last resort that needs a working install is
+ * not a last resort. It writes a file; the browser does the rest.
+ *
  * Usage: node scripts/db-bundle.mjs [--from 0008] [--to 0014] [--out path.sql]
  *
  * With no range it bundles everything. Run `pnpm doctor` first: it prints exactly which
@@ -31,7 +40,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-import { LEDGER_DDL, ledgerInsert, listMigrations } from './lib/db.mjs';
+import { LEDGER_DDL, ledgerInsert, listMigrations } from './lib/migrations.mjs';
 
 const args = process.argv.slice(2);
 const opt = (name) => {

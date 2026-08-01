@@ -57,6 +57,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.5.22",
+    "pg": "^8.22.0",
     "supabase": "^2.111.0",
     "tailwindcss": "^4",
     "trigger.dev": "^4.5.9",

@@ -59,12 +59,11 @@ jobs:
 
       # ── Migrations must apply to an empty database, in order ─────────────
       # Forward-only means the sequence from nothing is the only sequence that matters.
+      # Uses the same script a developer runs, so CI exercises the tool rather than a
+      # parallel implementation of it that can drift from it.
       - name: Apply migrations
         run: |
-          for f in supabase/migrations/*.sql; do
-            echo "── $f"
-            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$f"
-          done
+          pnpm db:push "$DATABASE_URL"
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f supabase/seed.sql
 
       # ── The hand-written enums must match the live CHECK constraints ─────

@@ -28,7 +28,7 @@
  *        Dashboard → Settings → Database → Connection string → URI.
  */
 
-import { execFileSync } from 'node:child_process';
+import { tryConnect } from './lib/pg.mjs';
 
 const dbUrl = process.argv[2] ?? process.env.DATABASE_URL;
 if (!dbUrl) {
@@ -36,11 +36,20 @@ if (!dbUrl) {
   process.exit(2);
 }
 
-function q(sql) {
-  return execFileSync('psql', [dbUrl, '-tA', '-v', 'ON_ERROR_STOP=1', '-c', sql], {
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-  }).trim();
+const connection = await tryConnect(dbUrl);
+if (!connection.ok) {
+  console.error(`could not connect: ${connection.error.message}\n`);
+  console.error('Run `pnpm doctor` — it classifies connection failures rather than echoing them.');
+  process.exit(2);
+}
+const client = connection.client;
+
+/** First column of the first row, as a string, or '' when nothing came back. */
+async function q(sql, params) {
+  const r = await client.query(sql, params);
+  if (r.rows.length === 0) return '';
+  const v = Object.values(r.rows[0])[0];
+  return v === null || v === undefined ? '' : String(v);
 }
 
 const name = `kiln_vault_probe_${process.pid}_${Date.now()}`;
@@ -60,7 +69,7 @@ console.log('Supabase Vault verification\n');
 
 // ── 1. Extension present ─────────────────────────────────────────────────────
 try {
-  const version = q("select extversion from pg_extension where extname = 'supabase_vault'");
+  const version = await q("select extversion from pg_extension where extname = 'supabase_vault'");
   if (!version) {
     fail(
       'supabase_vault extension installed',
@@ -77,19 +86,19 @@ try {
 
 // ── 2. Create ────────────────────────────────────────────────────────────────
 try {
-  secretId = q(
+  secretId = await q(
     `select vault.create_secret('${plaintext}', '${name}', 'kiln verification probe')`,
   );
   if (!secretId) throw new Error('create_secret returned no id');
   pass('vault.create_secret()', `id ${secretId}`);
 } catch (err) {
-  fail('vault.create_secret()', err.stderr?.trim() ?? err.message);
+  fail('vault.create_secret()', err.message);
   process.exit(1);
 }
 
 // ── 3. Read back, and compare the plaintext ──────────────────────────────────
 try {
-  const got = q(
+  const got = await q(
     `select decrypted_secret from vault.decrypted_secrets where id = '${secretId}'`,
   );
   if (got === plaintext) {
@@ -102,13 +111,16 @@ try {
     );
   }
 } catch (err) {
-  fail('vault.decrypted_secrets round trip', err.stderr?.trim() ?? err.message);
+  fail('vault.decrypted_secrets round trip', err.message);
 }
 
 // ── 4. Delete, and confirm it is gone ────────────────────────────────────────
 try {
-  q(`delete from vault.secrets where id = '${secretId}'`);
-  const remaining = q(`select count(*) from vault.secrets where id = '${secretId}'`);
+  // Bind parameters rather than interpolation. The id is ours, so this was never an
+  // injection risk — but a probe that quotes its own values by hand is a poor advertisement
+  // for a codebase whose rule is that external payloads are never trusted.
+  await q('delete from vault.secrets where id = $1', [secretId]);
+  const remaining = await q('select count(*) from vault.secrets where id = $1', [secretId]);
   if (remaining === '0') {
     pass('delete removes the secret', 'row count is 0');
     secretId = null;
@@ -116,12 +128,14 @@ try {
     fail('delete removes the secret', `${remaining} row(s) still present`);
   }
 } catch (err) {
-  fail('delete removes the secret', err.stderr?.trim() ?? err.message);
+  fail('delete removes the secret', err.message);
 }
 
 if (secretId) {
   console.error(`\nLEFTOVER: secret ${secretId} ("${name}") was not deleted. Remove it manually.`);
 }
+
+await client.end().catch(() => {});
 
 console.log(
   failed === 0

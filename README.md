@@ -32,7 +32,7 @@ before it discovers what it is missing.
 ```bash
 export DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/kiln
 pnpm db:push                        # applies migrations, records them, safe to re-run
-psql "$DATABASE_URL" -f supabase/seed.sql
+psql "$DATABASE_URL" -f supabase/seed.sql   # or paste it; the seed is local-only
 pnpm db:types:nodocker
 ```
 
@@ -57,7 +57,7 @@ Exit codes: `0` all passed · `1` something failed · `2` something could not be
 neither of which needs Docker or the CLI:
 
 ```bash
-pnpm db:push                        # over DATABASE_URL, with psql
+pnpm db:push                        # over DATABASE_URL, using the pg client
 pnpm db:push --dry-run              # what it would apply, applying nothing
 pnpm db:bundle                      # one .sql file to paste into the browser
 ```
@@ -71,11 +71,12 @@ transactional DDL, so a failure leaves nothing behind and the ledger can never c
 migration that did not land. It stops at the first failure and prints what it applied and
 what it skipped.
 
-`db:bundle` is the path that always works: it needs no psql and no open database port,
-only the browser, which reaches Supabase over 443 like any other site. If `pnpm doctor`
-says the connection times out or has no route, stop diagnosing the network and paste the
-file. The whole bundle is one transaction with a guard at the top, so pasting it twice
-raises a plain-English error and rolls back rather than half-applying.
+`db:bundle` is the path that always works: it imports nothing from `node_modules` and
+needs no open database port, only the browser, which reaches Supabase over 443 like any
+other site. If `pnpm doctor` says the connection times out or has no route, stop
+diagnosing the network and paste the file. The whole bundle is one transaction with a
+guard at the top, so pasting it twice raises a plain-English error and rolls back rather
+than half-applying.
 
 **If the schema exists but nothing is recorded** — someone pasted SQL into the editor —
 re-running fails on `already exists`, and the fix is the opposite of the usual one:

@@ -28,7 +28,10 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+
+import { listMigrations } from './lib/migrations.mjs';
+import { describeSqlError, scalar, withClient } from './lib/pg.mjs';
 
 const adminUrl = process.argv[2] ?? process.env.DATABASE_URL;
 if (!adminUrl) {
@@ -40,13 +43,6 @@ const TYPES = 'src/lib/db/types.ts';
 const BACKUP = '.types.committed.tmp';
 const scratch = `kiln_drift_${process.pid}`;
 
-function psql(url, args) {
-  return execFileSync('psql', [url, ...args], {
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-}
-
 /** Swap the database name in a Postgres URL, keeping credentials and host. */
 function withDatabase(url, name) {
   const u = new URL(url);
@@ -56,20 +52,26 @@ function withDatabase(url, name) {
 
 let created = false;
 
-function cleanup() {
-  if (created) {
-    try {
-      psql(adminUrl, ['-q', '-c', `drop database if exists ${scratch} with (force)`]);
-    } catch {
-      console.error(`warning: could not drop scratch database ${scratch}`);
-    }
+async function dropScratch() {
+  if (!created) return;
+  try {
+    await withClient(adminUrl, (admin) =>
+      admin.query(`drop database if exists ${scratch} with (force)`),
+    );
+  } catch {
+    console.error(`warning: could not drop scratch database ${scratch}`);
   }
+}
+
+function cleanup() {
   if (existsSync(BACKUP)) {
     writeFileSync(TYPES, readFileSync(BACKUP, 'utf8'));
     unlinkSync(BACKUP);
   }
 }
 
+// Only the synchronous half can run on 'exit'. Dropping the scratch database needs a
+// round trip, so it is awaited in the finally block instead.
 process.on('exit', cleanup);
 process.on('SIGINT', () => process.exit(130));
 
@@ -80,31 +82,34 @@ try {
   }
   writeFileSync(BACKUP, readFileSync(TYPES, 'utf8'));
 
-  psql(adminUrl, ['-q', '-c', `drop database if exists ${scratch}`]);
-  psql(adminUrl, ['-q', '-c', `create database ${scratch}`]);
-  created = true;
+  await withClient(adminUrl, async (admin) => {
+    await admin.query(`drop database if exists ${scratch}`);
+    await admin.query(`create database ${scratch}`);
+    created = true;
+  });
 
   const scratchUrl = withDatabase(adminUrl, scratch);
 
-  const migrations = readdirSync('supabase/migrations')
-    .filter((f) => f.endsWith('.sql'))
-    .sort();
+  const migrations = listMigrations();
 
   if (migrations.length === 0) {
     console.error('no migrations found in supabase/migrations/');
     process.exit(1);
   }
 
-  for (const file of migrations) {
-    try {
-      psql(scratchUrl, ['-v', 'ON_ERROR_STOP=1', '-q', '-f', `supabase/migrations/${file}`]);
-      console.log(`  applied ${file}`);
-    } catch (err) {
-      console.error(`\nMigration ${file} failed to apply to an empty database:\n`);
-      console.error(err.stderr ?? err.message);
-      process.exit(1);
+  await withClient(scratchUrl, async (client) => {
+    for (const m of migrations) {
+      const sql = m.sql;
+      try {
+        await client.query(sql);
+        console.log(`  applied ${m.file}`);
+      } catch (err) {
+        console.error(`\nMigration ${m.file} failed to apply to an empty database:\n`);
+        console.error(describeSqlError(err, sql));
+        process.exit(1);
+      }
     }
-  }
+  });
 
   execFileSync('node', ['scripts/gen-types-nodocker.mjs', scratchUrl, 'public'], {
     stdio: ['ignore', 'inherit', 'pipe'],
@@ -135,15 +140,17 @@ try {
     process.exit(1);
   }
 
-  const counts = psql(scratchUrl, [
-    '-tA',
-    '-c',
-    "select (select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE') || ' tables, ' || (select count(*) from information_schema.views where table_schema='public') || ' views'",
-  ]).trim();
+  const counts = await withClient(scratchUrl, (client) =>
+    scalar(
+      client,
+      "select (select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE') || ' tables, ' || (select count(*) from information_schema.views where table_schema='public') || ' views'",
+    ),
+  );
 
   console.log(`\nNO DRIFT — ${migrations.length} migrations, ${counts}.`);
   console.log(`${TYPES} is byte-identical to types regenerated from the migration sequence.`);
   console.log('This says nothing about the hosted project; see the header of this file.');
 } finally {
+  await dropScratch();
   cleanup();
 }

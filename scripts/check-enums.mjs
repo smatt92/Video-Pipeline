@@ -13,8 +13,9 @@
  * Usage: node scripts/check-enums.mjs [db-url]
  */
 
-import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+
+import { withClient } from './lib/pg.mjs';
 
 const dbUrl = process.argv[2] ?? process.env.DATABASE_URL;
 if (!dbUrl) {
@@ -60,18 +61,11 @@ where con.contype = 'c' and nsp.nspname = 'public';
 
 let rows;
 try {
-  const out = execFileSync('psql', [dbUrl, '-At', '-F', '', '-c', sql], {
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  rows = out
-    .trim()
-    .split('\n')
-    .filter(Boolean)
-    .map((line) => {
-      const [column_ref, def] = line.split('');
-      return { column_ref, def };
-    });
+  // Rows arrive as objects rather than delimiter-split text. The previous version passed
+  // -F with a control character to psql and split on it, which worked only because no
+  // constraint definition happened to contain that byte. A real client removes the
+  // question rather than answering it carefully.
+  rows = await withClient(dbUrl, (client) => client.query(sql).then((r) => r.rows));
 } catch (err) {
   console.error(`could not query the database: ${err.message}`);
   process.exit(2);
