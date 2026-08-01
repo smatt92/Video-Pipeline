@@ -1,5 +1,5 @@
-import { NotBuiltYet } from '@/components/shell/not-built-yet';
+import { redirect } from 'next/navigation';
 
-export default function Page() {
-  return <NotBuiltYet href="/settings" />;
+export default function SettingsIndex() {
+  redirect('/settings/integrations');
 }

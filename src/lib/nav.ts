@@ -112,10 +112,16 @@ export const NAV: readonly NavGroup[] = [
     label: 'System',
     items: [
       {
+        href: '/onboarding',
+        label: 'First run',
+        hint: 'The setup wizard — every step verified by a real call',
+        status: ready(),
+      },
+      {
         href: '/settings',
         label: 'Settings',
-        hint: 'Integrations, rate card, guardrails',
-        status: blocked('1a', 'Next task — Vault and the integrations table'),
+        hint: 'Integrations, rate card, guardrails, voice',
+        status: ready(),
       },
     ],
   },
