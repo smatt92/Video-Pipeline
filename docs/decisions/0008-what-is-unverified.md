@@ -77,29 +77,38 @@ Two things in particular have never run against a real Supabase instance:
 **To verify:** `supabase link --project-ref <ref> && supabase db push`, then
 `pnpm check:enums "<uri>"` against the hosted database, then the trigger test above.
 
-### 4. The onboarding gate fails closed and is not wired
+### 4. ~~The onboarding gate fails closed and is not wired~~ — RESOLVED
 
-`src/middleware.ts` cannot answer whether setup is complete — the answer lives in
-`profiles.onboarding_step` and no database is reachable. It therefore **refuses**: without
-`ONBOARDING_GATE_BYPASS=1` it throws on every route outside `/onboarding`, `/settings` and
-`/api/webhooks`.
+**Resolved.** `src/middleware.ts` now reads `profiles.onboarding_step` through a
+session-scoped Supabase client and gates on it, and `ONBOARDING_GATE_BYPASS` is gone —
+the variable, the branch, and the line in `.env.example`. It was deleted rather than kept
+as a fallback: a bypass that outlives its reason is a backdoor with a comment on it, and
+this one would have been the only thing standing in front of a public preview URL with
+live vendor credentials behind it.
 
-This is the inverse of where it started. The first version returned `true` unconditionally,
-which meant forgetting to wire the real check would leave the app permanently unguarded
-with nothing ever surfacing the omission. A setup gate that defaults open when
-unconfigured is backwards.
+The gate still fails closed, now for a better reason. No profile row, an unreadable
+database, a query that errors — every one of them means "cannot confirm setup is
+complete" and routes to the wizard rather than to the app. What changed is that a correct
+answer now exists and is reachable.
 
-Two consequences to know before they surprise you:
+Two things landed with it:
 
-- **A deployed preview will 500 on every app route** until 1c wires the check. That is the
-  gate working. `/onboarding` and `/settings` still serve, which is the correct surface for
-  someone who has not finished setup.
-- **The bypass must never be set on Vercel or Trigger.dev.** A deployment with it set has
-  no gate. It exists so local development is possible, and nothing else.
+- **Auth is an allowlist, not "is authenticated".** A Supabase project accepts signups
+  from anyone by default, so a session proves only that someone typed an address. Every
+  request is checked against `ALLOWED_EMAIL`, so revoking access is a config change rather
+  than a session-expiry wait. `signInWithOtp` is called with `shouldCreateUser: false` and
+  the allowlist is checked three times — before the link is sent, when the code is
+  exchanged, and on every subsequent request.
+- **`getUser()`, never `getSession()`.** `getSession()` reads the cookie and trusts it.
+  The gate verifies with the auth server instead; a gate that trusts a value the client
+  controls is not a gate.
 
-**To close:** implement the `profiles.onboarding_step` read and *delete the bypass branch*
-rather than leaving it as a fallback. A bypass that outlives its reason is a backdoor with
-a comment on it.
+**Still unverified, and this is what the preview deploy tests:** none of it has run
+against a real Supabase project. Specifically unproven — that the anon key can read
+`profiles` at all (no RLS policies exist, so it should, but "should" is doing work there),
+that `profiles.id` actually equals `auth.users.id` in practice given there is no FK
+(§3), and that the magic-link round trip lands on `/auth/callback` with a usable code.
+Walking the wizard on the preview is the test.
 
 ### 5. The Higgsfield driver surface
 

@@ -130,14 +130,6 @@ export function stepBySlug(slug: string): OnboardingStep | undefined {
   return STEPS.find((s) => s.slug === slug);
 }
 
-/**
- * Fixture progress. In 1c this reads `profiles.onboarding_step`.
- *
- * Deliberately zero: nothing has been verified, and showing a half-complete wizard would
- * misrepresent which vendor calls have actually happened.
- */
-export const CURRENT_STEP = 0;
-
 export function isUnlocked(step: OnboardingStep, completed: readonly number[]): boolean {
   return step.blockedBy.every((n) => completed.includes(n));
 }

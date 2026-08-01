@@ -2,21 +2,24 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { CheckPill } from '@/components/settings/parts';
-import { CURRENT_STEP, STEPS, isUnlocked, stepBySlug } from '@/lib/onboarding/steps';
+import { GATE_STEP } from '@/lib/onboarding/gate';
+import { onboardingProgress } from '@/lib/onboarding/progress';
+import { STEPS, isUnlocked, stepBySlug } from '@/lib/onboarding/steps';
 
 /**
  * The wizard.
  *
- * Walkable now with scripted verification results, so the shape can be judged before the
- * vendor calls exist. What it must not do is *look* verified: every step below shows
- * "never run", and the button that would make a real call says so.
+ * Progress is read from `profiles.onboarding_step` — the same column middleware gates on,
+ * so the tick marks here and the lock on the rest of the app cannot disagree.
+ *
+ * What the page must not do is *look* verified. The per-step results below are still
+ * "never run": the column records how far the wizard got, and the individual vendor
+ * probes that would fill in each result do not exist yet.
  */
 
-export function generateStaticParams() {
-  return STEPS.map((s) => ({ step: s.slug }));
-}
-
-const completed: number[] = [];
+// Per-user by definition: the tick marks come from this user's profile row. There is no
+// version of this page that can be prerendered and still be true.
+export const dynamic = 'force-dynamic';
 
 export default async function OnboardingStepPage({
   params,
@@ -26,6 +29,9 @@ export default async function OnboardingStepPage({
   const { step: slug } = await params;
   const step = stepBySlug(slug);
   if (!step) notFound();
+
+  const progress = await onboardingProgress();
+  const completed = progress.completed;
 
   const unlocked = isUnlocked(step, completed);
   const blockers = step.blockedBy
@@ -180,10 +186,10 @@ export default async function OnboardingStepPage({
         )}
       </div>
 
-      <p className="mt-6 text-[11px]" style={{ color: 'var(--text-faint)' }}>
-        Current progress is fixture state (step {CURRENT_STEP}). In 1c this reads
-        profiles.onboarding_step and middleware redirects every route except /onboarding/*
-        and /settings/* until the required steps pass.
+      <p className="mt-6 text-[11px] leading-relaxed" style={{ color: 'var(--text-faint)' }}>
+        {progress.unavailable
+          ? `Progress could not be read (${progress.unavailable}), so nothing above is ticked and the app stays locked. That is the gate refusing to guess, not a display bug.`
+          : `Read from profiles.onboarding_step — currently ${progress.step}. Middleware redirects every route except /onboarding/*, /settings/* and /login until step ${GATE_STEP} is reached.`}
       </p>
     </div>
   );
