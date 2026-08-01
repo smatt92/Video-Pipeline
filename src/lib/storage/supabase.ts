@@ -98,18 +98,50 @@ function wrap(err: unknown, what: string): StorageError {
   });
 }
 
-export function createSupabaseStorageDriver(): StorageDriver {
-  const bucket = env.SUPABASE_STORAGE_BUCKET;
+/**
+ * Credentials for this driver, supplied explicitly.
+ *
+ * The constructor takes them rather than reading the environment because migration 0003
+ * moved credentials into the `integrations` table behind Vault: a driver is built per-call
+ * from an integration record. It also makes onboarding step 2 possible at all — the wizard
+ * has to probe a key the user just typed, which by definition is not in `process.env`.
+ *
+ * Omitting them falls back to the environment, which is the local-development and worker
+ * bootstrap path.
+ */
+export interface SupabaseStorageCredentials {
+  accessKeyId: string;
+  secretAccessKey: string;
+  bucket?: string;
+  region?: string;
+  endpoint?: string;
+}
+
+export function createSupabaseStorageDriver(
+  creds?: SupabaseStorageCredentials,
+): StorageDriver {
+  const accessKeyId = creds?.accessKeyId ?? env.SUPABASE_S3_ACCESS_KEY_ID;
+  const secretAccessKey = creds?.secretAccessKey ?? env.SUPABASE_S3_SECRET_ACCESS_KEY;
+
+  if (!accessKeyId || !secretAccessKey) {
+    throw new StorageError({
+      slug: SLUG,
+      code: 'auth',
+      message:
+        'No storage credentials. They live on the storage integration record and are ' +
+        'read from Vault; the environment is only a local fallback. Run onboarding step ' +
+        '2, or set SUPABASE_S3_ACCESS_KEY_ID and SUPABASE_S3_SECRET_ACCESS_KEY.',
+    });
+  }
+
+  const bucket = creds?.bucket ?? env.SUPABASE_STORAGE_BUCKET;
 
   const s3 = new S3Client({
-    region: env.SUPABASE_S3_REGION,
-    endpoint: endpoint(),
+    region: creds?.region ?? env.SUPABASE_S3_REGION,
+    endpoint: creds?.endpoint ?? endpoint(),
     // Not optional — see note 1 above.
     forcePathStyle: true,
-    credentials: {
-      accessKeyId: env.SUPABASE_S3_ACCESS_KEY_ID,
-      secretAccessKey: env.SUPABASE_S3_SECRET_ACCESS_KEY,
-    },
+    credentials: { accessKeyId, secretAccessKey },
   });
 
   return {

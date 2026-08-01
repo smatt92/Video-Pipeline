@@ -15,13 +15,20 @@ const nonEmpty = (label: string) => z.string().trim().min(1, `${label} is set bu
 
 export const storageEnvSchema = z.object({
   /**
-   * Which storage implementation to construct. No default: the point of the interface is
-   * that the vendor is a config value, and a default quietly reinstates a hardcoded one.
+   * Which storage implementation to construct.
+   *
+   * This had no default, on the argument that a default quietly reinstates a hardcoded
+   * vendor. The argument was right about *credentials* and wrong about *selection*: with
+   * only one implementation registered, requiring it bought nothing and cost a deployment
+   * that could not boot far enough to run the wizard that would set it. It is still a
+   * config value — the registry in `index.ts` is what makes it one — and the default is
+   * the only registered entry. Add a second implementation and this deserves revisiting.
    */
-  STORAGE_DRIVER: nonEmpty('STORAGE_DRIVER'),
+  STORAGE_DRIVER: nonEmpty('STORAGE_DRIVER').default('supabase-storage'),
 
-  /** Bucket holding all generated media. Must exist before the first probe. */
-  SUPABASE_STORAGE_BUCKET: nonEmpty('SUPABASE_STORAGE_BUCKET'),
+  /** Bucket holding all generated media. Must exist before the first probe — the probe
+   *  reports a missing bucket as a failure, it does not create one. */
+  SUPABASE_STORAGE_BUCKET: nonEmpty('SUPABASE_STORAGE_BUCKET').default('kiln-media'),
 
   /**
    * S3-compatible endpoint. Defaults to `<SUPABASE_URL>/storage/v1/s3`, which is correct
@@ -37,8 +44,8 @@ export const storageEnvSchema = z.object({
    * credential pair, which is what lets the presigned-URL flow work without ever handing
    * a database-privileged token to a browser.
    */
-  SUPABASE_S3_ACCESS_KEY_ID: nonEmpty('SUPABASE_S3_ACCESS_KEY_ID'),
-  SUPABASE_S3_SECRET_ACCESS_KEY: nonEmpty('SUPABASE_S3_SECRET_ACCESS_KEY'),
+  SUPABASE_S3_ACCESS_KEY_ID: nonEmpty('SUPABASE_S3_ACCESS_KEY_ID').optional(),
+  SUPABASE_S3_SECRET_ACCESS_KEY: nonEmpty('SUPABASE_S3_SECRET_ACCESS_KEY').optional(),
 
   /** Project region. Required by SigV4 signing even though the endpoint is fixed. */
   SUPABASE_S3_REGION: nonEmpty('SUPABASE_S3_REGION').default('us-east-1'),

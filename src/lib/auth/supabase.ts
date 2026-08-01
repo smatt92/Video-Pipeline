@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import type { NextRequest, NextResponse } from 'next/server';
 
 import type { Database } from '../db/types';
+import { readAuthConfig } from './config';
 
 /**
  * Auth-scoped Supabase clients.
@@ -13,25 +14,29 @@ import type { Database } from '../db/types';
  * user. Asking "who is this?" with a key that answers "everyone" is how an auth check
  * becomes decorative.
  *
- * As with `allowed.ts`, the environment is read as literal `process.env.X` rather than
- * through `src/lib/env.ts`: middleware is compiled for the Edge runtime, where only
- * statically-analysable member expressions are inlined.
+ * Configuration comes from `config.ts`, which explains why this corner reads `process.env`
+ * literally instead of through `src/lib/env.ts`. Read that before changing it.
+ *
+ * These constructors still throw on missing configuration, and that is correct *here* —
+ * they are called after the caller has already checked. Middleware checks with
+ * `readAuthConfig()` and serves a 503 naming the missing variables rather than letting a
+ * throw escape; a route handler or Server Action reaching this state has a genuine bug and
+ * should say so loudly.
  */
 
 function config(): { url: string; anonKey: string } {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const result = readAuthConfig();
 
-  if (!url || !anonKey) {
-    // Not a soft failure. Without these the client cannot tell a signed-in user from a
-    // stranger, and every caller of this module is a gate.
+  if (!result.ok) {
     throw new Error(
-      'NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY must both be set. ' +
-        'Auth and the onboarding gate both read the session through them, and without ' +
-        'them neither can answer.',
+      `Auth is not configured: ${result.missing.join(', ')} ${result.missing.length === 1 ? 'is' : 'are'} missing. ` +
+        'Without them this client cannot tell a signed-in user from a stranger. Callers ' +
+        'that front user-facing routes should call readAuthConfig() and render the ' +
+        'misconfiguration rather than reaching here.',
     );
   }
-  return { url, anonKey };
+
+  return { url: result.config.supabaseUrl, anonKey: result.config.supabaseAnonKey };
 }
 
 /**

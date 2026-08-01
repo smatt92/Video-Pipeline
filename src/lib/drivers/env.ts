@@ -13,14 +13,28 @@ import { z } from 'zod';
 const nonEmpty = (label: string) =>
   z.string().trim().min(1, `${label} is set but empty`);
 
+/**
+ * All optional, and that is the point.
+ *
+ * Migration 0003 moved credentials into the `integrations` table behind Vault: a driver is
+ * built per-call from an integration record, not from module-level process.env. These stay
+ * as a local-development and CI fallback so a developer can run a task without walking the
+ * wizard first — `resolveCredential()` in src/lib/integrations/ prefers Vault and falls
+ * back to here.
+ *
+ * They were required until a deployment with none of them set failed to boot and served
+ * 500 on every route, including the onboarding wizard whose entire job is to fill them in.
+ * A required credential that only the wizard can supply cannot also be a precondition for
+ * reaching the wizard.
+ */
 export const driverEnvSchema = z.object({
   // ── Higgsfield ────────────────────────────────────────────────────────────
   // The v2 API authenticates with `Authorization: Key <KEY_ID>:<KEY_SECRET>`. The SDK
   // will also read HF_CREDENTIALS from the process env on its own; we deliberately do
   // not rely on that, so that a missing credential is caught by the startup check
   // rather than by a 401 in the middle of a fan-out.
-  HIGGSFIELD_API_KEY: nonEmpty('HIGGSFIELD_API_KEY'),
-  HIGGSFIELD_API_SECRET: nonEmpty('HIGGSFIELD_API_SECRET'),
+  HIGGSFIELD_API_KEY: nonEmpty('HIGGSFIELD_API_KEY').optional(),
+  HIGGSFIELD_API_SECRET: nonEmpty('HIGGSFIELD_API_SECRET').optional(),
 
   /**
    * Shared secret handed to Higgsfield with each submit and returned to us on the
@@ -34,7 +48,7 @@ export const driverEnvSchema = z.object({
     32,
     'HIGGSFIELD_WEBHOOK_SECRET must be at least 32 chars — it is the only thing ' +
       'standing between the internet and a forged "your generation succeeded" callback',
-  ),
+  ).optional(),
 
   HIGGSFIELD_API_BASE_URL: z.url().default('https://platform.higgsfield.ai'),
 

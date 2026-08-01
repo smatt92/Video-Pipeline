@@ -1,15 +1,13 @@
+import { readAuthConfig } from './config';
+
 /**
  * The single address permitted to sign in.
  *
- * Deliberately not read through `src/lib/env.ts`. That module validates the entire
- * environment — driver credentials, storage keys, the FX rate — behind a Proxy, and it is
- * imported by middleware, which Next compiles for the Edge runtime where `process.env` is
- * populated only for statically-analysable member expressions. A Proxy over the whole
- * environment is by definition not statically analysable, so `env.ALLOWED_EMAIL` in
- * middleware would read `undefined` on Vercel and the gate would be deciding on nothing.
- *
- * Literal `process.env.ALLOWED_EMAIL` is inlined at build. That is the reason for the
- * duplication, and the reason it should stay a literal.
+ * Reads through `readAuthConfig()`, which is where the note lives about why this whole
+ * corner of the codebase reads `process.env` literally instead of going through
+ * `src/lib/env.ts`. Read that note before changing either file — the short version is that
+ * middleware runs on the Edge runtime, where a Proxy over the environment resolves to
+ * `undefined` and an allowlist compared against `undefined` admits everyone.
  *
  * ── Why an allowlist and not "is authenticated" ──────────────────────────────
  *
@@ -23,12 +21,6 @@ export type AuthDecision =
   | { ok: true; email: string }
   | { ok: false; reason: 'unconfigured' | 'not_allowed' };
 
-function allowedEmail(): string | null {
-  const raw = process.env.ALLOWED_EMAIL;
-  const trimmed = raw?.trim().toLowerCase();
-  return trimmed ? trimmed : null;
-}
-
 /**
  * Whether this address may sign in.
  *
@@ -37,11 +29,13 @@ function allowedEmail(): string | null {
  * — it is the absence of one, wearing the name.
  */
 export function checkEmail(email: string | null | undefined): AuthDecision {
-  const allowed = allowedEmail();
-  if (!allowed) return { ok: false, reason: 'unconfigured' };
+  const config = readAuthConfig();
+  if (!config.ok) return { ok: false, reason: 'unconfigured' };
 
   const candidate = email?.trim().toLowerCase();
-  if (!candidate || candidate !== allowed) return { ok: false, reason: 'not_allowed' };
+  if (!candidate || candidate !== config.config.allowedEmail.toLowerCase()) {
+    return { ok: false, reason: 'not_allowed' };
+  }
 
   return { ok: true, email: candidate };
 }

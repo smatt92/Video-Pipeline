@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { serverClient } from '@/lib/db/server';
 import { env } from '@/lib/env';
+import { requireCredential } from '@/lib/integrations/credentials';
 import { runScriptDraft, type ScriptDraftResult } from '@/lib/script/run';
 
 /**
@@ -41,14 +42,23 @@ export const scriptTask = schemaTask({
    */
   queue: { concurrencyLimit: 3 },
 
-  run: async (payload, { ctx }): Promise<ScriptDraftResult> =>
-    runScriptDraft(payload, {
-      db: serverClient(),
-      apiKey: env.ANTHROPIC_API_KEY,
+  run: async (payload, { ctx }): Promise<ScriptDraftResult> => {
+    const db = serverClient();
+
+    // From the integration record via Vault, with the environment as a local fallback —
+    // not straight from process.env. A key rotated in settings must take effect on the
+    // next run without a redeploy, which is the whole reason 0003 moved credentials into
+    // the database.
+    const apiKey = await requireCredential(db, 'anthropic', 'ANTHROPIC_API_KEY');
+
+    return runScriptDraft(payload, {
+      db,
+      apiKey,
       usdInrRate: env.USD_INR_RATE,
       // Stable across attempts of the same run, which is the property the ledger's
       // idempotency key needs. An attempt id would charge a retry twice.
       runId: ctx.run.id,
       log: logger,
-    }),
+    });
+  },
 });

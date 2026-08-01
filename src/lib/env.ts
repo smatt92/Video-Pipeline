@@ -19,6 +19,27 @@ const nonEmpty = (label: string) => z.string().trim().min(1, `${label} is set bu
 const positiveInt = (label: string) =>
   z.coerce.number({ error: `${label} must be a number` }).int().positive();
 
+/**
+ * ── Bootstrap versus everything else ─────────────────────────────────────────
+ *
+ * This schema used to require every vendor credential, and that was correct when it was
+ * written and is wrong now. Migration 0003 moved credentials into the `integrations` table
+ * behind Vault, and says so plainly: *"a driver is built per-call from an integration
+ * record, never from module-level process.env. Environment keeps two jobs only — bootstrap
+ * and CI."* The schema never followed.
+ *
+ * The consequence was not theoretical. `instrumentation.ts` asserts this schema at server
+ * boot, so a deployment missing a video-vendor key — which is the *normal* state before
+ * anyone has walked the onboarding wizard, since the wizard is what puts it in Vault —
+ * failed to boot and returned 500 on every route, including the wizard that would have
+ * fixed it. A chicken-and-egg deadlock produced entirely by a schema that had not caught
+ * up with its own storage decision.
+ *
+ * So: `BOOTSTRAP` is what the process genuinely cannot start without. Everything else is
+ * optional here and resolved from the integration record at the point of use, with the
+ * environment as a local-development fallback. `requireEnv()` below is how a caller that
+ * really does need one asks for it and gets a legible failure.
+ */
 const coreEnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 
@@ -38,10 +59,15 @@ const coreEnvSchema = z.object({
    * DNS failure and we get nothing at all. Point this at the production domain, or at a
    * tunnel in local development. A callback aimed at localhost is never delivered and
    * every generation hangs until it times out.
+   *
+   * Optional at boot, required at the moment a generation is submitted — see
+   * `requireEnv`. A deployment that never submits a generation (a preview being used to
+   * walk the onboarding wizard, for instance) has no use for it, and refusing to boot
+   * without it means the wizard that configures everything else cannot run.
    */
-  WEBHOOK_CALLBACK_BASE_URL: z.url({
-    error: 'WEBHOOK_CALLBACK_BASE_URL must be an absolute, publicly reachable URL',
-  }),
+  WEBHOOK_CALLBACK_BASE_URL: z
+    .url({ error: 'WEBHOOK_CALLBACK_BASE_URL must be an absolute, publicly reachable URL' })
+    .optional(),
 
   /**
    * The single address permitted to sign in.
@@ -73,11 +99,15 @@ const coreEnvSchema = z.object({
   // of the application should know which object store is behind the interface.
 
   // ── Trigger.dev ───────────────────────────────────────────────────────────
-  TRIGGER_PROJECT_REF: nonEmpty('TRIGGER_PROJECT_REF'),
-  TRIGGER_SECRET_KEY: nonEmpty('TRIGGER_SECRET_KEY'),
+  // Optional at boot: the Next app enqueues but does not run tasks, and a preview being
+  // used to walk the onboarding wizard enqueues nothing. `requireEnv` covers the enqueue.
+  TRIGGER_PROJECT_REF: nonEmpty('TRIGGER_PROJECT_REF').optional(),
+  TRIGGER_SECRET_KEY: nonEmpty('TRIGGER_SECRET_KEY').optional(),
 
   // ── Anthropic ─────────────────────────────────────────────────────────────
-  ANTHROPIC_API_KEY: nonEmpty('ANTHROPIC_API_KEY'),
+  // Local-development fallback only. The authoritative source is the `anthropic`
+  // integration record, whose credential lives in Vault — see resolveCredential().
+  ANTHROPIC_API_KEY: nonEmpty('ANTHROPIC_API_KEY').optional(),
 
   // ── Driver selection ──────────────────────────────────────────────────────
   /**
@@ -85,7 +115,7 @@ const coreEnvSchema = z.object({
    * point of the driver interface is that this is a config value, and a default here
    * would quietly reinstate a hardcoded vendor (ARCHITECTURE.md §0.1).
    */
-  VIDEO_DRIVER: nonEmpty('VIDEO_DRIVER'),
+  VIDEO_DRIVER: nonEmpty('VIDEO_DRIVER').optional(),
 
   // ── Cost ──────────────────────────────────────────────────────────────────
   /**
@@ -93,9 +123,13 @@ const coreEnvSchema = z.object({
    * explainable. A live FX feed would make yesterday's cost-per-video change overnight,
    * which is worse than being slightly stale.
    */
+  // Defaulted rather than required. `profiles.usd_inr_rate` supersedes it the moment
+  // onboarding step 1 runs; this only has to hold until then, and refusing to boot over a
+  // number the wizard is about to set is the deadlock again in miniature.
   USD_INR_RATE: z.coerce
     .number({ error: 'USD_INR_RATE must be a number, e.g. 88.5' })
-    .positive(),
+    .positive()
+    .default(88.5),
 
   // ── Driver reliability envelope ───────────────────────────────────────────
   DRIVER_TIMEOUT_MS: positiveInt('DRIVER_TIMEOUT_MS').default(60_000),
@@ -152,7 +186,10 @@ export function assertEnv(): Env {
 
   const value = parsed.data;
 
-  if (value.NODE_ENV === 'production') {
+  // Only when it is set. Absent is legitimate now — nothing has submitted a generation
+  // yet, and `requireEnv` catches it at the point that does. Set-and-pointed-at-localhost
+  // is still worth refusing at boot, because that one looks configured.
+  if (value.NODE_ENV === 'production' && value.WEBHOOK_CALLBACK_BASE_URL) {
     const callbackHost = new URL(value.WEBHOOK_CALLBACK_BASE_URL).hostname;
     if (callbackHost === 'localhost' || callbackHost === '127.0.0.1') {
       throw new EnvironmentError(
@@ -187,6 +224,33 @@ export const env = new Proxy({} as Env, {
     return Object.getOwnPropertyDescriptor(assertEnv(), prop);
   },
 });
+
+/**
+ * Read a variable that is optional at boot but required right here.
+ *
+ * The counterpart to making most of the schema optional. A caller that genuinely cannot
+ * proceed — submitting a generation without a callback URL, enqueuing without a Trigger
+ * key — asks for it by name and gets a message naming the variable and the thing that
+ * wanted it, rather than an `undefined` surfacing three layers down as a 401.
+ *
+ * Not for vendor credentials. Those come from the integration record via
+ * `resolveCredential()`, which falls back to the environment on its own; calling this for
+ * one would skip Vault and use a stale local value in preference to the configured one.
+ */
+export function requireEnv<K extends keyof Env>(key: K, wantedBy: string): NonNullable<Env[K]> {
+  const value = assertEnv()[key];
+
+  if (value === undefined || value === null || value === '') {
+    throw new EnvironmentError(
+      `${String(key)} is not set, and ${wantedBy} cannot proceed without it.\n\n` +
+        'It is optional at boot on purpose — a deployment that never reaches this code ' +
+        'path has no use for it, and refusing to start would block the onboarding wizard ' +
+        'that configures everything else. It is not optional here.',
+    );
+  }
+
+  return value as NonNullable<Env[K]>;
+}
 
 /** Reset memoisation. Tests only. */
 export function resetEnvCache(): void {

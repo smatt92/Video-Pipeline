@@ -481,6 +481,44 @@ export type Database = {
           },
         ]
       }
+      integration_secrets: {
+        Row: {
+          configured_at: string
+          field_key: string
+          id: string
+          integration_id: string
+          last_4: string
+          rotated_at: string | null
+          vault_secret_id: string
+        }
+        Insert: {
+          configured_at?: string
+          field_key: string
+          id?: string
+          integration_id: string
+          last_4: string
+          rotated_at?: string | null
+          vault_secret_id: string
+        }
+        Update: {
+          configured_at?: string
+          field_key?: string
+          id?: string
+          integration_id?: string
+          last_4?: string
+          rotated_at?: string | null
+          vault_secret_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integration_secrets_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "integrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       integrations: {
         Row: {
           config: Json
@@ -488,12 +526,11 @@ export type Database = {
           id: string
           is_enabled: boolean
           kind: string
-          last_4: string | null
+          last_checked_at: string | null
           last_error: string | null
           last_verified_at: string | null
           profile_id: string | null
           slug: string
-          vault_secret_id: string | null
         }
         Insert: {
           config?: Json
@@ -501,12 +538,11 @@ export type Database = {
           id?: string
           is_enabled?: boolean
           kind: string
-          last_4?: string | null
+          last_checked_at?: string | null
           last_error?: string | null
           last_verified_at?: string | null
           profile_id?: string | null
           slug: string
-          vault_secret_id?: string | null
         }
         Update: {
           config?: Json
@@ -514,12 +550,11 @@ export type Database = {
           id?: string
           is_enabled?: boolean
           kind?: string
-          last_4?: string | null
+          last_checked_at?: string | null
           last_error?: string | null
           last_verified_at?: string | null
           profile_id?: string | null
           slug?: string
-          vault_secret_id?: string | null
         }
         Relationships: [
           {
@@ -635,6 +670,7 @@ export type Database = {
           email: string
           id: string
           onboarding_completed_at: string | null
+          onboarding_completed_steps: number[]
           onboarding_first_video_render_id: string | null
           onboarding_step: number
           timezone: string
@@ -647,6 +683,7 @@ export type Database = {
           email: string
           id: string
           onboarding_completed_at?: string | null
+          onboarding_completed_steps?: number[]
           onboarding_first_video_render_id?: string | null
           onboarding_step?: number
           timezone?: string
@@ -659,6 +696,7 @@ export type Database = {
           email?: string
           id?: string
           onboarding_completed_at?: string | null
+          onboarding_completed_steps?: number[]
           onboarding_first_video_render_id?: string | null
           onboarding_step?: number
           timezone?: string
@@ -1367,9 +1405,29 @@ export type Database = {
       }
     }
     Functions: {
+      assert_vault_available: { Args: never; Returns: undefined }
       dearmor: { Args: { "": string }; Returns: string }
       gen_random_uuid: { Args: never; Returns: string }
       gen_salt: { Args: { "": string }; Returns: string }
+      integration_secret_delete: {
+        Args: { p_field_key: string; p_integration_id: string }
+        Returns: boolean
+      }
+      integration_secret_put: {
+        Args: {
+          p_field_key: string
+          p_integration_id: string
+          p_secret: string
+        }
+        Returns: string
+      }
+      integration_secrets_read: {
+        Args: { p_integration_id: string }
+        Returns: {
+          field_key: string
+          secret: string
+        }[]
+      }
       pgp_armor_headers: {
         Args: { "": string }
         Returns: Record<string, unknown>[]

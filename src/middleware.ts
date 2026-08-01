@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { checkEmail } from '@/lib/auth/allowed';
+import { readAuthConfig, type RequiredVar } from '@/lib/auth/config';
 import { middlewareClient } from '@/lib/auth/supabase';
 import { isOnboardingComplete } from '@/lib/onboarding/gate';
 
@@ -10,6 +11,17 @@ import { isOnboardingComplete } from '@/lib/onboarding/gate';
  * A redirect, not a dismissible banner. The app should be unusable until it is usable — a
  * banner is read once and ignored, and the failure it warns about costs money when it
  * lands in the middle of a pipeline run.
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * 0. Fail closed means deny, not crash
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * Before either gate, the configuration is read *as a result*, and a missing variable
+ * produces a 503 naming what is absent. It used to throw. A throw in middleware takes down
+ * every route it fronts — including `/login`, the only one that could have helped — and
+ * makes a half-configured deploy present exactly like a bug in the code, so the person
+ * debugging it has neither a way in nor a way to tell the two apart. Both gates below are
+ * refusals; a crash is not a refusal, it is the absence of an answer.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * 1. Auth — allowlist, not "is authenticated"
@@ -22,7 +34,7 @@ import { isOnboardingComplete } from '@/lib/onboarding/gate';
  * stops working the moment it does.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * 2. Onboarding — reads profiles.onboarding_step
+ * 2. Onboarding — reads the profile's completed steps
  * ─────────────────────────────────────────────────────────────────────────────
  *
  * This replaces the fail-closed placeholder that threw unless ONBOARDING_GATE_BYPASS=1.
@@ -63,6 +75,62 @@ function matches(pathname: string, prefixes: readonly string[]): boolean {
   return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
+/**
+ * A deployment that cannot read its own configuration.
+ *
+ * Fail closed means **deny**, not crash. An uncaught throw in middleware takes down every
+ * route it fronts — including `/login`, the one route that could have helped — and turns a
+ * missing environment variable into an opaque 500 that is indistinguishable from a bug in
+ * the code. The person debugging it has neither a way in nor a way to tell which problem
+ * they have.
+ *
+ * So: 503, no session touched, nothing served, and the *names* of what is absent. Names
+ * only. A misconfiguration report that quotes values is a credential leak with a helpful
+ * tone.
+ */
+function misconfigured(missing: readonly RequiredVar[]): NextResponse {
+  const list = missing.map((v) => `<li><code>${v}</code></li>`).join('');
+  const body = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kiln — not configured</title>
+<style>
+  :root { color-scheme: dark }
+  body { margin:0; min-height:100dvh; display:flex; align-items:center; justify-content:center;
+         background:#0c0e0f; color:#e6e8e9;
+         font:14px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif }
+  main { max-width:44rem; padding:2.5rem 1.5rem }
+  h1 { font-size:1.15rem; font-weight:500; margin:0 0 .75rem; letter-spacing:-.01em }
+  p { margin:0 0 1rem; color:#a3aaad }
+  ul { margin:0 0 1.25rem; padding-left:1.1rem }
+  li { margin:.2rem 0 }
+  code { font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; color:#e6e8e9 }
+  a { color:#4db6ac }
+  .note { font-size:12.5px; color:#6e7679; border-top:1px solid #1e2325; padding-top:1rem }
+</style></head><body><main>
+<h1>Kiln is not configured</h1>
+<p>The gate decides who may sign in and whether setup is finished. It cannot answer either
+question, so it is refusing every request rather than serving them. These variables are
+not set on this deployment:</p>
+<ul>${list}</ul>
+<p>Set them and redeploy. Values are inlined into the Edge bundle at build time, so
+changing them in the dashboard does not affect a build that already shipped.</p>
+<p><a href="/login">/login</a> stays reachable, but signing in will not work until the
+above is fixed.</p>
+<p class="note">Names only — this page never shows a value.</p>
+</main></body></html>`;
+
+  return new NextResponse(body, {
+    status: 503,
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+      // Never cached. A cached 503 outlives the fix.
+      'cache-control': 'no-store, must-revalidate',
+      'retry-after': '60',
+    },
+  });
+}
+
 function redirect(request: NextRequest, pathname: string, params?: Record<string, string>) {
   const url = request.nextUrl.clone();
   url.pathname = pathname;
@@ -74,7 +142,14 @@ function redirect(request: NextRequest, pathname: string, params?: Record<string
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Public first, and before the configuration read. `/login` and `/api/webhooks/*` must
+  // survive every state this function can be in, including "this deployment has no
+  // configuration at all" — otherwise the misconfiguration report has nowhere to point
+  // and a vendor callback gets an HTML error page it will not retry.
   if (matches(pathname, PUBLIC_PATHS)) return NextResponse.next();
+
+  const config = readAuthConfig();
+  if (!config.ok) return misconfigured(config.missing);
 
   // The response is created up front and handed to the client so that a token refresh
   // during getUser() writes its cookies somewhere that actually gets returned.
@@ -103,7 +178,7 @@ export async function middleware(request: NextRequest) {
 
   const { data: profile, error } = await supabase
     .from('profiles')
-    .select('onboarding_step, onboarding_completed_at')
+    .select('onboarding_completed_steps, onboarding_completed_at')
     .eq('id', user.id)
     .maybeSingle();
 
