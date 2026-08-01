@@ -66,6 +66,34 @@ export function middlewareClient(request: NextRequest, response: NextResponse) {
 }
 
 /**
+ * Client for a route handler that owns its response.
+ *
+ * Mirrors `middlewareClient` rather than `routeClient`, and the difference matters exactly
+ * once: at `/auth/callback`, where a refused sign-in has to leave **no session behind**.
+ * `signOut()` clears the session by writing expired cookies, and those writes have to land
+ * on the response that is actually returned. Handing the client the response object makes
+ * that structural instead of relying on Next to reconcile a mutated cookie store — which it
+ * does, but "the framework probably applies it" is a weak guarantee for the one path where
+ * failure means a Google-authenticated stranger keeps a session.
+ */
+export function routeHandlerClient(request: NextRequest, response: NextResponse) {
+  const { url, anonKey } = config();
+
+  return createServerClient<Database>(url, anonKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll(cookiesToSet) {
+        for (const { name, value, options } of cookiesToSet) {
+          response.cookies.set(name, value, options);
+        }
+      },
+    },
+  });
+}
+
+/**
  * Client for Server Components, Server Actions and route handlers.
  *
  * `cookies()` is read-only inside a Server Component, and Next throws if you write to it

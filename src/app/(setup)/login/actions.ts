@@ -1,10 +1,12 @@
-'use server';
+"use server";
 
-import { checkEmail, SIGN_IN_REFUSED } from '@/lib/auth/allowed';
-import { routeClient } from '@/lib/auth/supabase';
+import { redirect } from "next/navigation";
+
+import { checkEmail, SIGN_IN_REFUSED } from "@/lib/auth/allowed";
+import { routeClient } from "@/lib/auth/supabase";
 
 export interface SignInState {
-  status: 'idle' | 'sent' | 'refused' | 'error';
+  status: "idle" | "sent" | "refused" | "error";
   message?: string;
 }
 
@@ -29,26 +31,26 @@ export async function requestSignInLink(
   _prev: SignInState,
   formData: FormData,
 ): Promise<SignInState> {
-  const email = String(formData.get('email') ?? '');
+  const email = String(formData.get("email") ?? "");
 
   const decision = checkEmail(email);
   if (!decision.ok) {
-    return { status: 'refused', message: SIGN_IN_REFUSED };
+    return { status: "refused", message: SIGN_IN_REFUSED };
   }
 
-  const next = String(formData.get('next') ?? '/');
+  const next = String(formData.get("next") ?? "/");
   // Only same-origin paths. A `next` taken from the query string and pasted into a
   // redirect URL is an open redirect, and this one would arrive attached to a sign-in
   // link — the most convincing possible place to put one.
-  const safeNext = next.startsWith('/') && !next.startsWith('//') ? next : '/';
+  const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/";
 
   const origin = process.env.APP_URL;
   if (!origin) {
     return {
-      status: 'error',
+      status: "error",
       message:
-        'APP_URL is not set, so there is no address to send you back to. The sign-in ' +
-        'link would point at nothing.',
+        "APP_URL is not set, so there is no address to send you back to. The sign-in " +
+        "link would point at nothing.",
     };
   }
 
@@ -64,8 +66,75 @@ export async function requestSignInLink(
   });
 
   if (error) {
-    return { status: 'error', message: error.message };
+    return { status: "error", message: error.message };
   }
 
-  return { status: 'sent' };
+  return { status: "sent" };
+}
+
+/**
+ * Sign in with Google.
+ *
+ * Added because the magic-link path has a hard external dependency this project cannot
+ * satisfy yet: Supabase's built-in mailer rate-limits to a handful of sends an hour, and
+ * custom SMTP needs a domain. That turns every auth test into an hour's wait, which is a
+ * poor foundation for a gate that has to be tested repeatedly.
+ *
+ * It sits *alongside* the link flow rather than replacing it. When a domain exists, custom
+ * SMTP makes magic links viable again, and an operator whose Google account is unavailable
+ * should still have a way in. Two doors, one lock — both land on `/auth/callback` and both
+ * are refused by the same allowlist check.
+ *
+ * ── No allowlist check here, and that is deliberate ──────────────────────────
+ *
+ * `requestSignInLink` checks before sending, because sending a link creates something
+ * durable in a stranger's inbox. Nothing durable is created here — the redirect goes to
+ * Google, and the check happens when they come back. Checking first would also be
+ * *useless*: the address is not known until Google says what it is, and refusing based on
+ * whatever someone typed into a form proves nothing about who they sign in as.
+ *
+ * The consequence is that a stranger can complete a Google sign-in and be refused at the
+ * callback. That is the correct shape — see the note there about destroying the session
+ * the exchange creates.
+ */
+export async function signInWithGoogle(
+  _prev: SignInState,
+  formData: FormData,
+): Promise<SignInState> {
+  const next = String(formData.get("next") ?? "/");
+  const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/";
+
+  const origin = process.env.APP_URL;
+  if (!origin) {
+    return {
+      status: "error",
+      message:
+        "APP_URL is not set, so there is no address for Google to return you to.",
+    };
+  }
+
+  const supabase = await routeClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(safeNext)}`,
+      queryParams: {
+        // Ask for the account chooser every time. Without it Google silently reuses the
+        // last account, which on a shared machine signs you in as someone else and looks
+        // like the allowlist misbehaving.
+        prompt: "select_account",
+      },
+    },
+  });
+
+  if (error) return { status: "error", message: error.message };
+  if (!data.url)
+    return {
+      status: "error",
+      message: "Google returned no authorisation URL.",
+    };
+
+  // A Server Action cannot return a redirect as data; `redirect()` throws a control-flow
+  // signal that Next turns into the response.
+  redirect(data.url);
 }

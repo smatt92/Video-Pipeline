@@ -159,3 +159,67 @@ in shell history and screenshots.
 deployments get a new hostname per commit, so a webhook registered against one dies on the
 next push — silently, because the vendor gets a DNS failure and you get nothing. Point it
 at the production domain, or a tunnel locally.
+
+---
+
+## Signing in
+
+Two doors, one lock. Both land on `/auth/callback` and both are refused by the same
+`ALLOWED_EMAIL` check — an address Google vouched for gets no more trust than an address
+that clicked a link in an inbox.
+
+**Google** is the path that works today. **Magic link** stays alongside it and becomes
+practical once a domain exists: Supabase's built-in mailer rate-limits to a handful of
+sends per hour and custom SMTP needs a domain, which turns every auth test into an hour's
+wait.
+
+### Google Cloud Console
+
+1. **APIs & Services → OAuth consent screen.** External. App name, support email,
+   developer contact. Scopes: leave the defaults — `email` and `profile` are all that is
+   read, and asking for more would put the app into a review process it does not need.
+   While the app is in *Testing*, add both permitted addresses under **Test users**, or
+   Google refuses them before Kiln ever sees them.
+2. **APIs & Services → Credentials → Create credentials → OAuth client ID.**
+   Application type **Web application**.
+3. **Authorised redirect URIs** — this is the field that is easy to get wrong. It is
+   **Supabase's** callback, not Kiln's:
+
+   ```
+   https://<project-ref>.supabase.co/auth/v1/callback
+   ```
+
+   Not `https://your-app.vercel.app/auth/callback`. Google returns to Supabase, Supabase
+   mints a code, and *then* the browser lands on Kiln's `/auth/callback`. Putting Kiln's
+   URL here produces a `redirect_uri_mismatch` that reads as if Kiln is misconfigured.
+4. Copy the **Client ID** and **Client secret**.
+
+### Supabase dashboard
+
+1. **Authentication → Sign In / Providers → Google.** Enable it, paste the Client ID into
+   *Client IDs* and the secret into *Client Secret (for OAuth)*.
+2. **Authentication → URL Configuration → Redirect URLs.** Add Kiln's callback:
+
+   ```
+   https://<your-deployment>/auth/callback
+   ```
+
+   This is the allowlist for where Supabase will send a browser afterwards. Without it the
+   round trip completes and dumps the user on the Supabase host.
+3. Nothing to add to Kiln's environment. The provider credentials live in Supabase; Kiln
+   only ever asks Supabase to start the flow.
+
+### What refusal looks like
+
+A Google account that is not in `ALLOWED_EMAIL` completes the Google sign-in, is refused at
+the callback, and lands on `/login?denied=not_allowed`. The session the exchange created is
+destroyed on the way out: `signOut()` runs *and* every `sb-*-auth-token` cookie is expired
+directly on the redirect response, including chunked ones. The two mechanisms fail
+differently — one needs the network, the other does not — and the cost of either failing
+alone is a stranger holding a live session.
+
+Verified against a production build with a stand-in auth host: a permitted address gets a
+session cookie and a redirect to `/`; a non-permitted one gets `denied=not_allowed`, no
+session cookie, and any pre-existing session cookie expired. What is *not* verified is the
+Google leg itself — that needs a real console project, and it is the part Google is
+responsible for.
