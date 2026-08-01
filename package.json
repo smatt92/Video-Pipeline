@@ -28,7 +28,7 @@
     "@anthropic-ai/sdk": "^0.115.0",
     "@aws-sdk/client-s3": "^3.1101.0",
     "@aws-sdk/s3-request-presigner": "^3.1101.0",
-    "@base-ui-components/react": "1.0.0-rc.0",
+    "@base-ui/react": "^1.6.0",
     "@fal-ai/client": "^1.10.1",
     "@higgsfield/client": "^0.2.1",
     "@supabase/ssr": "^0.12.4",

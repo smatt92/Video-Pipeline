@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+import { Hint } from '@/components/shell/hint';
 import { NAV, type NavItem } from '@/lib/nav';
 
 /**
@@ -34,16 +35,17 @@ function Item({ item, active }: { item: NavItem; active: boolean }) {
   const base =
     'flex items-center gap-2 rounded-sm px-2 py-[5px] text-[13px] transition-colors';
 
-  if (disabled) {
+  if (disabled && item.status.kind === 'disabled') {
     return (
-      <span
-        className={`${base} cursor-not-allowed`}
-        style={{ color: 'var(--text-faint)', transitionDuration: 'var(--duration-fast)' }}
-        title={`${item.status.reason} — ${item.hint}`}
-        aria-disabled
-      >
-        {inner}
-      </span>
+      <Hint content={`${item.hint}. ${item.status.reason}.`} side="right">
+        <span
+          className={`${base} w-full cursor-not-allowed`}
+          style={{ color: 'var(--text-faint)', transitionDuration: 'var(--duration-fast)' }}
+          aria-disabled
+        >
+          {inner}
+        </span>
+      </Hint>
     );
   }
 
@@ -64,7 +66,7 @@ function Item({ item, active }: { item: NavItem; active: boolean }) {
   );
 }
 
-export function Sidebar({ onOpenPalette }: { onOpenPalette: () => void }) {
+export function Sidebar() {
   const pathname = usePathname();
 
   return (
@@ -106,29 +108,6 @@ export function Sidebar({ onOpenPalette }: { onOpenPalette: () => void }) {
         ))}
       </div>
 
-      {/*
-        The palette hint lives here as well as in the empty state. A command palette
-        nobody discovers is a command palette nobody uses, and the shortcut is invisible
-        by nature.
-      */}
-      <button
-        type="button"
-        onClick={onOpenPalette}
-        className="mx-2 mb-3 flex items-center gap-2 rounded-sm border px-2 py-[6px] text-left text-[12px] transition-colors"
-        style={{
-          borderColor: 'var(--border-default)',
-          color: 'var(--text-muted)',
-          transitionDuration: 'var(--duration-fast)',
-        }}
-      >
-        <span>Search or jump to…</span>
-        <kbd
-          className="ml-auto rounded-xs px-1 font-mono text-[10px]"
-          style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
-        >
-          ⌘K
-        </kbd>
-      </button>
     </nav>
   );
 }

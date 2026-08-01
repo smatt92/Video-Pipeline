@@ -3,6 +3,7 @@
 import { useState } from 'react';
 
 import { CommandPalette } from './command-palette';
+import { HintProvider } from './hint';
 import { Sidebar } from './sidebar';
 
 /**
@@ -15,13 +16,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   return (
+    <HintProvider>
     <div
       className="grid h-dvh"
       style={{ gridTemplateColumns: 'var(--sidebar-width) minmax(0, 1fr)' }}
     >
-      <Sidebar onOpenPalette={() => setPaletteOpen(true)} />
+      <Sidebar />
       <main className="overflow-y-auto">{children}</main>
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
     </div>
+    </HintProvider>
   );
 }
