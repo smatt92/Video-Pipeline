@@ -77,7 +77,31 @@ Two things in particular have never run against a real Supabase instance:
 **To verify:** `supabase link --project-ref <ref> && supabase db push`, then
 `pnpm check:enums "<uri>"` against the hosted database, then the trigger test above.
 
-### 4. The Higgsfield driver surface
+### 4. The onboarding gate fails closed and is not wired
+
+`src/middleware.ts` cannot answer whether setup is complete — the answer lives in
+`profiles.onboarding_step` and no database is reachable. It therefore **refuses**: without
+`ONBOARDING_GATE_BYPASS=1` it throws on every route outside `/onboarding`, `/settings` and
+`/api/webhooks`.
+
+This is the inverse of where it started. The first version returned `true` unconditionally,
+which meant forgetting to wire the real check would leave the app permanently unguarded
+with nothing ever surfacing the omission. A setup gate that defaults open when
+unconfigured is backwards.
+
+Two consequences to know before they surprise you:
+
+- **A deployed preview will 500 on every app route** until 1c wires the check. That is the
+  gate working. `/onboarding` and `/settings` still serve, which is the correct surface for
+  someone who has not finished setup.
+- **The bypass must never be set on Vercel or Trigger.dev.** A deployment with it set has
+  no gate. It exists so local development is possible, and nothing else.
+
+**To close:** implement the `profiles.onboarding_step` read and *delete the bypass branch*
+rather than leaving it as a fallback. A bypass that outlives its reason is a backdoor with
+a comment on it.
+
+### 5. The Higgsfield driver surface
 
 Not written yet, but the interface in `src/lib/drivers/types.ts` encodes assumptions taken
 from reading the SDK rather than from calling it — chiefly that webhooks carry a shared
@@ -96,5 +120,5 @@ and that cancel is best-effort. See 0004.
 
 ## Closing this file
 
-Delete it when all four sections are verified and the results are recorded. Until then,
+Delete it when all five sections are verified and the results are recorded. Until then,
 treat anything it lists as a plausible implementation rather than a working one.

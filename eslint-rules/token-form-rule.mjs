@@ -13,21 +13,35 @@
  * that lasts about a month.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * What this rule cannot see
+ * How far it sees
  * ─────────────────────────────────────────────────────────────────────────────
  *
- * It matches token names in *literal* strings on a JSX element. A token threaded through
- * a variable — `const tint = stateColorToken(s)` then `style={{ color: tint }}` — is
- * invisible to it. That is a real hole, not a rounded corner: the board does exactly this
- * for state colours. It is still worth having, because the violation it does catch is the
- * one people actually write: reaching for `var(--accent)` to make a label look important.
+ * Literal strings on the element, plus **one hop** through a local variable. The board
+ * writes `const tint = stateColorToken(video.state)` and then `style={{ color: tint }}`,
+ * which a literal-only rule would miss entirely — and the board is the screen the rule
+ * most needs to cover, so the hop is worth its cost.
  *
- * Do not read a passing lint as proof the form rule holds. Read it as proof nobody
- * violated it in the obvious way.
+ * Resolution handles two shapes: a variable initialised to a string containing a token,
+ * and a variable initialised by a call to a function known to return one (see
+ * TOKEN_RETURNING below). Both are cheap because ESLint already has the scope.
+ *
+ * What it still cannot see: two or more hops, tokens assembled at runtime, values passed
+ * in as props, and anything crossing a module boundary other than the named functions.
+ * A passing lint means nobody violated the rule in a way this can reach — not that the
+ * form rule holds everywhere.
  */
 
 const ACCENT = /var\(\s*--accent/;
 const STATE = /var\(\s*--state-/;
+
+/**
+ * Functions whose return value is a token of a known family. Resolving a call is the
+ * difference between covering the board and not; keeping it to an explicit list is the
+ * difference between a rule and a guess.
+ */
+const TOKEN_RETURNING = {
+  stateColorToken: 'state',
+};
 
 /** Tags that are interactive by nature. */
 const INTERACTIVE_TAGS = new Set([
@@ -87,13 +101,51 @@ function isInteractive(node) {
   return false;
 }
 
-/** Every string literal anywhere inside this element's own attributes. */
-function attributeText(node) {
-  const found = [];
+/**
+ * Resolve an identifier one hop: find its declaration in scope and report what family of
+ * token, if any, it carries.
+ */
+function resolveIdentifier(context, node) {
+  const scope = context.sourceCode.getScope(node);
+  let ref = scope;
+  let variable = null;
+  while (ref && !variable) {
+    variable = ref.variables.find((v) => v.name === node.name) ?? null;
+    ref = ref.upper;
+  }
+  if (!variable || variable.defs.length !== 1) return { text: '', family: null };
+
+  const def = variable.defs[0];
+  const init = def.node?.init;
+  if (!init) return { text: '', family: null };
+
+  if (init.type === 'Literal' && typeof init.value === 'string') {
+    return { text: init.value, family: null };
+  }
+  if (init.type === 'CallExpression' && init.callee.type === 'Identifier') {
+    const family = TOKEN_RETURNING[init.callee.name];
+    if (family) return { text: '', family };
+  }
+  return { text: '', family: null };
+}
+
+/**
+ * Every token reference reachable from this element's attributes: literals directly, and
+ * one hop through local variables.
+ */
+function attributeTokens(context, node) {
+  const literals = [];
+  const families = new Set();
+
   const walk = (n) => {
     if (!n || typeof n !== 'object') return;
-    if (n.type === 'Literal' && typeof n.value === 'string') found.push(n.value);
-    if (n.type === 'TemplateElement' && n.value?.raw) found.push(n.value.raw);
+    if (n.type === 'Literal' && typeof n.value === 'string') literals.push(n.value);
+    if (n.type === 'TemplateElement' && n.value?.raw) literals.push(n.value.raw);
+    if (n.type === 'Identifier') {
+      const { text, family } = resolveIdentifier(context, n);
+      if (text) literals.push(text);
+      if (family) families.add(family);
+    }
     for (const key of Object.keys(n)) {
       if (key === 'parent') continue;
       const v = n[key];
@@ -102,7 +154,12 @@ function attributeText(node) {
     }
   };
   node.attributes.forEach(walk);
-  return found.join('\n');
+
+  const text = literals.join('\n');
+  return {
+    hasAccent: ACCENT.test(text) || families.has('accent'),
+    hasState: STATE.test(text) || families.has('state'),
+  };
 }
 
 const rule = {
@@ -128,15 +185,15 @@ const rule = {
 
     return {
       JSXOpeningElement(node) {
-        const text = attributeText(node);
-        if (!text) return;
+        const { hasAccent, hasState } = attributeTokens(context, node);
+        if (!hasAccent && !hasState) return;
 
         const interactive = isInteractive(node);
 
-        if (ACCENT.test(text) && !interactive) {
+        if (hasAccent && !interactive) {
           context.report({ node, messageId: 'accentOnInert' });
         }
-        if (STATE.test(text) && interactive) {
+        if (hasState && interactive) {
           context.report({ node, messageId: 'stateOnInteractive' });
         }
       },

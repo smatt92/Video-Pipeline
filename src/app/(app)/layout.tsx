@@ -4,9 +4,16 @@ import { GeistSans } from 'geist/font/sans';
 
 import { AppShell } from '@/components/shell/app-shell';
 
-import './globals.css';
+import '../globals.css';
 
 /**
+ * Root layout for the application proper.
+ *
+ * One of two root layouts. `(setup)` has its own, deliberately without the shell — see
+ * the note there. Two top-level route groups is the only way Next allows two roots, and
+ * it is the right shape here rather than a workaround: setup and the app are genuinely
+ * different surfaces, not the same surface with a flag.
+ *
  * Geist from the `geist` npm package rather than `next/font/google`.
  *
  * The Google loader fetches the font files at build time, which makes every build depend
