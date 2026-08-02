@@ -1,3 +1,6 @@
+import { Suspense } from 'react';
+
+import { IntegrityAlert } from '@/components/pipeline/integrity-alert';
 import { ROW_GRID, VideoRow } from '@/components/pipeline/video-row';
 import { Hint } from '@/components/shell/hint';
 import { StateGlyph } from '@/components/shell/state-glyph';
@@ -20,7 +23,10 @@ import {
  * space it has no use for while the numbers stay pinned to the far edge, and the eye has
  * to cross a dead zone to connect a row to its cost.
  *
- * Fixture data, no database. Gate 1.
+ * Fixture data, no database. Gate 1 — with one exception, and it is deliberate: the
+ * integrity alert reads the database for real. The rows here being fixtures is a phase
+ * thing; a security alert that waits for the phase to end is a security alert that is
+ * absent for the whole period during which the first forged callback could arrive.
  */
 
 const MAX_W = 'mx-auto w-full max-w-[1400px]';
@@ -91,6 +97,13 @@ export default function PipelineBoard() {
           <span className="text-[12px]" style={{ color: 'var(--text-faint)' }}>
             {needsHuman > 0 ? `${needsHuman} waiting on you` : 'Nothing waiting on you'}
           </span>
+
+          {/* Renders nothing at all when both counts are zero, which is every ordinary
+              day. Suspended so a slow or hanging database read delays a badge rather than
+              the board — the pipeline stays legible even when this cannot answer. */}
+          <Suspense fallback={null}>
+            <IntegrityAlert />
+          </Suspense>
 
           <div className="ml-auto flex items-center gap-3">
             <Hint content="Every row on this screen is fixture data. No database is connected yet — that lands in phase 1c.">
@@ -173,5 +186,8 @@ export default function PipelineBoard() {
   );
 }
 
-export const dynamic = 'force-static';
+// Was force-static while every row was a fixture. The integrity alert reads the database
+// on each request, and a cached "nothing is wrong" is worse than no alert — it is a stale
+// reassurance with no way to tell how stale.
+export const dynamic = 'force-dynamic';
 export type { VideoState };

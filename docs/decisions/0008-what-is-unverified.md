@@ -59,8 +59,22 @@ regenerated; and the action majors moved to the node24 runtime (`checkout@v7`,
 
 **Verified before pushing:** every CI step run locally in order against a database created
 to match the service container, including `install --frozen-lockfile` and a build with
-CI's environment and nothing else. That is not the same as CI passing, and the run itself
-is the only thing that settles it.
+CI's environment and nothing else.
+
+**Run 27 (`17e22cd`) is green** — all 15 steps, no skips, 1m50s. So:
+
+> **`17e22cd` is the first commit in this project whose checks actually ran.**
+
+Everything before it carries a weaker guarantee than its commit message claims. The
+checks were real and their local output is quoted throughout this file, but between
+`1d524c4` and `ed6c945` nothing was *enforced*: a violation would have been merged and the
+badge would have looked the same, because it was already red for an unrelated reason. When
+reading any earlier commit message in this repository, read "CI enforces X" as "X was run
+locally by the author". From `17e22cd` onward it means what it says.
+
+The vendor-isolation rule is the one to care about. It caught five real violations during
+this session, every one of them found because I ran it by hand. From here it catches the
+sixth without my cooperation.
 
 ### 1. Supabase Vault — `scripts/verify-vault.mjs`
 
@@ -356,6 +370,35 @@ Not written yet, but the interface in `src/lib/drivers/types.ts` encodes assumpt
 from reading the SDK rather than from calling it — chiefly that webhooks carry a shared
 secret in a header rather than a signature, that `withPolling` must be explicitly disabled,
 and that cancel is best-effort. See 0004.
+
+### 5b. Replay protection and the integrity alert
+
+Added after the observation that the runbook's step 4 tested forgery twice and replay not
+at all. What is proven and what is not divides cleanly along the transport.
+
+**Proven, against a real Postgres.** The SQL. A generation was inserted, a delivery
+recorded, `confirm_generation_once` called and returned true; a second delivery was
+recorded and the same function called again with a hostile payload
+(`'failed'`/`'forged'`). It returned **false**, and the row still read `succeeded` with a
+null `error_code` — the attacker's write did not land. `webhook_deliveries` reached 2,
+`webhook_received_at` did not move while `webhook_last_received_at` did, and the job
+appeared in `v_replayed_callbacks` with an 87 ms spread. Separately, a terminal row
+inserted with a null `confirmed_at` appeared in `v_unconfirmed_terminal_generations`, so
+the forgery view detects the shape it claims to.
+
+**Not proven: anything above the SQL.** `confirmAndIngest` calls these through supabase-js,
+which talks to PostgREST rather than to Postgres, and there is no PostgREST here. So the
+RPC call shape — argument names, the `Array.isArray` unwrap of a table-returning function,
+whether `data === true` is how a scalar boolean arrives — is read off the generated types
+and the PostgREST contract, not observed. The same applies to `IntegrityAlert`: its two
+`count: 'exact', head: true` queries have never executed. It typechecks and builds; that is
+all.
+
+The failure mode if the RPC shape is wrong is safe rather than silent — `confirm.ts` throws
+on an RPC error and the route logs `confirmation_failed` — but it would mean no generation
+ever confirms, which is a Gate 4 blocker discovered at the worst moment.
+
+**To verify:** step 4 of the runbook, all three attacks. The third one is the new one.
 
 ### 6. Stage 5 — every part of it
 

@@ -99,10 +99,25 @@ export async function POST(request: NextRequest) {
   // Record that a callback arrived, separately from whether it was true. Both matter: a
   // job that got a callback and no confirmation is a different problem from one that got
   // neither.
-  await db
-    .from('generations')
-    .update({ webhook_received_at: new Date().toISOString() })
-    .eq('external_job_id', jobId);
+  //
+  // One atomic statement (0015) rather than a read and a write. Two simultaneous
+  // deliveries are exactly the case this is here to observe, so the observer cannot have
+  // its own race — both would read the same count and write the same number, and a replay
+  // would go unrecorded.
+  const { data: delivery } = await db.rpc('record_webhook_delivery', { p_job_id: jobId });
+  const record = Array.isArray(delivery) ? delivery[0] : delivery;
+
+  if (record && record.deliveries > 1) {
+    // Harmless by construction — `confirm_generation_once` refuses the second settlement —
+    // but never silent. A vendor retry after a timeout is the ordinary cause. A replay of a
+    // delivery somebody captured looks identical from here, and means the shared secret is
+    // no longer shared with only us. `v_replayed_callbacks` is where this is read back.
+    console.warn('[webhook] repeat delivery', {
+      jobId,
+      deliveries: record.deliveries,
+      alreadyConfirmed: record.already_confirmed,
+    });
+  }
 
   // 202, not 200, and returned by the caller below only after the confirmation runs. The
   // vendor is told the callback was accepted; whether the outcome was good is not its

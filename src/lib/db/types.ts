@@ -70,6 +70,13 @@ export type Database = {
             foreignKeyName: "assets_generation_id_fkey"
             columns: ["generation_id"]
             isOneToOne: false
+            referencedRelation: "v_replayed_callbacks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
             referencedRelation: "v_unconfirmed_terminal_generations"
             referencedColumns: ["id"]
           },
@@ -274,6 +281,13 @@ export type Database = {
             foreignKeyName: "cost_ledger_generation_id_fkey"
             columns: ["generation_id"]
             isOneToOne: false
+            referencedRelation: "v_replayed_callbacks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
             referencedRelation: "v_unconfirmed_terminal_generations"
             referencedColumns: ["id"]
           },
@@ -425,6 +439,8 @@ export type Database = {
           submitted_at: string
           unit_cost_snapshot: number | null
           wait_token: string | null
+          webhook_deliveries: number
+          webhook_last_received_at: string | null
           webhook_received_at: string | null
         }
         Insert: {
@@ -450,6 +466,8 @@ export type Database = {
           submitted_at?: string
           unit_cost_snapshot?: number | null
           wait_token?: string | null
+          webhook_deliveries?: number
+          webhook_last_received_at?: string | null
           webhook_received_at?: string | null
         }
         Update: {
@@ -475,6 +493,8 @@ export type Database = {
           submitted_at?: string
           unit_cost_snapshot?: number | null
           wait_token?: string | null
+          webhook_deliveries?: number
+          webhook_last_received_at?: string | null
           webhook_received_at?: string | null
         }
         Relationships: [
@@ -483,6 +503,13 @@ export type Database = {
             columns: ["parent_generation_id"]
             isOneToOne: false
             referencedRelation: "generations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generations_parent_generation_id_fkey"
+            columns: ["parent_generation_id"]
+            isOneToOne: false
+            referencedRelation: "v_replayed_callbacks"
             referencedColumns: ["id"]
           },
           {
@@ -1733,6 +1760,64 @@ export type Database = {
           },
         ]
       }
+      v_replayed_callbacks: {
+        Row: {
+          confirmed_at: string | null
+          external_job_id: string | null
+          id: string | null
+          shot_id: string | null
+          spread: string | null
+          status: string | null
+          webhook_deliveries: number | null
+          webhook_last_received_at: string | null
+          webhook_received_at: string | null
+        }
+        Insert: {
+          confirmed_at?: string | null
+          external_job_id?: string | null
+          id?: string | null
+          shot_id?: string | null
+          spread?: never
+          status?: string | null
+          webhook_deliveries?: number | null
+          webhook_last_received_at?: string | null
+          webhook_received_at?: string | null
+        }
+        Update: {
+          confirmed_at?: string | null
+          external_job_id?: string | null
+          id?: string | null
+          shot_id?: string | null
+          spread?: never
+          status?: string | null
+          webhook_deliveries?: number | null
+          webhook_last_received_at?: string | null
+          webhook_received_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generations_shot_id_fkey"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "shots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generations_shot_id_fkey"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "v_shot_readiness"
+            referencedColumns: ["shot_id"]
+          },
+          {
+            foreignKeyName: "generations_shot_id_fkey"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "v_unresolved_shots"
+            referencedColumns: ["shot_id"]
+          },
+        ]
+      }
       v_script_cost: {
         Row: {
           cost_inr: number | null
@@ -1911,6 +1996,15 @@ export type Database = {
     }
     Functions: {
       assert_vault_available: { Args: never; Returns: undefined }
+      confirm_generation_once: {
+        Args: {
+          p_error_code?: string
+          p_error_detail?: string
+          p_generation_id: string
+          p_status: string
+        }
+        Returns: boolean
+      }
       dearmor: { Args: { "": string }; Returns: string }
       gen_random_uuid: { Args: never; Returns: string }
       gen_salt: { Args: { "": string }; Returns: string }
@@ -1940,6 +2034,14 @@ export type Database = {
       record_recipe_compile: {
         Args: { p_prompt_id: string }
         Returns: undefined
+      }
+      record_webhook_delivery: {
+        Args: { p_job_id: string }
+        Returns: {
+          already_confirmed: boolean
+          deliveries: number
+          generation_id: string
+        }[]
       }
     }
     Enums: {

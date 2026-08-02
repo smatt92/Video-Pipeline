@@ -17,10 +17,11 @@ outside and have completely different causes.
 
 | Precondition | How to check | If it is not true |
 |---|---|---|
-| Migrations 0001–0013 pushed | `pnpm check:enums "<uri>"` against the hosted DB | `supabase db push` |
+| Migrations 0001–0015 pushed | `pnpm check:enums "<uri>"` against the hosted DB | `supabase db push` |
 | The build is current | `/login` footer sha matches `git log -1` | Redeploy, cache off |
 | Storage verified | Settings → Integrations shows `verified` | Onboarding step 2 |
 | Video credentials verified | Same screen, video row | Onboarding step 4 |
+| **Voice credentials verified** | Same screen, audio row | Onboarding step 5 — **see step 0.5** |
 | A recipe exists | `/library/prompts` shows ≥1 active | An MCP session |
 | A rate is verified | `/settings/rate-card` shows the credit rate as verified | See step 0 below |
 | `WEBHOOK_CALLBACK_BASE_URL` is the preview origin | Vercel env | It must not be `APP_URL` if they differ |
@@ -43,6 +44,36 @@ happen.
 **If you skip it:** stage 5 throws before submitting anything, with the rate's own reason.
 That is the system working. Do not work around it by marking a guess verified — the whole
 cost-per-video metric derives from this number, and it cannot be backfilled.
+
+---
+
+## Step 0.5 — Voice credentials must be in before you start
+
+**This is an ordering constraint, not a suggestion, and it is the one most likely to strand
+you mid-run.**
+
+The chain is: stage 6 (voice) sets `shots.duration_source = 'derived_from_vo'`, and stage 5
+(video) **refuses any shot whose `duration_source` is still `'authored'`**. So video cannot
+run until voice has, and voice cannot run until the audio integration has verified.
+
+Which means the practical prerequisite is: **the voice vendor's credentials are entered and
+verified in onboarding step 5 before Gate 4 begins.** Not before step 2 — before step 0.
+
+Until now that ordering was implicit in a refusal message, which is the wrong place for it.
+You would get through the rate-card observation, a script, a shotlist, and arrive at step 2
+to find the leg blocked on a credential you could have entered an hour earlier, with a
+verified rate already bought and a script already paid for.
+
+**Check:** Settings → Integrations, audio row reads `verified`.
+
+**If it does not:** stop here and finish onboarding step 5. Everything above this line is
+cheap to redo; nothing below it is.
+
+**Why the refusal is right, and must not be routed around.** Addendum 02 §1 inverts the DAG
+deliberately: VO costs about a hundredth of video generation, so the durations are measured
+from real speech and the video is generated to fit. Generating video against a word-count
+estimate spends the expensive artifact to save the cheap one. If you find yourself wanting
+to bypass the refusal, the thing to fix is the missing credential.
 
 ---
 
@@ -83,7 +114,8 @@ zero.
 
 **Stage 5 refuses shots whose duration is still estimated.** That is not a bug to route
 around — generating video against a word-count guess is exactly what the audio-first
-ordering exists to prevent.
+ordering exists to prevent. Step 0.5 states this as a precondition so it is not discovered
+here.
 
 ---
 
@@ -119,10 +151,49 @@ set → an outbound status fetch → `confirmed_at` set → `status = 'succeeded
 | `confirmed_at` set, `status` still `queued` | The vendor's status vocabulary differs from the regexes in `confirm.ts`. Read the logged status string and widen them. |
 | `outcome: 'unknown_job'` | The callback named a job id no row of ours holds. Either the submit did not persist, or this is a probe from somebody who found the URL. |
 
-**The forgery check.** Once a real callback has landed, POST the same body again with a
-deliberately wrong secret. It must return 401 and change nothing. Then POST with the *right*
-secret and a job id you invented. It must return `unknown_job` and make no outbound request.
-If either lands an asset, stop — the confirmation is not doing its job.
+**Should also produce:** `webhook_deliveries = 1`. If it is already higher on the first
+callback, the vendor retried — read the function log before continuing.
+
+### The three attacks, and they are different
+
+The first version of this step called itself a replay test and tested only forgery. Both
+of the checks below were there; the third, which is the one that needs no secret at all,
+was named and not tested. Run all three.
+
+**1. Wrong secret — forgery without the key.** POST the same body again with a deliberately
+wrong secret header. Must return **401**, change nothing, and not increment
+`webhook_deliveries`.
+
+**2. Right secret, invented job id — forgery with the key.** POST with the correct secret
+and a job id you made up. Must return **`unknown_job`** and make **no outbound request** —
+check the log. A confirmation fetch here would mean the endpoint can be used as a request
+proxy.
+
+**3. Right secret, GENUINE body, sent twice — replay.** This is the one that needs nothing
+but the ability to see one real delivery, and the vendor itself does it on any timeout.
+Take the exact body and headers of the callback that already succeeded and send them again.
+
+| Must happen | Where to look |
+|---|---|
+| `webhook_deliveries` goes to 2 | the `generations` row |
+| `webhook_received_at` does **not** move | same row — it is the first arrival, permanently |
+| `webhook_last_received_at` does move | same row |
+| Outcome is `already_confirmed` | the 202 response body |
+| **No second status fetch** | the function log — the fast path returns before any outbound call |
+| `confirmed_at`, `status` and `completed_at` all unchanged | same row |
+| **No second ingest enqueued, no second asset** | `assets` — exactly one row for the shot |
+| The job appears in `v_replayed_callbacks` | query it, or watch the pipeline board badge |
+
+**If any of the writes moved**, `confirm_generation_once` is not being used and the
+compare-and-set has been bypassed somewhere. Stop: at Gate 4 that means a replayed callback
+downloads and stores the asset twice, and once the soul → dop chain is wired it means a
+replay submits a **second paid video generation**.
+
+**A note on why the guarantee is in the database.** The application-level check in
+`confirm.ts` — return early if `confirmed_at` is set — is a fast path, not the guarantee.
+Two deliveries arriving at the same instant can both read null and both proceed. Only
+`where confirmed_at is null` inside the UPDATE settles it, and only the caller that gets
+`true` back may do anything that costs money.
 
 ---
 
