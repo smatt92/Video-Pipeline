@@ -30,6 +30,8 @@
     "src/lib/shots/**/*.ts",
     "src/lib/voice/**/*.ts",
     "src/lib/cost/**/*.ts",
-    "src/lib/prompts/**/*.ts"
+    "src/lib/prompts/**/*.ts",
+    "src/lib/onboarding/gate.ts",
+    "src/lib/onboarding/steps.ts"
   ]
 }

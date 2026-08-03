@@ -2,6 +2,9 @@ import type { Metadata } from 'next';
 import { GeistMono } from 'geist/font/mono';
 import { GeistSans } from 'geist/font/sans';
 
+import { Suspense } from 'react';
+
+import { DeferralBanner } from '@/components/shell/deferral-banner';
 import { AppShell } from '@/components/shell/app-shell';
 
 import '../globals.css';
@@ -35,7 +38,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     // there is no flash of the wrong theme. A toggle would write to this same attribute.
     <html lang="en" data-theme="dark" className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body>
-        <AppShell>{children}</AppShell>
+        <AppShell>
+          {/* Above everything, on every screen in the app, and not dismissible. A banner
+              you can close is closed on day one, and the state it describes then goes
+              invisible for weeks — which is the failure it exists to prevent, since a
+              deferred integration looks exactly like a working one from any screen that
+              has no data to show anyway. Suspended so a slow read delays the banner and
+              not the page. */}
+          <Suspense fallback={null}>
+            <DeferralBanner />
+          </Suspense>
+          {children}
+        </AppShell>
       </body>
     </html>
   );

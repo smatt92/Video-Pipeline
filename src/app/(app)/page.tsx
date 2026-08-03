@@ -1,124 +1,280 @@
+import Link from 'next/link';
 import { Suspense } from 'react';
 
 import { IntegrityAlert } from '@/components/pipeline/integrity-alert';
-import { ROW_GRID, VideoRow } from '@/components/pipeline/video-row';
 import { Hint } from '@/components/shell/hint';
 import { StateGlyph } from '@/components/shell/state-glyph';
-import {
-  STATE_LABEL,
-  STATE_ORDER,
-  VIDEOS,
-  formatInr,
-  type VideoState,
-} from '@/lib/fixtures/pipeline';
+import type { VideoState } from '@/lib/fixtures/pipeline';
+import { deferralState, inertBecause } from '@/lib/onboarding/deferred';
+import { readBoard, type BoardRow, type ConceptState } from '@/lib/pipeline/board';
 
 /**
- * The pipeline board.
+ * The pipeline board — from the database.
  *
- * Calm density: answer "is everything okay?" first, let everything else wait a layer
- * down. The summary strip is that answer. Sorted so what needs a human is at the top and
- * the archive is at the bottom.
+ * Calm density: answer "is everything okay?" first, let everything else wait a layer down.
+ * Sorted so what needs a human is at the top.
  *
- * Content is capped at 1400px and centred. Past that width the title column grows into
- * space it has no use for while the numbers stay pinned to the far edge, and the eye has
- * to cross a dead zone to connect a row to its cost.
+ * ── Three outcomes, never two ────────────────────────────────────────────────
  *
- * Fixture data, no database. Gate 1 — with one exception, and it is deliberate: the
- * integrity alert reads the database for real. The rows here being fixtures is a phase
- * thing; a security alert that waits for the phase to end is a security alert that is
- * absent for the whole period during which the first forged callback could arrive.
+ * Rows, empty, or broken. The distinction between the last two is why this was rewritten
+ * off fixtures rather than merely pointed at a different source: a blank board that could
+ * mean "no concepts yet" or "the query failed" makes the second case invisible until
+ * somebody independently suspects it. The empty state says what would put something here
+ * and names anything deferred that will stop it; the broken state says what failed.
+ *
+ * `src/lib/fixtures/pipeline.ts` stays — `/studio` and the design-system screens render it
+ * and it is Gate 1's artefact. Nothing here reads it except the glyph's state vocabulary,
+ * which is a design-system type rather than data.
  */
 
 const MAX_W = 'mx-auto w-full max-w-[1400px]';
 
-function Summary() {
-  const counts = STATE_ORDER.map((state) => ({
-    state,
-    n: VIDEOS.filter((v) => v.state === state).length,
-  })).filter((c) => c.n > 0);
+const STATE_LABEL: Record<ConceptState, string> = {
+  draft: 'Draft',
+  scripted: 'Scripted',
+  shot_listed: 'Shot-listed',
+  generating: 'Generating',
+  needs_review: 'Needs review',
+  blocked: 'Blocked',
+  ready: 'Ready',
+  published: 'Published',
+};
 
-  const priced = VIDEOS.filter((v) => v.cost.kind === 'priced');
-  const total = priced.reduce((sum, v) => sum + (v.cost.kind === 'priced' ? v.cost.inr : 0), 0);
-  const unpriced = VIDEOS.length - priced.length;
+/**
+ * Pipeline states are finer-grained than the glyph's vocabulary, on purpose: "scripted"
+ * and "shot-listed" are different places to be and the same colour of dot. The mapping
+ * lives here rather than widening the design system for a distinction only this screen
+ * makes.
+ */
+const GLYPH: Record<ConceptState, VideoState> = {
+  draft: 'drafting',
+  scripted: 'drafting',
+  shot_listed: 'drafting',
+  generating: 'generating',
+  needs_review: 'needs_review',
+  blocked: 'blocked',
+  ready: 'ready',
+  published: 'live',
+};
 
+// Attention first, archive last.
+const STATE_ORDER: ConceptState[] = [
+  'blocked',
+  'needs_review',
+  'generating',
+  'shot_listed',
+  'scripted',
+  'draft',
+  'ready',
+  'published',
+];
+
+const GRID = '1fr 130px 150px 120px';
+
+function formatInr(n: number): string {
+  return `₹${n.toFixed(2)}`;
+}
+
+function Row({ row }: { row: BoardRow }) {
   return (
-    <div className={`${MAX_W} flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4`}>
-      {counts.map(({ state, n }) => (
-        <div key={state} className="flex items-center gap-2">
-          <StateGlyph state={state} size={8} />
-          <span className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
-            {n} {STATE_LABEL[state].toLowerCase()}
-          </span>
-        </div>
-      ))}
+    <Link
+      href={`/concepts/${row.id}`}
+      className="grid items-center gap-5 border-b px-5 py-3 transition-colors"
+      style={{
+        gridTemplateColumns: GRID,
+        borderColor: 'var(--border-subtle)',
+        transitionDuration: 'var(--duration-fast)',
+      }}
+    >
+      <span className="truncate text-[13px]">{row.title}</span>
 
-      <div
-        className="ml-auto flex items-baseline gap-2 font-mono text-[12px]"
-        style={{ color: 'var(--text-muted)' }}
+      <span
+        className="flex items-center gap-2 text-[12px]"
+        style={{ color: 'var(--text-secondary)' }}
       >
-        <span style={{ color: 'var(--text-primary)' }}>{formatInr(total)}</span>
-        <span>across {priced.length}</span>
-        {/*
-          The count of videos whose cost cannot be stated. Kept beside the total rather
-          than hidden, because a total that silently excludes rows is the kind of number
-          that gets quoted.
-        */}
-        {unpriced > 0 && (
-          <Hint content="These used a model with no verified rate on the rate card, so their cost is genuinely unknown — not zero. Verify the rate in Settings.">
-            <span style={{ color: 'var(--text-faint)' }}>· {unpriced} unpriced</span>
+        <StateGlyph state={GLYPH[row.state]} size={8} />
+        {STATE_LABEL[row.state]}
+      </span>
+
+      <span className="font-mono text-[11px]" style={{ color: 'var(--text-faint)' }}>
+        {row.scripts} script · {row.shots} shot · {row.generations} gen
+      </span>
+
+      <span className="text-right font-mono text-[12px]" style={{ color: 'var(--text-muted)' }}>
+        {row.costInr === null ? (
+          <Hint content="No priced call has been recorded against this concept. Not zero — unknown. A submit that cannot be priced refuses rather than proceeding uncosted.">
+            <span style={{ color: 'var(--text-faint)' }}>—</span>
           </Hint>
+        ) : (
+          <>
+            {formatInr(row.costInr)}
+            {row.unpricedCalls > 0 && (
+              <Hint content="Some calls against this concept could not be priced, so this total is knowingly incomplete rather than wrong.">
+                <span style={{ color: 'var(--text-faint)' }}> ·{row.unpricedCalls}?</span>
+              </Hint>
+            )}
+          </>
+        )}
+      </span>
+    </Link>
+  );
+}
+
+async function Board() {
+  const [result, deferrals] = await Promise.all([readBoard(), deferralState()]);
+
+  if (!result.ok) {
+    return (
+      <div className={`${MAX_W} px-5 py-10`}>
+        <div
+          className="rounded-sm border px-4 py-3 text-[12.5px] leading-relaxed"
+          style={{
+            borderColor: 'var(--border-strong)',
+            background: 'var(--surface-inset)',
+            color: 'var(--state-review)',
+          }}
+          data-board="error"
+        >
+          <strong className="font-medium">This board could not be read.</strong>
+          <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>
+            {result.hint}
+          </p>
+          <p className="mt-2 font-mono text-[11.5px]" style={{ color: 'var(--text-muted)' }}>
+            {result.error}
+          </p>
+          <p className="mt-2" style={{ color: 'var(--text-muted)' }}>
+            This is <em>not</em> an empty database — that renders a different message saying
+            so. If you are seeing this, the read itself failed.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (result.rows.length === 0) {
+    const videoInert = inertBecause(deferrals, 'video');
+    const audioInert = inertBecause(deferrals, 'audio');
+
+    return (
+      <div className={`${MAX_W} px-5 py-10`} data-board="empty">
+        <p className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>
+          No concepts yet. The database is reachable and this query succeeded — there is
+          simply nothing in it.
+        </p>
+        <p
+          className="mt-2 max-w-[62ch] text-[12.5px] leading-relaxed"
+          style={{ color: 'var(--text-muted)' }}
+        >
+          A concept appears here as soon as one exists. Stage 3 gives it a script, stage 4 a
+          shotlist, stage 5 generations — each moves the row up this list without anything
+          else being done to it.
+        </p>
+
+        {(videoInert || audioInert) && (
+          <div
+            className="mt-5 max-w-[62ch] rounded-sm border px-3 py-2 text-[12px] leading-relaxed"
+            style={{
+              borderColor: 'var(--border-strong)',
+              background: 'var(--surface-inset)',
+              color: 'var(--text-muted)',
+            }}
+          >
+            <strong className="font-medium" style={{ color: 'var(--state-review)' }}>
+              Some of that will not happen yet.
+            </strong>
+            {videoInert && <p className="mt-1">{videoInert}</p>}
+            {audioInert && <p className="mt-1">{audioInert}</p>}
+          </div>
         )}
       </div>
-    </div>
+    );
+  }
+
+  const sorted = [...result.rows].sort(
+    (a, b) => STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state),
+  );
+
+  const priced = result.rows.filter((r) => r.costInr !== null);
+  const total = priced.reduce((sum, r) => sum + (r.costInr ?? 0), 0);
+  const unpriced = result.rows.length - priced.length;
+
+  return (
+    <>
+      <div className="border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+        <div className={`${MAX_W} flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4`}>
+          {STATE_ORDER.map((state) => ({
+            state,
+            n: result.rows.filter((r) => r.state === state).length,
+          }))
+            .filter((c) => c.n > 0)
+            .map(({ state, n }) => (
+              <div key={state} className="flex items-center gap-2">
+                <StateGlyph state={GLYPH[state]} size={8} />
+                <span className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+                  {n} {STATE_LABEL[state].toLowerCase()}
+                </span>
+              </div>
+            ))}
+
+          <div
+            className="ml-auto flex items-baseline gap-2 font-mono text-[12px]"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            <span style={{ color: 'var(--text-primary)' }}>{formatInr(total)}</span>
+            <span>across {priced.length}</span>
+            {unpriced > 0 && (
+              <Hint content="These have no priced call recorded, so their cost is genuinely unknown — not zero. A total that silently excludes rows is the kind of number that gets quoted.">
+                <span style={{ color: 'var(--text-faint)' }}>· {unpriced} unpriced</span>
+              </Hint>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ background: 'var(--surface-inset)' }}>
+        <div
+          className={`${MAX_W} grid gap-5 border-b px-5 py-2 font-mono text-[10px] uppercase tracking-[0.09em]`}
+          style={{
+            gridTemplateColumns: GRID,
+            borderColor: 'var(--border-subtle)',
+            color: 'var(--text-faint)',
+          }}
+        >
+          <span>Concept</span>
+          <span>State</span>
+          <span>Rows</span>
+          <span className="text-right">Cost</span>
+        </div>
+      </div>
+
+      <div className={MAX_W}>
+        {sorted.map((row) => (
+          <Row key={row.id} row={row} />
+        ))}
+      </div>
+    </>
   );
 }
 
 export default function PipelineBoard() {
-  const sorted = [...VIDEOS].sort(
-    (a, b) => STATE_ORDER.indexOf(a.state) - STATE_ORDER.indexOf(b.state),
-  );
-
-  const needsHuman = VIDEOS.filter(
-    (v) => v.state === 'blocked' || v.state === 'needs_review',
-  ).length;
-
   return (
     <div className="flex min-h-full flex-col">
-      {/* ── Top bar ──────────────────────────────────────────────────────── */}
-      <header
-        className="border-b"
-        style={{ borderColor: 'var(--border-subtle)' }}
-      >
+      <header className="border-b" style={{ borderColor: 'var(--border-subtle)' }}>
         <div
           className={`${MAX_W} flex items-center gap-3 px-5`}
           style={{ height: 'var(--topbar-height)' }}
         >
           <h1 className="text-[14px] font-medium tracking-tight">Pipeline</h1>
-          <span className="text-[12px]" style={{ color: 'var(--text-faint)' }}>
-            {needsHuman > 0 ? `${needsHuman} waiting on you` : 'Nothing waiting on you'}
-          </span>
 
-          {/* Renders nothing at all when both counts are zero, which is every ordinary
-              day. Suspended so a slow or hanging database read delays a badge rather than
-              the board — the pipeline stays legible even when this cannot answer. */}
+          {/* Nothing at all when both integrity counts are zero, which is every ordinary
+              day. See the component for the third state. */}
           <Suspense fallback={null}>
             <IntegrityAlert />
           </Suspense>
 
           <div className="ml-auto flex items-center gap-3">
-            <Hint content="Every row on this screen is fixture data. No database is connected yet — that lands in phase 1c.">
-              <span
-                className="rounded-sm px-2 py-1 font-mono text-[10px]"
-                style={{ background: 'var(--surface-2)', color: 'var(--text-faint)' }}
-              >
-                fixture data
-              </span>
-            </Hint>
-
-            {/* Primary action — the accent's most visible job, and the reason a swap is
-                actually testable rather than theoretical. */}
-            <button
-              type="button"
+            <Link
+              href="/concepts"
               className="rounded-sm px-[10px] py-[6px] text-[12px] font-medium transition-colors"
               style={{
                 background: 'var(--accent)',
@@ -127,67 +283,28 @@ export default function PipelineBoard() {
               }}
             >
               New concept
-            </button>
+            </Link>
           </div>
         </div>
       </header>
 
-      <div className="border-b" style={{ borderColor: 'var(--border-subtle)' }}>
-        <Summary />
-      </div>
-
-      {/* ── Column headers ───────────────────────────────────────────────── */}
-      <div style={{ background: 'var(--surface-inset)' }}>
-        <div
-          className={`${MAX_W} grid gap-5 border-b px-5 py-2 font-mono text-[10px] uppercase tracking-[0.09em]`}
-          style={{
-            gridTemplateColumns: ROW_GRID,
-            borderColor: 'var(--border-subtle)',
-            color: 'var(--text-faint)',
-          }}
-        >
-          <span>Video</span>
-          <span>State</span>
-          <span />
-          <span className="text-right">Cost</span>
-        </div>
-      </div>
-
-      <div className={MAX_W}>
-        {sorted.map((video) => (
-          <VideoRow
-            key={video.id}
-            video={video}
-            // One row is selected to show what the accent does. In 1c this follows the
-            // keyboard cursor — the review loop is meant to be driven without a mouse.
-            selected={video.id === 'v_3c71'}
-          />
-        ))}
-      </div>
-
-      {/*
-        The single ⌘K affordance. The sidebar search field was a second one for the same
-        thing, and a fake input that opens a dialog is worse than no input — the palette
-        IS the search.
-      */}
-      <div className="flex flex-1 items-end justify-center pb-8 pt-10">
-        <p className="text-[12px]" style={{ color: 'var(--text-faint)' }}>
-          Press{' '}
-          <kbd
-            className="rounded-xs px-1 font-mono text-[10px]"
-            style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+      {/* Suspended so a slow database delays the rows rather than the shell — the top bar
+          and the deferral banner stay legible while this resolves. */}
+      <Suspense
+        fallback={
+          <div
+            className={`${MAX_W} px-5 py-10 text-[12.5px]`}
+            style={{ color: 'var(--text-faint)' }}
           >
-            ⌘K
-          </kbd>{' '}
-          to jump anywhere
-        </p>
-      </div>
+            Reading the pipeline…
+          </div>
+        }
+      >
+        <Board />
+      </Suspense>
     </div>
   );
 }
 
-// Was force-static while every row was a fixture. The integrity alert reads the database
-// on each request, and a cached "nothing is wrong" is worse than no alert — it is a stale
-// reassurance with no way to tell how stale.
+// Read on every request. A cached board shows a generation as queued after it finished.
 export const dynamic = 'force-dynamic';
-export type { VideoState };

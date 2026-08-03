@@ -8,6 +8,7 @@ import { serverClient, type Db } from '../db/server';
 import { INTEGRATION_CATALOG, descriptorFor } from '../drivers/catalog';
 import { verifyIntegration } from '../integrations/verify';
 import { storeSecret } from '../integrations/vault';
+import { isDeferrable } from './gate';
 import { integrationForStep } from './step-integration';
 import { STEPS } from './steps';
 
@@ -117,6 +118,18 @@ async function assertUnlocked(db: Db, userId: string, stepNumber: number): Promi
 async function completeStep(db: Db, userId: string, stepNumber: number): Promise<void> {
   const done = await completedSteps(db, userId);
   if (done.includes(stepNumber)) return;
+
+  // Clear any deferral first. A step cannot be both completed and deferred — 0016 enforces
+  // that with a CHECK, so writing the completion without this raises — and beyond the
+  // constraint it is the behaviour you want: an integration that now verifies for real
+  // must stop being named in the banner as inert.
+  const { error: undeferError } = await db.rpc('undefer_onboarding_step', {
+    p_profile_id: userId,
+    p_step: stepNumber,
+  });
+  if (undeferError) {
+    throw new Error(`Clearing the deferral for step ${stepNumber} failed: ${undeferError.message}`);
+  }
 
   const next = [...done, stepNumber].sort((a, b) => a - b);
 
@@ -653,6 +666,100 @@ export async function setConcurrency(
       status: 'ok',
       message: `Ceiling set to ${limit} parallel requests, recorded as manual. A check re-run will not overwrite it.`,
     };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Deferral — the third state
+// ═════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Record a step as deliberately skipped.
+ *
+ * Not a pass. `completeStep` is never called, `onboarding_completed_steps` is untouched,
+ * and the integration the step configures stays unverified — so `isUsable()` still returns
+ * false and every pipeline task still refuses. What changes is the gate, and only the gate.
+ *
+ * The reason is required and enforced in SQL rather than here, because a deferral without
+ * one cannot be told apart from a step somebody forgot, and the banner that names it would
+ * have nothing to say.
+ *
+ * Only steps 4 and 5 may be deferred. Deferring storage or the LLM would produce an app in
+ * which nothing works at all, and a gate that can be waved through entirely is not a gate.
+ */
+export async function deferStep(
+  stepNumber: number,
+  _prev: StepState,
+  formData: FormData,
+): Promise<StepState> {
+  try {
+    const user = await currentUser();
+    const db = serverClient();
+
+    if (!isDeferrable(stepNumber)) {
+      const step = STEPS.find((s) => s.n === stepNumber);
+      return {
+        status: 'error',
+        message:
+          `Step ${stepNumber}${step ? ` (${step.title})` : ''} cannot be deferred. Only the ` +
+          'steps whose vendors gate API access behind a paid plan can be, because those are ' +
+          'the ones you can do everything right and still not have. Storage and the LLM are ' +
+          'not among them — without either, there is no app to be let into.',
+      };
+    }
+
+    const reason = String(formData.get('reason') ?? '').trim();
+    if (reason.length < 3) {
+      return {
+        status: 'error',
+        message:
+          'Say why. A deferral with no reason is indistinguishable from a step you forgot, ' +
+          'and this text is what the banner shows you in a week when you have forgotten.',
+      };
+    }
+
+    const { error } = await db.rpc('defer_onboarding_step', {
+      p_profile_id: user.id,
+      p_step: stepNumber,
+      p_reason: reason,
+    });
+
+    if (error) throw new Error(error.message);
+
+    refresh();
+    revalidatePath('/', 'layout');
+
+    const step = STEPS.find((s) => s.n === stepNumber);
+    return {
+      status: 'ok',
+      message:
+        `Step ${stepNumber}${step ? ` (${step.title})` : ''} deferred. The app is now ` +
+        'reachable. Nothing that needs this integration will run — every task that reaches ' +
+        'for it refuses with the reason you just gave, and every screen that would have ' +
+        'shown its data says so instead.',
+    };
+  } catch (err) {
+    return fail(err);
+  }
+}
+
+/** Clear a deferral. Called on a real pass, and available on its own. */
+export async function undeferStep(stepNumber: number): Promise<StepState> {
+  try {
+    const user = await currentUser();
+    const db = serverClient();
+
+    const { error } = await db.rpc('undefer_onboarding_step', {
+      p_profile_id: user.id,
+      p_step: stepNumber,
+    });
+    if (error) throw new Error(error.message);
+
+    refresh();
+    revalidatePath('/', 'layout');
+    return { status: 'ok', message: `Step ${stepNumber} is no longer deferred.` };
   } catch (err) {
     return fail(err);
   }

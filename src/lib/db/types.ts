@@ -726,6 +726,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "integrations_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_deferred_steps"
+            referencedColumns: ["profile_id"]
+          },
         ]
       }
       mcp_servers: {
@@ -833,6 +840,8 @@ export type Database = {
           id: string
           onboarding_completed_at: string | null
           onboarding_completed_steps: number[]
+          onboarding_deferrals: Json
+          onboarding_deferred_steps: number[]
           onboarding_first_video_render_id: string | null
           onboarding_step: number
           timezone: string
@@ -846,6 +855,8 @@ export type Database = {
           id: string
           onboarding_completed_at?: string | null
           onboarding_completed_steps?: number[]
+          onboarding_deferrals?: Json
+          onboarding_deferred_steps?: number[]
           onboarding_first_video_render_id?: string | null
           onboarding_step?: number
           timezone?: string
@@ -859,6 +870,8 @@ export type Database = {
           id?: string
           onboarding_completed_at?: string | null
           onboarding_completed_steps?: number[]
+          onboarding_deferrals?: Json
+          onboarding_deferred_steps?: number[]
           onboarding_first_video_render_id?: string | null
           onboarding_step?: number
           timezone?: string
@@ -1671,6 +1684,15 @@ export type Database = {
         }
         Relationships: []
       }
+      v_deferred_steps: {
+        Row: {
+          deferred_at: string | null
+          profile_id: string | null
+          reason: string | null
+          step: number | null
+        }
+        Relationships: []
+      }
       v_pronunciation_locators: {
         Row: {
           id: string | null
@@ -2006,6 +2028,10 @@ export type Database = {
         Returns: boolean
       }
       dearmor: { Args: { "": string }; Returns: string }
+      defer_onboarding_step: {
+        Args: { p_profile_id: string; p_reason: string; p_step: number }
+        Returns: Json
+      }
       gen_random_uuid: { Args: never; Returns: string }
       gen_salt: { Args: { "": string }; Returns: string }
       integration_secret_delete: {
@@ -2042,6 +2068,10 @@ export type Database = {
           deliveries: number
           generation_id: string
         }[]
+      }
+      undefer_onboarding_step: {
+        Args: { p_profile_id: string; p_step: number }
+        Returns: Json
       }
     }
     Enums: {

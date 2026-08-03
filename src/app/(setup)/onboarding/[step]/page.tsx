@@ -8,9 +8,12 @@ import {
   RateCardForm,
 } from '@/components/onboarding/step-forms';
 import { CheckPill } from '@/components/settings/parts';
+import { isDeferrable } from '@/lib/onboarding/gate';
 import { onboardingProgress } from '@/lib/onboarding/progress';
 import { stepIntegrationView } from '@/lib/onboarding/step-view';
 import { STEPS, isUnlocked, stepBySlug } from '@/lib/onboarding/steps';
+
+import { DeferForm } from './defer-form';
 
 /** Relative time, coarse on purpose — the exact second helps nobody here. */
 function when(iso: string | null): string {
@@ -197,6 +200,23 @@ export default async function OnboardingStepPage({
                   stepNumber={step.n}
                   view={view}
                   verification={step.verification}
+                />
+              )}
+              {/* Only the two steps whose vendors gate API access behind a paid plan.
+                  Deferring storage or the LLM would open an app in which nothing works,
+                  and a gate that can be waved through entirely is not a gate — `gate.ts`
+                  refuses those server-side regardless of what renders here. */}
+              {isDeferrable(step.n) && (
+                <DeferForm
+                  stepNumber={step.n}
+                  deferred={
+                    progress.deferred.find((d) => d.step === step.n)
+                      ? {
+                          reason: progress.deferred.find((d) => d.step === step.n)!.reason,
+                          at: progress.deferred.find((d) => d.step === step.n)!.at,
+                        }
+                      : null
+                  }
                 />
               )}
               {step.n === 9 && (

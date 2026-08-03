@@ -25,7 +25,6 @@ import { execFileSync } from 'node:child_process';
 import { breakerDrivers, catalogEntries, catalogRates } from './lib/catalog.mjs';
 import {
   describeEffects,
-  firstRelation,
   listMigrations,
   migrationEffects,
   maskUrl,
@@ -337,7 +336,7 @@ try {
             'skipped looks like. Re-running it will fail on "already exists".',
             '',
             'Record those without running them, then apply whatever genuinely remains:',
-            `  pnpm db:push --baseline ${outstanding.filter((m) => true).map((m) => m.version).join(',')}`,
+            `  pnpm db:push --baseline ${outstanding.map((m) => m.version).join(',')}`,
             '',
             'Confirm each one against this list first — baselining a migration that did not',
             'run leaves a database claiming to be somewhere it is not.',

@@ -24,6 +24,8 @@ export const GATE_STEP: number = Math.max(...REQUIRED_STEPS);
 export interface ProfileProgress {
   onboarding_completed_steps: number[];
   onboarding_completed_at: string | null;
+  /** Steps deliberately skipped. Opens the gate; makes nothing usable. */
+  onboarding_deferred_steps?: number[] | null;
 }
 
 /** The step the gate is waiting on, for the message at the top of the wizard. */
@@ -31,9 +33,38 @@ export function nextRequiredStep(completed: readonly number[]) {
   return STEPS.find((s) => s.required && !completed.includes(s.n)) ?? null;
 }
 
-/** Required steps still outstanding, in wizard order. */
-export function outstandingRequired(completed: readonly number[]): number[] {
+/**
+ * Required steps still outstanding, in wizard order.
+ *
+ * A deferred step is not outstanding *for gate purposes* — that is the entire meaning of
+ * deferring it. It remains incomplete everywhere else: `nextRequiredStep` still names it,
+ * the wizard still shows it unfinished, and the integration it configures is still
+ * unusable. The gate is the one thing a deferral relaxes.
+ */
+export function outstandingRequired(
+  completed: readonly number[],
+  deferred: readonly number[] = [],
+): number[] {
+  return REQUIRED_STEPS.filter((n) => !completed.includes(n) && !deferred.includes(n));
+}
+
+/** Required steps genuinely not done, deferrals included. What the wizard shows. */
+export function incompleteRequired(completed: readonly number[]): number[] {
   return REQUIRED_STEPS.filter((n) => !completed.includes(n));
+}
+
+/**
+ * Steps that may be deferred.
+ *
+ * Only the two that depend on a vendor whose API access is gated behind a paid plan.
+ * Deliberately a closed list rather than a flag on every step: deferring storage or the
+ * LLM would produce an app where nothing works at all, and a gate that can be waved
+ * through entirely is not a gate.
+ */
+export const DEFERRABLE_STEPS: readonly number[] = [4, 5];
+
+export function isDeferrable(step: number): boolean {
+  return DEFERRABLE_STEPS.includes(step);
 }
 
 /**
@@ -47,5 +78,23 @@ export function outstandingRequired(completed: readonly number[]): number[] {
 export function isOnboardingComplete(profile: ProfileProgress | null): boolean {
   if (!profile) return false;
   if (profile.onboarding_completed_at !== null) return true;
-  return outstandingRequired(profile.onboarding_completed_steps ?? []).length === 0;
+  return (
+    outstandingRequired(
+      profile.onboarding_completed_steps ?? [],
+      profile.onboarding_deferred_steps ?? [],
+    ).length === 0
+  );
+}
+
+/**
+ * Whether the app is reachable *only* because something was deferred.
+ *
+ * The banner's condition. Distinct from `isOnboardingComplete`, which is true either way —
+ * collapsing them is what would make a deferral look like completion.
+ */
+export function isOpenOnDeferral(profile: ProfileProgress | null): boolean {
+  if (!profile) return false;
+  const deferred = profile.onboarding_deferred_steps ?? [];
+  if (deferred.length === 0) return false;
+  return incompleteRequired(profile.onboarding_completed_steps ?? []).length > 0;
 }

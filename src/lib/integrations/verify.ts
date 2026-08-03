@@ -4,6 +4,7 @@ import { descriptorFor, type IntegrationDescriptor } from '../drivers/catalog';
 import { probeIntegration, type CheckResult } from '../drivers/probes';
 import type { Db } from '../db/server';
 import type { Json } from '../db/types';
+import { integrationForStep } from '../onboarding/step-integration';
 import { createSupabaseStorageDriver } from '../storage/supabase';
 import { resolveCredentials } from './credentials';
 
@@ -251,11 +252,85 @@ export async function verifyIntegration(db: Db, slug: string): Promise<VerifyOut
  * intent, verifying is a statement of fact.
  */
 export async function isUsable(db: Db, slug: string): Promise<boolean> {
+  return (await usability(db, slug)).usable;
+}
+
+export interface Usability {
+  usable: boolean;
+  /** Why not, in a sentence a task can put in a row and a person can act on. */
+  reason: string;
+  /** True when the operator deferred this deliberately, rather than it never being set up. */
+  deferred: boolean;
+}
+
+/**
+ * The same rule, with the reason attached.
+ *
+ * Deferral changes nothing about the answer — a deferred integration is unverified and
+ * therefore unusable, exactly as before. What it changes is the *sentence*: "never
+ * configured" and "you decided on the 3rd to proceed without this because API access is
+ * gated behind a paid plan" send someone to different places, and a task that refuses
+ * without saying which has made the person do the diagnosis twice.
+ */
+export async function usability(db: Db, slug: string): Promise<Usability> {
   const { data } = await db
     .from('integrations')
-    .select('is_enabled, last_verified_at')
+    .select('is_enabled, last_verified_at, last_error')
     .eq('slug', slug)
     .maybeSingle();
 
-  return Boolean(data?.is_enabled && data.last_verified_at);
+  if (data?.is_enabled && data.last_verified_at) {
+    return { usable: true, reason: '', deferred: false };
+  }
+
+  // A deferral is recorded against the step, and the step → kind mapping lives in the
+  // catalogue, so this asks the deferral view for the steps and resolves them here rather
+  // than teaching SQL which vendor fills which role.
+  const { data: deferrals } = await db.from('v_deferred_steps').select('step, reason, deferred_at');
+
+  // `step` is nullable in the view's generated type — every column of a view is, since
+  // Postgres cannot prove non-nullability through one. It never is in practice; guarding
+  // is cheaper than asserting.
+  const deferredStep = (deferrals ?? []).find(
+    (d) => d.step !== null && integrationForStep(d.step) === slug,
+  );
+
+  if (deferredStep) {
+    const when = deferredStep.deferred_at
+      ? new Date(deferredStep.deferred_at).toISOString().slice(0, 10)
+      : 'an earlier session';
+    return {
+      usable: false,
+      deferred: true,
+      reason:
+        `The ${slug} integration was deferred on ${when}: "${deferredStep.reason}". ` +
+        'Deferring opened the app; it did not make this usable. Finish onboarding step ' +
+        `${deferredStep.step} and this runs.`,
+    };
+  }
+
+  if (!data) {
+    return {
+      usable: false,
+      deferred: false,
+      reason: `No integrations row for "${slug}" — migration 0014 creates one. Run \`pnpm doctor\`.`,
+    };
+  }
+
+  if (!data.last_verified_at) {
+    return {
+      usable: false,
+      deferred: false,
+      reason:
+        `The ${slug} integration has never verified. Enabling is a statement of intent; ` +
+        'verifying is a statement of fact, and only the second one lets a task spend money.' +
+        (data.last_error ? ` Last error: ${data.last_error}` : ''),
+    };
+  }
+
+  return {
+    usable: false,
+    deferred: false,
+    reason: `The ${slug} integration verified but is disabled.`,
+  };
 }

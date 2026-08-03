@@ -1,5 +1,5 @@
 import { routeClient } from '../auth/supabase';
-import { isOnboardingComplete, outstandingRequired } from './gate';
+import { isOnboardingComplete, isOpenOnDeferral, outstandingRequired } from './gate';
 
 /**
  * Onboarding progress for the signed-in user, as the wizard sees it.
@@ -18,8 +18,12 @@ export interface OnboardingProgress {
   completed: number[];
   /** Highest completed, for "step N of M" copy only. */
   step: number;
-  /** Required steps still outstanding, in wizard order. */
+  /** Required steps still outstanding, in wizard order. Deferrals are not outstanding. */
   outstanding: number[];
+  /** Steps deliberately skipped, with why. */
+  deferred: { step: number; reason: string; at: string }[];
+  /** True when the app is reachable only because something was deferred. */
+  openOnDeferral: boolean;
   complete: boolean;
   /** The signed-in user, when there is one. Steps write against this id. */
   userId: string | null;
@@ -31,6 +35,8 @@ export interface OnboardingProgress {
 const NONE = {
   completed: [] as number[],
   step: 0,
+  deferred: [] as { step: number; reason: string; at: string }[],
+  openOnDeferral: false,
   complete: false,
   userId: null,
   email: null,
@@ -54,7 +60,9 @@ export async function onboardingProgress(): Promise<OnboardingProgress> {
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('onboarding_completed_steps, onboarding_completed_at')
+    .select(
+      'onboarding_completed_steps, onboarding_completed_at, onboarding_deferred_steps, onboarding_deferrals',
+    )
     .eq('id', user.id)
     .maybeSingle();
 
@@ -67,12 +75,29 @@ export async function onboardingProgress(): Promise<OnboardingProgress> {
   if (!data) return { ...base, outstanding: outstandingRequired([]) };
 
   const completed = [...(data.onboarding_completed_steps ?? [])].sort((a, b) => a - b);
+  const deferredSteps = [...(data.onboarding_deferred_steps ?? [])].sort((a, b) => a - b);
+
+  // The jsonb carries the reason and the timestamp; the array is the trigger-derived
+  // shape the gate compares. Reading both means a malformed jsonb degrades to "deferred,
+  // reason unknown" rather than to a crash on a screen whose job is to explain itself.
+  const notes = (data.onboarding_deferrals ?? {}) as Record<
+    string,
+    { at?: string; reason?: string } | undefined
+  >;
+
+  const deferred = deferredSteps.map((step) => ({
+    step,
+    reason: notes[String(step)]?.reason ?? 'no reason recorded',
+    at: notes[String(step)]?.at ?? '',
+  }));
 
   return {
     ...base,
     completed,
     step: completed.length ? Math.max(...completed) : 0,
-    outstanding: outstandingRequired(completed),
+    deferred,
+    openOnDeferral: isOpenOnDeferral(data),
+    outstanding: outstandingRequired(completed, deferredSteps),
     complete: isOnboardingComplete(data),
   };
 }
