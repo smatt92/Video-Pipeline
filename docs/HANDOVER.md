@@ -91,6 +91,28 @@ the viewer never hears, and a shot boundary drawn from raw timings lands about 0
 that line. The code already reads the normalised field — this is what to check if captions
 look subtly wrong.
 
+### B — what can go wrong, cheapest first
+
+**Cheap — minutes, no money moves.**
+
+| # | What it looks like from outside | What tells it apart |
+|---|---|---|
+| 1 | Test connection fails. Nothing else has run. | The `integration_checks` row: `passed=false` with the vendor's own message. A 401 is a wrong key; a 403 is the right key on a plan without the endpoint. |
+| 2 | Stage 6 refuses without calling anything: *"has never verified"*. | You enabled the integration and did not press **Test connection**. Enabling states intent; verifying states fact. `usability()` names which of the two you did. |
+| 3 | The app says a column does not exist; `psql` disagrees. | PostgREST's schema cache is stale after a migration. `pnpm doctor` says so directly. Nothing to do with ElevenLabs. |
+| 4 | Stage 6 refuses on pricing. | No verified character rate. **Unlike the video rates, this one is published** — ElevenLabs lists per-character pricing, so you may enter it from the pricing page and mark it verified, exactly as the Anthropic rates in migration 0006 were. The "never trust documentation" rule in C is about credit rates nobody publishes. |
+
+**Expensive — bills, and produces something you cannot use.**
+
+| # | What it looks like from outside | What tells it apart |
+|---|---|---|
+| 1 | Synthesis succeeds. Audio is fine. Nothing downstream changes. | **The plan tier is too low to return character alignment.** The `vo_takes` row exists with `word_timings = []`. `v_script_vo_status` shows `shots_timed` at 0 while `takes` is non-zero — that gap is the whole signal. Characters were billed and no timings came back, so every shot keeps its authored guess. This is the single most likely expensive failure in step B and it looks like success. |
+| 2 | Everything works. The whole voiceover is in the wrong voice. | A valid `voice_id` for a voice you did not intend. Nothing automated catches this — a valid id is a valid id. **Listen to the first take before running the rest of the script.** |
+| 3 | Captions are subtly early or late, worse further in. | Chunk offsets misapplied at a seam. Compare the last word end of chunk *n* against the first word start of chunk *n+1* after offsets — the review screen's waveform draws both on one axis, and `pnpm verify:review` asserts the seam arithmetic on the code path. If the code is right and the seam is still wrong, the vendor returned per-chunk timings in a frame the code did not expect. |
+
+The distinction that matters in B: **a call that returns audio has not necessarily returned
+what you needed.** The audio is the cheap half of what you paid for.
+
 ---
 
 ## C. Higgsfield — Gate 4
@@ -130,6 +152,37 @@ came back.
 silently, credits expire in about 90 days, and the docs are sparse. Treat a silent failure
 as a rate limit before you treat it as a bug.
 
+### C — what can go wrong, cheapest first
+
+**Cheap — minutes, no money moves.**
+
+| # | What it looks like from outside | What tells it apart |
+|---|---|---|
+| 1 | Test connection fails. | `integration_checks`, with the vendor's message. 401 = wrong key or secret. 403 = the API is gated to a higher plan than yours, which is a billing problem and not a config one. |
+| 2 | Submit refuses immediately, before any call. | `WEBHOOK_CALLBACK_BASE_URL` is unset. `requireEnv` names the variable and the thing that wanted it. This refusal is the system working — see expensive #1 for what happens when it is set *wrongly* instead of not at all. |
+| 3 | Submit refuses on pricing. | No verified credit rate. Correct, and the only way through it is expensive #2. |
+| 4 | The app says a column does not exist; `psql` disagrees. | Stale PostgREST cache. `pnpm doctor`. |
+
+**Expensive — bills, and produces nothing usable.**
+
+| # | What it looks like from outside | What tells it apart |
+|---|---|---|
+| 1 | The submit succeeds. The generation sits at `queued` forever and then times out. Credits are gone. | **`WEBHOOK_CALLBACK_BASE_URL` points somewhere the vendor cannot reach** — a preview hostname, or localhost. The vendor gets a DNS failure and you get nothing at all. The distinguisher is `generations.webhook_deliveries`: **zero** means the callback never arrived; **non-zero** means it arrived and was rejected, which is a *different* problem (expensive #3). `v_unconfirmed_terminal_generations` lists everything in this state. This is the classic and it is why step 1 of the runbook is the production domain. |
+| 2 | Every rupee figure in the product is confidently wrong. | **A credit rate entered from documentation rather than observation.** Nobody publishes these. The tell is `rate_card.source_note`: if it does not describe an observed balance delta, nobody observed one. Cost-per-video is the number this project exists to measure, and it cannot be backfilled. |
+| 3 | Same as #1 from outside — generation hangs — but `webhook_deliveries` is non-zero. | **The shared secret differs between Vercel and Trigger**, so deliveries arrive and are refused with 401. Two systems, one variable, set separately. `v_replayed_callbacks` also surfaces repeat deliveries here. |
+| 4 | Roughly half the fan-out fails, intermittently, and it looks like the vendor is flaky. | **An undocumented rate limit, hit by submitting every shot at once.** Failures still bill in some cases. Mitigation is procedural: **submit exactly one shot first** (runbook step 5), then raise concurrency from `integrations.concurrency_limit` rather than from a guess. `integrations.concurrency_source` exists so a screen never presents a default as a reading. |
+| 5 | A forged completion lands an asset you did not generate. | This is defended structurally and is worth confirming rather than assuming: the status URL is *constructed* from our own stored `external_job_id` and never read from the request body. **Runbook steps 4 and 6 break it deliberately.** Do them — the confirmation is the security control and it has never been exercised. |
+
+**Two things you do not have to worry about, so you do not spend time on them:**
+
+- *A replayed webhook paying twice.* `confirm_generation_once` is a compare-and-set on
+  `confirmed_at is null`; the second settlement is a no-op and shows up in
+  `v_replayed_callbacks`. Migration 0015.
+- *A video billed against a failed still.* The video submit lives inside the still's webhook
+  handler, so it cannot fire unless the still succeeded. That ordering is the single easiest
+  way to spend money on nothing in this pipeline, and it is prevented by where the code
+  lives rather than by remembering.
+
 ---
 
 ## D. Your hour on shot recipes
@@ -139,9 +192,19 @@ as a rate limit before you treat it as a bug.
 refuse with the empty library named as the reason, which is the system working.
 
 **Where to explore:** the vendor's own hosted MCP server, in a Claude Code session. That is
-what it is for — trying models, motions, seeds and character references interactively. Do
-**not** explore through Kiln's `/api/mcp`: it refuses anything the workspace is not set up
-to do, which is correct and is not what you want at 1am with a seed to try.
+what it is for — trying models, motions, seeds and character references interactively. It
+can be attached to a session directly, which is the fastest way to work: ask, watch, save
+the ones that survive. Do **not** explore through Kiln's `/api/mcp`: it refuses anything the
+workspace is not set up to do, which is correct and is not what you want at 1am with a seed
+to try.
+
+Two things about that session that are easy to get wrong. Credits spent there are **not**
+Kiln's rows — a generation made through the vendor's MCP lands in the vendor's account with
+no `generations` row, no `cost_ledger` row and no idempotency key we issued, which is
+exactly why Kiln has its own MCP server (Addendum 01 §2). And the exploration itself is a
+real cost that the cost-per-video figure will never see. Budget it separately and knowingly;
+`generations.origin = 'studio_unmanaged'` exists to record such rows with
+`cost_inr = null` if you ever want to, because zero is a claim and null is the truth.
 
 **What makes a recipe worth saving** — the bar is deliberately high, because a recipe that
 cannot reproduce its own sample is worse than an empty library. An empty library is honest;
@@ -163,6 +226,29 @@ than saving whatever you happened to try.
 Aim for at least one recipe per shot kind you actually use. One recipe for a kind is a
 warning, not a tick: every shot of that kind in every video gets the same camera move, and
 repeated identical camera moves are exactly what the inauthentic-content policy looks for.
+
+### D — what can go wrong, cheapest first
+
+**Cheap — minutes, and the save is refused before anything is stored.**
+
+| # | What it looks like from outside | What tells it apart |
+|---|---|---|
+| 1 | Save refused, naming a placeholder. | The template uses something a shot does not carry. Only `{{description}}`, `{{intent}}` and `{{duration}}` are fillable. The refusal lists the offenders by name. |
+| 2 | Save refused on params. | `params` must parse as a JSON **object**. A string, an array or a number is not a parameter set, and the CHECK constraint in 0010 refuses an empty one. |
+| 3 | You saved it and nothing changed — shots still will not compile. | **No tags, or the wrong tag.** A recipe with no shot kind matches nothing. The gaps table at the top of `/library/prompts` still lists the kind as uncovered; that table is the answer to "did that help?". |
+| 4 | The vendor rejects the payload on submit. | Wrong `driver` or `model` string in the recipe. Fails fast, usually without billing. |
+
+**Expensive — bills later, repeatedly, and looks fine until it does not.**
+
+| # | What it looks like from outside | What tells it apart |
+|---|---|---|
+| 1 | Everything works. Clips come back. They are not good, and you cannot say why. | **A recipe saved from a clip nobody watched.** Every future shot of that kind is generated from a guess, billed, and discarded. The tell before it costs anything: `sample_output_url` empty, and `win_rate` null forever. There is no automated check here and there cannot be — this is exactly the discipline the library exists to enforce, and the reason an empty library is better than a broken one. An empty library is honest; a broken one is trusted. |
+| 2 | The person in the video is not your character. | **`accepts_character_ref` ticked without watching a clip that carried one.** Compilation refuses to use a recipe *without* the flag for a shot that has a character — so a wrongly ticked box turns that refusal into a stranger, billed, in a finished video. Only tick it after you have watched a clip from these exact params and the face was right. |
+| 3 | Videos are individually fine and collectively identical. | **One recipe per kind.** `v_recipe_coverage` reports `top_recipe_share`; 1.0 means one camera, always. Repeated identical camera moves are named in the inauthentic-content policy, so this is a compliance risk rather than an aesthetic one. |
+| 4 | A batch generated weeks later looks different from the sample. | **Params summarised rather than copied verbatim.** The recipe cannot reproduce its own sample. Catch it now: regenerate once from the saved recipe and compare against `sample_output_url`. That is the cheapest hour you will spend in step D. |
+
+The rule underneath all four: **the library is the set of things that are not guesses.** Two
+recipes you watched beat nine you assembled from a docs page.
 
 ---
 
