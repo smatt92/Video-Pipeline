@@ -59,8 +59,11 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   {
     slug: 'workspace',
     label: 'Workspace',
-    hint: 'Name, timezone, default channel, FX rate',
-    status: scaffolded('1a', 'Needs the profiles row that onboarding step 1 creates'),
+    // Live because display scale is real and persisted. The rest of what this section will
+    // hold — name, default channel, FX rate — is not built, and the page says so rather
+    // than the nav implying it by listing them here.
+    hint: 'Display scale, and how Kiln looks on this account',
+    status: live(),
   },
   {
     slug: 'generation',

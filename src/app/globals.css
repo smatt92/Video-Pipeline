@@ -9,8 +9,20 @@
  * files. Tailwind's default palette, radii and spacing are deliberately replaced rather
  * than extended: `bg-zinc-800 rounded-lg` is the visual signature this design is trying
  * not to have.
+ *
+ * ── Not `@theme inline` ─────────────────────────────────────────────────────
+ *
+ * `inline` substitutes each value into the utility at build time and emits no `--color-*`
+ * variable. For values that are themselves `var(...)` that still resolves at runtime, so
+ * the dark theme would keep working either way — but it means nothing can read or override
+ * the theme variable itself, and it silently stops working the moment somebody writes a
+ * literal here instead of a var. The indirection costs nothing and removes the trap.
+ *
+ * This matters more now than it did: `--ui-scale` is a runtime value that multiplies into
+ * the spacing, radius and type tokens below, and baking those at build time would make the
+ * preference control inert.
  */
-@theme inline {
+@theme {
   --color-surface-0: var(--surface-0);
   --color-surface-1: var(--surface-1);
   --color-surface-2: var(--surface-2);
@@ -33,11 +45,11 @@
   --color-danger: var(--danger);
   --color-danger-muted: var(--danger-muted);
 
-  --radius-xs: var(--radius-xs);
-  --radius-sm: var(--radius-sm);
-  --radius-md: var(--radius-md);
-  --radius-lg: var(--radius-lg);
-  --radius-xl: var(--radius-xl);
+  --radius-xs: var(--corner-xs);
+  --radius-sm: var(--corner-sm);
+  --radius-md: var(--corner-md);
+  --radius-lg: var(--corner-lg);
+  --radius-xl: var(--corner-xl);
 
   --spacing-1: var(--space-1);
   --spacing-2: var(--space-2);
@@ -48,6 +60,24 @@
   --spacing-7: var(--space-7);
   --spacing-8: var(--space-8);
   --spacing-9: var(--space-9);
+
+  /* ── Type scale ────────────────────────────────────────────────────────────
+   * Maps the semantic --type-* steps onto Tailwind's font-size namespace, so `text-xs`
+   * resolves to the clamp() and inherits --ui-scale without any component knowing either
+   * exists. */
+  --text-3xs: var(--type-3xs);
+  --text-2xs: var(--type-2xs);
+  --text-xs: var(--type-xs);
+  --text-sm: var(--type-sm);
+  --text-md: var(--type-md);
+  --text-base: var(--type-md);
+  --text-lg: var(--type-lg);
+  --text-xl: var(--type-xl);
+
+  --leading-tight: var(--lh-tight);
+  --leading-snug: var(--lh-snug);
+  --leading-normal: var(--lh-normal);
+  --leading-relaxed: var(--lh-relaxed);
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
@@ -107,3 +137,58 @@ body {
     opacity: 0.42;
   }
 }
+
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * Canvas-relative sizing
+ *
+ * The pipeline canvas is the region right of the sidebar. When the sidebar collapses the
+ * window does not change and the canvas gains 260px, so anything sized against the viewport
+ * ignores the event entirely — cards keep the width they had when a quarter of the screen
+ * was chrome. Container queries fix the frame of reference: `cqi` is 1% of the *container's*
+ * inline size, so the canvas is what the cards measure themselves against.
+ *
+ * ── cqi carries the same zoom trap as vw ──────────────────────────────────────
+ *
+ * Browser zoom scales the container along with everything else, so a size expressed purely
+ * in cqi holds its proportion forever and never grows — the WCAG 1.4.4 failure again,
+ * wearing a different unit. Every use below pairs cqi with a rem term for exactly that
+ * reason, and the rem term is what zoom and --ui-scale both act on.
+ * ══════════════════════════════════════════════════════════════════════════════ */
+
+.kiln-canvas {
+  container-type: inline-size;
+  container-name: canvas;
+}
+
+/*
+ * A card grid that reflows against the canvas rather than the window.
+ *
+ * `min()` rather than a bare clamp so a narrow canvas gets one full-width column instead of
+ * a column narrower than its own content — which is what produces the "everything is a
+ * sliver" state when the sidebar is open on a 1280px laptop.
+ */
+.kiln-card-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, clamp(16rem, 14rem + 12cqi, 26rem)), 1fr));
+}
+
+/*
+ * Pipeline rows: the description column takes the slack, and the metadata columns hold a
+ * width proportional to the canvas with a rem floor so they never collapse into ellipsis.
+ */
+@container canvas (min-width: 0px) {
+  .kiln-row-meta {
+    flex-basis: clamp(4.5rem, 4rem + 4cqi, 9rem);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+ * Reduced motion
+ *
+ * The duration tokens go to zero, which handles every CSS transition in the app. It does
+ * NOT stop a requestAnimationFrame loop — a WebGL render loop keeps running at full rate
+ * and this rule cannot see it. Anything driving its own frames must read the same
+ * preference in JS; see the note in tokens.css.
+ * ══════════════════════════════════════════════════════════════════════════════ */

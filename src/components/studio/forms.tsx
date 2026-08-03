@@ -28,7 +28,7 @@ function Submit({ label, busy }: { label: string; busy: string }) {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-sm px-3 py-[7px] text-[12.5px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+      className="rounded-sm px-3 py-[7px] text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
       style={{
         background: 'var(--accent)',
         color: 'var(--accent-contrast)',
@@ -58,7 +58,7 @@ export function StartSessionForm({ proposedCap }: { proposedCap: number | null }
     <form action={action} className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
         <span
-          className="font-mono text-[10px] uppercase tracking-[0.09em]"
+          className="font-mono text-3xs uppercase tracking-[0.09em]"
           style={{ color: 'var(--text-faint)' }}
         >
           Working title
@@ -66,14 +66,14 @@ export function StartSessionForm({ proposedCap }: { proposedCap: number | null }
         <input
           name="title"
           placeholder="What are you trying to make?"
-          className="rounded-sm border px-2 py-[7px] text-[12.5px] outline-none"
+          className="rounded-sm border px-2 py-[7px] text-sm outline-none"
           style={inputStyle}
         />
       </div>
 
       <div className="flex flex-col gap-1">
         <span
-          className="font-mono text-[10px] uppercase tracking-[0.09em]"
+          className="font-mono text-3xs uppercase tracking-[0.09em]"
           style={{ color: 'var(--text-faint)' }}
         >
           Spend cap for this session (₹)
@@ -85,19 +85,19 @@ export function StartSessionForm({ proposedCap }: { proposedCap: number | null }
           step={1}
           defaultValue={proposedCap ?? undefined}
           required
-          className="w-[160px] rounded-sm border px-2 py-[7px] font-mono text-[12.5px] outline-none"
+          className="w-[160px] rounded-sm border px-2 py-[7px] font-mono text-sm outline-none"
           style={inputStyle}
         />
         {/* Shown, not hidden behind a default. The cap stops the session dead when it is
             reached — it does not warn — so the number is worth a person's attention once. */}
-        <span className="text-[11.5px] leading-snug" style={{ color: 'var(--text-faint)' }}>
+        <span className="text-xs leading-snug" style={{ color: 'var(--text-faint)' }}>
           When this is reached the session stops accepting turns. Nothing is rolled back:
           the transcript, any script, and every cost row stay exactly as they were.
         </span>
       </div>
 
       {state.status !== 'idle' && state.message && (
-        <p className="text-[12px] leading-relaxed" style={{ color: tone(state.status) }}>
+        <p className="text-xs leading-relaxed" style={{ color: tone(state.status) }}>
           {state.message}
         </p>
       )}
@@ -120,7 +120,7 @@ export function Composer({ sessionId, disabled }: { sessionId: string; disabled:
 
   if (disabled) {
     return (
-      <p className="text-[12.5px]" style={{ color: 'var(--text-faint)' }}>
+      <p className="text-sm" style={{ color: 'var(--text-faint)' }}>
         This session has stopped. Open a new one to keep working — the transcript above is
         kept as it stands.
       </p>
@@ -134,13 +134,13 @@ export function Composer({ sessionId, disabled }: { sessionId: string; disabled:
         rows={3}
         required
         placeholder="Describe what you want to make, or ask what is possible."
-        className="resize-y rounded-sm border px-2 py-[7px] text-[12.5px] leading-relaxed outline-none"
+        className="resize-y rounded-sm border px-2 py-[7px] text-sm leading-relaxed outline-none"
         style={inputStyle}
       />
       <div className="flex items-center gap-3">
         <Submit label="Send" busy="Thinking…" />
         {state.status !== 'idle' && state.message && (
-          <span className="font-mono text-[11px]" style={{ color: tone(state.status) }}>
+          <span className="font-mono text-2xs" style={{ color: tone(state.status) }}>
             {state.message}
           </span>
         )}

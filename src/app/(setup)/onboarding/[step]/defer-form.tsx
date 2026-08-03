@@ -37,7 +37,7 @@ export function DeferForm({
   if (deferred) {
     return (
       <div
-        className="mt-5 rounded-sm border px-3 py-2.5 text-[12px] leading-relaxed"
+        className="mt-5 rounded-sm border px-3 py-2.5 text-xs leading-relaxed"
         style={{
           borderColor: 'var(--border-strong)',
           background: 'var(--surface-inset)',
@@ -57,7 +57,7 @@ export function DeferForm({
           <button
             type="submit"
             disabled={undoing}
-            className="text-[12px] underline underline-offset-2"
+            className="text-xs underline underline-offset-2"
             style={{ color: 'var(--text-secondary)' }}
           >
             {undoing ? 'Clearing…' : 'Clear the deferral'}
@@ -74,26 +74,26 @@ export function DeferForm({
 
   return (
     <details className="mt-5">
-      <summary className="cursor-pointer text-[12px]" style={{ color: 'var(--text-faint)' }}>
+      <summary className="cursor-pointer text-xs" style={{ color: 'var(--text-faint)' }}>
         I do not have these credentials yet
       </summary>
 
       <div className="mt-3 max-w-[62ch]">
-        <p className="text-[12px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+        <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
           Deferring opens the app without this step. It is recorded, shown in a banner on
           every screen, and named by every task that refuses because of it. It is not a pass
           and does not make this integration usable — that needs a real check.
         </p>
 
         <form action={action} className="mt-3 flex flex-col gap-2">
-          <label className="text-[11.5px]" style={{ color: 'var(--text-secondary)' }}>
+          <label className="text-xs" style={{ color: 'var(--text-secondary)' }}>
             Why — this is what the banner shows you later
             <input
               name="reason"
               required
               minLength={3}
               placeholder="API access is gated to a paid tier; applied for it"
-              className="mt-1 w-full rounded-sm border px-2 py-1.5 text-[12px]"
+              className="mt-1 w-full rounded-sm border px-2 py-1.5 text-xs"
               style={{
                 borderColor: 'var(--border-subtle)',
                 background: 'var(--surface-2)',
@@ -105,7 +105,7 @@ export function DeferForm({
           <button
             type="submit"
             disabled={pending}
-            className="self-start rounded-sm border px-3 py-1.5 text-[12px]"
+            className="self-start rounded-sm border px-3 py-1.5 text-xs"
             style={{ borderColor: 'var(--border-strong)', color: 'var(--text-secondary)' }}
           >
             {pending ? 'Deferring…' : 'Defer this step'}
@@ -114,7 +114,7 @@ export function DeferForm({
 
         {state.status !== 'idle' && state.message && (
           <p
-            className="mt-2 text-[12px] leading-relaxed"
+            className="mt-2 text-xs leading-relaxed"
             style={{
               color: state.status === 'ok' ? 'var(--text-muted)' : 'var(--state-review)',
             }}

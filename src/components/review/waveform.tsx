@@ -121,7 +121,7 @@ export function Waveform({ audioUrl, cues, currentTimeS, onSeek, shotBoundariesS
   if (!audioUrl) {
     return (
       <Shell>
-        <p className="px-3 py-4 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+        <p className="px-3 py-4 text-xs" style={{ color: 'var(--text-muted)' }}>
           No voiceover asset. Shot durations on this script are the shotlist estimate rather
           than measured speech, so nothing here can say whether the cut is timed correctly —
           run stage 6 first.
@@ -172,16 +172,16 @@ export function Waveform({ audioUrl, cues, currentTimeS, onSeek, shotBoundariesS
       </div>
 
       <div className="flex items-baseline gap-3 px-3 pb-2 pt-1">
-        <span className="font-mono text-[10px]" style={{ color: 'var(--text-faint)' }}>
+        <span className="font-mono text-3xs" style={{ color: 'var(--text-faint)' }}>
           {state === 'loading' ? 'loading…' : `${cues.length} caption regions`}
         </span>
         {state === 'ready' && (
-          <span className="font-mono text-[10px]" style={{ color: 'var(--text-faint)' }}>
+          <span className="font-mono text-3xs" style={{ color: 'var(--text-faint)' }}>
             VO {durationS.toFixed(2)}s
           </span>
         )}
         {state === 'failed' && (
-          <span className="font-mono text-[10px]" style={{ color: 'var(--state-blocked)' }}>
+          <span className="font-mono text-3xs" style={{ color: 'var(--state-blocked)' }}>
             waveform failed — {error}
           </span>
         )}

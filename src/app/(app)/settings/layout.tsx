@@ -15,8 +15,8 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
         className="flex items-center gap-3 border-b px-5"
         style={{ height: 'var(--topbar-height)', borderColor: 'var(--border-subtle)' }}
       >
-        <h1 className="text-[14px] font-medium tracking-tight">Settings</h1>
-        <span className="text-[12px]" style={{ color: 'var(--text-faint)' }}>
+        <h1 className="text-md font-medium tracking-tight">Settings</h1>
+        <span className="text-xs" style={{ color: 'var(--text-faint)' }}>
           Anything that would otherwise be a magic number lives here
         </span>
       </header>
@@ -30,7 +30,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
             {SETTINGS_SECTIONS.map((s) => {
               const disabled = s.status.kind === 'scaffolded';
               const cls =
-                'flex items-center gap-2 rounded-sm px-2 py-[5px] text-[13px] transition-colors';
+                'flex items-center gap-2 rounded-sm px-2 py-[5px] text-sm transition-colors';
               return disabled ? (
                 <span
                   key={s.slug}
@@ -40,7 +40,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                 >
                   <span className="truncate">{s.label}</span>
                   <span
-                    className="ml-auto shrink-0 rounded-xs px-1 font-mono text-[10px]"
+                    className="ml-auto shrink-0 rounded-xs px-1 font-mono text-3xs"
                     style={{ background: 'var(--surface-2)' }}
                   >
                     {s.status.phase}

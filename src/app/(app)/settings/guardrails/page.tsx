@@ -26,15 +26,15 @@ export default function GuardrailsPage() {
           <Row key={g.key} label={g.label} help={g.help}>
             <div className="flex items-baseline gap-3">
               {g.value === null ? (
-                <span className="font-mono text-[12.5px]" style={{ color: 'var(--text-faint)' }}>
+                <span className="font-mono text-sm" style={{ color: 'var(--text-faint)' }}>
                   unknown
                 </span>
               ) : (
-                <span className="font-mono text-[12.5px]">
+                <span className="font-mono text-sm">
                   {g.unit === '₹' ? `₹${g.value.toLocaleString('en-IN')}` : `${g.value} ${g.unit}`}
                 </span>
               )}
-              <span className="font-mono text-[10.5px]" style={{ color: 'var(--text-faint)' }}>
+              <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
                 {g.enforcedAt}
               </span>
             </div>

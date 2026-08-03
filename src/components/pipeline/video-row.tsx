@@ -17,11 +17,11 @@ function CostCell({ video }: { video: PipelineVideo }) {
   if (video.cost.kind === 'priced') {
     return (
       <div className="text-right">
-        <div className="font-mono text-[13px]" style={{ color: 'var(--text-primary)' }}>
+        <div className="font-mono text-sm" style={{ color: 'var(--text-primary)' }}>
           {formatInr(video.cost.inr)}
         </div>
         {video.shots > 0 && (
-          <div className="font-mono text-[10px]" style={{ color: 'var(--text-faint)' }}>
+          <div className="font-mono text-3xs" style={{ color: 'var(--text-faint)' }}>
             {formatInr(Math.round(video.cost.inr / video.shots))}/shot
           </div>
         )}
@@ -40,11 +40,11 @@ function CostCell({ video }: { video: PipelineVideo }) {
   return (
     <div className="text-right">
       <Hint content={`Unpriced — ${video.cost.reason}. Verify the rate in Settings → Rate card.`}>
-        <span className="font-mono text-[13px]" style={{ color: 'var(--text-faint)' }}>
+        <span className="font-mono text-sm" style={{ color: 'var(--text-faint)' }}>
           unpriced
         </span>
       </Hint>
-      <div className="font-mono text-[10px]" style={{ color: 'var(--text-faint)' }}>
+      <div className="font-mono text-3xs" style={{ color: 'var(--text-faint)' }}>
         {video.cost.generations > 0
           ? `${video.cost.generations} gen${video.cost.generations === 1 ? '' : 's'}, no rate`
           : 'nothing spent'}
@@ -103,14 +103,14 @@ export function VideoRow({ video, selected }: { video: PipelineVideo; selected?:
 
         <div className="min-w-0">
           <div className="flex items-baseline gap-2">
-            <span className="truncate text-[13.5px]" style={{ color: 'var(--text-primary)' }}>
+            <span className="truncate text-md" style={{ color: 'var(--text-primary)' }}>
               {video.title}
             </span>
 
             {video.origin === 'studio' && (
               <Hint content="Made in the Studio lane — the turn-by-turn transcript is the editorial record for an appeal.">
                 <span
-                  className="shrink-0 rounded-xs px-1 font-mono text-[9.5px] uppercase tracking-wide"
+                  className="shrink-0 rounded-xs px-1 font-mono text-3xs uppercase tracking-wide"
                   style={{ background: 'var(--surface-2)', color: 'var(--text-faint)' }}
                 >
                   studio
@@ -122,7 +122,7 @@ export function VideoRow({ video, selected }: { video: PipelineVideo; selected?:
                 shape-of-the-thing, not a number anyone sorts by. */}
             {video.shots > 0 && (
               <span
-                className="shrink-0 font-mono text-[10.5px]"
+                className="shrink-0 font-mono text-2xs"
                 style={{ color: 'var(--text-faint)' }}
               >
                 {video.shots} shots · {video.durationS}s
@@ -134,7 +134,7 @@ export function VideoRow({ video, selected }: { video: PipelineVideo; selected?:
               generating, the reason when something is wrong. */}
           {video.state === 'generating' && video.progress ? (
             <div className="mt-[3px] flex items-center gap-2">
-              <span className="font-mono text-[11.5px]" style={{ color: tint }}>
+              <span className="font-mono text-xs" style={{ color: tint }}>
                 {video.progress.step} {video.progress.current} of {video.progress.total}
               </span>
               <span className="flex gap-[3px]" aria-hidden>
@@ -151,13 +151,13 @@ export function VideoRow({ video, selected }: { video: PipelineVideo; selected?:
             </div>
           ) : video.detail ? (
             <div
-              className="mt-[3px] truncate text-[11.5px]"
+              className="mt-[3px] truncate text-xs"
               style={{ color: video.state === 'blocked' ? tint : 'var(--text-faint)' }}
             >
               {video.detail}
             </div>
           ) : (
-            <div className="mt-[3px] truncate text-[11.5px]" style={{ color: 'var(--text-faint)' }}>
+            <div className="mt-[3px] truncate text-xs" style={{ color: 'var(--text-faint)' }}>
               {video.angle || 'No angle yet'}
             </div>
           )}
@@ -165,9 +165,9 @@ export function VideoRow({ video, selected }: { video: PipelineVideo; selected?:
       </div>
 
       {/* ── State ────────────────────────────────────────────────────────── */}
-      <div className="text-[12px]" style={{ color: tint }}>
+      <div className="text-xs" style={{ color: tint }}>
         {STATE_LABEL[video.state]}
-        <div className="font-mono text-[10px]" style={{ color: 'var(--text-faint)' }}>
+        <div className="font-mono text-3xs" style={{ color: 'var(--text-faint)' }}>
           {video.updatedAgo}
         </div>
       </div>
@@ -179,7 +179,7 @@ export function VideoRow({ video, selected }: { video: PipelineVideo; selected?:
         {video.state === 'needs_review' ? (
           <button
             type="button"
-            className="rounded-sm px-2 py-[5px] text-[11.5px] font-medium transition-colors"
+            className="rounded-sm px-2 py-[5px] text-xs font-medium transition-colors"
             style={{
               background: 'var(--accent)',
               color: 'var(--accent-contrast)',
@@ -191,7 +191,7 @@ export function VideoRow({ video, selected }: { video: PipelineVideo; selected?:
         ) : video.state === 'blocked' ? (
           <button
             type="button"
-            className="rounded-sm border px-2 py-[5px] text-[11.5px] transition-colors"
+            className="rounded-sm border px-2 py-[5px] text-xs transition-colors"
             style={{
               borderColor: 'var(--border-strong)',
               color: 'var(--text-secondary)',

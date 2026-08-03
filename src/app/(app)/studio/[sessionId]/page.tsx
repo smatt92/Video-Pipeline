@@ -36,10 +36,10 @@ export default async function SessionPage({
     if (read.detail.startsWith('No session')) notFound();
     return (
       <div className="mx-auto w-full max-w-[1200px] px-6 py-8">
-        <p className="text-[13px]" style={{ color: 'var(--state-blocked)' }}>
+        <p className="text-sm" style={{ color: 'var(--state-blocked)' }}>
           This session could not be read.
         </p>
-        <p className="mt-1 font-mono text-[11px]" style={{ color: 'var(--text-faint)' }}>
+        <p className="mt-1 font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
           {read.detail}
         </p>
       </div>
@@ -58,11 +58,11 @@ export default async function SessionPage({
       <header className="mb-5 flex items-start gap-4">
         <div className="min-w-0">
           <div className="flex items-baseline gap-3">
-            <h2 className="truncate text-[15px] font-medium tracking-tight">
+            <h2 className="truncate text-lg font-medium tracking-tight">
               {summary.title ?? 'Untitled session'}
             </h2>
             <span
-              className="font-mono text-[10px] uppercase tracking-[0.09em]"
+              className="font-mono text-3xs uppercase tracking-[0.09em]"
               style={{
                 color: stopped ? 'var(--state-blocked)' : 'var(--state-live)',
               }}
@@ -70,14 +70,14 @@ export default async function SessionPage({
               {summary.status}
             </span>
           </div>
-          <p className="mt-1 font-mono text-[11px]" style={{ color: 'var(--text-faint)' }}>
+          <p className="mt-1 font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
             {summary.model} · {summary.inputTokens.toLocaleString('en-IN')} in ·{' '}
             {summary.outputTokens.toLocaleString('en-IN')} out
           </p>
         </div>
         <Link
           href="/studio"
-          className="ml-auto shrink-0 text-[12px]"
+          className="ml-auto shrink-0 text-xs"
           style={{ color: 'var(--text-muted)' }}
         >
           ← all sessions
@@ -89,7 +89,7 @@ export default async function SessionPage({
           className="mb-5 rounded-md border px-4 py-3"
           style={{ background: 'var(--surface-1)', borderColor: 'var(--state-blocked)' }}
         >
-          <p className="text-[12.5px] leading-relaxed">{summary.stoppedReason}</p>
+          <p className="text-sm leading-relaxed">{summary.stoppedReason}</p>
         </div>
       )}
 
@@ -114,16 +114,16 @@ export default async function SessionPage({
         <div className="flex min-w-0 flex-col gap-4">
           <Panel>
             <div
-              className="border-b px-4 py-3 text-[13px] font-medium"
+              className="border-b px-4 py-3 text-sm font-medium"
               style={{ borderColor: 'var(--border-subtle)' }}
             >
               Spend
             </div>
             <div className="px-4 py-3">
               <div className="flex items-baseline gap-2">
-                <span className="font-mono text-[15px]">₹{summary.costInr.toFixed(2)}</span>
+                <span className="font-mono text-lg">₹{summary.costInr.toFixed(2)}</span>
                 {summary.spendCapInr !== null && (
-                  <span className="font-mono text-[11px]" style={{ color: 'var(--text-faint)' }}>
+                  <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
                     of ₹{summary.spendCapInr.toFixed(0)}
                   </span>
                 )}
@@ -148,7 +148,7 @@ export default async function SessionPage({
               {/* The count is shown because it is the check on the figure above it: the
                   session total is derived from these rows by a trigger, so a total with no
                   rows behind it would be a bug this line makes visible. */}
-              <p className="mt-2 font-mono text-[10.5px]" style={{ color: 'var(--text-faint)' }}>
+              <p className="mt-2 font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
                 {summary.ledgerRows} ledger row{summary.ledgerRows === 1 ? '' : 's'} ·{' '}
                 {summary.turns} transcript turn{summary.turns === 1 ? '' : 's'}
               </p>
@@ -157,16 +157,16 @@ export default async function SessionPage({
 
           <Panel>
             <div
-              className="border-b px-4 py-3 text-[13px] font-medium"
+              className="border-b px-4 py-3 text-sm font-medium"
               style={{ borderColor: 'var(--border-subtle)' }}
             >
               Script
             </div>
             {script ? (
               <div className="px-4 py-3">
-                <p className="text-[12.5px] leading-relaxed">{script.hook}</p>
+                <p className="text-sm leading-relaxed">{script.hook}</p>
                 <p
-                  className="mt-2 font-mono text-[10.5px]"
+                  className="mt-2 font-mono text-2xs"
                   style={{ color: 'var(--text-faint)' }}
                 >
                   drafted_by={script.draftedBy} · {script.humanEditCount} human edit
@@ -174,7 +174,7 @@ export default async function SessionPage({
                 </p>
                 {script.voText && (
                   <p
-                    className="mt-2 whitespace-pre-wrap text-[12px] leading-relaxed"
+                    className="mt-2 whitespace-pre-wrap text-xs leading-relaxed"
                     style={{ color: 'var(--text-muted)' }}
                   >
                     {script.voText}
@@ -182,7 +182,7 @@ export default async function SessionPage({
                 )}
               </div>
             ) : (
-              <p className="px-4 py-3 text-[12px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              <p className="px-4 py-3 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
                 Not materialised. A session writes a script row on its first successful
                 generation, not when it opens — most sessions should produce nothing, and a
                 concepts row per exploration would fill the originality trail with videos
@@ -196,13 +196,13 @@ export default async function SessionPage({
               className="flex items-baseline gap-2 border-b px-4 py-3"
               style={{ borderColor: 'var(--border-subtle)' }}
             >
-              <span className="text-[13px] font-medium">Shots</span>
-              <span className="font-mono text-[11px]" style={{ color: 'var(--text-faint)' }}>
+              <span className="text-sm font-medium">Shots</span>
+              <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
                 {shots.length}
               </span>
             </div>
             {shots.length === 0 ? (
-              <p className="px-4 py-3 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+              <p className="px-4 py-3 text-xs" style={{ color: 'var(--text-muted)' }}>
                 None yet.
               </p>
             ) : (
@@ -213,12 +213,12 @@ export default async function SessionPage({
                   style={{ borderColor: 'var(--border-subtle)' }}
                 >
                   <div className="flex items-baseline gap-2">
-                    <span className="font-mono text-[10.5px]" style={{ color: 'var(--text-faint)' }}>
+                    <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
                       {String(s.idx).padStart(2, '0')}
                     </span>
-                    <span className="truncate text-[12px]">{s.description}</span>
+                    <span className="truncate text-xs">{s.description}</span>
                     <span
-                      className="ml-auto font-mono text-[10.5px]"
+                      className="ml-auto font-mono text-2xs"
                       style={{ color: 'var(--text-faint)' }}
                     >
                       {s.durationS.toFixed(1)}s · {s.status}
@@ -232,7 +232,7 @@ export default async function SessionPage({
           {ledger.length > 0 && (
             <Panel>
               <div
-                className="border-b px-4 py-3 text-[13px] font-medium"
+                className="border-b px-4 py-3 text-sm font-medium"
                 style={{ borderColor: 'var(--border-subtle)' }}
               >
                 Ledger
@@ -240,7 +240,7 @@ export default async function SessionPage({
               {ledger.map((l, i) => (
                 <div
                   key={`${l.occurredAt}-${l.unit}-${i}`}
-                  className="flex items-baseline gap-2 border-b px-4 py-[6px] font-mono text-[10.5px] last:border-b-0"
+                  className="flex items-baseline gap-2 border-b px-4 py-[6px] font-mono text-2xs last:border-b-0"
                   style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-muted)' }}
                 >
                   <span>{l.occurredAt.slice(11, 19)}</span>

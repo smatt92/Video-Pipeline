@@ -45,27 +45,27 @@ export default async function PromptLibraryPage() {
           className="flex items-baseline gap-3 border-b px-4 py-3"
           style={{ borderColor: 'var(--border-subtle)' }}
         >
-          <span className="text-[13.5px] font-medium">What is blocked</span>
-          <span className="font-mono text-[11px]" style={{ color: 'var(--text-faint)' }}>
+          <span className="text-md font-medium">What is blocked</span>
+          <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
             {blocked.length} shot{blocked.length === 1 ? '' : 's'} cannot compile · {active} active
             recipe{active === 1 ? '' : 's'}
           </span>
         </div>
 
         {gaps.length === 0 ? (
-          <p className="px-4 py-4 text-[12.5px]" style={{ color: 'var(--text-muted)' }}>
+          <p className="px-4 py-4 text-sm" style={{ color: 'var(--text-muted)' }}>
             {blocked.length === 0
               ? 'Nothing waiting. Every shot has compiled against a recipe.'
               : 'Shots are waiting, but none carries a shot kind — they were written before the vocabulary existed. Re-running stage 4 on their scripts assigns one.'}
           </p>
         ) : (
-          <table className="w-full text-[12px]">
+          <table className="w-full text-xs">
             <thead>
               <tr style={{ color: 'var(--text-faint)' }}>
                 {['shot kind', 'shots', 'scripts', 'seconds', 'recipes'].map((h, i) => (
                   <th
                     key={h}
-                    className={`px-4 py-2 font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] ${
+                    className={`px-4 py-2 font-mono text-3xs font-normal uppercase tracking-[0.08em] ${
                       i === 0 ? 'text-left' : 'text-right'
                     }`}
                   >
@@ -82,14 +82,14 @@ export default async function PromptLibraryPage() {
                   <tr key={g.shotKind} style={{ color: 'var(--text-secondary)' }}>
                     <td className="px-4 py-2 align-top">
                       <span
-                        className="font-mono text-[11.5px]"
+                        className="font-mono text-xs"
                         style={{ color: 'var(--text-primary)' }}
                       >
                         {g.shotKind}
                       </span>
                       {kind && (
                         <div
-                          className="mt-[2px] max-w-[46ch] text-[11.5px]"
+                          className="mt-[2px] max-w-[46ch] text-xs"
                           style={{ color: 'var(--text-faint)' }}
                         >
                           {kind.note}
@@ -116,7 +116,7 @@ export default async function PromptLibraryPage() {
 
         {gaps.some((g) => g.activeRecipes === 0) && (
           <p
-            className="border-t px-4 py-3 text-[11.5px] leading-relaxed"
+            className="border-t px-4 py-3 text-xs leading-relaxed"
             style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-muted)' }}
           >
             A zero in the last column is a shot kind nothing serves yet, ordered by how much
@@ -132,9 +132,9 @@ export default async function PromptLibraryPage() {
           className="flex items-baseline gap-3 border-b px-4 py-3"
           style={{ borderColor: 'var(--border-subtle)' }}
         >
-          <span className="text-[13.5px] font-medium">Coverage per shot kind</span>
+          <span className="text-md font-medium">Coverage per shot kind</span>
           <span
-            className="max-w-[62ch] text-[11.5px] leading-relaxed"
+            className="max-w-[62ch] text-xs leading-relaxed"
             style={{ color: 'var(--text-faint)' }}
           >
             One recipe is a warning. Every shot of that kind, in every video, gets the same
@@ -143,13 +143,13 @@ export default async function PromptLibraryPage() {
           </span>
         </div>
 
-        <table className="w-full text-[12px]">
+        <table className="w-full text-xs">
           <thead>
             <tr style={{ color: 'var(--text-faint)' }}>
               {['shot kind', 'recipes', 'compiled', 'shipped', 'top share'].map((h, i) => (
                 <th
                   key={h}
-                  className={`px-4 py-2 font-mono text-[9.5px] font-normal uppercase tracking-[0.08em] ${
+                  className={`px-4 py-2 font-mono text-3xs font-normal uppercase tracking-[0.08em] ${
                     i === 0 ? 'text-left' : 'text-right'
                   }`}
                 >
@@ -173,7 +173,7 @@ export default async function PromptLibraryPage() {
 
               return (
                 <tr key={c.shotKind} style={{ color: 'var(--text-secondary)' }}>
-                  <td className="px-4 py-2 font-mono text-[11.5px]">{c.shotKind}</td>
+                  <td className="px-4 py-2 font-mono text-xs">{c.shotKind}</td>
                   <td className="px-4 py-2 text-right font-mono" style={{ color: tone }}>
                     {c.activeRecipes}
                     {c.activeRecipes === 1 && ' · one camera'}
@@ -193,7 +193,7 @@ export default async function PromptLibraryPage() {
         </table>
 
         <p
-          className="border-t px-4 py-3 text-[11.5px] leading-relaxed"
+          className="border-t px-4 py-3 text-xs leading-relaxed"
           style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-muted)' }}
         >
           Top share is how much of a kind&rsquo;s use went to its busiest recipe. High with
@@ -206,7 +206,7 @@ export default async function PromptLibraryPage() {
       {blocked.length > 0 && (
         <Panel className="mb-6">
           <div
-            className="border-b px-4 py-3 text-[13.5px] font-medium"
+            className="border-b px-4 py-3 text-md font-medium"
             style={{ borderColor: 'var(--border-subtle)' }}
           >
             Shots waiting on a recipe
@@ -217,12 +217,12 @@ export default async function PromptLibraryPage() {
               className="border-b px-4 py-[10px] last:border-b-0"
               style={{ borderColor: 'var(--border-subtle)' }}
             >
-              <div className="flex flex-wrap items-baseline gap-2 text-[11.5px]">
+              <div className="flex flex-wrap items-baseline gap-2 text-xs">
                 <span className="font-mono" style={{ color: 'var(--text-faint)' }}>
                   {s.channelName} · shot {s.idx} · {s.durationS}s
                 </span>
                 <span
-                  className="rounded-xs px-[5px] py-[1px] font-mono text-[10.5px]"
+                  className="rounded-xs px-[5px] py-[1px] font-mono text-2xs"
                   style={{
                     background: 'var(--surface-2)',
                     color: s.matchingRecipes > 0 ? 'var(--state-live)' : 'var(--state-blocked)',
@@ -233,20 +233,20 @@ export default async function PromptLibraryPage() {
                 <span style={{ color: 'var(--text-faint)' }}>{s.conceptTitle}</span>
               </div>
               <p
-                className="mt-1 max-w-[80ch] text-[12px]"
+                className="mt-1 max-w-[80ch] text-xs"
                 style={{ color: 'var(--text-secondary)' }}
               >
                 {s.description}
               </p>
               {s.compileNote && (
-                <p className="mt-1 max-w-[80ch] text-[11px]" style={{ color: 'var(--text-faint)' }}>
+                <p className="mt-1 max-w-[80ch] text-2xs" style={{ color: 'var(--text-faint)' }}>
                   {s.compileNote}
                 </p>
               )}
             </div>
           ))}
           {blocked.length > 20 && (
-            <p className="px-4 py-2 text-[11.5px]" style={{ color: 'var(--text-faint)' }}>
+            <p className="px-4 py-2 text-xs" style={{ color: 'var(--text-faint)' }}>
               {blocked.length - 20} more not shown.
             </p>
           )}
@@ -256,14 +256,14 @@ export default async function PromptLibraryPage() {
       {/* ── The library ──────────────────────────────────────────────────── */}
       <Panel className="mb-6">
         <div
-          className="border-b px-4 py-3 text-[13.5px] font-medium"
+          className="border-b px-4 py-3 text-md font-medium"
           style={{ borderColor: 'var(--border-subtle)' }}
         >
           Recipes
         </div>
         {recipes.length === 0 ? (
           <p
-            className="max-w-[80ch] px-4 py-4 text-[12.5px] leading-relaxed"
+            className="max-w-[80ch] px-4 py-4 text-sm leading-relaxed"
             style={{ color: 'var(--text-muted)' }}
           >
             Empty. Nothing downstream of stage 4 can run until something is here, and the
@@ -279,7 +279,7 @@ export default async function PromptLibraryPage() {
       {/* ── Save ─────────────────────────────────────────────────────────── */}
       <Panel>
         <div
-          className="border-b px-4 py-3 text-[13.5px] font-medium"
+          className="border-b px-4 py-3 text-md font-medium"
           style={{ borderColor: 'var(--border-subtle)' }}
         >
           Record a recipe

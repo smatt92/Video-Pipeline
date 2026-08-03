@@ -56,7 +56,7 @@ export default async function IntegrationsPage() {
 
       {unverified.length > 0 && (
         <div
-          className="mb-5 rounded-sm border px-3 py-2 text-[12px] leading-relaxed"
+          className="mb-5 rounded-sm border px-3 py-2 text-xs leading-relaxed"
           style={{
             borderColor: 'var(--border-strong)',
             background: 'var(--surface-inset)',

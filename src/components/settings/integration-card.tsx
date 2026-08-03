@@ -45,7 +45,7 @@ function TestButton({ blocked }: { blocked: boolean }) {
     <button
       type="submit"
       disabled={blocked || pending}
-      className="rounded-sm px-[10px] py-[5px] text-[11.5px] font-medium transition-colors disabled:cursor-not-allowed"
+      className="rounded-sm px-[10px] py-[5px] text-xs font-medium transition-colors disabled:cursor-not-allowed"
       style={{
         background: blocked ? "var(--surface-2)" : "var(--accent)",
         color: blocked ? "var(--text-faint)" : "var(--accent-contrast)",
@@ -103,9 +103,9 @@ export function IntegrationCard({
           className="flex items-center gap-3 border-b px-4 py-3"
           style={{ borderColor: "var(--border-subtle)" }}
         >
-          <span className="text-[13.5px] font-medium">{d.label}</span>
+          <span className="text-md font-medium">{d.label}</span>
           <span
-            className="font-mono text-[10.5px]"
+            className="font-mono text-2xs"
             style={{ color: "var(--text-faint)" }}
           >
             {d.kind}
@@ -119,7 +119,7 @@ export function IntegrationCard({
 
         {blockedBy && (
           <div
-            className="border-b px-4 py-2 text-[11.5px]"
+            className="border-b px-4 py-2 text-xs"
             style={{
               borderColor: "var(--border-subtle)",
               color: "var(--text-faint)",
@@ -147,7 +147,7 @@ export function IntegrationCard({
                   }
                   autoComplete="off"
                   spellCheck={false}
-                  className="w-[240px] rounded-sm border bg-transparent px-2 py-[5px] font-mono text-[12px] outline-none"
+                  className="w-[240px] rounded-sm border bg-transparent px-2 py-[5px] font-mono text-xs outline-none"
                   style={{
                     borderColor: "var(--border-default)",
                     color: "var(--text-primary)",
@@ -181,7 +181,7 @@ export function IntegrationCard({
         {result.status !== "idle" && result.message && (
           <Row label="Last run">
             <p
-              className="max-w-[62ch] text-[11.5px] leading-relaxed whitespace-pre-line"
+              className="max-w-[62ch] text-xs leading-relaxed whitespace-pre-line"
               style={{
                 color:
                   result.status === "ok"
@@ -199,7 +199,7 @@ export function IntegrationCard({
           result.status === "idle" && (
             <Row label="Last failure">
               <p
-                className="max-w-[62ch] text-[11.5px] leading-relaxed"
+                className="max-w-[62ch] text-xs leading-relaxed"
                 style={{ color: "var(--state-blocked)" }}
               >
                 {view.lastError}
@@ -236,7 +236,7 @@ export function IntegrationCard({
                     content={t.note || `${t.concurrency} parallel requests`}
                   >
                     <span
-                      className="rounded-xs px-[6px] py-[3px] font-mono text-[11px]"
+                      className="rounded-xs px-[6px] py-[3px] font-mono text-2xs"
                       style={{
                         background: "var(--surface-2)",
                         color:
@@ -261,7 +261,7 @@ export function IntegrationCard({
             {d.notes.map((n) => (
               <li
                 key={n}
-                className="text-[11.5px] leading-snug"
+                className="text-xs leading-snug"
                 style={{ color: "var(--text-faint)" }}
               >
                 {n}

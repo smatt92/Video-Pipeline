@@ -876,6 +876,7 @@ export type Database = {
           onboarding_first_video_render_id: string | null
           onboarding_step: number
           timezone: string
+          ui_scale: number
           usd_inr_rate: number | null
         }
         Insert: {
@@ -891,6 +892,7 @@ export type Database = {
           onboarding_first_video_render_id?: string | null
           onboarding_step?: number
           timezone?: string
+          ui_scale?: number
           usd_inr_rate?: number | null
         }
         Update: {
@@ -906,6 +908,7 @@ export type Database = {
           onboarding_first_video_render_id?: string | null
           onboarding_step?: number
           timezone?: string
+          ui_scale?: number
           usd_inr_rate?: number | null
         }
         Relationships: [

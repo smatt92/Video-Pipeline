@@ -37,9 +37,9 @@ export default async function ReviewQueuePage() {
           className="flex items-baseline gap-3 border-b px-4 py-3"
           style={{ borderColor: 'var(--border-subtle)' }}
         >
-          <span className="text-[13.5px] font-medium">Renders</span>
+          <span className="text-md font-medium">Renders</span>
           {queue.ok && (
-            <span className="font-mono text-[11px]" style={{ color: 'var(--text-faint)' }}>
+            <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
               {queue.rows.length}
             </span>
           )}
@@ -47,19 +47,19 @@ export default async function ReviewQueuePage() {
 
         {!queue.ok ? (
           <div className="px-4 py-4">
-            <p className="text-[12.5px]" style={{ color: 'var(--state-blocked)' }}>
+            <p className="text-sm" style={{ color: 'var(--state-blocked)' }}>
               The queue could not be read.
             </p>
-            <p className="mt-1 font-mono text-[11px]" style={{ color: 'var(--text-faint)' }}>
+            <p className="mt-1 font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
               {queue.detail}
             </p>
-            <p className="mt-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+            <p className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
               If this names a missing relation, migration 0018 has not been applied. Run{' '}
               <code>pnpm doctor</code>.
             </p>
           </div>
         ) : queue.rows.length === 0 ? (
-          <p className="px-4 py-4 text-[12.5px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+          <p className="px-4 py-4 text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
             No renders yet. A rough cut appears here once stage 7 has assembled one — which
             needs every shot generated and normalised first, so an empty queue usually means
             the generation stage has not run rather than that assembly is broken.
@@ -76,22 +76,22 @@ export default async function ReviewQueuePage() {
               }}
             >
               <div className="min-w-0">
-                <div className="truncate text-[13px]">{row.conceptTitle}</div>
-                <div className="font-mono text-[10.5px]" style={{ color: 'var(--text-faint)' }}>
+                <div className="truncate text-sm">{row.conceptTitle}</div>
+                <div className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
                   {row.kind} · {row.variantLabel}
                 </div>
               </div>
               <span
-                className="font-mono text-[11px]"
+                className="font-mono text-2xs"
                 style={{ color: row.status === 'ready' ? 'var(--state-live)' : 'var(--state-blocked)' }}
               >
                 {row.status}
               </span>
-              <span className="font-mono text-[11px]" style={{ color: 'var(--text-muted)' }}>
+              <span className="font-mono text-2xs" style={{ color: 'var(--text-muted)' }}>
                 {row.durationS === null ? '—' : `${row.durationS.toFixed(1)}s`}
               </span>
               <span
-                className="font-mono text-[11px]"
+                className="font-mono text-2xs"
                 style={{ color: row.decision ? DECISION_TONE[row.decision] : 'var(--text-faint)' }}
               >
                 {row.decision ?? 'unreviewed'}

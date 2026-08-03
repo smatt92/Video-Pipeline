@@ -6,6 +6,8 @@ import { Suspense } from 'react';
 
 import { DeferralBanner } from '@/components/shell/deferral-banner';
 import { AppShell } from '@/components/shell/app-shell';
+import { readUiScale } from '@/lib/settings/read-ui-scale';
+import { uiScaleBootstrapScript } from '@/lib/settings/ui-scale';
 
 import '../globals.css';
 
@@ -32,11 +34,30 @@ export const metadata: Metadata = {
   description: 'AI video content pipeline — trend to published, with the cost attached.',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Read before render so the scale is on <html> at first paint. Reading it in an effect
+  // instead renders every page once at 100% and then jumps, and on the display this exists
+  // for the jump is from unreadable to readable — on every navigation.
+  const uiScale = await readUiScale();
+
   return (
     // Dark-first: the attribute is set here rather than resolved from a media query, so
     // there is no flash of the wrong theme. A toggle would write to this same attribute.
-    <html lang="en" data-theme="dark" className={`${GeistSans.variable} ${GeistMono.variable}`}>
+    <html
+      lang="en"
+      data-theme="dark"
+      className={`${GeistSans.variable} ${GeistMono.variable}`}
+      // Inline rather than a class, because the value is a number from the database and a
+      // class would need one variant per step compiled ahead of time.
+      style={uiScale === 1 ? undefined : ({ '--ui-scale': String(uiScale) } as React.CSSProperties)}
+    >
+      <head>
+        {/* Belt and braces for the case the server value is absent — a cold profile read,
+            or a route rendered before sign-in. Runs before hydration by construction. */}
+        <script
+          dangerouslySetInnerHTML={{ __html: uiScaleBootstrapScript(uiScale) }}
+        />
+      </head>
       <body>
         <AppShell>
           {/* Above everything, on every screen in the app, and not dismissible. A banner

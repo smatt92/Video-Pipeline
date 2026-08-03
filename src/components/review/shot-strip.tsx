@@ -96,8 +96,8 @@ export function ShotStrip(props: ShotStripProps) {
         className="flex items-baseline gap-2 border-b px-4 py-3"
         style={{ borderColor: 'var(--border-subtle)' }}
       >
-        <span className="text-[13px] font-medium">Shots</span>
-        <span className="font-mono text-[11px]" style={{ color: 'var(--text-faint)' }}>
+        <span className="text-sm font-medium">Shots</span>
+        <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
           {spans.length}
         </span>
         {dirty && (
@@ -105,7 +105,7 @@ export function ShotStrip(props: ShotStripProps) {
             type="button"
             disabled={pending}
             onClick={props.onSaveOrder}
-            className="ml-auto rounded-sm px-2 py-[4px] text-[11.5px] font-medium disabled:opacity-60"
+            className="ml-auto rounded-sm px-2 py-[4px] text-xs font-medium disabled:opacity-60"
             style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}
           >
             Save order
@@ -163,20 +163,20 @@ export function ShotStrip(props: ShotStripProps) {
                   style={{ background: 'var(--state-ready)' }}
                 />
               )}
-              <span className="font-mono text-[10.5px]" style={{ color: 'var(--text-faint)' }}>
+              <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
                 {String(span.shot.idx).padStart(2, '0')}
               </span>
 
               <div className="min-w-0">
-                <div className="truncate text-[12px]">
+                <div className="truncate text-xs">
                   {marked && (
-                    <span className="mr-1 font-mono text-[10px]" style={{ color: 'var(--state-review)' }}>
+                    <span className="mr-1 font-mono text-3xs" style={{ color: 'var(--state-review)' }}>
                       ↻
                     </span>
                   )}
                   {span.shot.description}
                 </div>
-                <div className="flex items-baseline gap-2 font-mono text-[10px]" style={{ color: 'var(--text-faint)' }}>
+                <div className="flex items-baseline gap-2 font-mono text-3xs" style={{ color: 'var(--text-faint)' }}>
                   <span>{span.startS.toFixed(2)}s</span>
                   {span.shot.trimInS !== null && (
                     <span style={{ color: 'var(--state-review)' }}>
@@ -237,7 +237,7 @@ export function ShotStrip(props: ShotStripProps) {
               </div>
 
               <span
-                className="text-right font-mono text-[10.5px]"
+                className="text-right font-mono text-2xs"
                 style={{ color: drifted ? 'var(--state-blocked)' : 'var(--text-faint)' }}
                 title={
                   span.driftS === null
@@ -252,7 +252,7 @@ export function ShotStrip(props: ShotStripProps) {
         })}
       </div>
 
-      <p className="px-4 py-2 text-[10.5px] leading-snug" style={{ color: 'var(--text-faint)' }}>
+      <p className="px-4 py-2 text-2xs leading-snug" style={{ color: 'var(--text-faint)' }}>
         Drag to reorder, or Alt+↑/↓. The right column is how far the picture has drifted from
         the voice by the time each shot starts — anything over {DRIFT_TOLERANCE_S}s is words
         landing on the wrong images, in a file that plays perfectly.
@@ -276,7 +276,7 @@ function HandleButton({
       title={title}
       aria-label={title}
       onClick={onClick}
-      className="rounded-sm border px-[6px] py-[2px] font-mono text-[10.5px]"
+      className="rounded-sm border px-[6px] py-[2px] font-mono text-2xs"
       style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-muted)' }}
     >
       {label}

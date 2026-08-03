@@ -17,7 +17,7 @@ function Submit() {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-sm px-3 py-[7px] text-[12.5px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+      className="rounded-sm px-3 py-[7px] text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
       style={{
         background: "var(--accent)",
         color: "var(--accent-contrast)",
@@ -35,7 +35,7 @@ function GoogleButton({ disabled }: { disabled: boolean }) {
     <button
       type="submit"
       disabled={pending || disabled}
-      className="flex w-full items-center justify-center gap-2 rounded-sm border px-3 py-[8px] text-[12.5px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+      className="flex w-full items-center justify-center gap-2 rounded-sm border px-3 py-[8px] text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
       style={{
         borderColor: "var(--border-default)",
         color: "var(--text-primary)",
@@ -63,7 +63,7 @@ export function SignInForm({
   if (state.status === "sent") {
     return (
       <p
-        className="text-[13px] leading-relaxed"
+        className="text-sm leading-relaxed"
         style={{ color: "var(--text-secondary)" }}
       >
         Link sent. It signs you in on this device and expires shortly — request
@@ -87,7 +87,7 @@ export function SignInForm({
 
       {googleDetail && (
         <p
-          className="text-[11.5px] leading-relaxed"
+          className="text-xs leading-relaxed"
           style={{
             color:
               providerState === "disabled"
@@ -103,7 +103,7 @@ export function SignInForm({
 
       {googleState.message && (
         <p
-          className="text-[12px] leading-relaxed"
+          className="text-xs leading-relaxed"
           style={{ color: "var(--state-blocked)" }}
         >
           {googleState.message}
@@ -116,7 +116,7 @@ export function SignInForm({
           style={{ background: "var(--border-subtle)" }}
         />
         <span
-          className="font-mono text-[10px] uppercase"
+          className="font-mono text-3xs uppercase"
           style={{ color: "var(--text-faint)" }}
         >
           or
@@ -131,7 +131,7 @@ export function SignInForm({
         <input type="hidden" name="next" value={next} />
         <label className="flex flex-col gap-[6px]">
           <span
-            className="font-mono text-[10px] uppercase tracking-[0.09em]"
+            className="font-mono text-3xs uppercase tracking-[0.09em]"
             style={{ color: "var(--text-faint)" }}
           >
             Email
@@ -142,7 +142,7 @@ export function SignInForm({
             required
             autoComplete="email"
             autoFocus
-            className="w-full rounded-sm border px-[10px] py-[7px] text-[13px] outline-none"
+            className="w-full rounded-sm border px-[10px] py-[7px] text-sm outline-none"
             style={{
               background: "var(--surface-inset)",
               borderColor: "var(--border-subtle)",
@@ -153,7 +153,7 @@ export function SignInForm({
 
         {state.message && (
           <p
-            className="text-[12px] leading-relaxed"
+            className="text-xs leading-relaxed"
             style={{ color: "var(--state-blocked)" }}
           >
             {state.message}
@@ -166,7 +166,7 @@ export function SignInForm({
       </form>
 
       <p
-        className="text-[11px] leading-relaxed"
+        className="text-2xs leading-relaxed"
         style={{ color: "var(--text-faint)" }}
       >
         Either way the address has to be on the allowlist. Google authenticating

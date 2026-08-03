@@ -23,7 +23,7 @@ function Item({ item, active }: { item: NavItem; active: boolean }) {
       <span className="truncate">{item.label}</span>
       {disabled && (
         <span
-          className="ml-auto shrink-0 rounded-xs px-1 font-mono text-[10px] leading-4"
+          className="ml-auto shrink-0 rounded-xs px-1 font-mono text-3xs leading-4"
           style={{ background: 'var(--surface-2)', color: 'var(--text-faint)' }}
         >
           {item.status.phase}
@@ -33,7 +33,7 @@ function Item({ item, active }: { item: NavItem; active: boolean }) {
   );
 
   const base =
-    'flex items-center gap-2 rounded-sm px-2 py-[5px] text-[13px] transition-colors';
+    'flex items-center gap-2 rounded-sm px-2 py-[5px] text-sm transition-colors';
 
   if (disabled && item.status.kind === 'disabled') {
     return (
@@ -80,8 +80,8 @@ export function Sidebar() {
           className="size-[7px] rounded-full"
           style={{ background: 'var(--brand-mark)' }}
         />
-        <span className="text-[13px] font-medium tracking-tight">Kiln</span>
-        <span className="ml-auto font-mono text-[10px]" style={{ color: 'var(--text-faint)' }}>
+        <span className="text-sm font-medium tracking-tight">Kiln</span>
+        <span className="ml-auto font-mono text-3xs" style={{ color: 'var(--text-faint)' }}>
           phase 1
         </span>
       </div>
@@ -90,7 +90,7 @@ export function Sidebar() {
         {NAV.map((group) => (
           <div key={group.label} className="mb-5">
             <div
-              className="px-2 pb-1 font-mono text-[10px] uppercase tracking-[0.09em]"
+              className="px-2 pb-1 font-mono text-3xs uppercase tracking-[0.09em]"
               style={{ color: 'var(--text-faint)' }}
             >
               {group.label}

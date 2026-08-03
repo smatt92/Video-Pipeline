@@ -151,27 +151,108 @@
   --danger: var(--k-red-6);
   --danger-muted: var(--k-red-3);
 
-  /* ── Radii. Deliberately not Tailwind's defaults — tighter, and the jump from
+  /* ── Radii, named --corner-* rather than --radius-*.
+   *
+   *    Tailwind's font-size namespace is --text-* and its radius namespace is --radius-*.
+   *    A semantic token sharing a name with the namespace it is mapped INTO becomes
+   *    `--radius-xs: var(--radius-xs)` in a non-inline @theme, which is circular and
+   *    resolves to nothing. That is the actual reason the original used `@theme inline`,
+   *    and renaming is the fix that does not cost the indirection.
+   *
+   *    Deliberately not Tailwind's defaults — tighter, and the jump from
    *    control to container is larger, which is most of what stops it reading as a
    *    default install. ─────────────────────────────────────────────────────── */
-  --radius-xs: 3px;
-  --radius-sm: 5px;
-  --radius-md: 7px;
-  --radius-lg: 11px;
-  --radius-xl: 16px;
-  --radius-full: 9999px;
+  --corner-xs: calc(0.1875rem * var(--ui-scale));
+  --corner-sm: calc(0.3125rem * var(--ui-scale));
+  --corner-md: calc(0.4375rem * var(--ui-scale));
+  --corner-lg: calc(0.6875rem * var(--ui-scale));
+  --corner-xl: calc(1rem * var(--ui-scale));
+  --corner-full: 9999px;
+
+  /* ══════════════════════════════════════════════════════════════════════════
+   * SCALING — the user preference, and the two poles everything fluid is built from
+   *
+   * ── Why a preference and not only fluid type ──────────────────────────────
+   *
+   * The complaint that produced this was "UI too small on 4K", and the cause is not a
+   * missing media query. A 4K monitor at 100% OS scaling reports devicePixelRatio 1 with a
+   * 3840px CSS viewport: the browser is being told the window really is 3840 CSS pixels
+   * wide, so a 13px font is a *correct* 13 CSS pixels and there is nothing for a viewport
+   * query to react to that would not also fire on a 3840px window at DPR 2, where the same
+   * text is physically twice the size.
+   *
+   * No amount of fluid typography fixes that, because the browser cannot know how far away
+   * the screen is. Only the person looking at it knows. So the primary control is theirs —
+   * the same conclusion VS Code, Figma and Zed reached, and they all ship a percentage
+   * stepper rather than a clever formula.
+   *
+   * `--ui-scale` multiplies into every size and space token below. It is a plain number so
+   * it can be composed into a calc(); a length here would make every use site do unit
+   * arithmetic.
+   * ══════════════════════════════════════════════════════════════════════════ */
+
+  --ui-scale: 1;
 
   /* ── Spacing. A 3px-derived scale rather than Tailwind's 4px, so density reads
-   *    slightly tighter than the default everyone recognises. ────────────────── */
-  --space-1: 3px;
-  --space-2: 6px;
-  --space-3: 9px;
-  --space-4: 12px;
-  --space-5: 18px;
-  --space-6: 24px;
-  --space-7: 33px;
-  --space-8: 48px;
-  --space-9: 66px;
+   *    slightly tighter than the default everyone recognises.
+   *
+   *    Now in rem rather than px, and multiplied by --ui-scale. rem so that a person who
+   *    has raised their browser's default font size gets a proportionally roomier layout
+   *    instead of larger text crammed into unchanged gutters — which is the failure mode
+   *    that makes "just zoom in" unsatisfying.
+   *
+   *    The base is 16px, so 3px = 0.1875rem. The odd-looking numbers are the original
+   *    scale converted exactly, not a redesign. ───────────────────────────────── */
+  --space-1: calc(0.1875rem * var(--ui-scale));
+  --space-2: calc(0.375rem * var(--ui-scale));
+  --space-3: calc(0.5625rem * var(--ui-scale));
+  --space-4: calc(0.75rem * var(--ui-scale));
+  --space-5: calc(1.125rem * var(--ui-scale));
+  --space-6: calc(1.5rem * var(--ui-scale));
+  --space-7: calc(2.0625rem * var(--ui-scale));
+  --space-8: calc(3rem * var(--ui-scale));
+  --space-9: calc(4.125rem * var(--ui-scale));
+
+  /* ══════════════════════════════════════════════════════════════════════════
+   * TYPE SCALE  (--type-*, not --text-*: --text-primary is a COLOUR in this file and
+   * overloading the prefix would make every rule about "text tokens" ambiguous)
+   *
+   * This did not exist. The codebase set 363 font sizes as arbitrary `text-[11.5px]`
+   * literals across twelve distinct values between 9.5px and 19px — which is not a scale,
+   * it is twelve independent decisions, and nothing can scale it because there is no single
+   * thing to multiply. Adding `--ui-scale` without this step would have shipped a
+   * preference control that visibly did nothing.
+   *
+   * Seven steps, generated Utopia-style between two poles: 1280px viewport at the small
+   * end, 2560px at the large. Each step is `clamp(min, min + slope·vw, max)`.
+   *
+   * ── The two hard rules, and why ───────────────────────────────────────────
+   *
+   * 1. The preferred value always carries a rem term. A size expressed purely in viewport
+   *    units cannot be enlarged by browser zoom — zoom changes the CSS pixel size of the
+   *    viewport and the vw value moves with it, so the text stays the same relative size
+   *    forever. That fails WCAG 1.4.4, which requires text to reach 200%.
+   * 2. max ≤ 2.5 × min. A wider ratio makes the same component unreadably small at one end
+   *    or cartoonish at the other, and it is where the "fluid type breaks at one specific
+   *    width" reports come from.
+   *
+   * Every step here is a ratio of about 1.15, well inside the rule.
+   * ══════════════════════════════════════════════════════════════════════════ */
+
+  --type-3xs: calc(var(--ui-scale) * clamp(0.5938rem, 0.5583rem + 0.0444vw, 0.6563rem));
+  --type-2xs: calc(var(--ui-scale) * clamp(0.6563rem, 0.6208rem + 0.0444vw, 0.7188rem));
+  --type-xs:  calc(var(--ui-scale) * clamp(0.7188rem, 0.6656rem + 0.0664vw, 0.8125rem));
+  --type-sm:  calc(var(--ui-scale) * clamp(0.7813rem, 0.7281rem + 0.0664vw, 0.875rem));
+  --type-md:  calc(var(--ui-scale) * clamp(0.875rem, 0.8219rem + 0.0664vw, 0.9688rem));
+  --type-lg:  calc(var(--ui-scale) * clamp(0.9375rem, 0.8489rem + 0.1107vw, 1.0938rem));
+  --type-xl:  calc(var(--ui-scale) * clamp(1.1875rem, 1.0634rem + 0.1551vw, 1.4063rem));
+
+  /* Line heights are unitless on purpose: they multiply whatever the computed size ends up
+     being, so they follow --ui-scale and the clamp without being restated. */
+  --lh-tight: 1.25;
+  --lh-snug: 1.4;
+  --lh-normal: 1.55;
+  --lh-relaxed: 1.7;
 
   /* ── Motion. See the reduced-motion block at the bottom of this file. ─────── */
   --duration-instant: 70ms;
@@ -191,12 +272,23 @@
    * LAYER 3 — COMPONENT
    * ══════════════════════════════════════════════════════════════════════════ */
 
-  --sidebar-width: 260px;
+  --sidebar-width: calc(16.25rem * var(--ui-scale));
   --sidebar-bg: var(--surface-1);
   --sidebar-item-active-bg: var(--surface-3);
 
-  --glyph-size: 9px;
-  --topbar-height: 52px;
+  --glyph-size: calc(0.5625rem * var(--ui-scale));
+  --topbar-height: calc(3.25rem * var(--ui-scale));
+
+  /* ── Minimum hit target, WCAG 2.5.8 ────────────────────────────────────────
+   *
+   * Deliberately NOT scaled by --ui-scale. 24px is a floor expressed in physical-ish terms
+   * and shrinking it at 90% would take controls below the threshold — the accessibility
+   * minimum is not a design preference, so it does not get multiplied by one.
+   *
+   * `--hit-primary` is the larger target for primary controls. That one may grow with the
+   * preference, since growing a target never hurts. */
+  --hit-min: 24px;
+  --hit-primary: max(2.75rem, calc(2.75rem * var(--ui-scale)));
 }
 
 /*

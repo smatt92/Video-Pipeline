@@ -73,20 +73,20 @@ export default async function ReviewPage({ params }: { params: Promise<{ renderI
       <header className="mb-5 flex items-start gap-4">
         <div className="min-w-0">
           <div className="flex items-baseline gap-3">
-            <h2 className="truncate text-[15px] font-medium tracking-tight">
+            <h2 className="truncate text-lg font-medium tracking-tight">
               {render.conceptTitle}
             </h2>
-            <span className="font-mono text-[10px] uppercase tracking-[0.09em]" style={{ color: 'var(--text-faint)' }}>
+            <span className="font-mono text-3xs uppercase tracking-[0.09em]" style={{ color: 'var(--text-faint)' }}>
               {render.kind} · {render.variantLabel}
             </span>
           </div>
-          <p className="mt-1 font-mono text-[11px]" style={{ color: 'var(--text-faint)' }}>
+          <p className="mt-1 font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
             {render.width}×{render.height} · picture {timeline.pictureDurationS.toFixed(2)}s ·
             voice {timeline.voDurationS.toFixed(2)}s
             {render.durationS !== null && ` · rendered ${render.durationS.toFixed(2)}s`}
           </p>
         </div>
-        <Link href="/review" className="ml-auto shrink-0 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+        <Link href="/review" className="ml-auto shrink-0 text-xs" style={{ color: 'var(--text-muted)' }}>
           ← queue
         </Link>
       </header>
@@ -101,7 +101,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ renderI
             className="mb-5 rounded-md border px-4 py-3"
             style={{ background: 'var(--surface-1)', borderColor: 'var(--state-blocked)' }}
           >
-            <p className="text-[12.5px] leading-relaxed">
+            <p className="text-sm leading-relaxed">
               This render is {render.durationS.toFixed(2)}s but its shots now sum to{' '}
               {timeline.pictureDurationS.toFixed(2)}s. The rows changed after it was
               assembled — a trim or a reorder — so what plays below is the composed preview
@@ -124,11 +124,11 @@ export default async function ReviewPage({ params }: { params: Promise<{ renderI
 
       {history.length > 1 && (
         <div className="mt-6">
-          <h3 className="mb-2 font-mono text-[10px] uppercase tracking-[0.09em]" style={{ color: 'var(--text-faint)' }}>
+          <h3 className="mb-2 font-mono text-3xs uppercase tracking-[0.09em]" style={{ color: 'var(--text-faint)' }}>
             Earlier decisions
           </h3>
           {history.slice(1).map((h) => (
-            <div key={h.id} className="flex items-baseline gap-3 py-[3px] font-mono text-[10.5px]" style={{ color: 'var(--text-muted)' }}>
+            <div key={h.id} className="flex items-baseline gap-3 py-[3px] font-mono text-2xs" style={{ color: 'var(--text-muted)' }}>
               <span>{h.createdAt.slice(0, 19).replace('T', ' ')}</span>
               <span>{h.decision}</span>
               {h.notes && <span className="truncate">{h.notes}</span>}
@@ -143,10 +143,10 @@ export default async function ReviewPage({ params }: { params: Promise<{ renderI
 function Broken({ headline, detail }: { headline: string; detail: string }) {
   return (
     <div className="mx-auto w-full max-w-[900px] px-6 py-8">
-      <p className="text-[13px]" style={{ color: 'var(--state-blocked)' }}>
+      <p className="text-sm" style={{ color: 'var(--state-blocked)' }}>
         {headline}
       </p>
-      <p className="mt-1 font-mono text-[11px]" style={{ color: 'var(--text-faint)' }}>
+      <p className="mt-1 font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
         {detail}
       </p>
     </div>

@@ -23,7 +23,7 @@ function Save({ label }: { label: string }) {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-sm px-[10px] py-[5px] text-[11.5px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+      className="rounded-sm px-[10px] py-[5px] text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
       style={{
         background: 'var(--accent)',
         color: 'var(--accent-contrast)',
@@ -53,7 +53,7 @@ function Small({
   return (
     <label className="flex flex-col gap-[3px]">
       <span
-        className="font-mono text-[9.5px] uppercase tracking-[0.08em]"
+        className="font-mono text-3xs uppercase tracking-[0.08em]"
         style={{ color: 'var(--text-faint)' }}
       >
         {label}
@@ -63,7 +63,7 @@ function Small({
         type={type}
         placeholder={placeholder}
         defaultValue={defaultValue}
-        className={`${width} rounded-sm border bg-transparent px-2 py-[5px] font-mono text-[12px] outline-none`}
+        className={`${width} rounded-sm border bg-transparent px-2 py-[5px] font-mono text-xs outline-none`}
         style={{ borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
       />
     </label>
@@ -74,7 +74,7 @@ function Result({ state }: { state: StepState }) {
   if (state.status === 'idle' || !state.message) return null;
   return (
     <p
-      className="mt-2 max-w-[62ch] text-[11.5px] leading-relaxed"
+      className="mt-2 max-w-[62ch] text-xs leading-relaxed"
       style={{ color: state.status === 'ok' ? 'var(--state-live)' : 'var(--state-blocked)' }}
     >
       {state.message}
@@ -135,26 +135,26 @@ export function CreditsPanel({
       >
         <div className="flex flex-col gap-2">
           <div className="flex items-baseline gap-4">
-            <span className="font-mono text-[15px]" style={{ color: 'var(--text-primary)' }}>
+            <span className="font-mono text-lg" style={{ color: 'var(--text-primary)' }}>
               {position.creditsUnexpired.toLocaleString()}
             </span>
-            <span className="text-[11.5px]" style={{ color: 'var(--text-muted)' }}>
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
               unexpired
             </span>
             {days !== null && (
-              <span className="font-mono text-[11.5px]" style={{ color: tone }}>
+              <span className="font-mono text-xs" style={{ color: tone }}>
                 nearest tranche expires in {days} day{days === 1 ? '' : 's'} ({position.nextExpiry})
               </span>
             )}
             {days === null && (
-              <span className="text-[11.5px]" style={{ color: 'var(--text-faint)' }}>
+              <span className="text-xs" style={{ color: 'var(--text-faint)' }}>
                 no purchase recorded — nothing is watching the clock
               </span>
             )}
           </div>
 
           {position.creditsExpired > 0 && (
-            <p className="text-[11.5px]" style={{ color: 'var(--text-muted)' }}>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
               {position.creditsExpired.toLocaleString()} credits have already expired. That
               never appears in the cost ledger — nothing is billed when credits evaporate —
               which is the whole reason this panel exists.
@@ -162,19 +162,19 @@ export function CreditsPanel({
           )}
 
           {position.purchases.length > 0 && (
-            <table className="mt-1 w-full max-w-[520px] text-[11.5px]">
+            <table className="mt-1 w-full max-w-[520px] text-xs">
               <thead>
                 <tr style={{ color: 'var(--text-faint)' }}>
-                  <th className="pb-1 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em]">
+                  <th className="pb-1 text-left font-mono text-3xs font-normal uppercase tracking-[0.08em]">
                     credits
                   </th>
-                  <th className="pb-1 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em]">
+                  <th className="pb-1 text-left font-mono text-3xs font-normal uppercase tracking-[0.08em]">
                     bought
                   </th>
-                  <th className="pb-1 text-left font-mono text-[9.5px] font-normal uppercase tracking-[0.08em]">
+                  <th className="pb-1 text-left font-mono text-3xs font-normal uppercase tracking-[0.08em]">
                     expires
                   </th>
-                  <th className="pb-1 text-right font-mono text-[9.5px] font-normal uppercase tracking-[0.08em]">
+                  <th className="pb-1 text-right font-mono text-3xs font-normal uppercase tracking-[0.08em]">
                     usd
                   </th>
                 </tr>
@@ -261,11 +261,11 @@ export function ConcurrencyPanel({
     >
       <div className="flex flex-col gap-2">
         <div className="flex items-baseline gap-3">
-          <span className="font-mono text-[15px]" style={{ color: 'var(--text-primary)' }}>
+          <span className="font-mono text-lg" style={{ color: 'var(--text-primary)' }}>
             {effective}
           </span>
           <span
-            className="rounded-xs px-[6px] py-[2px] font-mono text-[10px] uppercase"
+            className="rounded-xs px-[6px] py-[2px] font-mono text-3xs uppercase"
             style={{
               background: 'var(--surface-2)',
               color: source === 'default' ? 'var(--state-review)' : 'var(--text-muted)',
@@ -275,7 +275,7 @@ export function ConcurrencyPanel({
           </span>
         </div>
 
-        <p className="max-w-[62ch] text-[11.5px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+        <p className="max-w-[62ch] text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
           {explanation[source] ?? explanation.default}
         </p>
 
@@ -287,7 +287,7 @@ export function ConcurrencyPanel({
             width="w-[90px]"
           />
           <Save label="Set" />
-          <span className="pb-[6px] text-[11px]" style={{ color: 'var(--text-faint)' }}>
+          <span className="pb-[6px] text-2xs" style={{ color: 'var(--text-faint)' }}>
             blank clears the override
           </span>
         </form>

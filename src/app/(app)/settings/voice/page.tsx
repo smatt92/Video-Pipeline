@@ -30,7 +30,7 @@ export default function VoicePage() {
           help="Professional Voice Cloning needs 30 minutes minimum of clean single-speaker audio plus consent verification, and takes days. Start on a library voice."
         >
           {VOICE_SETTINGS.hostVoice ? (
-            <span className="text-[12.5px]">{VOICE_SETTINGS.hostVoice}</span>
+            <span className="text-sm">{VOICE_SETTINGS.hostVoice}</span>
           ) : (
             <NotSet />
           )}
@@ -39,13 +39,13 @@ export default function VoicePage() {
           label="Text normalization"
           help="Off by default on the cheapest model, which reads ₹5,000 as digits."
         >
-          <span className="font-mono text-[12.5px]">{VOICE_SETTINGS.normalization}</span>
+          <span className="font-mono text-sm">{VOICE_SETTINGS.normalization}</span>
         </Row>
         <Row
           label="Chunk size"
           help="Language and accent drift on long single generations is documented and repeatable. Chunks are stitched with neighbouring request ids."
         >
-          <span className="font-mono text-[12.5px]">{VOICE_SETTINGS.chunkWords} words</span>
+          <span className="font-mono text-sm">{VOICE_SETTINGS.chunkWords} words</span>
         </Row>
       </Panel>
 
@@ -53,7 +53,7 @@ export default function VoicePage() {
       <Panel className="mb-5">
         {AUDIO_MODEL_POLICY.map((m) => (
           <Row key={m.format} label={m.format} help={m.why}>
-            <span className="font-mono text-[12px]">{m.model}</span>
+            <span className="font-mono text-xs">{m.model}</span>
           </Row>
         ))}
       </Panel>
@@ -64,7 +64,7 @@ export default function VoicePage() {
       />
       <Panel>
         <div
-          className="grid gap-3 border-b px-4 py-2 font-mono text-[10px] uppercase tracking-[0.09em]"
+          className="grid gap-3 border-b px-4 py-2 font-mono text-3xs uppercase tracking-[0.09em]"
           style={{
             gridTemplateColumns: '132px 78px minmax(0,1fr)',
             borderColor: 'var(--border-subtle)',
@@ -82,7 +82,7 @@ export default function VoicePage() {
             className="grid items-center gap-3 border-b px-4 py-[10px] last:border-b-0"
             style={{ gridTemplateColumns: '132px 78px minmax(0,1fr)', borderColor: 'var(--border-subtle)' }}
           >
-            <span className="text-[12.5px]">{p.grapheme}</span>
+            <span className="text-sm">{p.grapheme}</span>
             <Hint
               content={
                 p.kind === 'phoneme'
@@ -91,16 +91,16 @@ export default function VoicePage() {
               }
             >
               <span
-                className="rounded-xs px-[6px] py-[2px] font-mono text-[10.5px]"
+                className="rounded-xs px-[6px] py-[2px] font-mono text-2xs"
                 style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}
               >
                 {p.kind}
               </span>
             </Hint>
             <span className="min-w-0">
-              <span className="block truncate font-mono text-[12px]">{p.replacement}</span>
+              <span className="block truncate font-mono text-xs">{p.replacement}</span>
               {p.note && (
-                <span className="block truncate text-[10.5px]" style={{ color: 'var(--text-faint)' }}>
+                <span className="block truncate text-2xs" style={{ color: 'var(--text-faint)' }}>
                   {p.note}
                 </span>
               )}

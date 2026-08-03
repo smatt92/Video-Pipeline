@@ -73,7 +73,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
 
       {!script ? (
         <Panel>
-          <p className="px-4 py-4 text-[12.5px]" style={{ color: 'var(--text-muted)' }}>
+          <p className="px-4 py-4 text-sm" style={{ color: 'var(--text-muted)' }}>
             No script yet. Stage 3 drafts one from this concept and its angle.
           </p>
         </Panel>
@@ -84,12 +84,12 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
               className="flex flex-wrap items-baseline gap-3 border-b px-4 py-3"
               style={{ borderColor: 'var(--border-subtle)' }}
             >
-              <span className="text-[13.5px] font-medium">Script v{script.version}</span>
-              <span className="font-mono text-[10.5px]" style={{ color: 'var(--text-faint)' }}>
+              <span className="text-md font-medium">Script v{script.version}</span>
+              <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
                 {script.structure_hash.slice(0, 12)}…
               </span>
               <span
-                className="font-mono text-[10.5px]"
+                className="font-mono text-2xs"
                 style={{
                   color:
                     script.human_edit_count > 0 ? 'var(--state-live)' : 'var(--state-review)',
@@ -99,7 +99,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
                 {script.human_edit_count === 0 && ' · publish is blocked until this is > 0'}
               </span>
             </div>
-            <p className="px-4 py-3 text-[13px] leading-relaxed">{script.hook}</p>
+            <p className="px-4 py-3 text-sm leading-relaxed">{script.hook}</p>
           </Panel>
 
           <Panel>
@@ -107,8 +107,8 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
               className="flex flex-wrap items-baseline gap-3 border-b px-4 py-3"
               style={{ borderColor: 'var(--border-subtle)' }}
             >
-              <span className="text-[13.5px] font-medium">Shots</span>
-              <span className="ml-auto font-mono text-[11px]" style={{ color: 'var(--text-faint)' }}>
+              <span className="text-md font-medium">Shots</span>
+              <span className="ml-auto font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
                 {anyUnpriced
                   ? `unpriced · ${generations?.length ?? 0} generations, no verified rate`
                   : `₹${totalInr.toFixed(2)} across ${generations?.length ?? 0} generations`}
@@ -116,7 +116,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
             </div>
 
             {(shots ?? []).length === 0 ? (
-              <p className="px-4 py-4 text-[12.5px]" style={{ color: 'var(--text-muted)' }}>
+              <p className="px-4 py-4 text-sm" style={{ color: 'var(--text-muted)' }}>
                 No shots yet. Stage 4 breaks the script into them.
               </p>
             ) : (
@@ -131,7 +131,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
                     className="border-b px-4 py-3 last:border-b-0"
                     style={{ borderColor: 'var(--border-subtle)' }}
                   >
-                    <div className="flex flex-wrap items-baseline gap-2 text-[11.5px]">
+                    <div className="flex flex-wrap items-baseline gap-2 text-xs">
                       <span
                         aria-hidden
                         className="inline-block size-[7px] shrink-0 rounded-full"
@@ -151,12 +151,12 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
                       </span>
                     </div>
 
-                    <p className="mt-1 max-w-[80ch] text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+                    <p className="mt-1 max-w-[80ch] text-xs" style={{ color: 'var(--text-secondary)' }}>
                       {shot.description}
                     </p>
 
                     {!generatable && (
-                      <p className="mt-1 max-w-[80ch] text-[11px]" style={{ color: 'var(--text-faint)' }}>
+                      <p className="mt-1 max-w-[80ch] text-2xs" style={{ color: 'var(--text-faint)' }}>
                         {shot.compile_note ?? 'Not compiled — no library recipe.'}
                       </p>
                     )}
@@ -164,7 +164,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
                     {gens.map((g) => (
                       <p
                         key={g.id}
-                        className="mt-1 font-mono text-[11px]"
+                        className="mt-1 font-mono text-2xs"
                         style={{ color: 'var(--text-faint)' }}
                       >
                         {g.kind} · {g.status}
@@ -187,7 +187,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
                     <button
                       type="button"
                       disabled={!generatable}
-                      className="mt-2 rounded-sm px-[10px] py-[4px] text-[11.5px] font-medium transition-colors disabled:cursor-not-allowed"
+                      className="mt-2 rounded-sm px-[10px] py-[4px] text-xs font-medium transition-colors disabled:cursor-not-allowed"
                       style={{
                         background: generatable ? 'var(--accent)' : 'var(--surface-2)',
                         color: generatable ? 'var(--accent-contrast)' : 'var(--text-faint)',
@@ -202,7 +202,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
             )}
           </Panel>
 
-          <p className="mt-4 max-w-[80ch] text-[11.5px] leading-relaxed" style={{ color: 'var(--text-faint)' }}>
+          <p className="mt-4 max-w-[80ch] text-xs leading-relaxed" style={{ color: 'var(--text-faint)' }}>
             Regenerate is inert until Gate 4. It bumps the attempt counter, which mints a new
             idempotency key and therefore a new charge — so it is wired only once a real
             submit has been watched end to end.

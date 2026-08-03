@@ -24,7 +24,8 @@
     "check:enums": "node scripts/check-enums.mjs",
     "check:gates": "node scripts/check-gates.mjs",
     "check:trigger-build": "node scripts/check-trigger-build.mjs",
-    "check": "pnpm check:gates && pnpm check:vendors && pnpm check:public-env && pnpm check:trigger-build && pnpm typecheck && pnpm lint && pnpm test:timings",
+    "check:scalable-sizes": "node scripts/check-scalable-sizes.mjs",
+    "check": "pnpm check:gates && pnpm check:vendors && pnpm check:public-env && pnpm check:trigger-build && pnpm check:scalable-sizes && pnpm typecheck && pnpm lint && pnpm test:timings",
     "prebuild": "node scripts/check-public-env.mjs",
     "check:public-env": "node scripts/check-public-env.mjs",
     "check:drift": "node scripts/check-drift.mjs",
@@ -37,7 +38,8 @@
     "verify:ingest": "tsc -p tsconfig.verify.json && node scripts/verify-ingest.mjs",
     "verify:assemble": "tsc -p tsconfig.verify.json && node scripts/verify-assemble.mjs",
     "verify:studio": "tsc -p tsconfig.verify.json && node --env-file-if-exists=.env.local scripts/verify-studio.mjs",
-    "verify:review": "tsc -p tsconfig.verify.json && node scripts/verify-review.mjs"
+    "verify:review": "tsc -p tsconfig.verify.json && node scripts/verify-review.mjs",
+    "verify:scaling": "node scripts/verify-scaling.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

@@ -60,12 +60,12 @@ export default async function LoginPage({
           className="size-[7px] rounded-full"
           style={{ background: "var(--brand-mark)" }}
         />
-        <span className="text-[13px] font-medium tracking-tight">Kiln</span>
+        <span className="text-sm font-medium tracking-tight">Kiln</span>
       </div>
 
-      <h1 className="mb-2 text-[19px] font-medium tracking-tight">Sign in</h1>
+      <h1 className="mb-2 text-xl font-medium tracking-tight">Sign in</h1>
       <p
-        className="mb-6 text-[13px] leading-relaxed"
+        className="mb-6 text-sm leading-relaxed"
         style={{ color: "var(--text-secondary)" }}
       >
         Single-tenant. One address is permitted, set at deploy time.
@@ -73,7 +73,7 @@ export default async function LoginPage({
 
       {message && (
         <div
-          className="mb-5 rounded-sm border px-3 py-2 text-[12px] leading-relaxed"
+          className="mb-5 rounded-sm border px-3 py-2 text-xs leading-relaxed"
           style={{
             borderColor: "var(--border-strong)",
             background: "var(--surface-inset)",
@@ -96,7 +96,7 @@ export default async function LoginPage({
           against git log — and `source` says whether the platform reported it at runtime or
           it was baked in, because a build-time value can itself be stale. */}
       <p
-        className="mt-8 font-mono text-[10.5px]"
+        className="mt-8 font-mono text-2xs"
         style={{ color: "var(--text-faint)" }}
         data-build-sha={build.sha}
       >
@@ -110,7 +110,7 @@ export default async function LoginPage({
 
       {malformed.length > 0 && (
         <div
-          className="mt-6 rounded-sm border px-3 py-2 text-[11.5px] leading-relaxed"
+          className="mt-6 rounded-sm border px-3 py-2 text-xs leading-relaxed"
           style={{
             borderColor: "var(--border-strong)",
             background: "var(--surface-inset)",

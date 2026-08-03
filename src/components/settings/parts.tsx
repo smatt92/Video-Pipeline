@@ -21,9 +21,9 @@ export function SectionHeader({
   return (
     <header className="mb-5 flex items-start gap-4">
       <div className="min-w-0">
-        <h2 className="text-[15px] font-medium tracking-tight">{title}</h2>
+        <h2 className="text-lg font-medium tracking-tight">{title}</h2>
         {hint && (
-          <p className="mt-1 text-[12.5px]" style={{ color: 'var(--text-muted)' }}>
+          <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
             {hint}
           </p>
         )}
@@ -65,9 +65,9 @@ export function Row({
       style={{ gridTemplateColumns: 'minmax(0, 280px) minmax(0, 1fr)', borderColor: 'var(--border-subtle)' }}
     >
       <div className="min-w-0">
-        <div className="text-[13px]">{label}</div>
+        <div className="text-sm">{label}</div>
         {help && (
-          <div className="mt-[3px] text-[11.5px] leading-snug" style={{ color: 'var(--text-faint)' }}>
+          <div className="mt-[3px] text-xs leading-snug" style={{ color: 'var(--text-faint)' }}>
             {help}
           </div>
         )}
@@ -90,7 +90,7 @@ export function CheckPill({ passed, label }: { passed: boolean | null; label: st
   const glyph = passed === true ? '✓' : passed === false ? '✕' : '–';
 
   return (
-    <span className="inline-flex items-center gap-[6px] text-[11.5px]" style={{ color: token }}>
+    <span className="inline-flex items-center gap-[6px] text-xs" style={{ color: token }}>
       <span aria-hidden className="font-mono">
         {glyph}
       </span>
@@ -102,7 +102,7 @@ export function CheckPill({ passed, label }: { passed: boolean | null; label: st
 export function UnverifiedBanner({ what }: { what: string }) {
   return (
     <div
-      className="mb-5 rounded-sm border px-3 py-2 text-[12px] leading-relaxed"
+      className="mb-5 rounded-sm border px-3 py-2 text-xs leading-relaxed"
       style={{
         borderColor: 'var(--border-strong)',
         background: 'var(--surface-inset)',
@@ -121,7 +121,7 @@ export function UnverifiedBanner({ what }: { what: string }) {
 
 export function Mono({ children }: { children: React.ReactNode }) {
   return (
-    <span className="font-mono text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+    <span className="font-mono text-xs" style={{ color: 'var(--text-secondary)' }}>
       {children}
     </span>
   );
@@ -130,7 +130,7 @@ export function Mono({ children }: { children: React.ReactNode }) {
 export function NotSet() {
   return (
     <Hint content="Never configured. This is not zero and not a default — nothing has been written here.">
-      <span className="font-mono text-[12px]" style={{ color: 'var(--text-faint)' }}>
+      <span className="font-mono text-xs" style={{ color: 'var(--text-faint)' }}>
         not set
       </span>
     </Hint>

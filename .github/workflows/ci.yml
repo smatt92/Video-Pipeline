@@ -62,6 +62,10 @@ jobs:
       - name: Worker image declares every binary src/ spawns
         run: pnpm check:trigger-build
 
+      # ── Nothing may set a font size --ui-scale cannot move ───────────────
+      - name: Font sizes are on the scale
+        run: pnpm check:scalable-sizes
+
       # ── The rule with teeth (CLAUDE.md rule 1) ───────────────────────────
       # First, because it is the cheapest and the one most likely to be violated by a
       # well-meaning shortcut.
@@ -165,3 +169,10 @@ jobs:
           HIGGSFIELD_API_KEY: ci
           HIGGSFIELD_API_SECRET: ci
           HIGGSFIELD_WEBHOOK_SECRET: ci-placeholder-secret-at-least-32-chars
+
+      # ── The compiled stylesheet, measured in a real browser ──────────────
+      # After the build on purpose: it reads .next/static/css, because clamp(), @theme and
+      # the utility generation all happen at build time and the source tokens are the
+      # input to a compiler rather than the thing that ships.
+      - name: Display scaling, WCAG 1.4.4 / 1.4.10 / 1.4.12 / 2.5.8
+        run: pnpm verify:scaling

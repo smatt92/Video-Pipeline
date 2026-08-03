@@ -47,7 +47,7 @@ export function Hint({
       <Tooltip.Portal>
         <Tooltip.Positioner side={side} sideOffset={7} align="center">
           <Tooltip.Popup
-            className="max-w-[280px] rounded-sm border px-2 py-[5px] text-[11.5px] leading-snug"
+            className="max-w-[280px] rounded-sm border px-2 py-[5px] text-xs leading-snug"
             style={{
               background: 'var(--surface-3)',
               borderColor: 'var(--border-strong)',

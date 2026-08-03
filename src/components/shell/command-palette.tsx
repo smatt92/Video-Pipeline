@@ -4,6 +4,8 @@ import { Command } from 'cmdk';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
+import { UI_SCALES, labelFor, UI_SCALE_STORAGE_KEY } from '@/lib/settings/ui-scale';
+import { setUiScaleAction } from '@/lib/settings/ui-scale-action';
 import { NAV } from '@/lib/nav';
 
 /**
@@ -56,22 +58,57 @@ export function CommandPalette({
         <Command.Input
           autoFocus
           placeholder="Search screens…"
-          className="w-full border-b bg-transparent px-4 py-3 text-[14px] outline-none"
+          className="w-full border-b bg-transparent px-4 py-3 text-md outline-none"
           style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
         />
         <Command.List className="max-h-[52vh] overflow-y-auto p-2">
           <Command.Empty
-            className="px-3 py-6 text-center text-[13px]"
+            className="px-3 py-6 text-center text-sm"
             style={{ color: 'var(--text-muted)' }}
           >
             Nothing matches.
           </Command.Empty>
 
+          {/* Display scale, as direct actions rather than a link to the settings page.
+              The palette is where someone reaches when the UI is too small to comfortably
+              navigate to Settings — which is exactly the situation this control exists for,
+              so routing them through two more screens to reach it would be the wrong shape.
+              Applied immediately and persisted in the background, same as the stepper. */}
+          <Command.Group
+            heading="Display"
+            className="mb-1 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:font-mono [&_[cmdk-group-heading]]:text-3xs [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.09em]"
+            style={{ color: 'var(--text-faint)' }}
+          >
+            {UI_SCALES.map((scale) => (
+              <Command.Item
+                key={scale}
+                value={`UI scale ${labelFor(scale)} display size zoom bigger smaller`}
+                onSelect={() => {
+                  document.documentElement.style.setProperty('--ui-scale', String(scale));
+                  try {
+                    localStorage.setItem(UI_SCALE_STORAGE_KEY, String(scale));
+                  } catch {
+                    /* private mode; the profile value is authoritative */
+                  }
+                  onOpenChange(false);
+                  void setUiScaleAction(scale);
+                }}
+                className="flex cursor-pointer items-center gap-3 rounded-sm px-2 py-[7px] text-sm data-[selected=true]:bg-[var(--surface-3)]"
+                style={{ color: 'var(--text-primary)' }}
+              >
+                <span className="shrink-0">UI scale — {labelFor(scale)}</span>
+                <span className="truncate text-xs" style={{ color: 'var(--text-faint)' }}>
+                  applies immediately, saved to your profile
+                </span>
+              </Command.Item>
+            ))}
+          </Command.Group>
+
           {NAV.map((group) => (
             <Command.Group
               key={group.label}
               heading={group.label}
-              className="mb-1 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:font-mono [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.09em]"
+              className="mb-1 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:font-mono [&_[cmdk-group-heading]]:text-3xs [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.09em]"
               style={{ color: 'var(--text-faint)' }}
             >
               {group.items.map((item) => {
@@ -86,18 +123,18 @@ export function CommandPalette({
                       onOpenChange(false);
                       router.push(item.href);
                     }}
-                    className="flex cursor-pointer items-center gap-3 rounded-sm px-2 py-[7px] text-[13px] data-[selected=true]:bg-[var(--surface-3)]"
+                    className="flex cursor-pointer items-center gap-3 rounded-sm px-2 py-[7px] text-sm data-[selected=true]:bg-[var(--surface-3)]"
                     style={{ color: disabled ? 'var(--text-faint)' : 'var(--text-primary)' }}
                   >
                     <span className="shrink-0">{item.label}</span>
-                    <span className="truncate text-[12px]" style={{ color: 'var(--text-faint)' }}>
+                    <span className="truncate text-xs" style={{ color: 'var(--text-faint)' }}>
                       {disabled && item.status.kind === 'disabled'
                         ? item.status.reason
                         : item.hint}
                     </span>
                     {disabled && item.status.kind === 'disabled' && (
                       <span
-                        className="ml-auto shrink-0 rounded-xs px-1 font-mono text-[10px]"
+                        className="ml-auto shrink-0 rounded-xs px-1 font-mono text-3xs"
                         style={{ background: 'var(--surface-3)' }}
                       >
                         {item.status.phase}

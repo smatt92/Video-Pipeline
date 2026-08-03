@@ -46,13 +46,13 @@ export function KeyboardMap({ shortcuts }: { shortcuts: readonly Shortcut[] }) {
           className="flex items-baseline gap-3 border-b px-3 py-[6px] last:border-b-0"
           style={{ borderColor: 'var(--border-subtle)' }}
         >
-          <span className="w-[110px] shrink-0 font-mono text-[10.5px]">{s.keys}</span>
-          <span className="text-[11.5px]" style={{ color: 'var(--text-muted)' }}>
+          <span className="w-[110px] shrink-0 font-mono text-2xs">{s.keys}</span>
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
             {s.does}
           </span>
         </div>
       ))}
-      <p className="px-3 py-2 text-[10.5px]" style={{ color: 'var(--text-faint)' }}>
+      <p className="px-3 py-2 text-2xs" style={{ color: 'var(--text-faint)' }}>
         Nothing here writes a review decision. Pass, reshoot and kill are buttons on purpose —
         a keystroke that writes the row the publish gate reads is one fat finger from a
         published video nobody approved.

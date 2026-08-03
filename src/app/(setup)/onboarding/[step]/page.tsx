@@ -71,8 +71,8 @@ export default async function OnboardingStepPage({
           className="size-[7px] rounded-full"
           style={{ background: 'var(--brand-mark)' }}
         />
-        <span className="text-[13px] font-medium tracking-tight">Kiln — first run</span>
-        <span className="ml-auto font-mono text-[11px]" style={{ color: 'var(--text-faint)' }}>
+        <span className="text-sm font-medium tracking-tight">Kiln — first run</span>
+        <span className="ml-auto font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
           {completed.length} of {STEPS.filter((s) => s.required).length} required steps done
         </span>
       </div>
@@ -86,7 +86,7 @@ export default async function OnboardingStepPage({
             <li key={s.n}>
               <Link
                 href={`/onboarding/${s.slug}`}
-                className="flex items-center gap-2 rounded-sm border px-2 py-[5px] text-[11.5px] transition-colors"
+                className="flex items-center gap-2 rounded-sm border px-2 py-[5px] text-xs transition-colors"
                 style={{
                   borderColor: here ? 'var(--accent)' : 'var(--border-subtle)',
                   color: here
@@ -98,7 +98,7 @@ export default async function OnboardingStepPage({
                   transitionDuration: 'var(--duration-fast)',
                 }}
               >
-                <span className="font-mono text-[10px]">{s.n}</span>
+                <span className="font-mono text-3xs">{s.n}</span>
                 <span>{s.title}</span>
                 {done && <span aria-hidden>✓</span>}
                 {!open && <span aria-hidden style={{ color: 'var(--text-faint)' }}>·</span>}
@@ -111,10 +111,10 @@ export default async function OnboardingStepPage({
       {/* ── The step ─────────────────────────────────────────────────────── */}
       <div className="flex-1">
         <div className="mb-2 flex items-center gap-3">
-          <h1 className="text-[19px] font-medium tracking-tight">{step.title}</h1>
+          <h1 className="text-xl font-medium tracking-tight">{step.title}</h1>
           {!step.required && (
             <span
-              className="rounded-xs px-[6px] py-[2px] font-mono text-[10px] uppercase"
+              className="rounded-xs px-[6px] py-[2px] font-mono text-3xs uppercase"
               style={{ background: 'var(--surface-2)', color: 'var(--text-faint)' }}
             >
               optional
@@ -122,13 +122,13 @@ export default async function OnboardingStepPage({
           )}
         </div>
 
-        <p className="mb-6 max-w-[62ch] text-[13.5px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+        <p className="mb-6 max-w-[62ch] text-md leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
           {step.blurb}
         </p>
 
         {!unlocked && (
           <div
-            className="mb-6 rounded-sm border px-3 py-2 text-[12px]"
+            className="mb-6 rounded-sm border px-3 py-2 text-xs"
             style={{
               borderColor: 'var(--border-strong)',
               background: 'var(--surface-inset)',
@@ -142,7 +142,7 @@ export default async function OnboardingStepPage({
 
         {step.stubbed && (
           <div
-            className="mb-6 rounded-sm border px-3 py-2 text-[12px] leading-relaxed"
+            className="mb-6 rounded-sm border px-3 py-2 text-xs leading-relaxed"
             style={{
               borderColor: 'var(--border-strong)',
               background: 'var(--surface-inset)',
@@ -159,7 +159,7 @@ export default async function OnboardingStepPage({
         >
           <div className="mb-3 flex items-center gap-3">
             <span
-              className="font-mono text-[10px] uppercase tracking-[0.09em]"
+              className="font-mono text-3xs uppercase tracking-[0.09em]"
               style={{ color: 'var(--text-faint)' }}
             >
               What this step verifies
@@ -182,12 +182,12 @@ export default async function OnboardingStepPage({
             )}
             {done && !view && <span className="ml-auto"><CheckPill passed label="done" /></span>}
           </div>
-          <p className="mb-5 max-w-[70ch] text-[12.5px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+          <p className="mb-5 max-w-[70ch] text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
             {step.verification}
           </p>
 
           {!unlocked || step.stubbed ? (
-            <p className="text-[12px]" style={{ color: 'var(--text-faint)' }}>
+            <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
               {step.stubbed ? 'Nothing to run yet.' : 'Complete the steps above first.'}
             </p>
           ) : (
@@ -220,7 +220,7 @@ export default async function OnboardingStepPage({
                 />
               )}
               {step.n === 9 && (
-                <p className="text-[12px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
                   Deferred. YouTube and Instagram are needed for Phase 3 publishing and
                   nothing before it, and an MCP server is an exploration tool rather than a
                   pipeline dependency.
@@ -230,7 +230,7 @@ export default async function OnboardingStepPage({
           )}
 
           {view?.lastError && view.state === 'failed' && (
-            <p className="mt-4 text-[11.5px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+            <p className="mt-4 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
               Last recorded failure: {view.lastError}
             </p>
           )}
@@ -242,7 +242,7 @@ export default async function OnboardingStepPage({
         {step.n > 1 && (
           <Link
             href={`/onboarding/${STEPS[step.n - 2].slug}`}
-            className="text-[12.5px] underline underline-offset-4"
+            className="text-sm underline underline-offset-4"
             style={{ color: 'var(--text-muted)' }}
           >
             ← {STEPS[step.n - 2].title}
@@ -251,7 +251,7 @@ export default async function OnboardingStepPage({
         {step.n < STEPS.length && (
           <Link
             href={`/onboarding/${STEPS[step.n].slug}`}
-            className="ml-auto text-[12.5px] underline underline-offset-4"
+            className="ml-auto text-sm underline underline-offset-4"
             style={{ color: 'var(--accent)' }}
           >
             {STEPS[step.n].title} →
@@ -259,7 +259,7 @@ export default async function OnboardingStepPage({
         )}
       </div>
 
-      <p className="mt-6 text-[11px] leading-relaxed" style={{ color: 'var(--text-faint)' }}>
+      <p className="mt-6 text-2xs leading-relaxed" style={{ color: 'var(--text-faint)' }}>
         {progress.unavailable
           ? `Progress could not be read (${progress.unavailable}), so nothing above is ticked and the app stays locked. That is the gate refusing to guess, not a display bug.`
           : progress.outstanding.length === 0

@@ -35,7 +35,7 @@ function Submit({ label, busy }: { label: string; busy: string }) {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-sm px-3 py-[7px] text-[12.5px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+      className="rounded-sm px-3 py-[7px] text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
       style={{
         background: 'var(--accent)',
         color: 'var(--accent-contrast)',
@@ -69,7 +69,7 @@ function Field({
   return (
     <label className="flex flex-col gap-[5px]">
       <span
-        className="font-mono text-[10px] uppercase tracking-[0.09em]"
+        className="font-mono text-3xs uppercase tracking-[0.09em]"
         style={{ color: 'var(--text-faint)' }}
       >
         {label}
@@ -83,7 +83,7 @@ function Field({
         required={required}
         autoComplete={autoComplete}
         spellCheck={false}
-        className="w-full rounded-sm border px-[10px] py-[7px] text-[13px] outline-none"
+        className="w-full rounded-sm border px-[10px] py-[7px] text-sm outline-none"
         style={{
           background: 'var(--surface-inset)',
           borderColor: 'var(--border-subtle)',
@@ -91,7 +91,7 @@ function Field({
         }}
       />
       {help && (
-        <span className="text-[11.5px] leading-relaxed" style={{ color: 'var(--text-faint)' }}>
+        <span className="text-xs leading-relaxed" style={{ color: 'var(--text-faint)' }}>
           {help}
         </span>
       )}
@@ -109,7 +109,7 @@ function Outcome({ state }: { state: StepState }) {
     <div className="flex flex-col gap-2">
       {state.message && (
         <p
-          className="text-[12px] leading-relaxed whitespace-pre-line"
+          className="text-xs leading-relaxed whitespace-pre-line"
           style={{ color: tone }}
         >
           {state.message}
@@ -119,7 +119,7 @@ function Outcome({ state }: { state: StepState }) {
       {state.checks && state.checks.length > 0 && (
         <ul className="flex flex-col gap-[6px]">
           {state.checks.map((c) => (
-            <li key={c.name} className="flex gap-2 text-[11.5px] leading-relaxed">
+            <li key={c.name} className="flex gap-2 text-xs leading-relaxed">
               <span
                 aria-hidden
                 className="mt-[5px] size-[7px] shrink-0 rounded-full"
@@ -132,7 +132,7 @@ function Outcome({ state }: { state: StepState }) {
                 }}
               />
               <span style={{ color: 'var(--text-secondary)' }}>
-                <span className="font-mono text-[10.5px]" style={{ color: 'var(--text-faint)' }}>
+                <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
                   {c.name}
                   {!c.required && ' · informational'}
                 </span>
@@ -168,7 +168,7 @@ export function ProfileForm({ email }: { email: string | null }) {
         />
       </div>
       {email && (
-        <p className="text-[11.5px]" style={{ color: 'var(--text-faint)' }}>
+        <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
           Signed in as {email}. The profile is written against this account.
         </p>
       )}
@@ -219,7 +219,7 @@ export function IntegrationStepForm({
         })}
       </div>
 
-      <p className="text-[11.5px] leading-relaxed" style={{ color: 'var(--text-faint)' }}>
+      <p className="text-xs leading-relaxed" style={{ color: 'var(--text-faint)' }}>
         {verification}
       </p>
 

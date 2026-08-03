@@ -20,7 +20,7 @@ export function NotBuiltYet({ href }: { href: string }) {
         className="flex items-center gap-3 border-b px-5"
         style={{ height: 'var(--topbar-height)', borderColor: 'var(--border-subtle)' }}
       >
-        <h1 className="text-[14px] font-medium tracking-tight">{item?.label ?? 'Not built'}</h1>
+        <h1 className="text-md font-medium tracking-tight">{item?.label ?? 'Not built'}</h1>
       </header>
 
       <div className="flex flex-1 items-center justify-center px-6 py-16">
@@ -32,18 +32,18 @@ export function NotBuiltYet({ href }: { href: string }) {
               style={{ background: 'var(--surface-3)' }}
             />
             <span
-              className="font-mono text-[10px] uppercase tracking-[0.09em]"
+              className="font-mono text-3xs uppercase tracking-[0.09em]"
               style={{ color: 'var(--text-faint)' }}
             >
               {status?.kind === 'disabled' ? `phase ${status.phase}` : 'not built'}
             </span>
           </div>
 
-          <p className="mb-2 text-[15px]" style={{ color: 'var(--text-primary)' }}>
+          <p className="mb-2 text-lg" style={{ color: 'var(--text-primary)' }}>
             {item?.hint ?? 'This screen does not exist yet.'}
           </p>
 
-          <p className="text-[13px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
             {status?.kind === 'disabled'
               ? status.reason
               : 'No reason recorded, which is itself a bug — every disabled route should say what it is waiting on.'}
@@ -51,7 +51,7 @@ export function NotBuiltYet({ href }: { href: string }) {
 
           <Link
             href="/"
-            className="mt-6 inline-block text-[13px] underline underline-offset-4"
+            className="mt-6 inline-block text-sm underline underline-offset-4"
             style={{ color: 'var(--accent)' }}
           >
             Back to the board

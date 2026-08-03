@@ -59,7 +59,7 @@ export async function IntegrityAlert() {
   if (unreadable) {
     return (
       <span
-        className="rounded-sm px-2 py-1 font-mono text-[10px]"
+        className="rounded-sm px-2 py-1 font-mono text-3xs"
         style={{ background: 'var(--surface-2)', color: 'var(--text-faint)' }}
         title={`The integrity views could not be read: ${unreadable}. Usually means the migrations have not been applied to this database — run pnpm doctor.`}
         data-integrity="unreadable"
@@ -82,7 +82,7 @@ export async function IntegrityAlert() {
 
   return (
     <span
-      className="rounded-sm px-2 py-1 text-[11px] font-medium"
+      className="rounded-sm px-2 py-1 text-2xs font-medium"
       style={{
         // The review state's colour, not the accent. This is not a call to action in the
         // pipeline's normal sense — it says something may be wrong with the pipeline

@@ -62,7 +62,7 @@ export function StateGlyph({ state, size = 9 }: { state: VideoState; size?: numb
           width: size,
           height: size,
           background: token,
-          borderRadius: 'var(--radius-xs)',
+          borderRadius: 'var(--corner-xs)',
         }}
       />
     );
@@ -78,7 +78,7 @@ export function StateGlyph({ state, size = 9 }: { state: VideoState; size?: numb
         display: 'inline-block',
         width: size,
         height: size,
-        borderRadius: 'var(--radius-full)',
+        borderRadius: 'var(--corner-full)',
         background: isRing ? 'transparent' : token,
         border: isRing ? `1.75px ${shape === 'ring-dashed' ? 'dashed' : 'solid'} ${token}` : undefined,
         // The single animated element in the product, and only for the one state where
