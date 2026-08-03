@@ -63,6 +63,17 @@ plane that works and a pipeline that fails on its first real run.
 that has normalised assets. It should produce a `renders` row. It will not have one yet, so
 in practice this step is confirmed by C.
 
+**Your stage 3/4 rows are not in the hosted project.** Stages 3 and 4 ran for real on
+2026-08-01 — one concept, one script, seven shots, four cost rows, ₹6.07 through both
+stages — but against a **development container's local Postgres**, because `*.supabase.co`
+was refused at that container's egress policy. Those rows have never been in VidGen, and the
+container they live in is ephemeral.
+
+They are dumped to `kiln-stage34-rows.sql` (14 inserts: 1 channel, 1 concept, 1 script,
+7 shots, 4 cost_ledger). Load them into VidGen after the migrations land if you want the
+first real cost figures and a walkable concept on the board; skip it if you would rather
+start clean. Nothing depends on them.
+
 Detail: `docs/decisions/0010-trigger-deploy.md`.
 
 ---
@@ -275,14 +286,33 @@ publish is blocked on Meta app review and must not be built until that clears.
 
 ---
 
+## Rates: which ones you may type, and which you may not
+
+Two kinds, and conflating them costs you in opposite directions — one blocks a stage for no
+reason, the other makes every rupee figure downstream confidently wrong.
+
+| Kind | Example | May you enter it from documentation? |
+|---|---|---|
+| **Published rate** | Anthropic per-token, ElevenLabs per-character | **Yes.** Mark it verified, cite the page and the date in `source_note`, exactly as the two `anthropic` rows in migration 0006 do. |
+| **Unpublished credit rate** | Every video-model credit price | **No.** Nobody publishes them. Submit one generation, watch the credit balance move, enter the observed delta, and say so in `source_note`. |
+
+The tell is `rate_card.source_note`. If it names a pricing page and a date, it is the first
+kind. If it does not describe an observed balance change, it must not be marked verified —
+and an unverified rate produces no rupee figure anywhere and refuses the submit, which is
+the system working.
+
+The rule in step C — "do not enter a credit rate you read in documentation" — is about the
+second kind only. Applying it to ElevenLabs would block stage 6 for no reason.
+
 ## Three things not to do
 
 1. **Do not add an application-level publish bypass.** `enforce_review_pass` is a database
    trigger and a compliance control, not a workflow convenience. No `force` flag, no admin
    override. ARCHITECTURE.md §0.2.
-2. **Do not enter a credit rate you read in documentation.** Nobody publishes them. A rate
+2. **Do not enter a *credit* rate you read in documentation.** Nobody publishes them. A rate
    marked verified that nobody observed makes every rupee figure downstream confidently
-   wrong, and cost-per-video is the number this project is measured by.
+   wrong, and cost-per-video is the number this project is measured by. This does **not**
+   apply to published per-token and per-character rates — see the table above.
 3. **Do not fill the prompt library from recipes you have not watched.** See D.
 
 ---

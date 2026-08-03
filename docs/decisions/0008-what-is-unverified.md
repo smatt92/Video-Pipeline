@@ -408,46 +408,56 @@ pnpm test:timings                    # must pass unchanged against the real resp
 If `test:timings` fails against a captured response, the converter was written against a
 fiction and the failing assertion names which part.
 
-### 5. Stage 3 has never called the model
+### 5. ~~Stage 3 has never called the model~~ — RESOLVED. It ran, and this entry was stale.
 
-`src/trigger/03-script.ts` and everything under it — the prompt, the schema, the structure
-hash, the ledger write — is written and has never made a request. There is no
-`ANTHROPIC_API_KEY` in this environment. That is the *only* thing missing:
-`api.anthropic.com` answers here (401, so the host is reached and the request is
-unauthenticated), which makes this the one vendor leg that a key alone would unblock.
+**Stages 3 and 4 both called the model on 2026-08-01 at 17:42 UTC.** This section said
+otherwise for two days, and a diagnosis written on 2026-08-03 repeated it as fact instead of
+measuring. The operator had watched the run happen and said so; the register was believed
+over the person who was there.
 
-What has been proven, and it is not nothing:
+That is the exact failure this file exists to prevent, committed by this file. A register of
+what is unverified is only worth anything if it is updated when something *becomes* verified,
+and nothing in the process made that happen — the run was done by hand, in a container that
+was later reset, and no commit followed it.
 
-- **The schema catches what a constrained decode cannot.** Nine cases run against the real
-  compiled schema: a beat silently dropped from `vo_text`, a missing hook, non-monotonic
-  timestamps, a stage direction that would be read aloud, beat counts outside 3–5, a null
-  CTA (legal), and `vo_text` repunctuated relative to the beats (also legal). All nine
-  behave.
-- **The structure hash survives word substitution.** Rewriting every word of a script —
-  hook, all four beats, CTA — produces the *same* hash. Changing the beat count or the
-  pacing produces a different one. That is the anti-template guard doing the job §0.2 of
-  ARCHITECTURE.md gives it; a hash that changed with the words would call the same video
-  made twelve times "unique", which is the claim the policy disbelieves.
-- **The ledger constraints hold against real rows.** Charging one script twice is rejected
-  by `cost_ledger_script_entry_key`; replaying a failed draft is rejected by the
-  idempotency key; a row with no subject is rejected by `cost_ledger_has_subject`; and
-  `v_script_cost` attributes a failed draft to the concept's first script version exactly
-  once (₹1.3275 on v1, ₹1.3275 on v2 in the worked case, not ₹1.77 on both).
+**The evidence**, recovered from `kiln_run` in the development container:
 
-What is unproven is everything downstream of an actual response: whether the model returns
-this schema reliably, what a real draft reads like, what the real token counts and
-therefore the real cost per script are, and whether `stop_reason: 'refusal'` and
-`max_tokens` are handled correctly in practice rather than in principle.
+```
+scripts        1 row   drafted_by=claude-opus-5   beats=3   vo_text=415 chars
+                       draft_raw=1115 bytes       structure_hash=21a954ba…19cc
+                       hook: "Cheap per generation isn't cheap."
+concepts       1 row   rubric_version=manual-v0   status=approved
+shots          7 rows  duration_source=authored   shot_kind assigned on all seven
+cost_ledger    4 rows  reconcile, usd_inr_rate=94
+                       03-script    1783 in / 924 out   ₹0.8380 + ₹2.1714
+                       04-shotlist  1853 in / 931 out   ₹0.8709 + ₹2.1879
+```
 
-**To verify:** `ANTHROPIC_API_KEY=… pnpm verify:script`. It runs `runScriptDraft` — the
-same function the Trigger task calls, not a copy — against a real Supabase project, and
-prints the generated script and the cost rows it reads back from the database. It has no
-offline mode on purpose.
+So the following are no longer unproven, and each was open before this run:
 
-One rate card note that belongs here: the two `anthropic` rows are the **only**
-`is_verified` rows in the table, and the reason is narrow — the vendor publishes the
-number. Every video and voice rate stays unverified until someone watches a credit balance
-move, because nobody publishes those.
+- **The model returns this schema.** A real response parsed against the compiled output
+  schema and passed the cross-field validation on the first attempt.
+- **The real token counts, and therefore the real cost.** ₹3.01 for a script, ₹3.06 for a
+  shotlist — about ₹6 per concept through stages 3 and 4. That number was previously a
+  guess, and it is the first real input to cost-per-video the project has had.
+- **`structure_hash` computes over a real drafted script**, not a fixture.
+- **Stage 4 runs on stage 3's output** and assigns a `shot_kind` to every shot — seven of
+  them, all `duration_source='authored'`, which is correct because stage 6 has not run.
+
+**What is still unproven, and it is narrower than it was.** The run went through
+`verify-script-draft-direct.mjs`, which issues the same rows over a **direct Postgres
+connection** because `*.supabase.co` was refused at the container's egress policy. So the
+vendor leg is proven and the *transport* is not: `db.from(...).insert(...)` through
+supabase-js against PostgREST has still never carried these writes. That is the thin part,
+and everything the database itself enforces — constraints, keys, generated columns — was
+exercised for real by this run.
+
+Also still unproven: `stop_reason: 'refusal'` and `max_tokens` handling in practice. One
+successful draft does not exercise either branch.
+
+**The rows exist only in a development container** and are not in the hosted project. They
+are dumped to SQL rather than left to expire with the container — see the note in
+`docs/HANDOVER.md` under step A.
 
 ### 6. The Higgsfield driver surface
 

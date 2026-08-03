@@ -31,7 +31,10 @@
  * that works when the others do not, and a last resort that needs a working install is
  * not a last resort. It writes a file; the browser does the rest.
  *
- * Usage: node scripts/db-bundle.mjs [--from 0008] [--to 0014] [--out path.sql]
+ * Usage: node scripts/db-bundle.mjs [--from 0008] [--to 0014] [--lean] [--out path.sql]
+ *
+ * `--lean` drops each migration's text from the ledger row it writes, which is about a
+ * third of the file size. Nothing in this repo reads that column; see `ledgerInsert`.
  *
  * With no range it bundles everything. Run `pnpm doctor` first: it prints exactly which
  * versions are already applied, which is the number to pass to --from.
@@ -50,6 +53,8 @@ const opt = (name) => {
 
 const from = opt('from');
 const to = opt('to');
+/** Omit each migration's text from the ledger row. Roughly a third the file size. */
+const lean = args.includes('--lean');
 
 const all = listMigrations();
 const selected = all.filter(
@@ -137,7 +142,7 @@ const body = selected
     // A notice per migration, so the editor's output panel shows how far it got if
     // something fails — the error alone does not say which file it came from.
     const marker = `do $kiln_progress$ begin raise notice 'applying ${m.version} ${m.name}'; end $kiln_progress$;`;
-    return `${banner}\n\n${marker}\n\n${m.sql.trimEnd()}\n\n${ledgerInsert(m)}\n`;
+    return `${banner}\n\n${marker}\n\n${m.sql.trimEnd()}\n\n${ledgerInsert(m, { lean })}\n`;
   })
   .join('\n');
 

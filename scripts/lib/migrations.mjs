@@ -268,12 +268,39 @@ export function safeTag(text, base) {
  * the same values as bind parameters instead — no quoting and no tag collision to reason
  * about, which is one of the things a real client bought.
  */
-export function ledgerInsert(migration) {
+export function ledgerInsert(migration, { lean = false } = {}) {
+  const name = migration.name.replace(/'/g, "''");
+
+  /**
+   * `lean` omits the migration's own text from the `statements` column.
+   *
+   * The column exists for the Supabase CLI's benefit; nothing in this repo reads it —
+   * `appliedVersions` selects `version` and nothing else, and `check:drift` reads the files
+   * on disk. Embedding the SQL means every bundle carries each migration twice, once to run
+   * and once as a string literal, and that roughly triples the file.
+   *
+   * That matters because of what the bundle is *for*. It is the path that works when the
+   * others do not, and a 278 kB paste that the SQL editor will not swallow is not a working
+   * path. A 278 kB bundle failed to apply and a lean one is about a third of that.
+   *
+   * The cost is real and narrow: a project migrated this way cannot have its migration text
+   * reconstructed from the database by `supabase db pull`. The text is in git, which is
+   * where it belongs, and `db:push` still writes the full statements when it is usable.
+   */
+  if (lean) {
+    return (
+      'insert into supabase_migrations.schema_migrations (version, name, statements)\n' +
+      `values ('${migration.version}', '${name}', ` +
+      `array['-- applied from a lean bundle; text in supabase/migrations/${migration.file}'])\n` +
+      'on conflict (version) do nothing;'
+    );
+  }
+
   const sql = migration.sql;
   const tag = safeTag(sql, `kiln_${migration.version}`);
   return (
     'insert into supabase_migrations.schema_migrations (version, name, statements)\n' +
-    `values ('${migration.version}', '${migration.name.replace(/'/g, "''")}', ` +
+    `values ('${migration.version}', '${name}', ` +
     `array[${tag}${sql}${tag}])\n` +
     'on conflict (version) do nothing;'
   );
