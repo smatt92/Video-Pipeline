@@ -42,11 +42,8 @@ const bad = (l, d = '') => {
 };
 
 const work = await mkdtemp(join(tmpdir(), 'kiln-verify-assemble-'));
-const storageRoot = join(work, 'storage');
-await mkdir(storageRoot, { recursive: true });
-process.env.KILN_LOCAL_STORAGE_ROOT = storageRoot;
-
-const { writeStreamLocal, localPathFor } = await import(`${BUILD}/storage/local.js`);
+// The local driver is no longer used here at all: section 4 runs the whole path over a
+// real S3 endpoint, which is the leg that had never executed.
 
 console.log('\nRough-cut assembler verification\n');
 
@@ -175,8 +172,62 @@ try {
   console.log('        had it not refused: ffmpeg itself failed on the mismatched set');
 }
 
-// ── 4. Through the database ─────────────────────────────────────────────────
-console.log('\n4. End to end through runAssemble, writing a renders row\n');
+// ── 4. Through the database, over a REAL S3 endpoint ────────────────────────
+//
+// s3rver is an S3-compatible server. The point is not that it is Supabase — it is that
+// the assemble path now goes: presignGet → HTTP GET → temp file → ffmpeg → presignPut,
+// exactly as it will in production, instead of resolving a local path. That leg had never
+// executed, and it is the one that fails after a generation is paid for.
+console.log('\n4. End to end through runAssemble, over a real S3 endpoint\n');
+
+const S3Rver = (await import('s3rver')).default;
+const s3Dir = join(work, 's3');
+await mkdir(s3Dir, { recursive: true });
+
+const BUCKET = 'kiln-test';
+const s3 = new S3Rver({
+  port: 0,
+  address: '127.0.0.1',
+  silent: true,
+  directory: s3Dir,
+  configureBuckets: [{ name: BUCKET }],
+});
+const s3Address = await new Promise((res) => {
+  const server = s3.run((err, addr) => {
+    if (err) throw err;
+    res(addr);
+  });
+  void server;
+});
+const endpoint = `http://127.0.0.1:${s3Address.port}`;
+console.log(`  s3rver listening on ${endpoint}, bucket "${BUCKET}"`);
+
+// The real Supabase driver, pointed at s3rver. Same code, same SigV4 presigning, same
+// forcePathStyle — only the host differs.
+process.env.SUPABASE_URL = endpoint;
+process.env.SUPABASE_STORAGE_BUCKET = BUCKET;
+process.env.SUPABASE_S3_REGION = 'us-east-1';
+process.env.SUPABASE_S3_ACCESS_KEY_ID = 'S3RVER';
+process.env.SUPABASE_S3_SECRET_ACCESS_KEY = 'S3RVER';
+process.env.SUPABASE_S3_ENDPOINT = `${endpoint}/storage/v1/s3`;
+
+const { createSupabaseStorageDriver } = await import(`${BUILD}/storage/supabase.js`);
+// The real driver, only the endpoint differs. forcePathStyle is not passed because it is
+// not optional in that driver — it is hardcoded true, which is exactly what s3rver needs.
+const driver = createSupabaseStorageDriver({
+  accessKeyId: 'S3RVER',
+  secretAccessKey: 'S3RVER',
+  endpoint,
+  bucket: BUCKET,
+  region: 'us-east-1',
+});
+
+const probeResult = await driver.probe();
+if (!probeResult.ok) {
+  bad('s3 round trip', probeResult.detail);
+} else {
+  ok('s3 round trip through the real driver', probeResult.detail);
+}
 
 const client = (await pg.tryConnect(dbUrl)).client;
 const ids = {
@@ -189,6 +240,7 @@ await client.query(`delete from renders where script_id = $1`, [ids.script]);
 await client.query(
   `delete from assets where generation_id in (select id from generations where idempotency_key like 'asm-%')`,
 );
+await client.query(`delete from assets where storage_key like 'renders/%'`);
 await client.query(`delete from generations where idempotency_key like 'asm-%'`);
 await client.query(`delete from shots where script_id = $1`, [ids.script]);
 await client.query(`delete from scripts where id = $1`, [ids.script]);
@@ -209,8 +261,8 @@ await client.query(
   [ids.script, ids.concept],
 );
 
-// Store the normalised clips as if ingest had, then point the assembler at the script.
-const { createReadStream } = await import('node:fs');
+// Upload each normalised clip THROUGH the driver's presigned PUT, as ingest would.
+const { readFile } = await import('node:fs/promises');
 for (const [i, clip] of normalised.entries()) {
   const shot = (
     await client.query(
@@ -229,24 +281,47 @@ for (const [i, clip] of normalised.entries()) {
   ).rows[0].id;
 
   const key = `generations/${gen}/video.mp4`;
-  const bytes = await writeStreamLocal(key, createReadStream(clip.path));
-  const meta = await probe(clip.path);
+  const bytes = await readFile(clip.path);
+  const signed = await driver.presignPut({ key, contentType: 'video/mp4' });
+  const put = await fetch(signed.url, {
+    method: 'PUT',
+    body: new Uint8Array(bytes),
+    headers: { 'content-type': 'video/mp4' },
+  });
+  if (!put.ok) {
+    bad(`upload clip ${i}`, `presigned PUT returned ${put.status}`);
+    break;
+  }
 
+  const meta = await probe(clip.path);
   await client.query(
     `insert into assets (generation_id,kind,storage_key,bytes,duration_s,width,height,normalized_at)
      values ($1,'video',$2,$3,$4,$5,$6,now())`,
-    [gen, key, bytes, meta.durationS, meta.width, meta.height],
+    [gen, key, bytes.length, meta.durationS, meta.width, meta.height],
   );
 }
 
+ok('six clips uploaded through presigned PUT', `to ${BUCKET}`);
+
+const putBytes = async (key, body) => {
+  const chunks = [];
+  for await (const chunk of body) chunks.push(Buffer.from(chunk));
+  const buf = Buffer.concat(chunks);
+  const signed = await driver.presignPut({ key, contentType: 'video/mp4' });
+  const res = await fetch(signed.url, {
+    method: 'PUT',
+    body: new Uint8Array(buf),
+    headers: { 'content-type': 'video/mp4' },
+  });
+  if (!res.ok) throw new Error(`presigned PUT ${res.status}`);
+  return buf.length;
+};
+
 const db = makeDb(client);
-const dbResult = await runAssemble(
-  { scriptId: ids.script },
-  { db, localPath: localPathFor, putBytes: writeStreamLocal },
-);
+const dbResult = await runAssemble({ scriptId: ids.script }, { db, driver, putBytes });
 
 if (!dbResult.ok) {
-  bad('runAssemble', `${dbResult.code}: ${dbResult.detail}`);
+  bad('runAssemble over S3', `${dbResult.code}: ${dbResult.detail}`);
 } else {
   const render = (await client.query('select * from renders where id = $1', [dbResult.renderId])).rows[0];
   if (!render) bad('renders row', 'absent');
@@ -255,15 +330,85 @@ if (!dbResult.ok) {
   else {
     ok(
       'renders row',
-      `kind=${render.kind} status=${render.status} ${Number(render.duration_s).toFixed(2)}s ` +
-        `${render.width}x${render.height} render_ms=${render.render_ms}`,
+      `kind=${render.kind} status=${render.status} ${Number(render.duration_s).toFixed(2)}s render_ms=${render.render_ms}`,
     );
-    const stored = await probe(localPathFor(dbResult.key));
-    if (!isCanonical(stored)) bad('stored render', 'not canonical');
-    else ok('stored render', `${dbResult.key}, ${stored.durationS.toFixed(2)}s, playable`);
+  }
+
+  // Pull the render back out of the bucket and prove it is what we think it is.
+  const back = await driver.presignGet({ key: dbResult.key });
+  const res = await fetch(back.url);
+  const outBytes = Buffer.from(await res.arrayBuffer());
+  const roundTripPath = join(work, 'from-bucket.mp4');
+  const { writeFile: wf } = await import('node:fs/promises');
+  await wf(roundTripPath, outBytes);
+  const stored = await probe(roundTripPath);
+
+  if (!isCanonical(stored)) bad('render read back from the bucket', 'not canonical');
+  else if (Math.abs(stored.durationS - expectedTotal) > 0.5) {
+    bad('render read back from the bucket', `${stored.durationS.toFixed(2)}s`);
+  } else {
+    ok(
+      'render read back from the bucket',
+      `${dbResult.key}, ${stored.durationS.toFixed(2)}s, ${(outBytes.length / 1024).toFixed(0)}kB, canonical`,
+    );
   }
 }
 
+// ── 5. Temp files are cleaned up on both paths ──────────────────────────────
+console.log('\n5. Temp directories must not leak, on success or failure\n');
+
+const { readdir } = await import('node:fs/promises');
+const beforeTmp = (await readdir(tmpdir())).filter((f) => f.startsWith('kiln-assemble-')).length;
+
+// A failure part-way through materialise: an asset row pointing at a key with no object.
+await client.query(
+  `insert into assets (generation_id,kind,storage_key,bytes,duration_s,width,height,normalized_at)
+   select generation_id,'video','generations/missing/video.mp4',1,1,1080,1920,now()
+   from assets where storage_key like 'generations/%' limit 1`,
+);
+const brokenShot = (
+  await client.query(
+    `insert into shots (script_id,idx,duration_s,description,status)
+     values ($1,99,2,'missing','ready') returning id`,
+    [ids.script],
+  )
+).rows[0].id;
+const brokenGen = (
+  await client.query(
+    `insert into generations (shot_id,kind,driver,model,status,idempotency_key,request_payload,submitted_at,confirmed_at)
+     values ($1,'video','higgsfield','dop-lite','succeeded','asm-broken','{}'::jsonb,now(),now()) returning id`,
+    [brokenShot],
+  )
+).rows[0].id;
+await client.query(
+  `insert into assets (generation_id,kind,storage_key,bytes,duration_s,width,height,normalized_at)
+   values ($1,'video','generations/nothing-here/video.mp4',1,1,1080,1920,now())`,
+  [brokenGen],
+);
+
+const failResult = await runAssemble({ scriptId: ids.script, variantLabel: 'broken' }, { db, driver, putBytes });
+
+if (failResult.ok) {
+  bad('missing object', 'assembled anyway');
+} else if (failResult.code !== 'materialise_failed') {
+  bad('missing object', `wrong code: ${failResult.code}`);
+} else {
+  ok('missing object refused', failResult.detail.slice(0, 90));
+  const failRender = (
+    await client.query('select status from renders where id = $1', [failResult.renderId])
+  ).rows[0];
+  if (failRender?.status !== 'failed') bad('failure is a row', `status=${failRender?.status}`);
+  else ok('failure is a row', "renders.status = 'failed'");
+}
+
+const afterTmp = (await readdir(tmpdir())).filter((f) => f.startsWith('kiln-assemble-')).length;
+if (afterTmp > beforeTmp) {
+  bad('temp cleanup', `${afterTmp - beforeTmp} kiln-assemble-* director(ies) leaked`);
+} else {
+  ok('temp cleanup', 'no kiln-assemble-* directories left behind, success or failure');
+}
+
+s3.close();
 await client.end();
 await rm(work, { recursive: true, force: true });
 

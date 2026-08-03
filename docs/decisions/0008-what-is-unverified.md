@@ -434,6 +434,45 @@ itself a small result.
 **Never executed:** the Trigger tasks under Trigger's runtime, the ffmpeg build extension,
 and the deploy. See 0010.
 
+### 5d. The bucket assemble path — RUN. The ffmpeg build extension — NOT.
+
+**Run.** `07-assemble` used to throw for any driver but `local-fs`, so the production path
+had never executed. It now downloads every clip through `presignGet` and a plain `fetch`,
+assembles, and pushes the render back through `presignPut` — and that whole leg was
+exercised against **s3rver**, a real S3-compatible server, using the real Supabase driver
+with only the endpoint changed. `pnpm verify:assemble` now reports:
+
+```
+  PASS  s3 round trip through the real driver
+  PASS  six clips uploaded through presigned PUT
+  PASS  renders row — kind=rough_cut status=ready 10.05s
+  PASS  render read back from the bucket — 10.05s, 1599kB, canonical
+  PASS  missing object refused — presigned GET returned 404
+  PASS  failure is a row — renders.status = 'failed'
+  PASS  temp cleanup — no kiln-assemble-* directories left behind, success or failure
+```
+
+The download goes through the presigned URL rather than the SDK deliberately. A worker
+holding the service key could read objects directly and that would be simpler — and the
+presign path could then be broken for weeks while every worker kept working, discovered the
+first time somebody opened a review screen. Same door, so they stay honest about each other.
+
+**Not run: the ffmpeg build extension.** `trigger.config.ts` now declares
+`build: { extensions: [ffmpeg()] }` and `@trigger.dev/build` is installed. Exercising it
+means running a deploy, which needs an account this environment does not have.
+
+> **Symptom if it is wrong or missing:** `05b-ingest` fails with `spawn ffmpeg ENOENT` on
+> its first run — **after** the generation has been paid for. The generation row records it,
+> so nothing is lost beyond the wait and the credits.
+
+Declared rather than omitted on purpose: a config error surfaces at build time and costs a
+minute, a runtime error surfaces after money moved. That is the cheaper of the two failures
+even though neither has been observed.
+
+**Also not run:** clock skew. The 403 branch in `materialise` says signature windows are the
+usual cause, which is read from the SigV4 spec rather than observed — s3rver and this
+container share a clock.
+
 ### 6. Stage 5 — every part of it
 
 Submit, callback, confirmation and ingest are all written and none has run. The vendor host

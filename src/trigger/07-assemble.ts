@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { runAssemble } from '@/lib/assemble/run';
 import { serverClient } from '@/lib/db/server';
 import { storage } from '@/lib/storage';
-import { localPathFor, writeStreamLocal } from '@/lib/storage/local';
+import { writeStreamLocal } from '@/lib/storage/local';
 
 /**
  * Stage 7 — the rough cut.
@@ -14,6 +14,11 @@ import { localPathFor, writeStreamLocal } from '@/lib/storage/local';
  * ffmpeg, therefore not Vercel (rule 3). Replayable from a script id alone: it re-resolves
  * the current assets each time, so re-running after a shot was regenerated picks up the
  * replacement without any other state.
+ *
+ * Every clip is downloaded to the container through a presigned GET before ffmpeg sees it,
+ * and the temp directory is released on success and failure alike. That path is no longer
+ * driver-specific — the earlier version threw for anything but the local driver, which
+ * meant the production path had never run.
  */
 
 const Payload = z.object({
@@ -22,50 +27,49 @@ const Payload = z.object({
 });
 
 /**
- * The assembler needs LOCAL paths — ffmpeg reads files, not URLs.
+ * Writing bytes is driver-specific and deliberately not on `StorageDriver`.
  *
- * With an object store that means downloading each asset to the container first. That
- * download is deliberately not written yet: it has never been executed against a real
- * bucket, and a plausible-looking implementation of the one step that has to work would be
- * exactly the thing this project keeps refusing to ship. The local driver path IS executed,
- * end to end, by `pnpm verify:assemble`.
+ * The interface hands out URLs so no Vercel route can proxy media (rule 2). This worker
+ * has no such limit, so the write is resolved per driver here rather than by widening an
+ * interface every call site can see. Reading is not resolved here — that goes through
+ * `presignGet` in `materialise`, which is the same door the browser uses.
  */
-function resolverFor(): {
-  localPath: (key: string) => string;
-  putBytes: (key: string, body: Readable) => Promise<number>;
-} {
+function putterFor(): (key: string, body: Readable) => Promise<number> {
   const driver = storage();
 
-  if (driver.slug === 'local-fs') {
-    return { localPath: localPathFor, putBytes: writeStreamLocal };
-  }
+  if (driver.slug === 'local-fs') return writeStreamLocal;
 
-  throw new Error(
-    `Assembly against the "${driver.slug}" driver needs each asset downloaded to the ` +
-      'container before ffmpeg can read it, and that download has never been run against a ' +
-      'real bucket. Implement it in this function — presignGet, stream to a temp file, hand ' +
-      'back the path — and delete this throw. Refusing loudly beats a half-written path that ' +
-      'produces a broken cut.',
-  );
+  return async (key, body) => {
+    const signed = await driver.presignPut({ key, contentType: 'video/mp4' });
+    const chunks: Buffer[] = [];
+    for await (const chunk of body) chunks.push(Buffer.from(chunk));
+    const bytes = Buffer.concat(chunks);
+    const response = await fetch(signed.url, {
+      method: 'PUT',
+      body: new Uint8Array(bytes),
+      headers: { 'content-type': 'video/mp4' },
+    });
+    if (!response.ok) throw new Error(`Presigned PUT returned ${response.status} for ${key}`);
+    return bytes.length;
+  };
 }
 
 export const assembleTask = schemaTask({
   id: '07-assemble',
   schema: Payload,
 
-  // One at a time. Concat is a stream copy and fast, but it reads every clip off disk at
-  // once and the container's disk is the ceiling, not the CPU.
+  // One at a time. Concat is a stream copy and fast, but a run now holds every clip on
+  // disk at once, so the container's disk is the ceiling rather than its CPU.
   queue: { concurrencyLimit: 2 },
   machine: 'small-2x',
 
   run: async (payload) => {
     const db = serverClient();
-    const { localPath, putBytes } = resolverFor();
 
     const result = await runAssemble(payload, {
       db,
-      localPath,
-      putBytes,
+      driver: storage(),
+      putBytes: putterFor(),
       log: {
         info: (m, d) => logger.info(m, d as Record<string, unknown>),
         error: (m, d) => logger.error(m, d as Record<string, unknown>),

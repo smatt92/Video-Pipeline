@@ -5,8 +5,9 @@ import { Readable } from 'node:stream';
 
 import type { Db } from '../db/server';
 import { CANONICAL } from '../ingest/normalise';
-import { storageKeySchema } from '../storage';
-import { assembleRoughCut, type ClipInput } from './rough-cut';
+import { storageKeySchema, type StorageDriver } from '../storage';
+import { materialise, MaterialiseError } from './materialise';
+import { assembleRoughCut } from './rough-cut';
 
 /**
  * Stage 7 — assemble a rough cut from a script's normalised shots.
@@ -29,9 +30,14 @@ export interface AssemblePayload {
 
 export interface AssembleDeps {
   db: Db;
-  /** Local path for a stored key, so ffmpeg can read it. */
-  localPath: (key: string) => string;
+  /**
+   * The store the clips live in. Assets are downloaded through its presigned GET — the
+   * same door the browser uses — because ffmpeg reads files and a bucket object is not
+   * one.
+   */
+  driver: StorageDriver;
   putBytes: (key: string, body: Readable) => Promise<number>;
+  fetchImpl?: typeof fetch;
   log?: { info(m: string, d?: unknown): void; error(m: string, d?: unknown): void };
 }
 
@@ -45,7 +51,7 @@ export async function runAssemble(
   payload: AssemblePayload,
   deps: AssembleDeps,
 ): Promise<AssembleRunResult> {
-  const { db, localPath, putBytes } = deps;
+  const { db, driver, putBytes } = deps;
   const log = deps.log ?? noop;
   const variantLabel = payload.variantLabel ?? 'rough';
 
@@ -117,16 +123,47 @@ export async function runAssemble(
     };
   }
 
-  const clips: ClipInput[] = shots.map((s) => {
-    const asset = shotToAsset.get(s.id)!;
-    return { path: localPath(storageKeySchema.parse(asset.key)), label: `shot ${s.idx}` };
-  });
+  const wanted = shots.map((s) => ({
+    key: storageKeySchema.parse(shotToAsset.get(s.id)!.key),
+    label: `shot ${s.idx}`,
+  }));
 
   const work = await mkdtemp(join(tmpdir(), 'kiln-assemble-'));
   const outPath = join(work, 'rough-cut.mp4');
 
+  // Declared out here so the finally can release it whatever happens between.
+  let downloaded: Awaited<ReturnType<typeof materialise>> | null = null;
+
   try {
-    const result = await assembleRoughCut({ clips, outputPath: outPath, workDir: work });
+    try {
+      downloaded = await materialise({
+        driver,
+        dir: join(work, 'clips'),
+        items: wanted,
+        fetchImpl: deps.fetchImpl,
+      });
+    } catch (err) {
+      const detail =
+        err instanceof MaterialiseError
+          ? `Could not fetch ${err.key}: ${err.message}`
+          : err instanceof Error
+            ? err.message
+            : String(err);
+      const renderId = await failedRender(db, script.id, variantLabel, detail);
+      log.error('materialise failed', { detail });
+      return { ok: false, code: 'materialise_failed', detail, renderId };
+    }
+
+    log.info('materialised', {
+      clips: downloaded.clips.length,
+      bytes: downloaded.clips.reduce((n, c) => n + c.bytes, 0),
+    });
+
+    const result = await assembleRoughCut({
+      clips: downloaded.clips.map((c) => ({ path: c.path, label: c.label })),
+      outputPath: outPath,
+      workDir: work,
+    });
 
     if (!result.ok) {
       const renderId = await failedRender(db, script.id, variantLabel, result.detail);
@@ -213,6 +250,11 @@ export async function runAssemble(
       renderMs: result.renderMs,
     };
   } finally {
+    // Both, in order. `release()` owns the clip directory and is idempotent; the outer
+    // rm takes the concat list and the render itself. A container that leaks a directory
+    // per failed render fills its disk in an afternoon, and the symptom is unrelated
+    // tasks failing on ENOSPC.
+    await downloaded?.release();
     await rm(work, { recursive: true, force: true }).catch(() => {});
   }
 }

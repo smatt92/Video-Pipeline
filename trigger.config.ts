@@ -1,3 +1,4 @@
+import { ffmpeg } from '@trigger.dev/build/extensions/core';
 import { defineConfig } from '@trigger.dev/sdk';
 
 /**
@@ -40,6 +41,21 @@ export default defineConfig({
    * rather than hang forever.
    */
   maxDuration: 3_600,
+
+  /**
+   * ffmpeg on the worker image.
+   *
+   * `05b-ingest` and `07-assemble` shell out to `ffmpeg` and `ffprobe`, and Trigger's
+   * default image carries neither. Without this the first ingest fails with
+   * `spawn ffmpeg ENOENT` — **after** the generation has been paid for, which is the
+   * whole reason it is declared now rather than discovered then.
+   *
+   * ** UNVERIFIED. ** This extension has never been executed: exercising it means running
+   * a deploy, and the deploy needs an account this environment does not have. A config
+   * error surfaces at build time and costs a minute; a runtime error surfaces after money
+   * moved. Declaring it is the cheaper failure of the two. See 0008 §7.
+   */
+  build: { extensions: [ffmpeg()] },
 
   dirs: ['./src/trigger'],
 });
