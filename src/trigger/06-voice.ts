@@ -68,7 +68,7 @@ export const voiceTask = schemaTask({
       });
     }
 
-    return runVoice(payload, {
+    const result = await runVoice(payload, {
       db,
       apiKey,
       usdInrRate: env.USD_INR_RATE,
@@ -76,5 +76,29 @@ export const voiceTask = schemaTask({
       runId: ctx.run.id,
       log: logger,
     });
+
+    // ── Then stage 5, which was waiting on exactly this ─────────────────────
+    //
+    // The last link in the chain, and the one that makes the audio-first ordering real
+    // rather than documented. Stage 5 refuses any shot whose `duration_source` is still an
+    // estimate; this stage is what sets `derived_from_vo`, so it is the only correct place
+    // to hand over.
+    //
+    // Triggered rather than awaited: nothing here reads the submit's outcome, and waiting
+    // would make a vendor refusal at stage 5 look like a voice failure — so a retry would
+    // re-render audio that was fine, and pay for it.
+    if (result.ok) {
+      try {
+        const { generateTask } = await import('./05-generate');
+        await generateTask.trigger({ scriptId: payload.scriptId });
+      } catch (err) {
+        logger.error('voice rendered, but stage 5 could not be enqueued', {
+          scriptId: payload.scriptId,
+          detail: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    return result;
   },
 });

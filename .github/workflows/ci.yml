@@ -152,6 +152,20 @@ jobs:
       - name: Review timeline, trims, reorder and the publish gate
         run: pnpm verify:review "$DATABASE_URL"
 
+      # ── The three stages that were never written ─────────────────────────
+      # Stage 2 first, because it is the pipeline's real entry point: trend intake without
+      # concept generation produces a table nobody reads, and concept generation works from
+      # a hand-typed seed. Each drives the real SDK against a local server, so the error
+      # classes and the structured-output parsing are exercised rather than mocked.
+      - name: Stage 2 — concepts scored, charged to the channel, landing as drafts
+        run: pnpm verify:concepts "$DATABASE_URL"
+
+      - name: Stage 9 — metadata refuses without a passing review, and measures its prompt
+        run: pnpm verify:metadata "$DATABASE_URL"
+
+      - name: Stage 1 — trend intake deduplicates and reports what it could not reach
+        run: pnpm verify:trends "$DATABASE_URL"
+
       # ── Stage 5, which had no caller until it had a harness ──────────────
       # Wiring submitShots to a task without proving it would have moved it from "built,
       # tested, unreachable" to "built, untested, reachable" — strictly worse, because it

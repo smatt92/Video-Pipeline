@@ -508,6 +508,63 @@ console.log('\n8. Approving a concept is a transition, not a field write\n');
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// The reason a chain goes quiet, in one row rather than four tables.
+//
+// This section exists because of what the sweep found: stage 5 refuses any shot whose
+// duration is still an estimate, only stage 6 sets `derived_from_vo`, and stage 6 had no
+// caller — so the 03 → 04 → 05 chain was complete, green, and submitted nothing, for ever.
+// Every stage passed its own harness. The emptiness was only visible end to end.
+console.log('\n9. Why a script is stuck, answered in one place\n');
+{
+  const recipe = await makeRecipe();
+
+  // A channel with no host voice. Stage 6 cannot run unattended, so stage 5 never gets a
+  // measured duration — the exact inert state.
+  const { scriptId } = await seedScript([
+    { promptId: recipe, durationSource: 'authored' },
+  ]);
+
+  const { rows: noVoice } = await client.query(
+    `select blocker from v_pipeline_blockers where script_id = $1`,
+    [scriptId],
+  );
+  if (/no host voice/.test(noVoice[0]?.blocker ?? '')) {
+    ok('a channel with no host voice is named as the blocker', noVoice[0].blocker);
+  } else {
+    bad('a channel with no host voice is named as the blocker', JSON.stringify(noVoice[0]));
+  }
+
+  // Give it a voice. The next blocker down should surface — the durations, which is what
+  // stage 6 would have fixed.
+  await client.query(`update channels set host_voice_id = 'voice-abc' where id = $1`, [channelId]);
+  const { rows: withVoice } = await client.query(
+    `select blocker from v_pipeline_blockers where script_id = $1`,
+    [scriptId],
+  );
+  if (/durations are still estimates/.test(withVoice[0]?.blocker ?? '')) {
+    ok('  · and fixing it reveals the next one', withVoice[0].blocker);
+  } else {
+    bad('  · and fixing it reveals the next one', JSON.stringify(withVoice[0]));
+  }
+
+  // A script with everything in place has no blocker at all. Null rather than a cheerful
+  // string, so a caller can filter on it.
+  const { scriptId: ready } = await seedScript([{ promptId: recipe }]);
+  const { rows: clear } = await client.query(
+    `select blocker from v_pipeline_blockers where script_id = $1`,
+    [ready],
+  );
+  if (clear[0] && clear[0].blocker === null) {
+    ok('  · and a ready script has none', 'null, not a message');
+  } else {
+    bad('  · and a ready script has none', JSON.stringify(clear[0]));
+  }
+
+  await client.query(`update channels set host_voice_id = null where id = $1`, [channelId]);
+}
+
 vendor.close();
 await scratch.release();
 

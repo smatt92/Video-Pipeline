@@ -15,9 +15,10 @@ which are merely wired — which is the reason it exists.
 One vendor has ever been called from this codebase: **Anthropic**, twice, on 2026-08-01,
 producing a script and a shotlist and four `cost_ledger` rows totalling **₹6.07**. Nothing
 else has spoken to a vendor. Everything else that works, works against synthetic inputs in
-a harness — which is a real and useful category, covering 248 assertions across twelve
-harnesses, all green as of today. Stage 5 is now wired and proven up to the vendor;
-the largest remaining holes are three stages that were never written — see §6.
+a harness — which is a real and useful category, covering 301 assertions across fifteen
+harnesses, all green as of today. Stage 5 is wired and proven up to the vendor, and the three
+unbuilt stages are built. The pipeline now chains from an approved concept to a submitted
+generation — see §8 for the one missing column that had been making that chain inert.
 
 ---
 
@@ -60,11 +61,14 @@ difference is always the vendor.
 | `verify:scaling` | **11** | The compiled stylesheet in a real Chromium at seven widths, WCAG 1.4.4 / 1.4.10 / 1.4.12 / 2.5.8 | A probe page, not the app's own screens |
 | `verify:tour` | **20** | `/onboarding` in a real Chromium: canvas, contrast under the actual text, reduced motion, context loss | SwiftShader, not a GPU |
 | `verify:referral` | **9** | Attribution written once and not overwritten; the roll-up carries nothing identifying | Ledger rows are inserted, not earned |
-| `verify:submit` | **30** | Stage 5: every refusal before the spend, one submit per shot, the vendor error taxonomy, the concept approval transition | A local server stands in for the vendor's HTTP surface |
+| `verify:submit` | **33** | Stage 5: every refusal before the spend, one submit per shot, the vendor error taxonomy, the approval transition, the blocker view | A local server stands in for the vendor's HTTP surface |
+| `verify:concepts` | **23** | Stage 2: the rubric arithmetic, the validations a decode constraint cannot express, drafts only, the batch charge dividing | A local server stands in for the Messages API |
+| `verify:metadata` | **15** | Stage 9: refusal without a passing review, the DB publish gate in both directions, the title-shape check | Same |
+| `verify:trends` | **12** | Stage 1: the velocity proxy, same-day dedup keeping the later reading, a source being down | A local server stands in for the feed |
 | `verify:webhook` | **25** | The callback over real HTTP: secret gate, payload gate, delivery RPC, replay, the vendor overruling the body | A local server stands in for the status endpoint |
 | `verify:ingest` | **5** | 3 source shapes → the canonical intermediate; a corrupt file → an error row | Sources are ffmpeg-generated |
 
-**Total: 248 assertions, all green today, and all twelve harnesses run in CI.** Four further
+**Total: 301 assertions, all green today, and all fifteen harnesses run in CI.** Four further
 guards are exempt with reasons: `verify:vault` and `verify:storage` need a live Supabase
 project, and the two `verify:script*` variants spend money on a billed model call.
 
@@ -210,7 +214,8 @@ same file, schemas used inline. Four were real, in three distinct shapes:
 |---|---|---|
 | `submitShots` | No caller, **and no vendor call** | Wired; see §7 |
 | `04-prompt-compile` | Complete task, nothing triggered it | Called by stage 3 and by the Studio |
-| `03-script`, `06-voice` | Complete tasks, nothing triggers them | 03 is now called by nothing *upstream* — see below |
+| `03-script` | Complete task, nothing triggered it | Called by `approveConcept` |
+| `06-voice` | Complete task, nothing triggered it — **and its absence made four other stages inert** | Called by stage 4; see §8 |
 | `src/lib/generate/normalise.ts` | **Superseded and left behind** | Deleted |
 
 The last two are worth separating, because they are not the same problem.
@@ -247,28 +252,19 @@ the judgement is the point.
 
 ---
 
-## 6. The seven stages with no Trigger task
+## 6. The stages with no Trigger task — three of seven now built
 
-Priority order, with what each is actually blocked on. Three of the seven are blocked on
-nothing but work.
+| # | Stage | State |
+|---|---|---|
+| **1** | Trend intake | **Built.** Reddit only; YouTube needs an API key and Google Trends has no supported endpoint. Both refuse explicitly rather than returning empty. |
+| **2** | Concept generation | **Built.** The pipeline's real entry point. |
+| **9** | Metadata | **Built.** Refuses without a passing review; writes a draft the DB gate stands in front of. |
+| 11 | Measure | Blocked on a published video. |
+| 10 | Publish | Meta app review, 2–4 weeks. A deliberate Phase 1 deferral. |
 
-| # | Stage | Blocked on | Why this priority |
-|---|---|---|---|
-| **2** | **Concept generation** | **Nothing** | Nothing in this codebase can approve a concept, so stages 3–7 have no upstream. It is the reason `03-script` has no caller. Needs Anthropic, which is the one vendor that works. |
-| **1** | **Trend intake** | **Nothing** | YouTube/Reddit/Trends are public reads. Feeds stage 2, and without it every concept is hand-typed. |
-| **9** | **Metadata** | **Nothing** | Title/description/tags/uniqueness check. Anthropic again, plus a check against the last N videos that the `structure_hash` machinery already supports. |
-| 11 | Measure | A published video | Nothing to measure until stage 10 has run once. Its own vendor reads are public, so it is only blocked on *having output*. |
-| 10 | Publish | Meta app review (2–4 weeks) | Manual in Phase 1 by decision. Not a gap — a deliberate deferral. |
-| 5b | *(exists)* | — | Listed in the eleven, not a missing task. |
-| 8 | *(a screen)* | — | The QA gate is `/review`, not a task. |
-
-**The recommendation, stated plainly: stage 2 before stage 1.** Trend intake without concept
-generation produces a table nobody reads; concept generation without trend intake still
-works from a hand-typed seed. Building 2 first makes 1 immediately useful, and building 1
-first does not.
-
-None of the three unblocked stages was built in this pass, and that is a decision rather
-than an omission — see §8.
+Stage 2 was built first on the reasoning in the previous revision of this section, and it
+held: stage 1 is now useful because stage 2 exists to read it, and stage 2 never needed
+stage 1 to work.
 
 ---
 
@@ -317,31 +313,37 @@ account is empty. Both spellings are asserted, because they arrive by different 
 
 ## 8. The smallest gap I picked, and why
 
-**An approval action** — `src/lib/concepts/approve.ts`.
+**A host voice on the channel** — migration 0024, plus two chain links.
 
-Nine lines of consequence. Approving a concept is the event `03-script` waits for, and it
-existed nowhere in this codebase: `grep` found the enum value `'approved'` in
-`src/lib/db/enums.ts` and not one thing that could set it. So the entire pipeline lane had
-no entry point, and with the stage 3 → 4 → 5 chain now in place, **one missing function was
-holding four complete stages out of reach**.
+The sweep found two tasks with no caller: `trendsTask`, which I had just written and which
+needs a cron, and `voiceTask`, which had never had one. The second turned out to be the
+interesting one, and the finding is the best argument yet for running this sweep:
 
-That is the argument for picking it over the three unbuilt stages in §6, all of which are
-larger and none of which is reachable until this exists. It is also the cheapest possible
-demonstration that §5b is a real category rather than a tidiness complaint: nothing was
-broken, everything was green, and the product could not start a pipeline run.
+- Stage 5 refuses any shot whose `duration_source` is still the shotlist's estimate. That
+  is the audio-first rule, and `verify:submit` §1 asserts it.
+- **Only stage 6 sets `derived_from_vo`.**
+- Stage 6 had no caller, because it needs a `voiceId` and the host voice was
+  `VOICE_SETTINGS.hostVoice` — a constant in a fixtures file, not a column.
 
-It is a compare-and-set (`where status = 'draft'`) rather than a read-then-write, for the
-same reason `confirm_generation_once` is: approving spends money, and two clicks must
-produce one script and one charge. A failed enqueue does not roll back the approval — the
-decision is a human's and has been recorded; the transport can be retried.
+So the 03 → 04 → 05 chain built last round was **complete, green, and inert**: it would have
+submitted zero shots, every time, for ever. Every stage passed its own harness. The
+emptiness is only visible end to end, which is precisely the shape §5b exists to catch and
+precisely what no per-stage test can show.
 
-Five assertions in `verify:submit` §8, including that a killed concept cannot be approved,
-because a kill is editorial evidence and overwriting it discards a judgement.
+One missing column made four working stages produce nothing.
 
-**Not done: any UI calls it.** `/concepts` is still the placeholder that §6 of `nav.ts`
-marks "needs the script generation leg". The function is reachable from a Server Action and
-from a harness; a button is stage 2's work, because there is nothing to list until concepts
-are being generated.
+The fix is a column, a language default, and two chain links — 04 → 06 when the channel has
+a voice, 06 → 05 on success. A channel with no voice stops the chain *legibly* rather than
+silently: the script and shotlist are real, and a human can pick a voice and replay.
+
+`v_pipeline_blockers` is the other half, and the more valuable one. For every script it
+names the *first* reason it cannot reach a generation, ordered by how early the stage sits —
+or null when nothing is blocking. It exists because the failure mode of this pipeline is
+silence, and reading silence back from four tables is how it goes unnoticed for a week.
+Three assertions in `verify:submit` §9, including that fixing one blocker reveals the next.
+
+**Not done: a UI writes the voice.** It is a column and a Settings screen away, and the
+Settings screen is stage 2's neighbour rather than this pick's.
 
 ---
 
@@ -350,7 +352,7 @@ are being generated.
 ```bash
 pnpm check                                  # everything that needs no database
 export DATABASE_URL=...                     # any Postgres you may create databases on
-for h in ingest assemble review studio referral webhook submit; do pnpm verify:$h "$DATABASE_URL"; done
+for h in ingest assemble review studio referral webhook submit concepts metadata trends; do pnpm verify:$h "$DATABASE_URL"; done
 pnpm build && pnpm verify:scaling && pnpm verify:tour
 ```
 

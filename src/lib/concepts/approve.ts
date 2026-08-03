@@ -93,3 +93,30 @@ export async function approveConcept(db: Db, conceptId: string): Promise<Approve
     return { ok: true, conceptId, enqueued: false, detail };
   }
 }
+
+/**
+ * Ask stage 2 for more concepts.
+ *
+ * Here rather than in its own file because the two are one surface — this is the button
+ * that fills the queue and `approveConcept` is the button that empties it, and splitting
+ * them across modules would mean the next reader finds one and not the other.
+ *
+ * Enqueued rather than run inline for the ordinary reason: a Server Action that awaited a
+ * model call would hold the request open for it, and Vercel's ceiling is not the place to
+ * discover that.
+ */
+export async function requestConcepts(payload: {
+  channelId: string;
+  count?: number;
+  seed?: string;
+}): Promise<{ enqueued: boolean; runId?: string; detail?: string }> {
+  try {
+    const { conceptTask } = await import('@/trigger/02-concept');
+    const handle = await conceptTask.trigger(payload);
+    return { enqueued: true, runId: handle.id };
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error('[concepts] could not enqueue stage 2', { ...payload, detail });
+    return { enqueued: false, detail };
+  }
+}

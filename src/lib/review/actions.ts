@@ -139,3 +139,29 @@ export async function regenerateShotAction(
     return { status: 'error', message: err instanceof Error ? err.message : String(err) };
   }
 }
+
+/**
+ * Ask stage 9 for publishing metadata.
+ *
+ * Here rather than in a module of its own because it belongs to the review screen: the
+ * moment metadata makes sense is the moment a human has passed a render, and that is the
+ * only screen where that happens.
+ *
+ * Enqueued rather than run inline — a Server Action that awaited a model call would hold
+ * the request open for it.
+ */
+export async function requestMetadata(renderId: string): Promise<{
+  enqueued: boolean;
+  runId?: string;
+  detail?: string;
+}> {
+  try {
+    const { metadataTask } = await import('@/trigger/09-metadata');
+    const handle = await metadataTask.trigger({ renderId });
+    return { enqueued: true, runId: handle.id };
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error('[review] could not enqueue metadata', { renderId, detail });
+    return { enqueued: false, detail };
+  }
+}

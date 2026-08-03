@@ -123,10 +123,11 @@ export function llmCostRows(subject: LlmCostSubject, pricing: Extract<LlmPricing
     stage: subject.stage,
     entry_kind: 'reconcile' as const,
     usd_inr_rate: pricing.usdInrRate,
-    concept_id: subject.conceptId,
+    concept_id: subject.kind === 'channel' ? null : subject.conceptId,
+    channel_id: subject.kind === 'channel' ? subject.channelId : null,
     script_id: subject.kind === 'script' ? subject.scriptId : null,
     idempotency_key:
-      subject.kind === 'failed_draft' ? `${subject.idempotencyKey}:${r.unit}` : null,
+      subject.kind === 'script' ? null : `${subject.idempotencyKey}:${r.unit}`,
     unit: r.unit,
     quantity: r.quantity,
     cost_usd: r.costUsd,
@@ -136,7 +137,15 @@ export function llmCostRows(subject: LlmCostSubject, pricing: Extract<LlmPricing
 
 export type LlmCostSubject =
   | { kind: 'script'; scriptId: string; conceptId: string; stage: PipelineStage }
-  | { kind: 'failed_draft'; conceptId: string; idempotencyKey: string; stage: PipelineStage };
+  | { kind: 'failed_draft'; conceptId: string; idempotencyKey: string; stage: PipelineStage }
+  /**
+   * A charge that belongs to a set rather than an artifact.
+   *
+   * Stage 2 proposes N concepts in one call; the concepts do not exist when the call is
+   * billed, and once they do the charge belongs to all of them. The channel is what the
+   * call is actually about — see migration 0023 and `v_concept_cost`, which divides.
+   */
+  | { kind: 'channel'; channelId: string; idempotencyKey: string; stage: PipelineStage };
 
 /**
  * Which stage spent the money, matching the `src/trigger/` filename.
@@ -145,7 +154,13 @@ export type LlmCostSubject =
  * same script and the old key rejected the second one. Also what makes cost-per-stage
  * answerable — the first question anyone asks when cost per video is higher than expected.
  */
-export type PipelineStage = '03-script' | '04-shotlist' | '06-voice';
+export type PipelineStage =
+  | '01-trends'
+  | '02-concept'
+  | '03-script'
+  | '04-shotlist'
+  | '06-voice'
+  | '09-metadata';
 
 /**
  * Write the ledger rows for a drafting call.
@@ -173,18 +188,40 @@ export async function writeLlmCost(
 ): Promise<void> {
   const rows = llmCostRows(subject, pricing);
 
-  const onConflict =
-    subject.kind === 'script' ? 'script_id,stage,entry_kind,unit' : 'idempotency_key';
+  // ── Insert, not upsert, and this is a correction ──────────────────────────
+  //
+  // Both `onConflict` targets this used — `(script_id, stage, entry_kind, unit)` and
+  // `(idempotency_key)` — name **partial** unique indexes: `where script_id is not null`
+  // and `where idempotency_key is not null`. Postgres refuses to infer a partial index for
+  // ON CONFLICT unless the statement repeats its predicate, and supabase-js gives no way to
+  // express one. Against a correctly migrated database both fail with "no unique or
+  // exclusion constraint matching the ON CONFLICT specification".
+  //
+  // The same defect was found and fixed in `src/lib/generate/submit.ts` an hour earlier;
+  // this is its twin, in a path that has run for real. Whether it ever failed in production
+  // could not be settled from here — the harnesses drive a `pg` shim rather than PostgREST,
+  // so neither instrument can observe the other's behaviour, and the honest move is to stop
+  // depending on the answer.
+  //
+  // So: insert, and treat a duplicate key as the constraint doing its job on a retry. That
+  // works under every client and every index shape, and it is the idiom the rest of this
+  // codebase already uses.
+  const { error } = await db.from('cost_ledger').insert(rows);
 
-  const { error } = await db
-    .from('cost_ledger')
-    .upsert(rows, { onConflict, ignoreDuplicates: true });
+  if (error && /duplicate key|unique constraint/i.test(error.message)) {
+    // A retry of a call already charged. The charge stands; there is nothing to do.
+    return;
+  }
 
   if (error) {
     // Not swallowed. Money moved and the row did not land, which is the one accounting
     // failure this project cannot tolerate quietly — cost-per-video cannot be backfilled.
     const what =
-      subject.kind === 'script' ? `script ${subject.scriptId}` : `concept ${subject.conceptId}`;
+      subject.kind === 'script'
+        ? `script ${subject.scriptId}`
+        : subject.kind === 'channel'
+          ? `channel ${subject.channelId}`
+          : `concept ${subject.conceptId}`;
     throw new Error(
       `Cost ledger write failed for ${what} after the call was billed: ${error.message}`,
     );

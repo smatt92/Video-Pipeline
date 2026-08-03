@@ -99,6 +99,25 @@ This is a third failure mode alongside the two above. A guard that runs nowhere 
 coverage it does not have; a guard that cannot tell drift from an empty schema reports a
 real number about nothing; and a guard that can see is overruled by one that cannot.
 
+**An option whose default IS the behaviour you are avoiding must be passed explicitly.**
+Never omitted under a comment saying what you intend. `client.generate()` reads
+`options?.withPolling ?? true`, so leaving it out — which is what "we don't poll" looks like
+in the source — polls. The driver omitted it under a comment stating the opposite, and the
+comment was the exact inverse of the behaviour: in production it would have held a Trigger
+worker open for the length of a whole video generation while hammering an undocumented rate
+limit that fails silently. Omission is not a position. Read the default before you rely on
+it, pass it, and where the cost is this asymmetric, assert it — `verify:submit` counts the
+requests one submit makes, because a comment cannot hold this and a count can.
+
+**Two modules for one concept is worse than none.** `src/lib/generate/normalise.ts` and
+`src/lib/ingest/normalise.ts` both existed; one defined `TARGET`/`conforms`, the other
+`CANONICAL`/`isCanonical`, they disagreed about the canonical intermediate, and only one was
+live. Nothing was broken and no test could show it — both compiled, the live one passed its
+harness, and the dead one passed by not running. The cost is that the next person to tune
+the encoder had a coin-flip's chance of editing the file that does nothing, then debugging
+why their change had no effect. When you find the second module, delete one; do not
+document the difference. A superseded file is not history — git is history.
+
 ```bash
 pnpm doctor                          # which failure is this? — run this first, always
 pnpm verify:ingest   "$DATABASE_URL" # 3 shapes → canonical, corrupt → error row

@@ -43,7 +43,7 @@ export const shotlistTask = schemaTask({
     const db = serverClient();
     const apiKey = await requireCredential(db, 'anthropic', 'ANTHROPIC_API_KEY');
 
-    return runShotlist(payload, {
+    const result = await runShotlist(payload, {
       db,
       apiKey,
       usdInrRate: env.USD_INR_RATE,
@@ -53,5 +53,52 @@ export const shotlistTask = schemaTask({
       runId: ctx.run.id,
       log: logger,
     });
+
+    // ── Stage 6 next, not stage 5 ───────────────────────────────────────────
+    //
+    // The audio-first inversion, as running code rather than as a comment. Stage 5 refuses
+    // any shot whose `duration_source` is still the shotlist's estimate, and **only stage 6
+    // sets `derived_from_vo`** — so chaining 04 → 05 directly would submit nothing, every
+    // time, for ever. That is exactly what happened: the chain existed, was green, and was
+    // inert, because stage 6 had no caller at all.
+    //
+    // Stage 6 needs a voice, and the voice lives on the channel (0024). Null is a legible
+    // stop rather than a failure: the script and shotlist are real and a human can pick a
+    // voice and replay from here.
+    const db2 = serverClient();
+    const { data: channel } = await db2
+      .from('scripts')
+      .select('concepts(channels(id, host_voice_id, voice_language))')
+      .eq('id', payload.scriptId)
+      .maybeSingle();
+
+    const voice = channel?.concepts?.channels;
+
+    if (!voice?.host_voice_id) {
+      logger.warn('shotlist compiled, and the chain stops here', {
+        scriptId: payload.scriptId,
+        reason:
+          'the channel has no host voice, so stage 6 cannot run — and without stage 6 the ' +
+          'durations stay estimates and stage 5 refuses every shot. Set one in Settings, ' +
+          'then replay this script from stage 6.',
+      });
+      return result;
+    }
+
+    try {
+      const { voiceTask } = await import('./06-voice');
+      await voiceTask.trigger({
+        scriptId: payload.scriptId,
+        voiceId: voice.host_voice_id,
+        language: voice.voice_language ?? 'en',
+      });
+    } catch (err) {
+      logger.error('shotlist compiled, but stage 6 could not be enqueued', {
+        scriptId: payload.scriptId,
+        detail: err instanceof Error ? err.message : String(err),
+      });
+    }
+
+    return result;
   },
 });
