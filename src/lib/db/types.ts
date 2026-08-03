@@ -77,6 +77,13 @@ export type Database = {
             foreignKeyName: "assets_generation_id_fkey"
             columns: ["generation_id"]
             isOneToOne: false
+            referencedRelation: "v_stuck_submits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assets_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
             referencedRelation: "v_unconfirmed_terminal_generations"
             referencedColumns: ["id"]
           },
@@ -285,6 +292,13 @@ export type Database = {
             columns: ["generation_id"]
             isOneToOne: false
             referencedRelation: "v_replayed_callbacks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "v_stuck_submits"
             referencedColumns: ["id"]
           },
           {
@@ -534,6 +548,13 @@ export type Database = {
             columns: ["parent_generation_id"]
             isOneToOne: false
             referencedRelation: "v_replayed_callbacks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generations_parent_generation_id_fkey"
+            columns: ["parent_generation_id"]
+            isOneToOne: false
+            referencedRelation: "v_stuck_submits"
             referencedColumns: ["id"]
           },
           {
@@ -2130,6 +2151,61 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_script_vo_status"
             referencedColumns: ["script_id"]
+          },
+        ]
+      }
+      v_stuck_submits: {
+        Row: {
+          charged: boolean | null
+          driver: string | null
+          id: string | null
+          idempotency_key: string | null
+          model: string | null
+          shot_id: string | null
+          stuck_for: string | null
+          submitted_at: string | null
+        }
+        Insert: {
+          charged?: never
+          driver?: string | null
+          id?: string | null
+          idempotency_key?: string | null
+          model?: string | null
+          shot_id?: string | null
+          stuck_for?: never
+          submitted_at?: string | null
+        }
+        Update: {
+          charged?: never
+          driver?: string | null
+          id?: string | null
+          idempotency_key?: string | null
+          model?: string | null
+          shot_id?: string | null
+          stuck_for?: never
+          submitted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generations_shot_id_fkey"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "shots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generations_shot_id_fkey"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "v_shot_readiness"
+            referencedColumns: ["shot_id"]
+          },
+          {
+            foreignKeyName: "generations_shot_id_fkey"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "v_unresolved_shots"
+            referencedColumns: ["shot_id"]
           },
         ]
       }

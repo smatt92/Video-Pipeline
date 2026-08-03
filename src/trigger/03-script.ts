@@ -51,7 +51,7 @@ export const scriptTask = schemaTask({
     // the database.
     const apiKey = await requireCredential(db, 'anthropic', 'ANTHROPIC_API_KEY');
 
-    return runScriptDraft(payload, {
+    const result = await runScriptDraft(payload, {
       db,
       apiKey,
       usdInrRate: env.USD_INR_RATE,
@@ -60,5 +60,36 @@ export const scriptTask = schemaTask({
       runId: ctx.run.id,
       log: logger,
     });
+
+    // ── Stage 4, chained ────────────────────────────────────────────────────
+    //
+    // `04-prompt-compile` was complete and reachable from nowhere: its own header says it
+    // is "replayable from stage 3's output", which was true of the design and false of the
+    // running system, because stage 3 ended here and told nobody.
+    //
+    // Triggered rather than awaited. `triggerAndWait` would hold this task open for the
+    // length of another model call for no benefit — nothing here reads the shotlist — and
+    // it would make a compile failure look like a script failure, so a retry would redraft
+    // a script that was fine and charge for it.
+    //
+    // Enqueue failure is logged and swallowed for the same reason: the script is written
+    // and paid for. Losing it because the follow-up could not be queued would be the
+    // expensive half failing over the cheap half.
+    // Only on success. A refusal from stage 3 — no concept, an unpriced model, a response
+    // that failed its schema — leaves nothing for stage 4 to compile, and queueing it
+    // anyway would turn one legible failure into two.
+    if (result.ok) {
+      try {
+        const { shotlistTask } = await import('./04-prompt-compile');
+        await shotlistTask.trigger({ scriptId: result.scriptId });
+      } catch (err) {
+        logger.error('script drafted, but stage 4 could not be enqueued', {
+          scriptId: result.scriptId,
+          detail: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    return result;
   },
 });

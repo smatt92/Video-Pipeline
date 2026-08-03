@@ -15,9 +15,9 @@ which are merely wired — which is the reason it exists.
 One vendor has ever been called from this codebase: **Anthropic**, twice, on 2026-08-01,
 producing a script and a shotlist and four `cost_ledger` rows totalling **₹6.07**. Nothing
 else has spoken to a vendor. Everything else that works, works against synthetic inputs in
-a harness — which is a real and useful category, covering 218 assertions across eleven
-harnesses, all green as of today. The largest single hole is **stage 5**: the code to
-submit a video generation exists, is complete, and is called by nothing.
+a harness — which is a real and useful category, covering 248 assertions across twelve
+harnesses, all green as of today. Stage 5 is now wired and proven up to the vendor;
+the largest remaining holes are three stages that were never written — see §6.
 
 ---
 
@@ -60,10 +60,11 @@ difference is always the vendor.
 | `verify:scaling` | **11** | The compiled stylesheet in a real Chromium at seven widths, WCAG 1.4.4 / 1.4.10 / 1.4.12 / 2.5.8 | A probe page, not the app's own screens |
 | `verify:tour` | **20** | `/onboarding` in a real Chromium: canvas, contrast under the actual text, reduced motion, context loss | SwiftShader, not a GPU |
 | `verify:referral` | **9** | Attribution written once and not overwritten; the roll-up carries nothing identifying | Ledger rows are inserted, not earned |
+| `verify:submit` | **30** | Stage 5: every refusal before the spend, one submit per shot, the vendor error taxonomy, the concept approval transition | A local server stands in for the vendor's HTTP surface |
 | `verify:webhook` | **25** | The callback over real HTTP: secret gate, payload gate, delivery RPC, replay, the vendor overruling the body | A local server stands in for the status endpoint |
 | `verify:ingest` | **5** | 3 source shapes → the canonical intermediate; a corrupt file → an error row | Sources are ffmpeg-generated |
 
-**Total: 218 assertions, all green today, and all eleven harnesses run in CI.** Four further
+**Total: 248 assertions, all green today, and all twelve harnesses run in CI.** Four further
 guards are exempt with reasons: `verify:vault` and `verify:storage` need a live Supabase
 project, and the two `verify:script*` variants spend money on a billed model call.
 
@@ -91,20 +92,11 @@ Worth stating, because "synthetic" reads as "weak" and the record says otherwise
 
 Ordered by how much rests on it. Everything here typechecks, builds, and has never run.
 
-### 3.1 Stage 5 — submit. **The largest hole, and the one that surprised me.**
+### 3.1 Stage 5 — submit. **Now wired, and it cost three defects to find out.**
 
-`src/lib/generate/submit.ts` exports `submitShots`. It is complete: it refuses anything it
-cannot price, submits stills only, and leaves the video half to the still's webhook so a
-failed still cannot bill a video.
-
-**Nothing calls it.** Not a Trigger task, not a Server Action, not an MCP tool. `grep` finds
-exactly one occurrence in `src/`, which is its own definition. There is no `05-generate.ts`
-in `src/trigger/`.
-
-The Studio's `generate_shot` walks every gate — video integration verified, recipe present,
-call priceable — writes the shot row, and stops there, with a comment saying it is "written
-to be replaced by the stage-5 submit path rather than to duplicate it". That is the right
-call and it means the product currently **cannot submit a video generation by any route**.
+Resolved. `05-generate.ts` exists, the Studio's `generate_shot` calls through it, and
+`pnpm verify:submit` covers 26 assertions in CI. See §7 for what wiring it revealed —
+including that `submitShots` did not call a vendor at all.
 
 ### 3.2 The webhook transport — **closed, except the vendor's reply**
 
@@ -198,28 +190,158 @@ time the guard in question was the one whose entire job is to catch the other tw
 
 ---
 
-## 6. The smallest gap I picked, and why
+## 5b. Built, tested, unreachable
 
-Asked to pick one thing after writing the survey above, I took **§3.2, the webhook leg**,
-over the more obviously important §3.1 (stage 5 has no caller). The reasoning, since the
-choice is arguable:
+The category no register catches, because **everything about it is green**. The code
+typechecks, its harness passes, CI is happy, and it cannot be reached from the running
+product. `0008` cannot see it — 0008 tracks what has not been *proven*, and this code is
+proven. §3 above cannot see it either, because §3 asks "has it executed", and a harness
+executing it counts.
 
-- **Stage 5 cannot be finished without a vendor.** Writing `05-generate.ts` today produces
-  more code that has never run, in the category this document exists to make visible. It is
-  the bigger hole and it is blocked; the honest move is to leave it named.
-- **The webhook could be finished today and had not been**, which is the definition of the
-  cheapest remaining thing.
-- **Its failure mode is the worst-timed one in the project.** If the RPC shape were wrong,
-  every generation would confirm-and-fail silently, and the discovery would come at Gate 4,
-  after a real generation had been paid for, on the one path that cannot be re-run by hand.
-- **It de-risks stage 5 rather than duplicating it.** The submit path's whole design rests
-  on the callback settling exactly once — the video half is submitted from the still's
-  webhook precisely so a failed still cannot bill a video. Proving the callback is proving
-  the assumption stage 5 is built on.
+The distinguishing question is different from both: **what calls this in production?**
 
-It also turned out to be the right pick for a reason I could not have known in advance: the
-shim defect it surfaced was silently affecting every scalar RPC in every harness. It had
-been there since the shim was written.
+### What the sweep found
+
+Every exported symbol in `src/lib` and `src/trigger`, cross-referenced against every
+reference outside its own file. Most hits were noise — enum members used by a map in the
+same file, schemas used inline. Four were real, in three distinct shapes:
+
+| What | Shape | Now |
+|---|---|---|
+| `submitShots` | No caller, **and no vendor call** | Wired; see §7 |
+| `04-prompt-compile` | Complete task, nothing triggered it | Called by stage 3 and by the Studio |
+| `03-script`, `06-voice` | Complete tasks, nothing triggers them | 03 is now called by nothing *upstream* — see below |
+| `src/lib/generate/normalise.ts` | **Superseded and left behind** | Deleted |
+
+The last two are worth separating, because they are not the same problem.
+
+**Superseded duplicates are the dangerous kind.** `src/lib/generate/normalise.ts` defined
+`TARGET`, `conforms`, `ffmpegArgs` and `assertTargetEncodable`. The ingest path uses
+`src/lib/ingest/normalise.ts`, which defines `CANONICAL` and `isCanonical`. Two modules for
+one concept, disagreeing on what the canonical intermediate is, one of them live. Nothing
+was broken; the next person to tune the encoder had a coin-flip's chance of editing the
+file that does nothing. Deleted rather than documented.
+
+**Unreachable-for-a-reason is the honest kind.** `03-script` has no caller because the
+thing that should call it — approving a concept — *does not exist anywhere in this
+codebase*. `grep` for an approval action finds nothing but the enum value. `06-voice` is the
+same. Those are not wiring omissions; they are §6's missing stages, and giving them a caller
+today would mean inventing a product surface to hang it on. They are listed there instead.
+
+### How to run the sweep
+
+```bash
+for f in $(find src/lib src/trigger -name '*.ts' | grep -v db/types.ts); do
+  grep -oE '^export (async )?function ([a-zA-Z0-9_]+)' "$f" | sed -E 's/^export (async )?function //' |
+  while read -r sym; do
+    n=$(grep -rlE "\b$sym\b" src scripts | grep -v "^$f$" | wc -l)
+    [ "$n" -eq 0 ] && echo "UNREFERENCED $sym ($f)"
+  done
+done
+```
+
+Deliberately not a `check:*` script. It is 80% false positives on a codebase this size —
+same-file references, re-exports, dynamic imports — and a guard that cries wolf is a guard
+people learn to skip. It is a thing to *run and read*, quarterly or when a stage lands, and
+the judgement is the point.
+
+---
+
+## 6. The seven stages with no Trigger task
+
+Priority order, with what each is actually blocked on. Three of the seven are blocked on
+nothing but work.
+
+| # | Stage | Blocked on | Why this priority |
+|---|---|---|---|
+| **2** | **Concept generation** | **Nothing** | Nothing in this codebase can approve a concept, so stages 3–7 have no upstream. It is the reason `03-script` has no caller. Needs Anthropic, which is the one vendor that works. |
+| **1** | **Trend intake** | **Nothing** | YouTube/Reddit/Trends are public reads. Feeds stage 2, and without it every concept is hand-typed. |
+| **9** | **Metadata** | **Nothing** | Title/description/tags/uniqueness check. Anthropic again, plus a check against the last N videos that the `structure_hash` machinery already supports. |
+| 11 | Measure | A published video | Nothing to measure until stage 10 has run once. Its own vendor reads are public, so it is only blocked on *having output*. |
+| 10 | Publish | Meta app review (2–4 weeks) | Manual in Phase 1 by decision. Not a gap — a deliberate deferral. |
+| 5b | *(exists)* | — | Listed in the eleven, not a missing task. |
+| 8 | *(a screen)* | — | The QA gate is `/review`, not a task. |
+
+**The recommendation, stated plainly: stage 2 before stage 1.** Trend intake without concept
+generation produces a table nobody reads; concept generation without trend intake still
+works from a hand-typed seed. Building 2 first makes 1 immediately useful, and building 1
+first does not.
+
+None of the three unblocked stages was built in this pass, and that is a decision rather
+than an omission — see §8.
+
+---
+
+## 7. What wiring stage 5 revealed
+
+Three defects, all fatal, all invisible to typecheck, lint and every existing harness.
+Recording them because they are the argument for rule 8 in its sharpest form: **this code
+had been reviewed, was internally consistent, and could not have worked.**
+
+1. **`submitShots` never called a vendor.** It priced the work, wrote the estimate row,
+   inserted a `generations` row with `status = 'queued'` and no `external_job_id`, and
+   marked the shot `generating`. Wiring a caller to that unchanged would have been worse
+   than leaving it unreachable: ledger rows for calls that never happened, shots stuck in
+   `generating` for ever, and a webhook that could never match a delivery to a row.
+   `src/lib/drivers/video-submit.ts` is the missing half.
+
+2. **The estimate row had no subject, and the obvious fix was also wrong.**
+   `cost_ledger_has_subject` requires one of five foreign keys; the code wrote all of them
+   null. `script_id` looks right and collides — the unique index on
+   `(script_id, stage, entry_kind, unit)` exists for once-per-script LLM charges, so shot
+   two would have conflicted with shot one. The subject is the generation, which forced the
+   ordering: generation row, then cost row, then vendor call. Rule 5 still holds exactly —
+   "before the result comes back", not "before anything else".
+
+3. **`ON CONFLICT` cannot infer a partial unique index.**
+   `cost_ledger_generation_entry_key` carries `where generation_id is not null`, and
+   Postgres refuses to infer it unless the statement repeats the predicate — which
+   supabase-js cannot express. The upsert failed against a correctly migrated database with
+   "no unique or exclusion constraint matching". Now an insert with a caught duplicate-key,
+   which is the idiom the same file already used one block above.
+
+And a fourth, from the harness rather than the schema:
+
+4. **`withPolling` defaults to `true`.** The driver omitted it under a comment saying that
+   avoided polling. `options?.withPolling ?? true` — the comment was the exact inverse of
+   the behaviour, and in production it would have held a Trigger worker open for the length
+   of a video generation while hammering an undocumented rate limit. The harness hung, which
+   is how it was found. **An option whose default is the behaviour you are avoiding has to
+   be passed, not omitted. Omission is not a position.**
+
+A fifth, smaller: the SDK maps **403** to "not enough credits", not 401 — so a bare 403 must
+not be read as an auth failure, or an operator re-checks a credential that is fine while the
+account is empty. Both spellings are asserted, because they arrive by different routes.
+
+---
+
+## 8. The smallest gap I picked, and why
+
+**An approval action** — `src/lib/concepts/approve.ts`.
+
+Nine lines of consequence. Approving a concept is the event `03-script` waits for, and it
+existed nowhere in this codebase: `grep` found the enum value `'approved'` in
+`src/lib/db/enums.ts` and not one thing that could set it. So the entire pipeline lane had
+no entry point, and with the stage 3 → 4 → 5 chain now in place, **one missing function was
+holding four complete stages out of reach**.
+
+That is the argument for picking it over the three unbuilt stages in §6, all of which are
+larger and none of which is reachable until this exists. It is also the cheapest possible
+demonstration that §5b is a real category rather than a tidiness complaint: nothing was
+broken, everything was green, and the product could not start a pipeline run.
+
+It is a compare-and-set (`where status = 'draft'`) rather than a read-then-write, for the
+same reason `confirm_generation_once` is: approving spends money, and two clicks must
+produce one script and one charge. A failed enqueue does not roll back the approval — the
+decision is a human's and has been recorded; the transport can be retried.
+
+Five assertions in `verify:submit` §8, including that a killed concept cannot be approved,
+because a kill is editorial evidence and overwriting it discards a judgement.
+
+**Not done: any UI calls it.** `/concepts` is still the placeholder that §6 of `nav.ts`
+marks "needs the script generation leg". The function is reachable from a Server Action and
+from a harness; a button is stage 2's work, because there is nothing to list until concepts
+are being generated.
 
 ---
 
@@ -228,7 +350,7 @@ been there since the shim was written.
 ```bash
 pnpm check                                  # everything that needs no database
 export DATABASE_URL=...                     # any Postgres you may create databases on
-for h in ingest assemble review studio referral webhook; do pnpm verify:$h "$DATABASE_URL"; done
+for h in ingest assemble review studio referral webhook submit; do pnpm verify:$h "$DATABASE_URL"; done
 pnpm build && pnpm verify:scaling && pnpm verify:tour
 ```
 

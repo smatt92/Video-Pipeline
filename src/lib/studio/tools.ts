@@ -438,17 +438,54 @@ const generateShot: StudioTool = {
       ]);
     }
 
+    // ── Hand it to the pipeline ─────────────────────────────────────────────
+    //
+    // This tool still does not call the vendor. It enqueues stage 4 and stage 5, which do —
+    // so the idempotency key, the cost row and the submit are written in exactly one place,
+    // and a Studio generation is replayable by the same tasks as any other.
+    //
+    // Until this existed the tool wrote the shot row and returned a note saying stage 5
+    // would pick it up. Stage 5 had no caller, so nothing ever did. The note described an
+    // arrangement that was true of the design and false of the running system, which is the
+    // most expensive kind of comment to leave lying around.
+    // Dynamically, matching stitch_rough_cut below. `enqueue.ts` already keeps the Trigger
+    // SDK out of the bundle with its own dynamic import; doing it here too keeps the two
+    // call sites identical, so neither reads as the odd one out.
+    const { enqueueGenerate } = await import('./enqueue');
+    const queued = await enqueueGenerate({ scriptId: script.scriptId });
+
+    if (!queued.enqueued) {
+      // Not a refusal — the row is real and correct, and a human can submit it from the
+      // board. Reported so the model says "written but not submitted" rather than "done".
+      return {
+        ok: true,
+        script_id: script.scriptId,
+        script_created: script.created,
+        shot_id: shot.id,
+        idx: shot.idx,
+        status: 'pending',
+        submitted: false,
+        note:
+          'The shot row exists, and handing it to stage 5 failed: ' +
+          `${queued.detail}. Nothing was submitted and nothing was charged. The shot is on ` +
+          'the board and can be generated from there once the worker is reachable.',
+      };
+    }
+
     return {
       ok: true,
       script_id: script.scriptId,
       script_created: script.created,
       shot_id: shot.id,
       idx: shot.idx,
-      status: 'pending',
+      status: 'generating',
+      submitted: true,
+      run_id: queued.runId,
       note:
-        'The shot row exists and is compiled. Submission to the vendor happens in stage 5, ' +
-        'which is driven by the pipeline lane — this tool does not call the vendor directly, ' +
-        'so the idempotency key and the cost row are written in exactly one place.',
+        'The shot row exists and has been handed to stage 4 (compile) and then stage 5 ' +
+        '(submit). This tool does not call the vendor directly, so the idempotency key and ' +
+        'the cost row are written in exactly one place. Completion arrives by webhook — ' +
+        'use check_generation rather than waiting.',
     };
   },
 };

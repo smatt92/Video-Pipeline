@@ -152,6 +152,15 @@ jobs:
       - name: Review timeline, trims, reorder and the publish gate
         run: pnpm verify:review "$DATABASE_URL"
 
+      # ── Stage 5, which had no caller until it had a harness ──────────────
+      # Wiring submitShots to a task without proving it would have moved it from "built,
+      # tested, unreachable" to "built, untested, reachable" — strictly worse, because it
+      # now runs and it spends money. Three defects fell out of the first real run: an
+      # estimate row with no subject, an ON CONFLICT that cannot infer a partial unique
+      # index, and withPolling defaulting to true.
+      - name: Stage 5 refuses before it spends, and submits exactly once
+        run: pnpm verify:submit "$DATABASE_URL"
+
       # ── The generation callback, above the SQL as well as below ──────────
       # 0008 §5b proved the SQL under this endpoint and nothing above it: the RPC argument
       # names, the Array.isArray unwrap, whether a scalar boolean arrives as `data === true`

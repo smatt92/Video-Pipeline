@@ -39,6 +39,9 @@ export const generationKind = z.enum(['video', 'image', 'audio', 'lipsync', 'ups
  * `canceled`. Normalising that difference is the driver's job, not the caller's.
  */
 export const generationStatus = z.enum([
+  // The row exists; the vendor has not answered yet. Stage 5 writes the row before the
+  // call so a crash leaves the idempotency key behind — see migration 0022.
+  'submitting',
   'queued',
   'running',
   'succeeded',

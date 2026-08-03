@@ -1,4 +1,6 @@
 import { primaryForKind } from '../drivers/catalog';
+import { submitGeneration } from '../drivers/video-submit';
+import { dispositionFor } from '../drivers/types';
 import type { Db } from '../db/server';
 import type { Json } from '../db/types';
 import { currentRate } from '../cost/rate-card';
@@ -7,7 +9,15 @@ import { generationKey } from './keys';
 /**
  * Stage 5 — submit a script's compiled shots for generation.
  *
- * ** NEVER RUN. ** The vendor host and the webhook path both require the preview.
+ * ** Still never run against the real vendor. ** The host requires the preview deploy. What
+ * changed is that there is now something to run: this function used to price the work,
+ * write the estimate row, insert a `generations` row and mark the shot `generating` — and
+ * never call anything. A `queued` generation with no `external_job_id` can never be matched
+ * to a callback, so the shot would have sat in `generating` for ever while the ledger
+ * carried a charge for a call that did not happen.
+ *
+ * The submit is now real (`src/lib/drivers/video-submit.ts`), which means a missing or
+ * rejected credential produces a refusal from the vendor rather than a silent success.
  *
  * ── The chain, and why a failed still must not bill a video ──────────────────
  *
@@ -169,46 +179,46 @@ export async function submitShots(
         payload,
       });
 
-      // The cost row goes in *before* the submit. Rule 5 in its literal form: the row is
-      // written at submit time, before the result exists, because cost per video cannot be
-      // backfilled and a crash between the two would otherwise lose the charge.
-      const { error: costError } = await db.from('cost_ledger').upsert(
-        {
-          generation_id: null,
-          concept_id: null,
+      // ── Order: generation row, then cost row, then the vendor ───────────────
+      //
+      // This sequence is not a preference. Two defects made it the only one that works,
+      // and both were invisible until stage 5 was wired to a caller and run — everything
+      // typechecked, and `cost_ledger` has a shape no type can express.
+      //
+      // **The estimate row must name a subject.** `cost_ledger_has_subject` requires one
+      // of generation_id / render_id / script_id / concept_id / studio_session_id. The
+      // original wrote all of them null and would have been refused on the first real
+      // submit. `script_id` looks like the obvious answer and is wrong: the unique index
+      // on (script_id, stage, entry_kind, unit) exists for once-per-script LLM charges,
+      // so the second shot of any script would collide with the first. The subject is the
+      // generation — which means the generation row has to exist first.
+      //
+      // Rule 5 still holds, exactly. "Before the result comes back" is the requirement,
+      // not "before anything else"; the row that precedes the cost row here is our own,
+      // costs nothing, and is what the charge is *about*. The vendor is not called until
+      // both are down.
+      //
+      // The row goes in as `submitting` and the vendor's job id is
+      // written onto it afterwards. Row-then-call rather than call-then-row: a crash
+      // between the two must leave evidence that a submit was attempted, and the
+      // idempotency key is what stops the retry from becoming a second charge. The
+      // reverse order loses the whole generation if the process dies mid-flight, and the
+      // money is already gone by then.
+      const { data: created, error: genError } = await db
+        .from('generations')
+        .insert({
+          shot_id: shot.id,
+          kind: 'image',
           driver: video.slug,
-          stage: null,
-          entry_kind: 'estimate',
-          unit: 'credit',
-          quantity: 1,
-          cost_usd: rate.unitCostUsd,
+          model,
+          request_payload: payload as Json,
+          idempotency_key: key,
+          status: 'submitting',
+          unit_cost_snapshot: rate.unitCostUsd,
           cost_inr: rate.unitCostUsd * usdInrRate,
-          usd_inr_rate: usdInrRate,
-          idempotency_key: `${key}:estimate`,
-        },
-        { onConflict: 'idempotency_key', ignoreDuplicates: true },
-      );
-
-      if (costError) {
-        log.error('cost row refused before submit; not submitting', {
-          shotId: shot.id,
-          error: costError.message,
-        });
-        skipped.push({ shotId: shot.id, reason: `cost row could not be written: ${costError.message}` });
-        continue;
-      }
-
-      const { error: genError } = await db.from('generations').insert({
-        shot_id: shot.id,
-        kind: 'image',
-        driver: video.slug,
-        model,
-        request_payload: payload as Json,
-        idempotency_key: key,
-        status: 'queued',
-        unit_cost_snapshot: rate.unitCostUsd,
-        cost_inr: rate.unitCostUsd * usdInrRate,
-      });
+        })
+        .select('id')
+        .maybeSingle();
 
       if (genError) {
         // A duplicate key is not an error. It is the constraint doing its job on a retry —
@@ -219,6 +229,86 @@ export async function submitShots(
         }
         throw new Error(`Generation insert failed for shot ${shot.id}: ${genError.message}`);
       }
+
+      const generationId = created?.id;
+      if (!generationId) {
+        throw new Error(`Generation insert for shot ${shot.id} returned no id.`);
+      }
+
+      // ── The charge, before the call ─────────────────────────────────────────
+      //
+      // **Insert, not upsert.** `cost_ledger_generation_entry_key` is a *partial* unique
+      // index — `where generation_id is not null` — and Postgres cannot infer a partial
+      // index for ON CONFLICT unless the statement repeats its predicate, which supabase-js
+      // gives no way to express. The upsert failed with "no unique or exclusion constraint
+      // matching the ON CONFLICT specification" against a correctly migrated database.
+      //
+      // So a duplicate key is caught rather than avoided, which is the same idiom the
+      // generation insert above already uses, and is the one that works with a partial
+      // index. A duplicate here means a retry of a submit that was already charged — the
+      // charge stands, and the call must not repeat.
+      const { error: costError } = await db.from('cost_ledger').insert({
+        generation_id: generationId,
+        driver: video.slug,
+        entry_kind: 'estimate',
+        unit: 'credit',
+        quantity: 1,
+        cost_usd: rate.unitCostUsd,
+        cost_inr: rate.unitCostUsd * usdInrRate,
+        usd_inr_rate: usdInrRate,
+        idempotency_key: `${key}:estimate`,
+      });
+
+      if (costError && !/duplicate key|unique constraint/i.test(costError.message)) {
+        // Rule 5 has no exceptions, so a charge that cannot be recorded is a call that
+        // must not happen. The generation row is left in `submitting` with nothing behind
+        // it, which `v_stuck_submits` surfaces — visibly wrong beats silently unbilled.
+        log.error('cost row refused before submit; not submitting', {
+          shotId: shot.id,
+          error: costError.message,
+        });
+        skipped.push({
+          shotId: shot.id,
+          reason: `cost row could not be written, so nothing was submitted: ${costError.message}`,
+        });
+        continue;
+      }
+
+      const result = await submitGeneration({
+        endpoint: '/v1/text2image/soul',
+        params: payload,
+        apiKey: deps.apiKey,
+        apiSecret: deps.apiSecret,
+        webhookBaseUrl: deps.webhookBaseUrl,
+        webhookSecret: deps.webhookSecret,
+      });
+
+      if (!result.ok) {
+        // A failure state is a row, not a swallowed exception — and not a thrown one
+        // either, because one shot's refusal must not abandon the other five. The
+        // disposition is stored rather than acted on here: whether to retry is the
+        // task's decision, and it needs to see every shot's outcome to make it.
+        await db
+          .from('generations')
+          .update({
+            status: 'failed',
+            error_code: result.code,
+            error_detail: result.detail,
+            completed_at: new Date().toISOString(),
+          })
+          .eq('id', generationId);
+
+        skipped.push({
+          shotId: shot.id,
+          reason: `vendor refused the submit (${result.code}, ${dispositionFor(result.code)}): ${result.detail}`,
+        });
+        continue;
+      }
+
+      await db
+        .from('generations')
+        .update({ status: 'queued', external_job_id: result.jobId })
+        .eq('id', generationId);
 
       submitted++;
       await db.from('shots').update({ status: 'generating' }).eq('id', shot.id);

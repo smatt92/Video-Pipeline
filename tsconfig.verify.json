@@ -51,6 +51,9 @@
     "src/lib/onboarding/gate.ts",
     "src/lib/onboarding/entry.ts",
     "src/lib/integrations/referral.ts",
+    "src/lib/concepts/approve.ts",
+    "src/lib/generate/submit.ts",
+    "src/lib/drivers/video-submit.ts",
     "src/lib/generate/webhook.ts",
     "src/lib/onboarding/scene.ts",
     "src/lib/onboarding/steps.ts"
