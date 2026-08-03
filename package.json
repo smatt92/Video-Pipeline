@@ -41,6 +41,7 @@
     "verify:assemble": "tsc -p tsconfig.verify.json && node scripts/verify-assemble.mjs",
     "verify:studio": "tsc -p tsconfig.verify.json && node --env-file-if-exists=.env.local scripts/verify-studio.mjs",
     "verify:review": "tsc -p tsconfig.verify.json && node scripts/verify-review.mjs",
+    "verify:webhook": "tsc -p tsconfig.verify.json && node scripts/verify-webhook.mjs",
     "verify:referral": "tsc -p tsconfig.verify.json && node scripts/verify-referral.mjs",
     "verify:scaling": "node scripts/verify-scaling.mjs",
     "verify:tour": "node scripts/verify-tour.mjs"

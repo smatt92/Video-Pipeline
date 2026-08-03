@@ -88,6 +88,14 @@ jobs:
       - name: Voice timing unit tests
         run: pnpm test:timings
 
+      # ── The tour's copy and its scene cannot drift apart ──────────────────
+      # Needs no browser and no database: it reads the step definitions and the scene beats
+      # and checks they describe the same five things. Also asserts the scene has no way to
+      # put words on screen, which is the rule that keeps the flat tour from becoming a
+      # summary of a 3D one.
+      - name: Tour steps, scene beats, and no text in the scene
+        run: pnpm test:tour
+
       # ── Who gets in ──────────────────────────────────────────────────────
       # entryDestination runs in middleware on every request, where a wrong answer is
       # either a redirect loop or an open door. Eight combinations, all enumerated.
@@ -143,6 +151,14 @@ jobs:
       # stage earlier, at the point a human is about to say the cut is fine.
       - name: Review timeline, trims, reorder and the publish gate
         run: pnpm verify:review "$DATABASE_URL"
+
+      # ── The generation callback, above the SQL as well as below ──────────
+      # 0008 §5b proved the SQL under this endpoint and nothing above it: the RPC argument
+      # names, the Array.isArray unwrap, whether a scalar boolean arrives as `data === true`
+      # were all inferred. The failure mode is safe but total — no generation ever confirms
+      # — and it would surface at Gate 4, after a real generation had been paid for.
+      - name: The generation callback — secret, replay, and the vendor deciding
+        run: pnpm verify:webhook "$DATABASE_URL"
 
       # ── Attribution, and the aggregate that leaves the building ──────────
       # The roll-up is the one view in the schema written to be pasted into an email, so

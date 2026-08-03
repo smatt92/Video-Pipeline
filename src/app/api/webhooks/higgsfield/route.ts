@@ -1,35 +1,22 @@
-import { timingSafeEqual } from 'node:crypto';
 import { NextResponse, type NextRequest } from 'next/server';
-import { z } from 'zod';
 
 import { serverClient } from '@/lib/db/server';
 import { expectedWebhookSecret, WEBHOOK_SECRET_HEADER } from '@/lib/drivers/video-status';
-import { confirmAndIngest } from '@/lib/generate/confirm';
+import { handleCallback } from '@/lib/generate/webhook';
 
 /**
- * The generation callback.
+ * The generation callback — the HTTP adapter, and nothing else.
  *
- * ── This endpoint cannot verify a signature, because there is not one ────────
+ * Every decision this endpoint makes lives in `src/lib/generate/webhook.ts`: the
+ * constant-time secret comparison, the rule that the body is never trusted beyond a job
+ * id, the delivery record, the confirmation, and the 202-on-failure. Read that file for
+ * why each one is what it is.
  *
- * ADR 0004: the vendor does not HMAC-sign webhook bodies. It echoes back a shared secret in
- * a header. So there is nothing cryptographic to check — only a bearer token to compare,
- * and anyone who obtains it can forge a completion for any job id they can guess.
- *
- * Two consequences, both structural:
- *
- *   The comparison is constant-time. A byte-by-byte early return leaks the secret to
- *   anyone patient enough to measure, and the secret is the whole of the authentication.
- *
- *   **The body is never trusted.** A valid secret gets the caller as far as "tell me which
- *   job you are talking about". Everything else — did it succeed, where is the file — is
- *   read from the vendor's own status endpoint, at a URL this code constructs from the
- *   stored `external_job_id` and the configured base URL. Never from the payload. A
- *   `status_url` taken from the request body would let a forged callback point the
- *   confirmation at a host the attacker controls, which turns the confirmation step into
- *   theatre.
- *
- * That is the difference between a pipeline that can be lied to and one that cannot. A
- * forged callback with the right secret can, at worst, cause a redundant status fetch.
+ * The split is not tidiness. A route file can only be reached by starting Next and builds
+ * its own database client from module scope, which is why 0008 §5b could prove the SQL
+ * under this endpoint and nothing above it. `handleCallback` takes its database and its
+ * request as arguments, so `pnpm verify:webhook` drives the same code over real HTTP
+ * against real Postgres. Same shape as `serveMcp` behind `/api/mcp`, for the same reason.
  *
  * ── Never redirected, never gated ────────────────────────────────────────────
  *
@@ -41,94 +28,11 @@ import { confirmAndIngest } from '@/lib/generate/confirm';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-/** Only the job identifier is read from the body. Nothing else is believed. */
-const CallbackSchema = z.object({
-  id: z.string().min(1).optional(),
-  job_set_id: z.string().min(1).optional(),
-  jobSetId: z.string().min(1).optional(),
-});
-
-function secretMatches(presented: string | null, expected: string): boolean {
-  if (!presented) return false;
-
-  const a = Buffer.from(presented);
-  const b = Buffer.from(expected);
-
-  // timingSafeEqual throws on a length mismatch, which would itself be a timing signal.
-  // Comparing a fixed-width digest of each keeps the comparison constant-time regardless
-  // of what length the caller supplied.
-  if (a.length !== b.length) {
-    const pad = Buffer.alloc(64);
-    const other = Buffer.alloc(64);
-    a.copy(pad, 0, 0, Math.min(a.length, 64));
-    b.copy(other, 0, 0, Math.min(b.length, 64));
-    timingSafeEqual(pad, other);
-    return false;
-  }
-
-  return timingSafeEqual(a, b);
-}
-
 export async function POST(request: NextRequest) {
-  const expected = expectedWebhookSecret();
+  const result = await handleCallback(serverClient(), expectedWebhookSecret(), {
+    presentedSecret: request.headers.get(WEBHOOK_SECRET_HEADER),
+    rawBody: await request.text(),
+  });
 
-  if (!expected) {
-    // Refusing is the only safe answer. Accepting unauthenticated callbacks because the
-    // secret is unset would make the deployment's security depend on nobody finding the URL.
-    console.error('[webhook] the shared secret is not configured; refusing all callbacks.');
-    return NextResponse.json({ error: 'not configured' }, { status: 503 });
-  }
-
-  if (!secretMatches(request.headers.get(WEBHOOK_SECRET_HEADER), expected)) {
-    // Deliberately uninformative. A caller who guessed wrong learns nothing about how wrong.
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  }
-
-  const parsed = CallbackSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) {
-    return NextResponse.json({ error: 'unrecognised payload' }, { status: 400 });
-  }
-
-  const jobId = parsed.data.id ?? parsed.data.job_set_id ?? parsed.data.jobSetId;
-  if (!jobId) {
-    return NextResponse.json({ error: 'no job identifier' }, { status: 400 });
-  }
-
-  const db = serverClient();
-
-  // Record that a callback arrived, separately from whether it was true. Both matter: a
-  // job that got a callback and no confirmation is a different problem from one that got
-  // neither.
-  //
-  // One atomic statement (0015) rather than a read and a write. Two simultaneous
-  // deliveries are exactly the case this is here to observe, so the observer cannot have
-  // its own race — both would read the same count and write the same number, and a replay
-  // would go unrecorded.
-  const { data: delivery } = await db.rpc('record_webhook_delivery', { p_job_id: jobId });
-  const record = Array.isArray(delivery) ? delivery[0] : delivery;
-
-  if (record && record.deliveries > 1) {
-    // Harmless by construction — `confirm_generation_once` refuses the second settlement —
-    // but never silent. A vendor retry after a timeout is the ordinary cause. A replay of a
-    // delivery somebody captured looks identical from here, and means the shared secret is
-    // no longer shared with only us. `v_replayed_callbacks` is where this is read back.
-    console.warn('[webhook] repeat delivery', {
-      jobId,
-      deliveries: record.deliveries,
-      alreadyConfirmed: record.already_confirmed,
-    });
-  }
-
-  // 202, not 200, and returned by the caller below only after the confirmation runs. The
-  // vendor is told the callback was accepted; whether the outcome was good is not its
-  // business and a non-2xx would make it retry a delivery that was fine.
-  try {
-    const result = await confirmAndIngest(db, jobId);
-    return NextResponse.json({ accepted: true, outcome: result.outcome }, { status: 202 });
-  } catch (err) {
-    // A failure here must not tell the vendor to retry forever. The generation row records
-    // the problem; a 202 stops the redelivery loop and leaves a human to look.
-    console.error('[webhook] confirmation failed', { jobId, err });
-    return NextResponse.json({ accepted: true, outcome: 'confirmation_failed' }, { status: 202 });
-  }
+  return NextResponse.json(result.body, { status: result.status });
 }

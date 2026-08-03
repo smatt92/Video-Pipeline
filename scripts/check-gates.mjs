@@ -103,12 +103,63 @@ inCheck.delete('check');
 
 // ── What CI runs ────────────────────────────────────────────────────────────
 //
-// Read as text rather than parsed as YAML: `run:` steps are shell, and the question is
-// only "does this workflow invoke this script anywhere". A YAML parser would add a
-// dependency to answer a question grep already answers, and CLAUDE.md says to ask before
-// adding one.
+// Only the `run:` steps, and this is a correction rather than a refinement.
+//
+// The first version matched `pnpm <name>` anywhere in the file. A comment in the workflow
+// read "…reachable from neither `pnpm check` nor this workflow…" — a sentence *about* this
+// check — and that sentence was counted as an invocation. Everything reachable from `pnpm
+// check` was therefore reported as CI-covered, and `test:tour` passed as "check + ci" while
+// CI had no step that ran it.
+//
+// So the guard on the guards had the exact defect it exists to catch: a coverage claim with
+// nothing behind it. Worse than the two in 0008 §0a, because those were guards nobody ran
+// and this was a guard *asserting* that guards were run.
+//
+// The fix is to read only what a shell will execute. Still not a YAML parser — the question
+// is narrow enough that a small state machine answers it, and CLAUDE.md says to ask before
+// adding a dependency. What matters is that prose can no longer wire anything.
+function ciRunLines(yaml) {
+  const lines = yaml.split('\n');
+  const out = [];
+  let blockIndent = null;
+
+  for (const raw of lines) {
+    const indent = raw.length - raw.trimStart().length;
+    const line = raw.trim();
+
+    // Inside a `run: |` block: everything more-indented belongs to it, and a blank line
+    // does not end it.
+    if (blockIndent !== null) {
+      if (line === '' || indent > blockIndent) {
+        out.push(line);
+        continue;
+      }
+      blockIndent = null;
+    }
+
+    if (line.startsWith('#')) continue;
+
+    const m = /^(?:-\s*)?run:\s*(.*)$/.exec(line);
+    if (!m) continue;
+
+    const value = m[1];
+    if (value === '|' || value === '>' || value === '|-' || value === '>-') {
+      blockIndent = indent;
+    } else {
+      out.push(value);
+    }
+  }
+
+  // A `#` in a shell line starts a comment there too. Naive, and right for this: the
+  // alternative is quote tracking to answer a question no workflow in this repo asks.
+  return out.map((l) => l.replace(/\s#.*$/, '')).join('\n');
+}
+
 const inCi = new Set();
-for (const [, name] of workflow.matchAll(/pnpm(?:\s+run)?\s+([\w:-]+)/g)) {
+for (const [, name] of ciRunLines(workflow).matchAll(/pnpm(?:\s+run)?\s+([\w:-]+)/g)) {
+  // `pnpm install` and `pnpm dlx` are not scripts. Filtering on what package.json actually
+  // defines keeps the set honest and stops a flag or a subcommand looking like a guard.
+  if (!scripts[name]) continue;
   for (const reached of reachableFrom(name)) inCi.add(reached);
 }
 
@@ -129,6 +180,27 @@ for (const guard of guards) {
         'not in the exemption list. A guard nobody runs is not coverage; it is the ' +
         'appearance of coverage, which is worse. Wire it, or add it to EXEMPT with the ' +
         'reason it cannot be wired.',
+    );
+  }
+
+  // ── `pnpm check` is a mirror, not an enforcement point ────────────────────
+  //
+  // Nothing runs `pnpm check` except a person who chooses to. CI enumerates its steps
+  // individually, which is better — each one gets a name in the log — but it means
+  // membership in `check` gates exactly nothing on a push.
+  //
+  // This was found immediately after fixing the comment-matching bug above: with prose no
+  // longer counted, `test:tour` fell back to `check` alone and still passed, because the
+  // original rule accepted either. It had never run in CI. Same defect one level out — a
+  // guard whose only home is a command nobody is obliged to run.
+  //
+  // The reverse is fine and common: verify:ingest and friends are CI-only because they
+  // need a database URL a laptop may not have.
+  if (check && !ci && !exempt) {
+    problems.push(
+      `${guard} — in \`pnpm check\` but not in CI. Nothing runs \`pnpm check\` on a push, so ` +
+        'this gates nothing: it is the §0a failure with a more reassuring name. Give it a ' +
+        'step in .github/workflows/ci.yml, or exempt it with the reason it cannot run there.',
     );
   }
 

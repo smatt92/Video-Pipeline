@@ -481,8 +481,36 @@ appeared in `v_replayed_callbacks` with an 87 ms spread. Separately, a terminal 
 inserted with a null `confirmed_at` appeared in `v_unconfirmed_terminal_generations`, so
 the forgery view detects the shape it claims to.
 
-**Not proven: anything above the SQL.** `confirmAndIngest` calls these through supabase-js,
-which talks to PostgREST rather than to Postgres, and there is no PostgREST here. So the
+**RESOLVED for everything except the vendor's own response shape.** `pnpm verify:webhook`
+drives `handleCallback` — the same function the route calls — over real HTTP against real
+Postgres, with a local server standing in for the status endpoint. 25 checks, in CI.
+
+The extraction is the part worth noting: the route was unreachable except by starting Next
+and built its own database client at module scope, which is *why* this section could say
+"the SQL is proven and nothing above it". `src/lib/generate/webhook.ts` now takes its
+database and its request as arguments and the route is a nine-line adapter — the same shape
+as `serveMcp` behind `/api/mcp`, for the same reason.
+
+**The harness found a defect in itself before it could find one in the code**, and this is
+the more interesting half. `confirm_generation_once` settled the row correctly and
+`data === true` in `confirm.ts` evaluated false — so the caller concluded it had lost the
+compare-and-set race, returned `already_confirmed`, and **skipped the ingest enqueue**.
+Every row-level assertion passed. That is exactly the Gate-4-at-the-worst-moment failure
+this section warned about, and it was not real: `scripts/lib/supabase-shim.mjs` returned an
+array for every RPC, while PostgREST returns the bare scalar for a scalar-returning function
+and an array only for a set-returning one. Production was right; the instrument was wrong.
+
+The shim now reads `proretset` and `typtype` from `pg_proc` and distinguishes the two, the
+same way it already reads column types from `information_schema` rather than guessing from
+values. Both fixes have the same root: *PostgREST does not guess, because it knows.*
+
+**Still not proven: that the real status endpoint returns the documented shape.** The stub
+returns what the driver's own Zod schema accepts, which is the contract as this codebase
+understands it. Whether the vendor agrees is Gate 4 and nothing else can settle it.
+
+**Historical note, kept because the reasoning still applies.** `confirmAndIngest` calls
+these through supabase-js, which talks to PostgREST rather than to Postgres, and at the
+time this was written there was no PostgREST here. So the
 RPC call shape — argument names, the `Array.isArray` unwrap of a table-returning function,
 whether `data === true` is how a scalar boolean arrives — is read off the generated types
 and the PostgREST contract, not observed. The same applies to `IntegrityAlert`: its two

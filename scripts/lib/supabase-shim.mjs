@@ -54,6 +54,34 @@ function typeCache(client) {
   };
 }
 
+/**
+ * Does this function return one value, or a set of rows?
+ *
+ * Read from the catalogue rather than guessed from the result, for the same reason column
+ * types are: PostgREST does not guess because it knows, and there is a live connection
+ * sitting right there. `proretset` covers `setof`/`returns table`; `typtype = 'c'` covers a
+ * composite return, which also arrives as an object.
+ */
+const scalarCache = new Map();
+async function isScalarFunction(client, name) {
+  if (scalarCache.has(name)) return scalarCache.get(name);
+  const { rows } = await client.query(
+    `select p.proretset, t.typtype
+       from pg_proc p
+       join pg_type t on t.oid = p.prorettype
+       join pg_namespace n on n.oid = p.pronamespace
+      where p.proname = $1 and n.nspname = 'public'
+      limit 1`,
+    [name],
+  );
+  const row = rows[0];
+  // Unknown function: let the array path run so the original error surfaces from the call
+  // itself rather than from here.
+  const scalar = !!row && !row.proretset && row.typtype !== 'c' && row.typtype !== 'p';
+  scalarCache.set(name, scalar);
+  return scalar;
+}
+
 export function supabaseShim(client) {
   const typesFor = typeCache(client);
   return {
@@ -68,6 +96,28 @@ export function supabaseShim(client) {
           `select * from ${name}(${args.join(', ')})`,
           keys.map((k) => params[k]),
         );
+
+        // ── Scalar functions return the scalar, not a row ──────────────────
+        //
+        // PostgREST distinguishes these and so must this. `returns boolean` comes back as
+        // `true`; `returns table (...)` comes back as an array of objects. Returning an
+        // array for both is the obvious implementation and it is wrong in a way that is
+        // very hard to see, because the *database* still does the right thing.
+        //
+        // Found by `verify:webhook`: `confirm_generation_once` settled the row correctly,
+        // and `data === true` in confirm.ts was false — so the caller concluded it had
+        // lost the compare-and-set race, reported `already_confirmed`, and skipped the
+        // ingest enqueue. Every row assertion passed. The harness was about to report a
+        // production bug that does not exist, on the one code path built to check that
+        // exact inference.
+        //
+        // The rule this is an instance of: when two measurements disagree, find out which
+        // instrument can observe the thing. Here the shim could not, and the shim was the
+        // one making the claim.
+        if (await isScalarFunction(client, name)) {
+          return { data: rows.length ? rows[0][name] : null, error: null };
+        }
+
         return { data: rows, error: null };
       } catch (err) {
         // Shaped like a PostgrestError, exactly as the query path is. A function that

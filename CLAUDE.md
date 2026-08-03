@@ -78,6 +78,27 @@ mechanism uncomputable.
 outlives its reason. It runs first in both. Two guards had already gone unwired before it
 existed — see 0008 §0a.
 
+**When two measurements of the same thing disagree, find out which instrument can observe
+it before believing either.** Not "average them", not "trust the alarming one" — establish
+which one is even capable of seeing the thing, and discard the other's evidence entirely.
+
+The case that produced this rule: a headless screenshot of the tour showed no 3D backdrop,
+while a `readPixels` probe on the same canvas in the same frame reported it drawn and gave
+its bounding box. The screenshot was wrong — headless Chromium does not composite the WebGL
+layer into `captureScreenshot` — and it won anyway, for an hour, because a picture is more
+convincing than an array of numbers. An already-correct scene got retuned twice on its
+evidence, and the second retune made the scene invisible for real.
+
+The tell is that a picture *feels* like ground truth and a probe feels like a proxy, when
+here it was the exact reverse: `readPixels` reads the actual framebuffer, and the screenshot
+is a composite of layers one of which was missing. Feeling authoritative is not a property
+of instruments. Ask what each one physically reads, and prefer the one closer to the thing —
+then make the winner an assertion so the next disagreement resolves itself.
+
+This is a third failure mode alongside the two above. A guard that runs nowhere claims
+coverage it does not have; a guard that cannot tell drift from an empty schema reports a
+real number about nothing; and a guard that can see is overruled by one that cannot.
+
 ```bash
 pnpm doctor                          # which failure is this? — run this first, always
 pnpm verify:ingest   "$DATABASE_URL" # 3 shapes → canonical, corrupt → error row
