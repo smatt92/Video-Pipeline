@@ -34,7 +34,8 @@
     "test:timings": "tsc -p tsconfig.verify.json && node scripts/test-voice-timings.mjs",
     "verify:ingest": "tsc -p tsconfig.verify.json && node scripts/verify-ingest.mjs",
     "verify:assemble": "tsc -p tsconfig.verify.json && node scripts/verify-assemble.mjs",
-    "verify:studio": "tsc -p tsconfig.verify.json && node --env-file-if-exists=.env.local scripts/verify-studio.mjs"
+    "verify:studio": "tsc -p tsconfig.verify.json && node --env-file-if-exists=.env.local scripts/verify-studio.mjs",
+    "verify:review": "tsc -p tsconfig.verify.json && node scripts/verify-review.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
@@ -43,6 +44,7 @@
     "@base-ui/react": "^1.6.0",
     "@fal-ai/client": "^1.10.1",
     "@higgsfield/client": "^0.2.1",
+    "@remotion/player": "^4.0.504",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.111.0",
     "@trigger.dev/sdk": "^4.5.9",
@@ -51,6 +53,7 @@
     "next": "15.5.22",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "remotion": "^4.0.504",
     "server-only": "^0.0.1",
     "wavesurfer.js": "^7.12.11",
     "zod": "^4.4.3"

@@ -326,6 +326,13 @@ export type Database = {
             foreignKeyName: "cost_ledger_script_id_fkey"
             columns: ["script_id"]
             isOneToOne: false
+            referencedRelation: "v_script_structure_novelty"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
             referencedRelation: "v_script_vo_status"
             referencedColumns: ["script_id"]
           },
@@ -1153,6 +1160,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "publications_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "v_current_review"
+            referencedColumns: ["review_id"]
+          },
+          {
             foreignKeyName: "publications_thumbnail_asset_id_fkey"
             columns: ["thumbnail_asset_id"]
             isOneToOne: false
@@ -1269,6 +1283,13 @@ export type Database = {
             columns: ["script_id"]
             isOneToOne: false
             referencedRelation: "v_script_cost"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "renders_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_structure_novelty"
             referencedColumns: ["script_id"]
           },
           {
@@ -1397,12 +1418,15 @@ export type Database = {
           description: string
           duration_s: number
           duration_source: string
+          effective_duration_s: number | null
           id: string
           idx: number
           prompt_id: string | null
           script_id: string
           shot_kind: string | null
           status: string
+          trim_in_s: number | null
+          trim_out_s: number | null
           vo_char_end: number | null
           vo_char_start: number | null
         }
@@ -1415,12 +1439,15 @@ export type Database = {
           description: string
           duration_s: number
           duration_source?: string
+          effective_duration_s?: number | null
           id?: string
           idx: number
           prompt_id?: string | null
           script_id: string
           shot_kind?: string | null
           status?: string
+          trim_in_s?: number | null
+          trim_out_s?: number | null
           vo_char_end?: number | null
           vo_char_start?: number | null
         }
@@ -1433,12 +1460,15 @@ export type Database = {
           description?: string
           duration_s?: number
           duration_source?: string
+          effective_duration_s?: number | null
           id?: string
           idx?: number
           prompt_id?: string | null
           script_id?: string
           shot_kind?: string | null
           status?: string
+          trim_in_s?: number | null
+          trim_out_s?: number | null
           vo_char_end?: number | null
           vo_char_start?: number | null
         }
@@ -1469,6 +1499,13 @@ export type Database = {
             columns: ["script_id"]
             isOneToOne: false
             referencedRelation: "v_script_cost"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "shots_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_structure_novelty"
             referencedColumns: ["script_id"]
           },
           {
@@ -1549,6 +1586,13 @@ export type Database = {
             columns: ["script_id"]
             isOneToOne: false
             referencedRelation: "v_script_cost"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "studio_sessions_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_structure_novelty"
             referencedColumns: ["script_id"]
           },
           {
@@ -1677,6 +1721,13 @@ export type Database = {
             foreignKeyName: "vo_takes_script_id_fkey"
             columns: ["script_id"]
             isOneToOne: false
+            referencedRelation: "v_script_structure_novelty"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "vo_takes_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
             referencedRelation: "v_script_vo_status"
             referencedColumns: ["script_id"]
           },
@@ -1713,6 +1764,34 @@ export type Database = {
           slug: string | null
         }
         Relationships: []
+      }
+      v_current_review: {
+        Row: {
+          created_at: string | null
+          decision: string | null
+          human_edit_count: number | null
+          notes: string | null
+          render_id: string | null
+          reshoot_shot_ids: string[] | null
+          review_id: string | null
+          structure_novel: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_render_id_fkey"
+            columns: ["render_id"]
+            isOneToOne: false
+            referencedRelation: "renders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_render_id_fkey"
+            columns: ["render_id"]
+            isOneToOne: false
+            referencedRelation: "v_render_cost"
+            referencedColumns: ["render_id"]
+          },
+        ]
       }
       v_deferred_steps: {
         Row: {
@@ -1807,6 +1886,13 @@ export type Database = {
             foreignKeyName: "renders_script_id_fkey"
             columns: ["script_id"]
             isOneToOne: false
+            referencedRelation: "v_script_structure_novelty"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "renders_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
             referencedRelation: "v_script_vo_status"
             referencedColumns: ["script_id"]
           },
@@ -1878,6 +1964,16 @@ export type Database = {
           generations_used: number | null
           generations_wasted: number | null
           script_id: string | null
+        }
+        Relationships: []
+      }
+      v_script_structure_novelty: {
+        Row: {
+          script_id: string | null
+          shared_script_ids: string[] | null
+          shared_with: number | null
+          structure_hash: string | null
+          unmeasured: boolean | null
         }
         Relationships: []
       }
@@ -1954,6 +2050,13 @@ export type Database = {
             foreignKeyName: "shots_script_id_fkey"
             columns: ["script_id"]
             isOneToOne: false
+            referencedRelation: "v_script_structure_novelty"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "shots_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
             referencedRelation: "v_script_vo_status"
             referencedColumns: ["script_id"]
           },
@@ -1988,6 +2091,13 @@ export type Database = {
             columns: ["script_id"]
             isOneToOne: false
             referencedRelation: "v_script_cost"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "studio_sessions_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_structure_novelty"
             referencedColumns: ["script_id"]
           },
           {
@@ -2080,6 +2190,13 @@ export type Database = {
             foreignKeyName: "shots_script_id_fkey"
             columns: ["script_id"]
             isOneToOne: false
+            referencedRelation: "v_script_structure_novelty"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "shots_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
             referencedRelation: "v_script_vo_status"
             referencedColumns: ["script_id"]
           },
@@ -2142,6 +2259,10 @@ export type Database = {
       refresh_studio_session_spend: {
         Args: { p_session: string }
         Returns: undefined
+      }
+      reorder_shots: {
+        Args: { p_script_id: string; p_shot_ids: string[] }
+        Returns: number
       }
       undefer_onboarding_step: {
         Args: { p_profile_id: string; p_step: number }

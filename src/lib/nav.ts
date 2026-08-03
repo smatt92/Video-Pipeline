@@ -58,7 +58,7 @@ export const NAV: readonly NavGroup[] = [
         href: '/review',
         label: 'Review',
         hint: 'Player, shot strip, per-shot regenerate',
-        status: blocked('1.5', 'Needs rough-cut assembly'),
+        status: ready(),
       },
     ],
   },

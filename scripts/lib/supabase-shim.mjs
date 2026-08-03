@@ -25,24 +25,62 @@
  *   bug `currentRate` carries a comment about.
  */
 
+/**
+ * Column types, read from the database once per table.
+ *
+ * A JS array is ambiguous between `text[]` and a jsonb array, and nothing in the *value*
+ * resolves it. The first version guessed from the contents — objects mean jsonb, an empty
+ * array means jsonb — and the guess was wrong the first time it met `reshoot_shot_ids
+ * uuid[]` holding `[]`, which Postgres rejected as a malformed array literal.
+ *
+ * The guess was never the right shape of answer. PostgREST does not guess because it knows
+ * the column types, and so does this — there is a live connection right there. Asking costs
+ * one query per table for the life of the process and removes the class of bug rather than
+ * managing it.
+ */
+function typeCache(client) {
+  const tables = new Map();
+
+  return async function typesFor(table) {
+    if (!tables.has(table)) {
+      const { rows } = await client.query(
+        `select column_name, data_type from information_schema.columns
+         where table_schema = 'public' and table_name = $1`,
+        [table],
+      );
+      tables.set(table, new Map(rows.map((r) => [r.column_name, r.data_type])));
+    }
+    return tables.get(table);
+  };
+}
+
 export function supabaseShim(client) {
+  const typesFor = typeCache(client);
   return {
     from(table) {
-      return builder(client, table);
+      return builder(client, table, typesFor);
     },
     async rpc(name, params) {
       const keys = Object.keys(params ?? {});
       const args = keys.map((k, i) => `${k} => $${i + 1}`);
-      const { rows } = await client.query(
-        `select * from ${name}(${args.join(', ')})`,
-        keys.map((k) => params[k]),
-      );
-      return { data: rows, error: null };
+      try {
+        const { rows } = await client.query(
+          `select * from ${name}(${args.join(', ')})`,
+          keys.map((k) => params[k]),
+        );
+        return { data: rows, error: null };
+      } catch (err) {
+        // Shaped like a PostgrestError, exactly as the query path is. A function that
+        // signals by RAISE — `reorder_shots` rejecting a stale id list is the case that
+        // found this — must reach the caller as `error`, because the caller branches on
+        // `error.message` and an exception skips the branch written to handle it.
+        return { data: null, error: { message: err.message, code: err.code ?? null } };
+      }
     },
   };
 }
 
-function builder(client, table) {
+function builder(client, table, typesFor) {
   const st = {
     table,
     mode: 'select',
@@ -172,6 +210,8 @@ function builder(client, table) {
   return api;
 
   async function exec() {
+    const types = await typesFor(st.table);
+    const enc = (column, value) => encode(value, types.get(column));
     const params = [];
     const clauses = st.where.map((f) => f(params));
     const where = clauses.length ? ` where ${clauses.join(' and ')}` : '';
@@ -191,7 +231,7 @@ function builder(client, table) {
 
       if (st.mode === 'update') {
         const cols = Object.keys(st.payload);
-        const values = cols.map((c) => encode(st.payload[c]));
+        const values = cols.map((c) => enc(c, st.payload[c]));
         const sets = cols.map((c, i) => `${quote(c)} = $${i + 1}`);
         // The WHERE placeholders continue after the SET ones.
         const tailParams = [];
@@ -211,7 +251,7 @@ function builder(client, table) {
       const values = [];
       const tuples = st.payload.map((row) => {
         const ph = cols.map((c) => {
-          values.push(encode(row[c] === undefined ? null : row[c]));
+          values.push(enc(c, row[c] === undefined ? null : row[c]));
           return `$${values.length}`;
         });
         return `(${ph.join(',')})`;
@@ -242,25 +282,22 @@ function builder(client, table) {
 }
 
 /**
- * jsonb columns take a string; `text[]` columns take a JS array.
+ * Bind a JS value for a column of the given SQL type.
  *
- * A JS array is ambiguous between the two and nothing in the value says which. The rule
- * below resolves it the way this codebase's columns actually divide: an array containing
- * an object can only be jsonb, an empty array in this codebase is always jsonb
- * (`transcript`, `beats`), and a non-empty array of scalars is always `text[]` (`tags`).
- *
- * PostgREST does not have this problem because it knows the column types. This does not,
- * and the honest mitigation is that a wrong guess fails loudly — Postgres rejects a JSON
- * string bound to `text[]` and an array literal bound to `jsonb` — rather than storing
- * something plausible. If a column ever breaks the rule, that error is what says so.
+ * `dataType` comes from `information_schema.columns`: 'jsonb', 'json', 'ARRAY', or a scalar
+ * type name. It is `undefined` only for a column the schema does not have, and that case is
+ * left to Postgres to reject — a shim that silently dropped an unknown column would make a
+ * typo in a payload look like a successful write.
  */
-function encode(value) {
+function encode(value, dataType) {
   if (value === null || value === undefined) return null;
   if (value instanceof Date) return value.toISOString();
-  if (Array.isArray(value)) {
-    const looksJson = value.length === 0 || value.some((v) => v !== null && typeof v === 'object');
-    return looksJson ? JSON.stringify(value) : value;
-  }
+
+  if (dataType === 'jsonb' || dataType === 'json') return JSON.stringify(value);
+  if (dataType === 'ARRAY') return Array.isArray(value) ? value : [value];
+
+  // No declared type to go on: fall back to shape. Reached only for a column the schema
+  // does not declare, which Postgres is about to complain about anyway.
   if (typeof value === 'object') return JSON.stringify(value);
   return value;
 }

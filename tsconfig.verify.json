@@ -43,6 +43,10 @@
     "src/lib/studio/materialise.ts",
     "src/lib/studio/token.ts",
     "src/lib/studio/read.ts",
+    // The review lane, minus actions.ts for the same reason.
+    "src/lib/review/timeline.ts",
+    "src/lib/review/read.ts",
+    "src/lib/review/write.ts",
     "src/lib/onboarding/gate.ts",
     "src/lib/onboarding/steps.ts"
   ]

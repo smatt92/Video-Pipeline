@@ -658,6 +658,61 @@ nothing above it.
 nothing to stitch, which is what the harness exercises. Enqueuing to Trigger.dev needs the
 deploy in `0010-trigger-deploy.md`.
 
+### 8. The review screen — RUN, except the browser
+
+**Run.** `pnpm verify:review "$DATABASE_URL"` builds a synthetic set with ffmpeg — four real
+clips normalised by the real `normalise`, stored through the real driver, with real
+`generations`, `assets` and two `vo_takes` rows — and drives the review lane's read and
+write paths against it. Thirty checks, repeatable, in CI.
+
+The one worth quoting:
+
+```
+3. A trim shortens the picture and not the voice
+  PASS  the picture is shorter by exactly the trim — 8.38s
+  PASS  the voice is unchanged — 9.42s
+  PASS  the trimmed shot itself is still in place
+  PASS  every later shot moves by exactly the trim — -0.80, -0.80, -0.80
+  PASS  and all of them are flagged — 3 over 0.25s
+
+        A cut that plays perfectly: 8.38s of picture against 9.42s of voice,
+        with the last three shots 1.04s ahead of the words they were cut to.
+```
+
+That is the same silent-wrongness class as the three assembly bugs, moved one stage earlier
+to the point where a human is about to say the cut is fine. Shot durations are derived from
+word timings, so a trim breaks the derivation for every *later* shot and not the trimmed
+one — and nothing about the resulting file is malformed.
+
+Also proven: caption cues group across the chunk seam with each chunk's `offset_s` applied;
+`reorder_shots` renumbers where a plain UPDATE cannot and refuses a stale id list; the four
+impossible trim windows are refused by the application *and* independently by the CHECK
+constraint; `structure_novel` is derived rather than accepted and flips on its own when a
+second script shares the hash; `human_edit_count` is frozen at decision time; and
+`enforce_review_pass` refuses a publication whose review is a reshoot and permits one whose
+review is a pass.
+
+**Two defects the harness found in its own first run**, both now fixed:
+
+- `Timeline.worstDriftS` counted only *flagged* shots, so a cut whose every boundary was
+  0.24s adrift reported `0`. That reads as "perfectly aligned" and means "under the
+  threshold". The threshold decides what gets flagged; it does not get to decide what the
+  number is.
+- The `pg` shim guessed `text[]` versus jsonb from the *value*, and the guess was wrong the
+  first time it met `reshoot_shot_ids uuid[]` holding `[]`. It now reads column types from
+  `information_schema` — PostgREST does not guess because it knows the types, and there was
+  a live connection sitting right there.
+
+**NOT RUN: the browser.** Remotion Player, wavesurfer and the pointer-drag reorder are not
+exercised. The data and the rules are, which is where the failures that matter live: a
+player composing the wrong frames is visible the first time anyone looks at it, and a
+half-second drift is not. The keyboard map, the drag arithmetic and the canvas all read the
+same `TimelineSpan[]` the harness checks.
+
+**NOT RUN: a real cut.** The synthetic set's clips are ffmpeg test patterns and its word
+timings are authored, not synthesised — there is no voice vendor in this path. What that
+leaves unproven is stage 6 producing timings of the shape assumed here, which is §4b.
+
 ## Gates, and where each can run
 
 | Gate | Runnable in this environment? |

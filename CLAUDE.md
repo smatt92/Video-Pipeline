@@ -6,8 +6,8 @@ Read `docs/ARCHITECTURE.md` before proposing anything structural. `docs/SCHEMA.s
 ## Stack
 
 Next.js 15 (App Router) on Vercel · Supabase Postgres · **Supabase Storage** (S3 protocol) ·
-**Trigger.dev v4** · Remotion + ffmpeg · **Remotion Player / Vidstack / wavesurfer.js** on the
-review screen · Higgsfield (**`@higgsfield/client`**) · ElevenLabs · Anthropic SDK ·
+**Trigger.dev v4** · Remotion + ffmpeg · **Remotion Player** (`@remotion/player`) / Vidstack /
+**wavesurfer.js** on the review screen · Higgsfield (**`@higgsfield/client`**) · ElevenLabs · Anthropic SDK ·
 TypeScript strict · pnpm
 
 Reconciled against the addenda and the decision records on 2026-08-03. Four entries here had
@@ -83,6 +83,7 @@ pnpm doctor                          # which failure is this? — run this first
 pnpm verify:ingest   "$DATABASE_URL" # 3 shapes → canonical, corrupt → error row
 pnpm verify:assemble "$DATABASE_URL" # 6 clips → one MP4, over a real S3 endpoint
 pnpm verify:studio   "$DATABASE_URL" # MCP server over real HTTP; generate_shot refuses
+pnpm verify:review   "$DATABASE_URL" # a trim drifts every later shot; the publish gate holds
 ```
 
 ## Current phase

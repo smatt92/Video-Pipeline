@@ -121,6 +121,13 @@ jobs:
       - name: Rough cut assembles, and a wrong duration is a failed render
         run: pnpm verify:assemble "$DATABASE_URL"
 
+      # ── The review screen's timeline, trims, reorder and gate ────────────
+      # A trim shortens the picture and not the voice; the drift lands on every later shot
+      # and the file still plays. Same silent-wrongness class as the assembly bugs, one
+      # stage earlier, at the point a human is about to say the cut is fine.
+      - name: Review timeline, trims, reorder and the publish gate
+        run: pnpm verify:review "$DATABASE_URL"
+
       # ── The Studio lane, minus the leg that needs a public hostname ──────
       # Creates and drops its own scratch database, so it runs after the checks that read
       # the one above. Section 7 (the billed model call) skips without a key and says so.
