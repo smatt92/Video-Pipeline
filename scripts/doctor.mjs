@@ -368,6 +368,97 @@ try {
     { gate: true },
   );
 
+  // ── 4b. PostgREST's view of the schema ─────────────────────────────────────
+  //
+  // The check that distinguishes the two failures that read identically.
+  //
+  // Supabase serves the app through PostgREST, which holds the schema in memory. Applying
+  // migrations by pasting SQL into the editor changes the database and does NOT tell
+  // PostgREST to reload — so every table exists, `information_schema` lists them, psql
+  // sees them, and the app still says "Could not find the table 'public.X' in the schema
+  // cache". Reading that message, "the migration did not run" and "the cache is stale" are
+  // indistinguishable, and they have opposite fixes.
+  //
+  // So this asks the database and PostgREST the same question and compares the answers.
+  await check('PostgREST sees the schema', async () => {
+    const restUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
+    const key =
+      process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!restUrl || !key) {
+      return {
+        status: 'skip',
+        lines: [
+          'Needs NEXT_PUBLIC_SUPABASE_URL and a key in the environment (.env.local is read).',
+          'Without them this cannot tell a stale cache from a missing table, and those are',
+          'the two failures that read identically.',
+        ],
+      };
+    }
+
+    // Tables the app cannot start without, one per migration era, so a partial apply is
+    // visible as a partial answer rather than a single yes/no.
+    const probes = ['profiles', 'integrations', 'concepts', 'v_deferred_steps'];
+    const missingInRest = [];
+    const missingInDb = [];
+
+    for (const table of probes) {
+      const inDb =
+        (await pgLib.scalar(client, 'select to_regclass($1) is not null', [`public.${table}`])) ===
+        true;
+      if (!inDb) {
+        missingInDb.push(table);
+        continue;
+      }
+
+      // head + limit 0: asks PostgREST to resolve the name without transferring rows.
+      let seen = false;
+      try {
+        const response = await fetch(`${restUrl}/rest/v1/${table}?select=*&limit=0`, {
+          headers: { apikey: key, authorization: `Bearer ${key}` },
+        });
+        seen = response.ok;
+      } catch {
+        seen = false;
+      }
+      if (!seen) missingInRest.push(table);
+    }
+
+    if (missingInDb.length > 0) {
+      return {
+        status: 'fail',
+        lines: [
+          `Absent from the DATABASE: ${missingInDb.join(', ')}.`,
+          'The migrations have not been applied. This is not a cache problem — see the',
+          'migration check above for what to run.',
+        ],
+      };
+    }
+
+    if (missingInRest.length > 0) {
+      return {
+        status: 'fail',
+        lines: [
+          `${missingInRest.join(', ')} exist in the database but PostgREST cannot see them.`,
+          '',
+          '**This is a stale schema cache, not a missing migration.** The tables are there;',
+          'the API layer has not been told. Run this in the SQL editor:',
+          '',
+          "  notify pgrst, 'reload schema';",
+          '',
+          'Then re-run this check. Bundles generated from now on end with that statement, so',
+          'a fresh paste reloads the cache on its own — this only bites a bundle pasted',
+          'before that was added.',
+        ],
+      };
+    }
+
+    return {
+      status: 'pass',
+      lines: [`PostgREST resolves all ${probes.length} probe relations.`],
+    };
+  });
+
   // ── 5. Enums ───────────────────────────────────────────────────────────────
   //
   // Shells out to the real check rather than reimplementing it. Doctor should report what

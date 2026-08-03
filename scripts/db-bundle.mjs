@@ -86,6 +86,11 @@ const header = `-- Kiln — migrations ${selected[0].version} to ${selected[sele
 -- applied: the whole file is one transaction, so a failure rolls back every statement in
 -- it. There is no half-applied state to clean up.
 --
+-- The last statement in this file is \`notify pgrst, 'reload schema'\`. Without it the
+-- app keeps reporting "Could not find the table 'public.X' in the schema cache" even
+-- though every table exists — PostgREST caches the schema and pasting SQL does not tell
+-- it to reload. It is included; you do not need to run it separately.
+--
 -- ── Running it twice ────────────────────────────────────────────────────────
 --
 -- Safe. The guard below raises before any schema change if any of these versions is
@@ -139,6 +144,19 @@ const body = selected
 const footer = `
 -- ════════════════════════════════════════════════════════════════════════════
 commit;
+
+-- ── Tell PostgREST the schema changed ───────────────────────────────────────
+--
+-- Outside the transaction, and not optional.
+--
+-- Supabase serves the app through PostgREST, which caches the schema in memory. The CLI
+-- reloads that cache after a push; pasting SQL into the editor does not. So every table,
+-- view and function this file created exists in the database and is invisible to the app
+-- until this fires — and the error you get is "Could not find the table 'public.X' in the
+-- schema cache", which reads exactly like the migration never ran.
+--
+-- That sentence cost an evening. It is in the file now so it cannot be forgotten.
+notify pgrst, 'reload schema';
 
 -- Confirm from the editor:
 --   select version, name from supabase_migrations.schema_migrations order by version;
