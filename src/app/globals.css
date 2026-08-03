@@ -138,6 +138,23 @@ body {
   }
 }
 
+/* The tour backdrop arriving. Its chunk loads after the words are already on screen, and a
+ * backdrop that pops in reads as the page having reloaded — so it fades.
+ *
+ * It never plays under reduced-motion, and not because of this keyframe: the backdrop is
+ * gated in JS with matchMedia and the module is never imported. This is stated here because
+ * the pattern everywhere else in this file is "CSS animates, the media query in tokens.css
+ * stops it", and a reader is entitled to wonder why that is not enough. It is not enough
+ * because a requestAnimationFrame loop has nothing to ask the stylesheet with. */
+@keyframes kiln-scene-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 
 /* ══════════════════════════════════════════════════════════════════════════════
  * Canvas-relative sizing

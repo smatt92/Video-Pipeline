@@ -188,5 +188,20 @@ jobs:
       # After the build on purpose: it reads .next/static/css, because clamp(), @theme and
       # the utility generation all happen at build time and the source tokens are the
       # input to a compiler rather than the thing that ships.
+      #
+      # Both browser harnesses find Chromium through scripts/lib/chrome.mjs rather than a
+      # constant. The constant was the dev container's Playwright path, pinned to a version
+      # — it exists on no runner, and it would have failed here as an ENOENT on a binary
+      # rather than as "there is no browser". GitHub's ubuntu image ships Chrome; the
+      # container ships Playwright's; the search covers both and refuses if neither.
       - name: Display scaling, WCAG 1.4.4 / 1.4.10 / 1.4.12 / 2.5.8
         run: pnpm verify:scaling
+
+      # ── The tour backdrop, on the real route ─────────────────────────────
+      # Starts the production server and drives /onboarding over the DevTools protocol.
+      # The assertion that earns its place is the contrast one: it composites the WebGL
+      # buffer over the page background under the actual heading and paragraph and computes
+      # the WCAG ratio. The first version of the scene passed every other check here while
+      # putting a solid amber box behind a paragraph — "pixels differ" is not legibility.
+      - name: The tour backdrop renders, and the words stay readable over it
+        run: pnpm verify:tour

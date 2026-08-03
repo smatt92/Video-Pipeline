@@ -37,7 +37,9 @@ import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
+import { findChrome } from './lib/chrome.mjs';
+
+const CHROME = findChrome();
 
 /**
  * 320 is the 1.4.10 reflow floor and also 400% zoom on a 1280px window.

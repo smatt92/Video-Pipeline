@@ -800,6 +800,69 @@ by building the image. `pnpm trigger:deploy:dry` does exactly that and uploads n
 is the first thing to run once the account exists. Until then the symptom stands:
 `spawn ffmpeg ENOENT` on the first ingest, after the generation was paid for.
 
+### 11. The tour backdrop — RUN in a real browser, and it shipped wrong once first
+
+**Run.** `pnpm verify:tour` starts the production server, drives `/onboarding` in a real
+Chromium over the DevTools protocol, and reads the answers out of the live page. Nineteen
+checks, in CI, after the build.
+
+This one is worth reading closely because the first version passed and was wrong.
+
+The scene mounted, the context was live, and the buffer had thirteen distinct colours in
+it — so every assertion the harness had said yes. Then a screenshot of step 3 showed a
+solid amber box directly behind the paragraph, with the words unreadable across it. The
+check was measuring *that the renderer ran*, which it had, and calling that success.
+
+What replaced it composites the WebGL buffer over the page background underneath the actual
+`<h1>` and the actual `<p>`, reads the paragraph's actual computed colour, and returns the
+WCAG contrast ratio of the worst pixel in each box. Not a proxy — the measurement 1.4.3
+names.
+
+It found a fourth thing on its way to green. At 390px the check read **4.58:1** — a pass,
+with essentially no margin, on the one viewport a desktop screenshot cannot show. The cause
+was the narrow-viewport branch itself: widening the field of view to fit eleven stages in
+horizontally also pulls everything *up* toward frame centre, which is where the text is. The
+camera now lifts by 0.6 on narrow, and the same measurement reads **9.58:1 with 5.4% of the
+buffer painted** — clear of the words and still visible. Current worst across all six cases
+is 6.35:1, at the last step on desktop.
+
+**Defects the browser found that no amount of reading would have:**
+
+- The contrast check itself reported `1.00:1` on everything for its first run. The token
+  layer emits `oklch()`, and a regex over the computed value was reading `0.145` as a red
+  channel. Both colours collapsed to near-black, so every ratio was 1. It now round-trips
+  the colour through a 2D canvas and lets the browser do the conversion, which is the only
+  version that stays correct the next time the palette changes notation.
+- The **first correction over-corrected**: the camera went up and the alpha went down, and
+  the result measured 9.58:1 on every step — a perfect score, produced by pushing the entire
+  track off the bottom of the frame and dimming what was left to within nine values of the
+  background. The harness could not tell that from success, because it was measuring the
+  text and the text was fine. It now asserts painted coverage in the same breath as
+  contrast: **legible because absent is not legible.**
+- Both browser harnesses hard-coded `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`.
+  That is the dev container's path, with a Playwright version pinned into it, and it exists
+  on no GitHub runner — `verify:scaling` was already wired into CI with it. Same shape as
+  §0 and §0a one layer down. `scripts/lib/chrome.mjs` now searches, and refuses with a
+  message naming what it looked for rather than skipping.
+
+**A headless screenshot of this page is evidence of nothing.** `Page.captureScreenshot`
+returns the tour with the WebGL layer *absent* — not dark, not faint — while `readPixels`
+on the same canvas at the same moment reports the scene drawn and on screen. An hour went
+into retuning a scene that was already correct, on the evidence of a picture that could not
+show it. Every measurement in `verify:tour` now comes from inside the page, and the
+harness's header says why. The scene's actual position is asserted rather than eyeballed:
+at 1280×813 it occupies **y 478–623** on the first step, with the paragraph ending at 442.
+
+**NOT PROVEN: that it looks any good.** Nothing automated can say that, and the harness
+says so in its own closing line. What it rules out is the failure that matters — that the
+backdrop is the reason somebody cannot read the tour. **This is the one thing on the list
+that needs you and a GPU**, and it takes about fifteen seconds: open `/onboarding` and
+click through five steps.
+
+**NOT PROVEN: real GPU behaviour.** Headless Chromium runs WebGL on SwiftShader. That is a
+fair test of the software path a blocklisted or battery-throttled GPU would take, and it is
+not a test of a driver. Frame cost on real hardware is unmeasured.
+
 ## Gates, and where each can run
 
 | Gate | Runnable in this environment? |

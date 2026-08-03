@@ -25,7 +25,7 @@
     "check:gates": "node scripts/check-gates.mjs",
     "check:trigger-build": "node scripts/check-trigger-build.mjs",
     "check:scalable-sizes": "node scripts/check-scalable-sizes.mjs",
-    "check": "pnpm check:gates && pnpm check:vendors && pnpm check:public-env && pnpm check:trigger-build && pnpm check:scalable-sizes && pnpm typecheck && pnpm lint && pnpm test:timings && pnpm test:entry",
+    "check": "pnpm check:gates && pnpm check:vendors && pnpm check:public-env && pnpm check:trigger-build && pnpm check:scalable-sizes && pnpm typecheck && pnpm lint && pnpm test:timings && pnpm test:entry && pnpm test:tour",
     "prebuild": "node scripts/check-public-env.mjs",
     "check:public-env": "node scripts/check-public-env.mjs",
     "check:drift": "node scripts/check-drift.mjs",
@@ -36,12 +36,14 @@
     "verify:script:direct": "tsc -p tsconfig.verify.json && node --env-file-if-exists=.env.local scripts/verify-script-draft-direct.mjs",
     "test:timings": "tsc -p tsconfig.verify.json && node scripts/test-voice-timings.mjs",
     "test:entry": "tsc -p tsconfig.verify.json && node scripts/test-entry-flow.mjs",
+    "test:tour": "tsc -p tsconfig.verify.json && node scripts/test-tour-scene.mjs",
     "verify:ingest": "tsc -p tsconfig.verify.json && node scripts/verify-ingest.mjs",
     "verify:assemble": "tsc -p tsconfig.verify.json && node scripts/verify-assemble.mjs",
     "verify:studio": "tsc -p tsconfig.verify.json && node --env-file-if-exists=.env.local scripts/verify-studio.mjs",
     "verify:review": "tsc -p tsconfig.verify.json && node scripts/verify-review.mjs",
     "verify:referral": "tsc -p tsconfig.verify.json && node scripts/verify-referral.mjs",
-    "verify:scaling": "node scripts/verify-scaling.mjs"
+    "verify:scaling": "node scripts/verify-scaling.mjs",
+    "verify:tour": "node scripts/verify-tour.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
@@ -61,6 +63,7 @@
     "react-dom": "19.1.0",
     "remotion": "^4.0.504",
     "server-only": "^0.0.1",
+    "three": "^0.185.1",
     "wavesurfer.js": "^7.12.11",
     "zod": "^4.4.3"
   },
@@ -72,6 +75,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "^0.185.3",
     "eslint": "^9",
     "eslint-config-next": "15.5.22",
     "pg": "^8.22.0",

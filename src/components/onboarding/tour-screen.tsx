@@ -5,12 +5,13 @@ import { useCallback, useEffect, useState } from 'react';
 import type { TourStep } from '@/lib/onboarding/tour';
 import { SEEN_COOKIE, seenCookieAttributes } from '@/lib/onboarding/entry';
 import { Fork } from './fork';
+import { TourBackdrop } from './tour-backdrop';
 
 /**
- * The tour, without 3D.
+ * The tour. The whole of it — there is no second renderer.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * This is not the fallback. It is the tour.
+ * This is not the fallback
  * ─────────────────────────────────────────────────────────────────────────────
  *
  * Built first and deliberately: it is what `prefers-reduced-motion` users see, what anyone
@@ -18,9 +19,14 @@ import { Fork } from './fork';
  * mid-sequence. Between those three that is not an edge case, and a fallback written after
  * the "real" version is always a summary of it.
  *
- * The 3D layer, when it lands, mounts *over* this and reads the same `steps` array. It may
- * add spatial explanation — where a stage sits relative to the others, what flows into
- * what. It may not add a sentence this does not have.
+ * An earlier draft of this comment said the 3D layer would mount *over* this and read the
+ * same `steps` array — two renderers, one content array. It landed differently and better:
+ * `TourBackdrop` draws *behind* this and renders no content at all. The words, the buttons,
+ * the keyboard handling, the focus order and the cookie write have exactly one
+ * implementation, which is this one, which is the one everybody gets. What the 3D adds is
+ * arrangement — where a stage sits relative to the others, what flows into what — and it
+ * cannot add a sentence because it has no way to draw one. See `src/lib/onboarding/scene.ts`
+ * for how that is a property of the types rather than a rule somebody remembers.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * Marking it seen
@@ -95,6 +101,12 @@ export function TourScreen({
 
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[760px] flex-col px-6 py-10">
+      {/* Behind everything, full-bleed, and absent unless it can run. Passed the index and
+          nothing else — it has no access to the copy, which is the point. It is fixed to
+          the viewport rather than to this column: the column is 760px and the thing being
+          drawn is an eleven-stage track, which inside that width would be a diagram of
+          nothing. */}
+      <TourBackdrop index={index} />
       {/* Skip is at the top and always visible. Burying a skip control at the bottom of a
           sequence is the pattern that makes people feel trapped in it, and one-click means
           one click from anywhere — not one click once you have scrolled. */}
