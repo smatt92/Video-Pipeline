@@ -4,6 +4,7 @@ import { primaryForKind } from '../drivers/catalog';
 import { fetchJobStatus, resultUrl } from '../drivers/video-status';
 import type { Db } from '../db/server';
 import { requireCredential } from '../integrations/credentials';
+import { enqueueIngest } from './enqueue';
 
 /**
  * Confirm a claimed completion against the vendor, then write results.
@@ -185,13 +186,12 @@ export async function confirmAndIngest(db: Db, jobId: string): Promise<ConfirmRe
   // Vercel route may not touch media bytes (CLAUDE.md rule 2, 4.5 MB hard cap) and has no
   // ffmpeg. This route moves an id and a URL; the worker moves the file.
   //
-  // TODO(gate-4): enqueue 05b-ingest with { generationId, assetUrl }. Left explicit rather
-  // than stubbed silently — the confirmation is real, the ingest is not yet wired, and a
-  // generation that succeeds with no asset row is visible in the shot grid as exactly that.
-  //
-  // Whatever goes here is reached only after `settle()` returned true, which is what makes
-  // it safe: a replayed callback returns above and never gets this far. The same applies
-  // to the chained soul → dop submit when it lands. Both spend money, and neither may be
-  // guarded by an application-level read of `confirmed_at`.
+  // Reached only after `settle()` returned true, which is what makes the enqueue safe: a
+  // replayed callback returns above and never gets here, so a redelivery cannot cause a
+  // second download, a second storage write or — once the soul → dop chain lands — a
+  // second paid generation. That guarantee is the CAS in `confirm_generation_once`, not
+  // the application-level check at the top of this function.
+  await enqueueIngest({ generationId: generation.id, assetUrl });
+
   return { outcome: 'succeeded', detail: assetUrl };
 }

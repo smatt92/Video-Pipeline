@@ -31,6 +31,9 @@
     "src/lib/voice/**/*.ts",
     "src/lib/cost/**/*.ts",
     "src/lib/prompts/**/*.ts",
+    "src/lib/assemble/**/*.ts",
+    "src/lib/ingest/**/*.ts",
+    "src/lib/storage/**/*.ts",
     "src/lib/onboarding/gate.ts",
     "src/lib/onboarding/steps.ts"
   ]

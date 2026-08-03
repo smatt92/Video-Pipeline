@@ -29,7 +29,9 @@
     "verify:vault": "node scripts/verify-vault.mjs",
     "verify:storage": "node --env-file-if-exists=.env.local scripts/verify-storage.mjs",
     "verify:script": "tsc -p tsconfig.verify.json && node --env-file-if-exists=.env.local scripts/verify-script-draft.mjs",
-    "test:timings": "tsc -p tsconfig.verify.json && node scripts/test-voice-timings.mjs"
+    "test:timings": "tsc -p tsconfig.verify.json && node scripts/test-voice-timings.mjs",
+    "verify:ingest": "tsc -p tsconfig.verify.json && node scripts/verify-ingest.mjs",
+    "verify:assemble": "tsc -p tsconfig.verify.json && node scripts/verify-assemble.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

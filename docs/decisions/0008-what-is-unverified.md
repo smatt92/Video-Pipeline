@@ -400,6 +400,40 @@ ever confirms, which is a Gate 4 blocker discovered at the worst moment.
 
 **To verify:** step 4 of the runbook, all three attacks. The third one is the new one.
 
+### 5c. Ingest and rough cut — RUN, and what that did not cover
+
+Both were executed here against real ffmpeg 6.1.1 and a real Postgres. What follows is
+the boundary of that, because two of these paths have a piece nothing local can reach.
+
+**Ingest — `pnpm verify:ingest "$DATABASE_URL"`.** Three synthetic clips, deliberately
+nothing alike: 1920x1080@24 h264 with audio, 720x720@60 mpeg4 with none, 540x960@29.97
+vp9/yuv444. All three normalised to 1080x1920@30 h264/yuv420p. A file that is not a video
+wrote `error_code = normalise_failed` and **no** `assets` row. A generation with a null
+`confirmed_at` was refused before any fetch. The clips were served over real HTTP from the
+harness, so the code performed a genuine network fetch rather than being handed a path.
+
+**Not covered:** the vendor's own URL. That is the only simulated step in the path, and it
+is simulated by an HTTP server rather than mocked away.
+
+**Rough cut — `pnpm verify:assemble "$DATABASE_URL"`.** Six clips of five different shapes
+concatenated to one 10.05s MP4 against 10.03s expected, 301 frames decoded against 301
+predicted — every frame, not just the header. A set with one non-normalised clip was
+refused, and the refusal names the clip and both shapes. The harness then forced the same
+concat past the guard to show what the refusal prevented: 8.55s instead of 10.03s, a file
+that plays and is wrong.
+
+**Not covered:** assembling from an object store. ffmpeg reads files, so that needs each
+asset downloaded to the container first, and `07-assemble` throws rather than pretending
+otherwise for any driver but `local-fs`.
+
+**The `local-fs` driver** is new and is the second implementation of `StorageDriver`. It
+exists so these paths could run at all; it refuses to construct without an explicit root so
+it cannot be selected by accident. Writing it found no fault in the interface, which is
+itself a small result.
+
+**Never executed:** the Trigger tasks under Trigger's runtime, the ffmpeg build extension,
+and the deploy. See 0010.
+
 ### 6. Stage 5 — every part of it
 
 Submit, callback, confirmation and ingest are all written and none has run. The vendor host

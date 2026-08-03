@@ -1,4 +1,5 @@
 import { env } from '../env';
+import { createLocalStorageDriver } from './local';
 import { createSupabaseStorageDriver } from './supabase';
 import type { StorageDriver } from './types';
 
@@ -30,6 +31,11 @@ export type {
  */
 const REGISTRY: Record<string, () => StorageDriver> = {
   'supabase-storage': createSupabaseStorageDriver,
+  // The filesystem driver. Its own module explains why it exists and why it refuses to
+  // run without an explicit root — in short, it is what lets the ingest and assembly
+  // paths execute for real in an environment with no object store, and it is the second
+  // implementation that makes the interface a tested shape rather than an assumed one.
+  'local-fs': createLocalStorageDriver,
 };
 
 let cached: StorageDriver | null = null;
