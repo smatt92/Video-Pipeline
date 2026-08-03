@@ -69,6 +69,45 @@ export function CommandPalette({
             Nothing matches.
           </Command.Empty>
 
+          {/* Replaying the tour. The third of three resume paths, and the only one that
+              stays after setup is finished — the sidebar checklist hides itself at 8 of 8,
+              because a checklist showing all-done is furniture. Someone wanting to re-read
+              what a stage does still needs a door. */}
+          <Command.Group
+            heading="Help"
+            className="mb-1 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:font-mono [&_[cmdk-group-heading]]:text-3xs [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.09em]"
+            style={{ color: 'var(--text-faint)' }}
+          >
+            <Command.Item
+              value="replay product tour onboarding what is kiln intro explain"
+              onSelect={() => {
+                onOpenChange(false);
+                router.push('/onboarding');
+              }}
+              className="flex cursor-pointer items-center gap-3 rounded-sm px-2 py-[7px] text-sm data-[selected=true]:bg-[var(--surface-3)]"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              <span className="shrink-0">Replay the product tour</span>
+              <span className="truncate text-xs" style={{ color: 'var(--text-faint)' }}>
+                five things worth knowing about the pipeline
+              </span>
+            </Command.Item>
+            <Command.Item
+              value="finish setup onboarding wizard connect accounts"
+              onSelect={() => {
+                onOpenChange(false);
+                router.push('/setup/1');
+              }}
+              className="flex cursor-pointer items-center gap-3 rounded-sm px-2 py-[7px] text-sm data-[selected=true]:bg-[var(--surface-3)]"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              <span className="shrink-0">Finish setup</span>
+              <span className="truncate text-xs" style={{ color: 'var(--text-faint)' }}>
+                connect storage, models and your channel
+              </span>
+            </Command.Item>
+          </Command.Group>
+
           {/* Display scale, as direct actions rather than a link to the settings page.
               The palette is where someone reaches when the UI is too small to comfortably
               navigate to Settings — which is exactly the situation this control exists for,

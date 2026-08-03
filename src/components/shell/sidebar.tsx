@@ -66,7 +66,7 @@ function Item({ item, active }: { item: NavItem; active: boolean }) {
   );
 }
 
-export function Sidebar() {
+export function Sidebar({ checklist }: { checklist?: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
@@ -107,6 +107,11 @@ export function Sidebar() {
           </div>
         ))}
       </div>
+
+      {/* Setup, resumable, with its own progress badge. Deliberately below the nav and
+          inside the sidebar rather than floating over the canvas — see setup-checklist.tsx
+          for why this is not a FAB. */}
+      {checklist}
 
     </nav>
   );

@@ -44,7 +44,6 @@ const CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
  * 640 is 200% zoom on 1280. 3840 is the display this whole feature exists for.
  */
 const WIDTHS = [320, 640, 768, 1280, 1920, 2560, 3840];
-const SCALES = [0.9, 1.0, 1.5];
 
 /** WCAG 2.5.8. The floor is not a preference and must hold at the smallest UI scale. */
 const HIT_MIN_PX = 24;

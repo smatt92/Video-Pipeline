@@ -85,7 +85,7 @@ export default async function OnboardingStepPage({
           return (
             <li key={s.n}>
               <Link
-                href={`/onboarding/${s.slug}`}
+                href={`/setup/${s.slug}`}
                 className="flex items-center gap-2 rounded-sm border px-2 py-[5px] text-xs transition-colors"
                 style={{
                   borderColor: here ? 'var(--accent)' : 'var(--border-subtle)',
@@ -241,7 +241,7 @@ export default async function OnboardingStepPage({
       <div className="mt-8 flex items-center gap-3">
         {step.n > 1 && (
           <Link
-            href={`/onboarding/${STEPS[step.n - 2].slug}`}
+            href={`/setup/${STEPS[step.n - 2].slug}`}
             className="text-sm underline underline-offset-4"
             style={{ color: 'var(--text-muted)' }}
           >
@@ -250,7 +250,7 @@ export default async function OnboardingStepPage({
         )}
         {step.n < STEPS.length && (
           <Link
-            href={`/onboarding/${STEPS[step.n].slug}`}
+            href={`/setup/${STEPS[step.n].slug}`}
             className="ml-auto text-sm underline underline-offset-4"
             style={{ color: 'var(--accent)' }}
           >

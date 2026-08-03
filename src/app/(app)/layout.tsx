@@ -6,6 +6,7 @@ import { Suspense } from 'react';
 
 import { DeferralBanner } from '@/components/shell/deferral-banner';
 import { AppShell } from '@/components/shell/app-shell';
+import { ChecklistSlot } from '@/components/onboarding/checklist-slot';
 import { readUiScale } from '@/lib/settings/read-ui-scale';
 import { uiScaleBootstrapScript } from '@/lib/settings/ui-scale';
 
@@ -59,7 +60,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
       </head>
       <body>
-        <AppShell>
+        <AppShell checklist={<Suspense fallback={null}><ChecklistSlot /></Suspense>}>
           {/* Above everything, on every screen in the app, and not dismissible. A banner
               you can close is closed on day one, and the state it describes then goes
               invisible for weeks — which is the failure it exists to prevent, since a

@@ -37,7 +37,7 @@ export const NAV: readonly NavGroup[] = [
     label: 'Pipeline',
     items: [
       {
-        href: '/',
+        href: '/board',
         label: 'Board',
         hint: 'Every video by state',
         status: ready(),
@@ -112,7 +112,7 @@ export const NAV: readonly NavGroup[] = [
     label: 'System',
     items: [
       {
-        href: '/onboarding',
+        href: '/setup',
         label: 'First run',
         hint: 'The setup wizard — every step verified by a real call',
         status: ready(),

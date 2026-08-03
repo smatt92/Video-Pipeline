@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
 export default function OnboardingIndex() {
-  redirect('/onboarding/profile');
+  redirect('/setup/1');
 }

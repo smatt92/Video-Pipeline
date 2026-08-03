@@ -1,5 +1,8 @@
+import { checkEmail } from '../auth/allowed';
 import { routeClient } from '../auth/supabase';
-import { isOnboardingComplete, isOpenOnDeferral, outstandingRequired } from './gate';
+import { serverClient } from '../db/server';
+import { incompleteRequired, isOnboardingComplete, isOpenOnDeferral, outstandingRequired } from './gate';
+import { STEPS } from './steps';
 
 /**
  * Onboarding progress for the signed-in user, as the wizard sees it.
@@ -100,4 +103,54 @@ export async function onboardingProgress(): Promise<OnboardingProgress> {
     outstanding: outstandingRequired(completed, deferredSteps),
     complete: isOnboardingComplete(data),
   };
+}
+
+/**
+ * Setup progress for the surfaces that offer to *resume* it.
+ *
+ * Distinct from `onboardingProgress` above, which the wizard uses to render its own state.
+ * This one answers a narrower question — "is there anything left to offer, and what" — for
+ * the sidebar checklist and the command palette, and returns null rather than a zeroed
+ * shape when it cannot answer.
+ *
+ * Null hides every resume surface, which is the correct failure: a checklist that cannot
+ * read its own state is worse than no checklist, because it invites clicks that go nowhere.
+ */
+export interface SetupProgress {
+  completed: number[];
+  deferred: number[];
+  /** Required steps genuinely not done. A deferral is not a completion and is not excluded. */
+  outstanding: number[];
+  total: number;
+  finished: boolean;
+}
+
+export async function readSetupProgress(): Promise<SetupProgress | null> {
+  try {
+    const supabase = await routeClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user || !checkEmail(user.email).ok) return null;
+
+    const { data } = await serverClient()
+      .from('profiles')
+      .select('onboarding_completed_steps, onboarding_deferred_steps')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    const completed = data?.onboarding_completed_steps ?? [];
+    const deferred = data?.onboarding_deferred_steps ?? [];
+    const outstanding = incompleteRequired(completed);
+
+    return {
+      completed,
+      deferred,
+      outstanding,
+      total: STEPS.length,
+      finished: outstanding.length === 0,
+    };
+  } catch {
+    return null;
+  }
 }

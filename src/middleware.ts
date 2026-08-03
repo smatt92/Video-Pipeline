@@ -101,7 +101,7 @@ const PUBLIC_PATHS = [
  * Since 0020 this is *everything* — setup completeness no longer gates anything, so the
  * list is kept only for the one remaining case below where the profile cannot be read.
  */
-const SETUP_PATHS = ['/onboarding', '/settings'];
+const SETUP_PATHS = ['/setup', '/settings'];
 
 function matches(pathname: string, prefixes: readonly string[]): boolean {
   return prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`));

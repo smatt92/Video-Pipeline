@@ -50,7 +50,7 @@ export function NotBuiltYet({ href }: { href: string }) {
           </p>
 
           <Link
-            href="/"
+            href="/board"
             className="mt-6 inline-block text-sm underline underline-offset-4"
             style={{ color: 'var(--accent)' }}
           >
