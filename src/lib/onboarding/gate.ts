@@ -54,18 +54,14 @@ export function incompleteRequired(completed: readonly number[]): number[] {
 }
 
 /**
- * Steps that may be deferred.
+ * Steps that may be deferred — now every step. Re-exported from `entry.ts`, which owns the
+ * reasoning: setup stopped being a gate in 0020, so restricting deferral stopped protecting
+ * anything and only degraded the record of why a step was skipped.
  *
- * Only the two that depend on a vendor whose API access is gated behind a paid plan.
- * Deliberately a closed list rather than a flag on every step: deferring storage or the
- * LLM would produce an app where nothing works at all, and a gate that can be waved
- * through entirely is not a gate.
+ * Kept as a re-export rather than deleted because a dozen call sites import it from here
+ * and moving them would be churn that hides the one line that actually changed.
  */
-export const DEFERRABLE_STEPS: readonly number[] = [4, 5];
-
-export function isDeferrable(step: number): boolean {
-  return DEFERRABLE_STEPS.includes(step);
-}
+export { DEFERRABLE_STEPS, isDeferrable } from './entry';
 
 /**
  * Whether setup is far enough along to let the rest of the app run.

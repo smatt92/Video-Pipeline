@@ -88,6 +88,12 @@ jobs:
       - name: Voice timing unit tests
         run: pnpm test:timings
 
+      # ── Who gets in ──────────────────────────────────────────────────────
+      # entryDestination runs in middleware on every request, where a wrong answer is
+      # either a redirect loop or an open door. Eight combinations, all enumerated.
+      - name: Entry flow truth table
+        run: pnpm test:entry
+
       # ── Migrations must apply to an empty database, in order ─────────────
       # Forward-only means the sequence from nothing is the only sequence that matters.
       # Uses the same script a developer runs, so CI exercises the tool rather than a

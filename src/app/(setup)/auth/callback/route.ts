@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { checkEmail } from '@/lib/auth/allowed';
+import { serverClient } from '@/lib/db/server';
+import { reconcileSeen, SEEN_COOKIE } from '@/lib/onboarding/entry';
 import { routeHandlerClient } from '@/lib/auth/supabase';
 
 /**
@@ -86,6 +88,41 @@ export async function GET(request: NextRequest) {
   // The only check that matters. Google authenticated them; that is not the question.
   const decision = checkEmail(data.user?.email);
   if (!decision.ok) return refuse('not_allowed', supabase);
+
+  // ── Carry the anonymous tour across the account boundary ──────────────────
+  //
+  // Someone who takes the whole tour and *then* signs up must not be shown it again on the
+  // very next screen. The cookie is the only record they had; this is where it becomes a
+  // fact about a person rather than about a browser.
+  //
+  // Deliberately best-effort. A failure here means the tour is shown once more than it
+  // needed to be, which is mild; refusing a valid sign-in because a preference write failed
+  // is not. Any error is logged and swallowed.
+  if (data.user && request.cookies.get(SEEN_COOKIE)?.value === '1') {
+    try {
+      const db = serverClient();
+      const { data: profile } = await db
+        .from('profiles')
+        .select('onboarding_seen_at')
+        .eq('id', data.user.id)
+        .maybeSingle();
+
+      const patch = reconcileSeen({
+        seenOnRecord: profile?.onboarding_seen_at != null,
+        seenCookie: true,
+        now: new Date(),
+      });
+
+      // Null when the record already says so — skipped rather than written, because
+      // `onboarding_seen_at` is "when did this person first understand what this is" and
+      // refreshing it on every login turns a fact into a last-seen counter nothing reads.
+      if (patch && profile) {
+        await db.from('profiles').update(patch).eq('id', data.user.id);
+      }
+    } catch (err) {
+      console.error('[auth] could not reconcile the onboarding cookie:', err);
+    }
+  }
 
   return success;
 }

@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { checkEmail } from '@/lib/auth/allowed';
 import { readAuthConfig, type RequiredVar } from '@/lib/auth/config';
 import { middlewareClient } from '@/lib/auth/supabase';
-import { isOnboardingComplete } from '@/lib/onboarding/gate';
+import { entryDestination, SEEN_COOKIE } from '@/lib/onboarding/entry';
 
 /**
  * Two gates, in order: who you are, then whether setup is finished.
@@ -71,10 +71,36 @@ import { isOnboardingComplete } from '@/lib/onboarding/gate';
  * session — they are where the credentials live.
  */
 
-/** Reachable with no session at all. */
-const PUBLIC_PATHS = ['/login', '/auth', '/api/webhooks', '/api/mcp', '/_next', '/favicon.ico'];
+/**
+ * Reachable with no session at all.
+ *
+ * `/onboarding` is on this list since 0020, and that is the amendment in one line. The
+ * product tour used to sit behind authentication, which meant the only people who saw the
+ * explanation of what Kiln is were people who had already decided to sign up — the tour was
+ * doing no work. It is now the public entry point.
+ *
+ * `/` is here too because it is the splash: it renders on every visit, checks auth, warms
+ * the dashboard shell, and then sends the visitor onward. It cannot be the thing that
+ * requires auth to decide whether auth is required.
+ */
+const PUBLIC_PATHS = [
+  '/',
+  '/splash',
+  '/onboarding',
+  '/login',
+  '/auth',
+  '/api/webhooks',
+  '/api/mcp',
+  '/_next',
+  '/favicon.ico',
+];
 
-/** Reachable with an allowed session but incomplete setup. */
+/**
+ * Reachable with an allowed session regardless of setup state.
+ *
+ * Since 0020 this is *everything* — setup completeness no longer gates anything, so the
+ * list is kept only for the one remaining case below where the profile cannot be read.
+ */
 const SETUP_PATHS = ['/onboarding', '/settings'];
 
 function matches(pathname: string, prefixes: readonly string[]): boolean {
@@ -204,25 +230,40 @@ export async function middleware(request: NextRequest) {
     return redirect(request, '/login', { denied: decision.reason });
   }
 
+  // ── The gate is now the tour, not the setup ──────────────────────────────
+  //
+  // Before 0020 this compared `isOnboardingComplete` and refused the app until every
+  // required step was done. That is gone. Setup completeness decides what *works* — a task
+  // refuses an unverified integration and says so — and it no longer decides what is
+  // reachable. The two were conflated, and the cost was that the only way into the product
+  // was through a wizard that spends real money.
+  //
+  // What remains is one question: has this person seen the tour?
   const { data: profile, error } = await supabase
     .from('profiles')
-    .select('onboarding_completed_steps, onboarding_completed_at')
+    .select('onboarding_seen_at')
     .eq('id', user.id)
     .maybeSingle();
 
   if (error) {
-    // Cannot answer the question, so refuse — the wizard is the honest destination for
-    // "setup state unknown". Logged rather than swallowed: this is the branch that means
-    // the database is unreachable, and it should be visible in the platform logs rather
-    // than presenting only as an unexplained redirect loop out of the app.
-    console.error('[gate] profiles read failed, treating setup as incomplete:', error.message);
-    if (matches(pathname, SETUP_PATHS)) return response;
-    return redirect(request, '/onboarding');
+    // Cannot answer it. Let them through rather than redirect: the failure mode of showing
+    // the tour to someone who has seen it is a mild annoyance, and the failure mode of
+    // refusing the app because the database hiccuped is an outage. The old code chose the
+    // second because setup was a gate and a gate must fail closed; the tour is not a gate.
+    console.error('[entry] profiles read failed, letting the request through:', error.message);
+    return response;
   }
 
-  if (isOnboardingComplete(profile)) return response;
+  const destination = entryDestination({
+    signedIn: true,
+    seenOnRecord: profile ? profile.onboarding_seen_at !== null : null,
+    seenCookie: request.cookies.get(SEEN_COOKIE)?.value === '1',
+  });
 
+  // Already where it wants to be, or somewhere it is allowed to be.
+  if (destination.to === 'app') return response;
   if (matches(pathname, SETUP_PATHS)) return response;
+
   return redirect(request, '/onboarding');
 }
 

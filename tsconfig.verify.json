@@ -49,6 +49,7 @@
     "src/lib/review/write.ts",
     "src/lib/generate/regenerate.ts",
     "src/lib/onboarding/gate.ts",
+    "src/lib/onboarding/entry.ts",
     "src/lib/onboarding/steps.ts"
   ]
 }

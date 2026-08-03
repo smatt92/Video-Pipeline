@@ -764,6 +764,13 @@ export type Database = {
             referencedRelation: "v_deferred_steps"
             referencedColumns: ["profile_id"]
           },
+          {
+            foreignKeyName: "integrations_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_entry_state"
+            referencedColumns: ["profile_id"]
+          },
         ]
       }
       mcp_servers: {
@@ -874,6 +881,7 @@ export type Database = {
           onboarding_deferrals: Json
           onboarding_deferred_steps: number[]
           onboarding_first_video_render_id: string | null
+          onboarding_seen_at: string | null
           onboarding_step: number
           timezone: string
           ui_scale: number
@@ -890,6 +898,7 @@ export type Database = {
           onboarding_deferrals?: Json
           onboarding_deferred_steps?: number[]
           onboarding_first_video_render_id?: string | null
+          onboarding_seen_at?: string | null
           onboarding_step?: number
           timezone?: string
           ui_scale?: number
@@ -906,6 +915,7 @@ export type Database = {
           onboarding_deferrals?: Json
           onboarding_deferred_steps?: number[]
           onboarding_first_video_render_id?: string | null
+          onboarding_seen_at?: string | null
           onboarding_step?: number
           timezone?: string
           ui_scale?: number
@@ -1802,6 +1812,33 @@ export type Database = {
           profile_id: string | null
           reason: string | null
           step: number | null
+        }
+        Relationships: []
+      }
+      v_entry_state: {
+        Row: {
+          completed_steps: number | null
+          deferred_steps: number | null
+          email: string | null
+          onboarding_seen: boolean | null
+          profile_id: string | null
+          setup_complete: boolean | null
+        }
+        Insert: {
+          completed_steps?: never
+          deferred_steps?: never
+          email?: string | null
+          onboarding_seen?: never
+          profile_id?: string | null
+          setup_complete?: never
+        }
+        Update: {
+          completed_steps?: never
+          deferred_steps?: never
+          email?: string | null
+          onboarding_seen?: never
+          profile_id?: string | null
+          setup_complete?: never
         }
         Relationships: []
       }
