@@ -297,6 +297,33 @@ console.log('\n4. A reused shape is recorded, not thrown\n');
   else bad('  · and the draft is still written', `${rows[0].n}`);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// The case the lint found before a human did.
+console.log('\n5. A second run is refused, because it could not be recorded\n');
+{
+  const { renderId } = await seedRender();
+  nextMeta = meta('Culvert grates are a maintenance trap');
+
+  const first = await runMetadata({ renderId }, { ...DEPS, runId: `run-${randomUUID()}` });
+  if (first.ok) ok('the first run writes a draft');
+  else bad('the first run writes a draft', JSON.stringify(first).slice(0, 160));
+
+  const before = calls;
+  const second = await runMetadata({ renderId }, { ...DEPS, runId: `run-${randomUUID()}` });
+
+  if (!second.ok && second.code === 'already_has_metadata') {
+    ok('  · and the second is refused', second.code);
+  } else {
+    bad('  · and the second is refused', JSON.stringify(second).slice(0, 160));
+  }
+
+  // The point. The ledger keys metadata on (script_id, stage, entry_kind, unit), so a
+  // second charge cannot land — which makes a second *call* a payment with no record.
+  if (calls === before) ok('  · before the model is called', 'a charge that cannot be recorded is a call that must not happen');
+  else bad('  · before the model is called', `${calls - before} call(s)`);
+}
+
 model.close();
 await scratch.release();
 

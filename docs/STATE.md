@@ -15,7 +15,7 @@ which are merely wired — which is the reason it exists.
 One vendor has ever been called from this codebase: **Anthropic**, twice, on 2026-08-01,
 producing a script and a shotlist and four `cost_ledger` rows totalling **₹6.07**. Nothing
 else has spoken to a vendor. Everything else that works, works against synthetic inputs in
-a harness — which is a real and useful category, covering 301 assertions across fifteen
+a harness — which is a real and useful category, covering 307 assertions across fifteen
 harnesses, all green as of today. Stage 5 is wired and proven up to the vendor, and the three
 unbuilt stages are built. The pipeline now chains from an approved concept to a submitted
 generation — see §8 for the one missing column that had been making that chain inert.
@@ -61,14 +61,14 @@ difference is always the vendor.
 | `verify:scaling` | **11** | The compiled stylesheet in a real Chromium at seven widths, WCAG 1.4.4 / 1.4.10 / 1.4.12 / 2.5.8 | A probe page, not the app's own screens |
 | `verify:tour` | **20** | `/onboarding` in a real Chromium: canvas, contrast under the actual text, reduced motion, context loss | SwiftShader, not a GPU |
 | `verify:referral` | **9** | Attribution written once and not overwritten; the roll-up carries nothing identifying | Ledger rows are inserted, not earned |
-| `verify:submit` | **33** | Stage 5: every refusal before the spend, one submit per shot, the vendor error taxonomy, the approval transition, the blocker view | A local server stands in for the vendor's HTTP surface |
+| `verify:submit` | **36** | Stage 5: every refusal before the spend, one submit per shot, the vendor error taxonomy, the approval transition, the blocker view | A local server stands in for the vendor's HTTP surface |
 | `verify:concepts` | **23** | Stage 2: the rubric arithmetic, the validations a decode constraint cannot express, drafts only, the batch charge dividing | A local server stands in for the Messages API |
-| `verify:metadata` | **15** | Stage 9: refusal without a passing review, the DB publish gate in both directions, the title-shape check | Same |
+| `verify:metadata` | **18** | Stage 9: refusal without a passing review, the DB publish gate in both directions, the title-shape check | Same |
 | `verify:trends` | **12** | Stage 1: the velocity proxy, same-day dedup keeping the later reading, a source being down | A local server stands in for the feed |
 | `verify:webhook` | **25** | The callback over real HTTP: secret gate, payload gate, delivery RPC, replay, the vendor overruling the body | A local server stands in for the status endpoint |
 | `verify:ingest` | **5** | 3 source shapes → the canonical intermediate; a corrupt file → an error row | Sources are ffmpeg-generated |
 
-**Total: 301 assertions, all green today, and all fifteen harnesses run in CI.** Four further
+**Total: 307 assertions, all green today, and all fifteen harnesses run in CI.** Four further
 guards are exempt with reasons: `verify:vault` and `verify:storage` need a live Supabase
 project, and the two `verify:script*` variants spend money on a billed model call.
 
@@ -313,37 +313,59 @@ account is empty. Both spellings are asserted, because they arrive by different 
 
 ## 8. The smallest gap I picked, and why
 
-**A host voice on the channel** — migration 0024, plus two chain links.
+**The board could not tell stalled from progressing** — `src/lib/pipeline/board.ts`.
 
-The sweep found two tasks with no caller: `trendsTask`, which I had just written and which
-needs a cron, and `voiceTask`, which had never had one. The second turned out to be the
-interesting one, and the finding is the best argument yet for running this sweep:
+Last round produced `v_pipeline_blockers`: for every script, the first reason it cannot
+reach a generation, or null. It was the right mechanism and **nothing read it**. The board —
+the one screen whose stated job is answering "is everything okay?" — derived state from row
+counts alone:
 
-- Stage 5 refuses any shot whose `duration_source` is still the shotlist's estimate. That
-  is the audio-first rule, and `verify:submit` §1 asserts it.
-- **Only stage 6 sets `derived_from_vo`.**
-- Stage 6 had no caller, because it needs a `voiceId` and the host voice was
-  `VOICE_SETTINGS.hostVoice` — a constant in a fixtures file, not a column.
+```ts
+if (row.failed > 0) return 'blocked';
+```
 
-So the 03 → 04 → 05 chain built last round was **complete, green, and inert**: it would have
-submitted zero shots, every time, for ever. Every stage passed its own harness. The
-emptiness is only visible end to end, which is precisely the shape §5b exists to catch and
-precisely what no per-stage test can show.
+`blocked` meant *something errored*. The inert case has nothing errored: an approved
+concept, a script, a shotlist, no host voice, nothing generated, nothing failed. It
+rendered as `shot_listed` — a perfectly normal intermediate state — **for ever**.
 
-One missing column made four working stages produce nothing.
+So the mechanism built to read silence back was itself invisible. That is the same failure
+one level up, and it is why this was the pick over anything else the sweep surfaced.
 
-The fix is a column, a language default, and two chain links — 04 → 06 when the channel has
-a voice, 06 → 05 on success. A channel with no voice stops the chain *legibly* rather than
-silently: the script and shotlist are real, and a human can pick a voice and replay.
+What changed:
 
-`v_pipeline_blockers` is the other half, and the more valuable one. For every script it
-names the *first* reason it cannot reach a generation, ordered by how early the stage sits —
-or null when nothing is blocking. It exists because the failure mode of this pipeline is
-silence, and reading silence back from four tables is how it goes unnoticed for a week.
-Three assertions in `verify:submit` §9, including that fixing one blocker reveals the next.
+- A `stalled` state, distinct from `blocked`. Same glyph, because to an eye scanning for
+  "is everything okay?" they are the same answer. Different label and a reason on the row,
+  because what you *do* differs: blocked means read the error, stalled means fix the named
+  configuration.
+- Ordered second, above `needs_review`. A stalled concept is not waiting for a decision; it
+  is waiting for something nobody has been told about.
+- The reason is on the row rather than behind a click. Putting it one interaction away
+  would preserve exactly the silence the state exists to break.
+- `readBoard` now takes its database, so it has a harness at all. It built its own client
+  at call time, which is the same testability problem `handleCallback` had.
 
-**Not done: a UI writes the voice.** It is a column and a Settings screen away, and the
-Settings screen is stage 2's neighbour rather than this pick's.
+Three assertions in `verify:submit` §10, including the one that matters in the other
+direction: a concept with a live generation reads as `generating`, not `stalled`. Getting
+that wrong would relabel every working run, which is worse than the bug being fixed.
+
+### Also this round, from the two you named
+
+**The host voice Settings screen.** `channels.host_voice_id` was a column nothing could
+write, so the chain was still inert for anyone not running SQL by hand. The field says what
+saving unblocks, because its consequence is four stages away and nobody would guess it from
+a settings screen. Clearing it is legitimate and says what stops.
+
+**A manual trigger for `trendsTask`.** `runTrendsNowAction`, no cron. A schedule is a
+decision about how often to hit somebody else's public feed and it was not asked for; what
+mattered immediately was that the task had no caller and was sitting in the category three
+other modules had just left. Every Trigger task now has a caller.
+
+### And one the linter found first
+
+`runId` was unused in stage 9. Not a style warning — the metadata charge is keyed on
+`(script_id, stage, entry_kind, unit)`, so a second run would call the vendor, be billed,
+and have its ledger row swallowed as a duplicate. Money moves, no row lands, rule 5 has no
+exceptions. Stage 9 now refuses a second run for the same render and says how to get one.
 
 ---
 

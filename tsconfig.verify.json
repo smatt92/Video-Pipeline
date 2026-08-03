@@ -53,6 +53,7 @@
     "src/lib/integrations/referral.ts",
     "src/lib/concepts/approve.ts",
     "src/lib/concepts/run.ts",
+    "src/lib/pipeline/board.ts",
     "src/lib/metadata/run.ts",
     "src/lib/trends/run.ts",
     "src/lib/trends/sources.ts",

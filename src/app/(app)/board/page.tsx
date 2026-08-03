@@ -36,6 +36,7 @@ const STATE_LABEL: Record<ConceptState, string> = {
   generating: 'Generating',
   needs_review: 'Needs review',
   blocked: 'Blocked',
+  stalled: 'Stalled',
   ready: 'Ready',
   published: 'Published',
 };
@@ -53,6 +54,11 @@ const GLYPH: Record<ConceptState, VideoState> = {
   generating: 'generating',
   needs_review: 'needs_review',
   blocked: 'blocked',
+  // The same glyph as blocked, and that is deliberate. To the eye scanning for "is
+  // everything okay?", stalled and blocked are the same answer — something needs you. The
+  // *label* and the reason underneath are where they differ, because what you do about them
+  // differs: blocked means read the error, stalled means fix the named configuration.
+  stalled: 'blocked',
   ready: 'ready',
   published: 'live',
 };
@@ -60,6 +66,9 @@ const GLYPH: Record<ConceptState, VideoState> = {
 // Attention first, archive last.
 const STATE_ORDER: ConceptState[] = [
   'blocked',
+  // Second, above needs_review. A stalled concept is not waiting for a decision — it is
+  // waiting for something nobody has been told about, and it will wait for ever.
+  'stalled',
   'needs_review',
   'generating',
   'shot_listed',
@@ -93,7 +102,18 @@ function Row({ row }: { row: BoardRow }) {
         style={{ color: 'var(--text-secondary)' }}
       >
         <StateGlyph state={GLYPH[row.state]} size={8} />
-        {STATE_LABEL[row.state]}
+        {/* The reason, on the row, not behind a click. A stalled concept is one whose
+            problem is invisible by construction — putting the explanation one interaction
+            away would preserve exactly the silence this state exists to break. */}
+        {row.blocker ? (
+          <Hint content={row.blocker}>
+            <span style={{ borderBottom: '1px dotted var(--border-strong)' }}>
+              {STATE_LABEL[row.state]}
+            </span>
+          </Hint>
+        ) : (
+          STATE_LABEL[row.state]
+        )}
       </span>
 
       <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>

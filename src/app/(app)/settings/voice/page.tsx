@@ -1,6 +1,8 @@
+import { HostVoiceControl } from '@/components/settings/host-voice-control';
 import { NotSet, Panel, Row, SectionHeader, UnverifiedBanner } from '@/components/settings/parts';
 import { Hint } from '@/components/shell/hint';
 import { AUDIO_MODEL_POLICY } from '@/lib/drivers/catalog';
+import { serverClient } from '@/lib/db/server';
 import { PRONUNCIATIONS, VOICE_SETTINGS } from '@/lib/fixtures/settings';
 
 /**
@@ -15,7 +17,20 @@ import { PRONUNCIATIONS, VOICE_SETTINGS } from '@/lib/fixtures/settings';
  * models is worse than an ugly alias that works everywhere, so the kind is stored rather
  * than inferred.
  */
-export default function VoicePage() {
+export default async function VoicePage() {
+  // The real row, not the fixture. `VOICE_SETTINGS.hostVoice` was a constant here, and that
+  // is precisely what made the pipeline inert: stage 4 reads `channels.host_voice_id`, and
+  // nothing could write it. See STATE.md §8.
+  //
+  // One channel for now. When there are several this becomes a picker, and the shape of the
+  // read is already right for that — the value is per-channel in the schema.
+  const { data: channel } = await serverClient()
+    .from('channels')
+    .select('id, name, host_voice_id, voice_language')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
   return (
     <>
       <SectionHeader
@@ -27,11 +42,18 @@ export default function VoicePage() {
       <Panel className="mb-5">
         <Row
           label="Host voice"
-          help="Professional Voice Cloning needs 30 minutes minimum of clean single-speaker audio plus consent verification, and takes days. Start on a library voice."
+          help="Professional Voice Cloning needs 30 minutes minimum of clean single-speaker audio plus consent verification, and takes days. Start on a library voice. This is the value stage 4 reads before handing a script to stage 6."
         >
-          {VOICE_SETTINGS.hostVoice ? (
-            <span className="text-sm">{VOICE_SETTINGS.hostVoice}</span>
+          {channel ? (
+            <HostVoiceControl
+              channelId={channel.id}
+              current={channel.host_voice_id}
+              language={channel.voice_language}
+            />
           ) : (
+            // Not a spinner and not an empty input. No channel means there is nothing to
+            // set a voice *on*, and offering the field would produce a save that silently
+            // writes nothing.
             <NotSet />
           )}
         </Row>

@@ -17,7 +17,6 @@
 
 import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
-import { randomUUID } from 'node:crypto';
 
 const require = createRequire(import.meta.url);
 const so = require.resolve('server-only');

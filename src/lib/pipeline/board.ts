@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { serverClient } from '../db/server';
+import { serverClient, type Db } from '../db/server';
 
 /**
  * The pipeline board, from the database.
@@ -28,6 +28,18 @@ export type ConceptState =
   | 'generating'
   | 'needs_review'
   | 'blocked'
+  /**
+   * Nothing failed, and nothing will happen.
+   *
+   * Deliberately distinct from `blocked`, which means something errored and left a row
+   * saying so. A stalled concept has no error anywhere: an approved concept with a script
+   * and a shotlist, waiting on a stage that cannot run — because the channel has no host
+   * voice, or no library recipe matched, or the durations are still estimates.
+   *
+   * The distinction is the whole reason this state exists. Before it, that concept read as
+   * `shot_listed` — a normal intermediate state — for ever. See STATE.md §8.
+   */
+  | 'stalled'
   | 'ready'
   | 'published';
 
@@ -42,6 +54,11 @@ export interface BoardRow {
   scripts: number;
   shots: number;
   generations: number;
+  /**
+   * Why this concept cannot progress, from `v_pipeline_blockers`. Null when nothing is
+   * stopping it — including on a concept that has simply not been approved yet.
+   */
+  blocker: string | null;
   createdAt: string;
 }
 
@@ -64,18 +81,31 @@ function deriveState(row: {
   shots: number;
   generations: number;
   failed: number;
+  blocker: string | null;
 }): ConceptState {
   if (row.status === 'published') return 'published';
   if (row.failed > 0) return 'blocked';
   if (row.generations > 0) return 'generating';
+  // Checked after `generating` and before the progress states. A concept that has started
+  // generating is moving, whatever a blocker view says about the shots that have not; a
+  // concept that has not, and has a named reason it never will, is stalled rather than
+  // partway. Putting this before `generating` would relabel a working run.
+  if (row.blocker) return 'stalled';
   if (row.shots > 0) return 'shot_listed';
   if (row.scripts > 0) return 'scripted';
   return 'draft';
 }
 
-export async function readBoard(): Promise<BoardResult> {
+/**
+ * @param client - the database to read. Defaults to the server client, which is what every
+ * caller in the app passes (i.e. nothing). Present so a harness can drive this function
+ * rather than a reimplementation of it — the same reason `handleCallback` takes its db, and
+ * the reason this screen's state derivation is now checked at all: it had no harness,
+ * because it built its own client at call time.
+ */
+export async function readBoard(client?: Db): Promise<BoardResult> {
   try {
-    const db = serverClient();
+    const db = client ?? serverClient();
 
     const { data: concepts, error } = await db
       .from('concepts')
@@ -114,12 +144,25 @@ export async function readBoard(): Promise<BoardResult> {
 
     const scriptIds = [...scriptToConcept.keys()];
 
-    const [shots, generations, costs] = await Promise.all([
+    const [shots, generations, costs, blockers] = await Promise.all([
       scriptIds.length
         ? db.from('shots').select('id, script_id, status').in('script_id', scriptIds)
         : Promise.resolve({ data: [] as { id: string; script_id: string; status: string }[] }),
       db.from('generations').select('id, shot_id, status').limit(2000),
       db.from('cost_ledger').select('concept_id, cost_inr').in('concept_id', ids),
+      // Why nothing is happening, read rather than inferred.
+      //
+      // The board previously derived state purely from counts, which cannot see this: an
+      // approved concept with a script and a shotlist and no host voice on its channel has
+      // nothing failed, nothing generating, and will never move. It rendered as
+      // `shot_listed` — a normal intermediate state — permanently.
+      //
+      // A view rather than a fourth count, because the *ordering* of blockers is the
+      // valuable part: the first reason to fix, not a list of everything wrong. That
+      // ordering is a schema-level fact and belongs next to the schema.
+      scriptIds.length
+        ? db.from('v_pipeline_blockers').select('script_id, concept_id, blocker').in('script_id', scriptIds)
+        : Promise.resolve({ data: [] as { script_id: string; concept_id: string; blocker: string | null }[] }),
     ]);
 
     const shotToConcept = new Map<string, string>();
@@ -166,13 +209,26 @@ export async function readBoard(): Promise<BoardResult> {
       cost.set(c.concept_id, entry);
     }
 
+    // First non-null blocker per concept. A concept with two scripts can have two, and the
+    // earlier stage is the one to fix — the view is already ordered by how early the stage
+    // sits, so the first is the right one.
+    const blocked = new Map<string, string>();
+    for (const b of blockers.data ?? []) {
+      // `concept_id` is nullable in the view's type because it comes through a join; a row
+      // without one cannot be attributed and is skipped rather than guessed at.
+      if (b.blocker && b.concept_id && !blocked.has(b.concept_id)) {
+        blocked.set(b.concept_id, b.blocker);
+      }
+    }
+
     const rows: BoardRow[] = concepts.map((c) => {
       const t = tally.get(c.id) ?? { scripts: 0, shots: 0, generations: 0, failed: 0 };
       const money = cost.get(c.id);
       return {
         id: c.id,
         title: c.title,
-        state: deriveState({ status: c.status, ...t }),
+        state: deriveState({ status: c.status, ...t, blocker: blocked.get(c.id) ?? null }),
+        blocker: blocked.get(c.id) ?? null,
         costInr: money && money.total > 0 ? money.total : null,
         unpricedCalls: money?.unpriced ?? 0,
         scripts: t.scripts,

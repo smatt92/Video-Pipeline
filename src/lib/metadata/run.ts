@@ -39,6 +39,19 @@ import { MetadataSchema, checkUniqueness } from './schema';
  * A collision does **not** throw. It is recorded on the row and returned, because one
  * repeat is a coincidence and four is a template, and that judgement belongs to a human
  * looking at the channel rather than to a threshold in here.
+ *
+ * ── One draft per render, and why that is a billing decision ─────────────────
+ *
+ * A second run for the same render is refused. The first version allowed it — "metadata is
+ * editorial, a second opinion is useful" — and that was wrong for a reason the lint caught
+ * before a human did: `runId` was unused, because the charge is keyed on
+ * `(script_id, stage, entry_kind, unit)`. A replay would call the vendor, be billed, and
+ * have its ledger row swallowed as a duplicate. Money moves, no row lands, and rule 5 has no
+ * exceptions.
+ *
+ * The schema is what decides this: that unique index means one metadata charge per script,
+ * full stop. Rather than add a migration to permit a second opinion nobody asked for, the
+ * stage refuses — and says how to get one, which is to delete the draft you did not want.
  */
 
 const MODEL = 'claude-opus-5';
@@ -147,6 +160,27 @@ export async function runMetadata(
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
+
+  // Before the spend, like every other refusal here. See the note above: a second run is
+  // billed by the vendor and cannot be recorded, so it must not happen.
+  const { data: existing } = await db
+    .from('publications')
+    .select('id')
+    .eq('render_id', render.id)
+    .limit(1)
+    .maybeSingle();
+
+  if (existing) {
+    return {
+      ok: false,
+      code: 'already_has_metadata',
+      detail:
+        `this render already has publication ${existing.id}. A second run would be billed ` +
+        'and its charge could not be recorded — the ledger allows one metadata charge per ' +
+        'script. Delete the draft you do not want, then run again.',
+      costInr: null,
+    };
+  }
 
   if (!review) {
     return {
@@ -288,6 +322,7 @@ export async function runMetadata(
 
   log.info('metadata written', {
     publicationId: publication.id,
+    runId,
     unique: verdict.unique,
     costInr,
   });

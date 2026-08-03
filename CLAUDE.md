@@ -109,6 +109,24 @@ limit that fails silently. Omission is not a position. Read the default before y
 it, pass it, and where the cost is this asymmetric, assert it — `verify:submit` counts the
 requests one submit makes, because a comment cannot hold this and a count can.
 
+**A chain can be complete, reachable and green at every stage and still be provably inert
+end to end.** This is a third failure mode and per-stage harnesses cannot see it, because
+every stage is correct. Stage 5 refuses any shot whose duration is still an estimate; only
+stage 6 sets `derived_from_vo`; stage 6 needs a voice id, and the host voice was a constant
+in a fixtures file rather than a column. So 03 → 04 → 05 submitted zero shots, every time,
+for ever — with fifteen harnesses green and nothing to see in any of them.
+
+**When the failure mode is silence, build the thing that reads silence back.**
+`v_pipeline_blockers` is the pattern: for every script, the *first* reason it cannot reach a
+generation, ordered by how early the stage sits, or null when nothing blocks it. Not an
+alert and not a log line — a row you can select. Reading silence back from four tables is
+how it goes unnoticed for a week, and "no error anywhere" is exactly what an inert chain
+looks like.
+
+The test for whether you have this problem is not "does each stage work". It is: **can I
+name, in one query, why nothing came out?** If the answer needs four joins and a hypothesis,
+build the view before building the next stage.
+
 **Two modules for one concept is worse than none.** `src/lib/generate/normalise.ts` and
 `src/lib/ingest/normalise.ts` both existed; one defined `TARGET`/`conforms`, the other
 `CANONICAL`/`isCanonical`, they disagreed about the canonical intermediate, and only one was

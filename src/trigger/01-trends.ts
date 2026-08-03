@@ -15,6 +15,14 @@ import { runTrends, type TrendRunResult } from '@/lib/trends/run';
  * are deliberate rather than forgotten — see the note in `run.ts`, which says so where a
  * reader auditing rule 5 will look.
  *
+ * ── Its caller is a button, not a cron ───────────────────────────────────────
+ *
+ * `runTrendsNowAction` invokes this. §4 of ARCHITECTURE says stage 1 is cron four times
+ * daily and it will be; a schedule is a decision about how often to hit somebody else's
+ * public feed, and that decision has not been made. What mattered immediately is that this
+ * task had no caller at all, which is the category three other modules were just pulled out
+ * of — a stage reachable only from the Trigger dashboard gets reported as built and is not.
+ *
  * ── Concurrency 1, and not for the usual reason ──────────────────────────────
  *
  * Every other stage limits concurrency to protect a paid account from a fan-out. This one

@@ -82,6 +82,7 @@ const BUILD = new URL('../.verify-build/src/lib', import.meta.url).pathname;
 const { submitShots } = require(`${BUILD}/generate/submit.js`);
 const { callbackUrl } = require(`${BUILD}/drivers/video-submit.js`);
 const { approveConcept } = require(`${BUILD}/concepts/approve.js`);
+const { readBoard } = require(`${BUILD}/pipeline/board.js`);
 const { supabaseShim } = await import('./lib/supabase-shim.mjs');
 const { scratchDatabase } = await import('./lib/scratch.mjs');
 
@@ -562,6 +563,63 @@ console.log('\n9. Why a script is stuck, answered in one place\n');
     bad('  · and a ready script has none', JSON.stringify(clear[0]));
   }
 
+  await client.query(`update channels set host_voice_id = null where id = $1`, [channelId]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// The screen that answers "is everything okay?", answering it.
+//
+// `v_pipeline_blockers` existed for a whole round before anything read it, which is the
+// same failure one level up: the mechanism that reads silence back was itself invisible.
+// The board derived state from row counts alone, so a concept that would never move
+// rendered as `shot_listed` — a normal intermediate state — for ever.
+console.log('\n10. The board can tell stalled from progressing\n');
+{
+  const recipe = await makeRecipe();
+  const { scriptId } = await seedScript([{ promptId: recipe, durationSource: 'authored' }]);
+
+  // The concept behind that script, approved, with no host voice on its channel. Nothing
+  // has failed. Nothing ever will.
+  const { rows: conceptRows } = await client.query(
+    `select concept_id from scripts where id = $1`,
+    [scriptId],
+  );
+  const conceptId = conceptRows[0].concept_id;
+
+  const board = await readBoard(db);
+  if (!board.ok) {
+    bad('the board reads', board.error);
+  } else {
+    const row = board.rows.find((r) => r.id === conceptId);
+
+    if (row?.state === 'stalled') {
+      ok('a concept that will never move reads as stalled', 'not shot_listed');
+    } else {
+      bad('a concept that will never move reads as stalled', `state ${row?.state}`);
+    }
+
+    if (row?.blocker && /host voice/.test(row.blocker)) {
+      ok('  · and the row carries the reason', row.blocker);
+    } else {
+      bad('  · and the row carries the reason', String(row?.blocker));
+    }
+  }
+
+  // A concept with a generation in flight is progressing, whatever the blocker view says
+  // about the shots that have not been submitted. Getting this wrong would relabel every
+  // working run as stalled, which is worse than the bug being fixed.
+  await client.query(`update channels set host_voice_id = 'voice-abc' where id = $1`, [channelId]);
+  const moving = await readBoard(db);
+  if (moving.ok) {
+    const stalled = moving.rows.filter((r) => r.state === 'stalled').length;
+    const generating = moving.rows.filter((r) => r.state === 'generating').length;
+    if (generating > 0) {
+      ok('  · while a concept with a live generation reads as generating', `${generating} generating, ${stalled} stalled`);
+    } else {
+      bad('  · while a concept with a live generation reads as generating', `${generating} generating`);
+    }
+  }
   await client.query(`update channels set host_voice_id = null where id = $1`, [channelId]);
 }
 
