@@ -98,6 +98,7 @@ process.env.ANTHROPIC_API_KEY ??= 'stub-key';
 const BUILD = new URL('../.verify-build/src/lib', import.meta.url).pathname;
 const { runConcepts } = require(`${BUILD}/concepts/run.js`);
 const { scoreTotal, validateConcepts } = require(`${BUILD}/concepts/schema.js`);
+const { readRateCard, currentRate } = require(`${BUILD}/cost/rate-card.js`);
 const { supabaseShim } = await import('./lib/supabase-shim.mjs');
 const { scratchDatabase } = await import('./lib/scratch.mjs');
 
@@ -392,6 +393,90 @@ console.log('\n7. The batch charge divides\n');
     ok('  · and reads null when nothing landed', 'a paid batch that produced nothing is not free');
   } else {
     bad('  · and reads null when nothing landed', JSON.stringify(none));
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// The screen that decides whether any paid stage may run.
+//
+// Every rate ships at zero and unverified, and `priceLlmCall`/`requirePricing` refuse on an
+// unverified rate — so stages 2, 3, 5, 6 and 9 all stop. The rate card screen existed to fix
+// that and rendered a constant, which meant it looked the same against a real database, an
+// empty one and a broken one. That property is what makes this class of screen hard to
+// notice: there is nothing to see.
+console.log('\n8. The rate card, read and corrected\n');
+{
+  const card = await readRateCard(db);
+  if (card.ok && card.rows.length > 0) {
+    ok('the card reads from the table', `${card.rows.length} rates`);
+  } else {
+    bad('the card reads from the table', JSON.stringify(card).slice(0, 160));
+  }
+
+  // Unverified first, because they are the ones stopping a stage. Ordering is the whole
+  // usefulness of the screen when most rows are unverified on a fresh install.
+  await client.query(
+    `insert into rate_card (driver, model, endpoint, unit, unit_cost, currency, is_verified, source_note)
+     values ('higgsfield', 'soul', '/v1/text2image/soul', 'credit', 0, 'USD', false, 'seed')`,
+  );
+  const withUnverified = await readRateCard(db);
+  if (withUnverified.ok && withUnverified.rows[0].isVerified === false) {
+    ok('  · unverified rates sort first', withUnverified.rows[0].model);
+  } else {
+    bad('  · unverified rates sort first', JSON.stringify(withUnverified.rows?.[0]));
+  }
+
+  // A correction appends. The old row stays, so a past cost figure keeps the rate that
+  // produced it — updating in place would leave a six-month-old number unexplainable.
+  const before = (await client.query(
+    `select count(*)::int as n from rate_card where model = 'soul'`,
+  )).rows[0].n;
+
+  await client.query(
+    `insert into rate_card (driver, model, endpoint, unit, unit_cost, currency, is_verified,
+                            source_note, effective_from)
+     values ('higgsfield', 'soul', '/v1/text2image/soul', 'credit', 0.08, 'USD', true,
+             'balance delta over run 41', now())`,
+  );
+
+  const after = (await client.query(
+    `select count(*)::int as n from rate_card where model = 'soul'`,
+  )).rows[0].n;
+
+  if (after === before + 1) ok('a correction appends rather than edits', `${before} → ${after} rows`);
+  else bad('a correction appends rather than edits', `${before} → ${after}`);
+
+  const corrected = await readRateCard(db);
+  const soul = corrected.ok ? corrected.rows.find((r) => r.model === 'soul') : null;
+  if (soul?.isVerified && soul.unitCost === 0.08) {
+    ok('  · and the newest row is the one in effect', `$${soul.unitCost}`);
+  } else {
+    bad('  · and the newest row is the one in effect', JSON.stringify(soul));
+  }
+
+  // Derived, not hard-coded: the migrations already seed a `soul` row, so the count is
+  // "every row for this key except the one in effect". Writing the literal 1 here was wrong
+  // for exactly the reason the field exists — a rate can have more history than you expect.
+  if (soul?.revisions === after - 1) {
+    ok('  · with every superseded row counted, not hidden', `${soul.revisions} of ${after}`);
+  } else {
+    bad('  · with every superseded row counted, not hidden', `${soul?.revisions} of ${after}`);
+  }
+
+  // The screen's read and the pipeline's read must agree. If they diverge, the card can
+  // show a verified rate while a stage still refuses — the exact confusion this screen
+  // exists to remove.
+  const live = await currentRate(db, {
+    driver: 'higgsfield',
+    model: 'soul',
+    endpoint: '/v1/text2image/soul',
+    unit: 'credit',
+  });
+  if (live.found && live.rate.unitCostUsd === 0.08) {
+    ok('the pipeline reads the same rate the screen shows', `$${live.rate.unitCostUsd}`);
+  } else {
+    bad('the pipeline reads the same rate the screen shows', JSON.stringify(live).slice(0, 160));
   }
 }
 

@@ -127,6 +127,17 @@ The test for whether you have this problem is not "does each stage work". It is:
 name, in one query, why nothing came out?** If the answer needs four joins and a hypothesis,
 build the view before building the next stage.
 
+**A mechanism built to surface a failure mode is itself subject to that failure mode.**
+`v_pipeline_blockers` made silence readable, and nothing read it — the board derived state
+from row counts, so a concept that would never move rendered as `shot_listed` for ever. The
+instrument for finding invisible problems was invisible.
+
+So whatever you build to make a problem visible needs its own answer to **"and what reads
+this?"** — named, in the same change, before it counts as done. A view with no caller, an
+alert nobody routes, a log line in a file nobody opens: each is the original problem wearing
+the costume of its own solution, and each is *harder* to notice than what it replaced,
+because its existence reads as coverage.
+
 **Two modules for one concept is worse than none.** `src/lib/generate/normalise.ts` and
 `src/lib/ingest/normalise.ts` both existed; one defined `TARGET`/`conforms`, the other
 `CANONICAL`/`isCanonical`, they disagreed about the canonical intermediate, and only one was

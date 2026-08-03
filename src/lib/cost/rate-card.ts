@@ -100,3 +100,97 @@ export async function currentRate(
 
   return { found: true, rate };
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Reading the whole card, for the screen
+// ═════════════════════════════════════════════════════════════════════════════
+
+export interface RateCardRow {
+  readonly id: string;
+  readonly driver: string;
+  readonly model: string;
+  readonly endpoint: string | null;
+  readonly unit: string;
+  readonly unitCost: number;
+  readonly currency: string;
+  readonly isVerified: boolean;
+  readonly sourceNote: string | null;
+  readonly effectiveFrom: string;
+  /** How many superseded rows sit behind this one. Zero on a rate never edited. */
+  readonly revisions: number;
+}
+
+export type RateCardResult =
+  | { ok: true; rows: RateCardRow[] }
+  | { ok: false; error: string; hint: string };
+
+/**
+ * Every rate currently in effect, newest `effective_from` per key.
+ *
+ * ── Three outcomes, never two ────────────────────────────────────────────────
+ *
+ * Rows, empty, or broken — the same rule the board follows, and for the same reason. This
+ * screen decides whether any paid stage may run; a blank one that could mean "no rates
+ * seeded" or "the query failed" makes the second case invisible until somebody
+ * independently suspects it.
+ *
+ * ── Superseded rows are counted, not hidden ──────────────────────────────────
+ *
+ * `currentRate` reads the latest `effective_from` at or before now, so a correction is an
+ * append rather than an edit. That is what keeps a six-month-old cost figure explainable —
+ * the row that priced it is still there. The count is surfaced because a rate revised four
+ * times is a rate somebody is struggling to pin down, and that is worth seeing.
+ */
+export async function readRateCard(db: Db): Promise<RateCardResult> {
+  const { data, error } = await db
+    .from('rate_card')
+    .select('id, driver, model, endpoint, unit, unit_cost, currency, is_verified, source_note, effective_from')
+    .order('effective_from', { ascending: false });
+
+  if (error) {
+    return {
+      ok: false,
+      error: error.message,
+      hint: /does not exist|schema cache/i.test(error.message)
+        ? 'The rate_card table is missing, which means the migrations have not been applied to this database. Run `pnpm doctor`.'
+        : 'The query itself failed. This is not an empty rate card — something is wrong with the read.',
+    };
+  }
+
+  const seen = new Map<string, RateCardRow>();
+  const superseded = new Map<string, number>();
+
+  for (const r of data ?? []) {
+    const key = `${r.driver}|${r.model}|${r.endpoint ?? ''}|${r.unit}`;
+    if (seen.has(key)) {
+      superseded.set(key, (superseded.get(key) ?? 0) + 1);
+      continue;
+    }
+    seen.set(key, {
+      id: r.id,
+      driver: r.driver,
+      model: r.model,
+      endpoint: r.endpoint,
+      unit: r.unit,
+      unitCost: Number(r.unit_cost),
+      currency: r.currency,
+      isVerified: r.is_verified,
+      sourceNote: r.source_note,
+      effectiveFrom: r.effective_from,
+      revisions: 0,
+    });
+  }
+
+  const rows = [...seen.entries()]
+    .map(([key, row]) => ({ ...row, revisions: superseded.get(key) ?? 0 }))
+    // Unverified first: they are the ones stopping a stage from running.
+    .sort((a, b) =>
+      a.isVerified === b.isVerified
+        ? a.driver.localeCompare(b.driver) || a.model.localeCompare(b.model)
+        : a.isVerified
+          ? 1
+          : -1,
+    );
+
+  return { ok: true, rows };
+}

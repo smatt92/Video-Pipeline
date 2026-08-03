@@ -15,7 +15,7 @@ which are merely wired — which is the reason it exists.
 One vendor has ever been called from this codebase: **Anthropic**, twice, on 2026-08-01,
 producing a script and a shotlist and four `cost_ledger` rows totalling **₹6.07**. Nothing
 else has spoken to a vendor. Everything else that works, works against synthetic inputs in
-a harness — which is a real and useful category, covering 307 assertions across fifteen
+a harness — which is a real and useful category, covering 313 assertions across fifteen
 harnesses, all green as of today. Stage 5 is wired and proven up to the vendor, and the three
 unbuilt stages are built. The pipeline now chains from an approved concept to a submitted
 generation — see §8 for the one missing column that had been making that chain inert.
@@ -62,13 +62,13 @@ difference is always the vendor.
 | `verify:tour` | **20** | `/onboarding` in a real Chromium: canvas, contrast under the actual text, reduced motion, context loss | SwiftShader, not a GPU |
 | `verify:referral` | **9** | Attribution written once and not overwritten; the roll-up carries nothing identifying | Ledger rows are inserted, not earned |
 | `verify:submit` | **36** | Stage 5: every refusal before the spend, one submit per shot, the vendor error taxonomy, the approval transition, the blocker view | A local server stands in for the vendor's HTTP surface |
-| `verify:concepts` | **23** | Stage 2: the rubric arithmetic, the validations a decode constraint cannot express, drafts only, the batch charge dividing | A local server stands in for the Messages API |
+| `verify:concepts` | **29** | Stage 2: the rubric arithmetic, the validations a decode constraint cannot express, drafts only, the batch charge dividing | A local server stands in for the Messages API |
 | `verify:metadata` | **18** | Stage 9: refusal without a passing review, the DB publish gate in both directions, the title-shape check | Same |
 | `verify:trends` | **12** | Stage 1: the velocity proxy, same-day dedup keeping the later reading, a source being down | A local server stands in for the feed |
 | `verify:webhook` | **25** | The callback over real HTTP: secret gate, payload gate, delivery RPC, replay, the vendor overruling the body | A local server stands in for the status endpoint |
 | `verify:ingest` | **5** | 3 source shapes → the canonical intermediate; a corrupt file → an error row | Sources are ffmpeg-generated |
 
-**Total: 307 assertions, all green today, and all fifteen harnesses run in CI.** Four further
+**Total: 313 assertions, all green today, and all fifteen harnesses run in CI.** Four further
 guards are exempt with reasons: `verify:vault` and `verify:storage` need a live Supabase
 project, and the two `verify:script*` variants spend money on a billed model call.
 
@@ -194,6 +194,45 @@ time the guard in question was the one whose entire job is to catch the other tw
 
 ---
 
+## 5a. Screens that cannot tell a working system from an empty one
+
+A sibling of §5b, and the more productive sweep as of this round. §5b asks *what calls this
+in production*. This asks the reverse: **what does this screen read, and would it look any
+different if the answer were nothing?**
+
+The trap is not a screen with obvious placeholder data — that announces itself. It is a
+screen that renders identically against fixtures, against a real database, and against an
+empty one. There is nothing to see, so nothing prompts anyone to look.
+
+Two of the last three picks were this shape underneath:
+
+| Screen | Read | Consequence |
+|---|---|---|
+| `board` | Row counts only, no blocker | A permanently stuck concept read as `shot_listed` for ever |
+| `settings/voice` | `VOICE_SETTINGS.hostVoice`, a constant | The column existed and nothing could write it; the whole chain stayed inert |
+| `settings/rate-card` | `RATE_CARD`, a constant | Every paid stage refuses and the screen that fixes it could not |
+
+### How to run this sweep
+
+```bash
+cd 'src/app/(app)'
+for f in $(find . -name page.tsx | sort); do
+  printf "%-34s fixtures=%s db=%s\n" "${f#./}" \
+    "$(grep -c lib/fixtures "$f")" \
+    "$(grep -cE 'serverClient|read[A-Z][a-zA-Z]*\(' "$f")"
+done
+```
+
+`fixtures>0, db=0` is the signal. `db=0, fixtures=0` is usually a deliberately disabled
+route — check it against `src/lib/nav.ts`, which lists every unbuilt screen with the reason.
+
+Remaining as of this round: `settings/guardrails` reads a fixture and has no write path.
+Unlike the rate card it gates nothing at runtime — the guardrails it displays are enforced
+by DB constraints and driver code, not by that row — so it is a display that is *wrong*
+rather than a control that is *absent*. Worth fixing; not worth fixing first.
+
+---
+
 ## 5b. Built, tested, unreachable
 
 The category no register catches, because **everything about it is green**. The code
@@ -313,59 +352,65 @@ account is empty. Both spellings are asserted, because they arrive by different 
 
 ## 8. The smallest gap I picked, and why
 
-**The board could not tell stalled from progressing** — `src/lib/pipeline/board.ts`.
+**The rate card screen rendered a fixture** — `src/app/(app)/settings/rate-card/page.tsx`.
 
-Last round produced `v_pipeline_blockers`: for every script, the first reason it cannot
-reach a generation, or null. It was the right mechanism and **nothing read it**. The board —
-the one screen whose stated job is answering "is everything okay?" — derived state from row
-counts alone:
+### The sweep, reframed
 
-```ts
-if (row.failed > 0) return 'blocked';
-```
+The question changed this round from "what has no caller" to **"which screens render
+fixtures, and what would they show against real data?"** — because that is what the last two
+picks turned out to be underneath.
 
-`blocked` meant *something errored*. The inert case has nothing errored: an approved
-concept, a script, a shotlist, no host voice, nothing generated, nothing failed. It
-rendered as `shot_listed` — a perfectly normal intermediate state — **for ever**.
+The refinement that made it useful: the interesting cases are not screens with obvious
+placeholder data. They are screens that render **identically against fixtures, against a
+real database, and against an empty one** — where you cannot tell by looking whether it
+works. The board was exactly that until last round.
 
-So the mechanism built to read silence back was itself invisible. That is the same failure
-one level up, and it is why this was the pick over anything else the sweep surfaced.
+Of twenty screens, three read fixtures. `settings/voice` was fixed last round.
+`settings/guardrails` is a policy display with no write path yet. `settings/rate-card` was
+the one that mattered.
 
-What changed:
+### Why this one
 
-- A `stalled` state, distinct from `blocked`. Same glyph, because to an eye scanning for
-  "is everything okay?" they are the same answer. Different label and a reason on the row,
-  because what you *do* differs: blocked means read the error, stalled means fix the named
-  configuration.
-- Ordered second, above `needs_review`. A stalled concept is not waiting for a decision; it
-  is waiting for something nobody has been told about.
-- The reason is on the row rather than behind a click. Putting it one interaction away
-  would preserve exactly the silence the state exists to break.
-- `readBoard` now takes its database, so it has a harness at all. It built its own client
-  at call time, which is the same testability problem `handleCallback` had.
+Its own previous docstring said it:
 
-Three assertions in `verify:submit` §10, including the one that matters in the other
-direction: a concept with a live generation reads as `generating`, not `stalled`. Getting
-that wrong would relabel every working run, which is worse than the bug being fixed.
+> an unverified rate produces no rupee figure anywhere in the product, and a submit that
+> cannot be priced refuses to run. That is already enforced below the UI — **this is where
+> you make it stop being true**.
 
-### Also this round, from the two you named
+And it rendered `RATE_CARD` from `src/lib/fixtures/settings.ts`, so it could not.
 
-**The host voice Settings screen.** `channels.host_voice_id` was a column nothing could
-write, so the chain was still inert for anyone not running SQL by hand. The field says what
-saving unblocks, because its consequence is four stages away and nobody would guess it from
-a settings screen. Clearing it is legitimate and says what stops.
+`priceLlmCall` and `requirePricing` refuse on an unverified rate, so **stages 2, 3, 5, 6 and
+9 all stop**. Every rate ships at zero and unverified, deliberately — no vendor publishes
+these and a plausible default would be believed, summed, and put in a business case. So this
+one screen stands between a configured install and every stage that costs money.
 
-**A manual trigger for `trendsTask`.** `runTrendsNowAction`, no cron. A schedule is a
-decision about how often to hit somebody else's public feed and it was not asked for; what
-mattered immediately was that the task had no caller and was sitting in the category three
-other modules had just left. Every Trigger task now has a caller.
+Same shape as the host voice, wider blast radius: the voice blocked one chain; this blocks
+everything paid.
 
-### And one the linter found first
+### What changed
 
-`runId` was unused in stage 9. Not a style warning — the metadata charge is keyed on
-`(script_id, stage, entry_kind, unit)`, so a second run would call the vendor, be billed,
-and have its ledger row swallowed as a duplicate. Money moves, no row lands, rule 5 has no
-exceptions. Stage 9 now refuses a second run for the same render and says how to get one.
+- `readRateCard` returns rows, empty, or broken — the three-outcome rule the board follows.
+  An empty card that could mean "nothing seeded" or "the query failed" hides the second case,
+  and the second case means every paid stage is refusing invisibly.
+- `setRateAction` **appends**. `currentRate` reads the newest `effective_from` at or before
+  now, so a correction supersedes without rewriting history. The ledger's
+  `unit_cost_snapshot` protects the *figure*; without the old row, "why was this video ₹40"
+  has no answer. There is no delete.
+- A verified rate of zero is refused: it would claim somebody checked and the call is free,
+  which no paid endpoint is. Unverified is the honest state and the refusal is doing its job.
+- A source note under eight characters is refused. The number comes from a balance delta,
+  and one nobody can re-derive is what a cost-per-video claim ultimately rests on.
+- Superseded rows are counted and shown rather than hidden — a rate revised four times is a
+  rate somebody is struggling to pin down.
+
+Six assertions in `verify:concepts` §8, including the one that would catch a divergence
+nobody would otherwise see: **the pipeline reads the same rate the screen shows.** If those
+drift, the card displays a verified rate while a stage still refuses, which is the exact
+confusion the screen exists to remove.
+
+One of those assertions was wrong on its first run and the code was right — I hard-coded
+`revisions === 1` when the migrations already seed a `soul` row. Derived from the row count
+now, for the reason the field exists: a rate can have more history than you expect.
 
 ---
 
