@@ -127,6 +127,127 @@ export function firstRelation(migration) {
 }
 
 /**
+ * What a migration actually does, read out of its own SQL.
+ *
+ * Derived, never a hand-maintained map of version → description. A map would be correct
+ * on the day it was written and wrong by the third migration after it, and the whole
+ * point of this is to be trustworthy when someone is trying to work out why a screen is
+ * empty.
+ *
+ * Row counts come from scanning the VALUES list at paren depth zero, so a tuple
+ * containing its own parentheses — `jsonb_build_object(...)`, a cast, a function call —
+ * counts once rather than several times.
+ */
+export function migrationEffects(migration) {
+  const sql = migration.sql;
+
+  const tables = [...sql.matchAll(/^\s*create\s+table\s+(?:if\s+not\s+exists\s+)?([a-z_][\w]*)/gim)]
+    .map((m) => m[1]);
+  const views = [
+    ...sql.matchAll(/^\s*create\s+(?:or\s+replace\s+)?(?:materialized\s+)?view\s+([a-z_][\w]*)/gim),
+  ].map((m) => m[1]);
+  // Schema-qualified names are allowed and the schema is dropped: 0011 declares
+  // `create function public.record_recipe_compile(...)`, which a bare [a-z_]\w* match
+  // reported as a function called "public".
+  const functions = [
+    ...sql.matchAll(/^\s*create\s+(?:or\s+replace\s+)?function\s+(?:[a-z_][\w]*\.)?([a-z_][\w]*)/gim),
+  ].map((m) => m[1]);
+  // Per ALTER statement, not per file: one `alter table X` can carry several `add column`
+  // clauses, and matching only the first reported 0015 as adding one column when it adds
+  // two. Each statement is sliced to its own semicolon before its clauses are read.
+  const columns = [];
+  const alterRe = /alter\s+table\s+([a-z_][\w]*)/gim;
+  let alter;
+  while ((alter = alterRe.exec(sql)) !== null) {
+    const end = sql.indexOf(';', alterRe.lastIndex);
+    const body = sql.slice(alterRe.lastIndex, end === -1 ? sql.length : end);
+    for (const c of body.matchAll(/add\s+column\s+(?:if\s+not\s+exists\s+)?([a-z_][\w]*)/gim)) {
+      columns.push(`${alter[1]}.${c[1]}`);
+    }
+  }
+
+  // Inserts, with a tuple count per target table.
+  const inserts = [];
+  const insertRe = /insert\s+into\s+([a-z_][\w]*)\s*(\([^)]*\))?\s*(values|select)/gim;
+  let m;
+  while ((m = insertRe.exec(sql)) !== null) {
+    const table = m[1];
+
+    if (m[3].toLowerCase() === 'select') {
+      inserts.push({ table, rows: null });
+      continue;
+    }
+
+    // Walk forward from VALUES counting groups that open at depth 0, stopping at the
+    // statement's own semicolon (also at depth 0).
+    let depth = 0;
+    let rows = 0;
+    for (let i = insertRe.lastIndex; i < sql.length; i++) {
+      const c = sql[i];
+      if (c === '(') {
+        if (depth === 0) rows++;
+        depth++;
+      } else if (c === ')') {
+        depth--;
+        if (depth === 0) {
+          // The VALUES list ends at the first closing paren not followed by a comma.
+          // Without this, `on conflict (a, b, c)` — which also opens at depth 0 — was
+          // counted as one more row, so every insert with a conflict target read one
+          // too high. Found by counting 0014's five integrations rows as six.
+          const rest = sql.slice(i + 1);
+          const next = rest.match(/^\s*(\S)/);
+          if (!next || next[1] !== ',') break;
+        }
+      } else if (c === ';' && depth === 0) {
+        break;
+      }
+    }
+    inserts.push({ table, rows });
+  }
+
+  // Merge repeat targets, so "3 inserts into rate_card" reads as one line.
+  const byTable = new Map();
+  for (const i of inserts) {
+    const prior = byTable.get(i.table);
+    if (prior === undefined) byTable.set(i.table, i.rows);
+    else if (prior !== null && i.rows !== null) byTable.set(i.table, prior + i.rows);
+  }
+
+  return {
+    tables,
+    views,
+    functions,
+    columns,
+    inserts: [...byTable.entries()].map(([table, rows]) => ({ table, rows })),
+    /** Something whose presence proves this migration ran. Null if it only inserts rows. */
+    anchor: tables[0] ?? views[0] ?? null,
+    anchorColumn: columns[0] ?? null,
+  };
+}
+
+/** One line per migration, for a human trying to work out what is missing. */
+export function describeEffects(effects) {
+  const parts = [];
+  if (effects.inserts.length) {
+    parts.push(
+      'inserts ' +
+        effects.inserts
+          .map((i) => (i.rows === null ? `rows into ${i.table}` : `${i.rows} into ${i.table}`))
+          .join(', '),
+    );
+  }
+  if (effects.tables.length) parts.push(`creates table ${effects.tables.join(', ')}`);
+  if (effects.views.length) parts.push(`creates view ${effects.views.join(', ')}`);
+  if (effects.functions.length) parts.push(`creates function ${effects.functions.join(', ')}`);
+  if (effects.columns.length) {
+    const shown = effects.columns.slice(0, 4).join(', ');
+    const more = effects.columns.length > 4 ? ` (+${effects.columns.length - 4} more)` : '';
+    parts.push(`adds column ${shown}${more}`);
+  }
+  return parts.length ? parts : ['no schema or row changes detected'];
+}
+
+/**
  * A dollar-quote tag that does not occur in `text`.
  *
  * Three migrations contain `$$` of their own — the Vault wrappers and the recipe counter

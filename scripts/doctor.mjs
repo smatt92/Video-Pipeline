@@ -24,8 +24,10 @@ import { execFileSync } from 'node:child_process';
 
 import { breakerDrivers, catalogEntries, catalogRates } from './lib/catalog.mjs';
 import {
+  describeEffects,
   firstRelation,
   listMigrations,
+  migrationEffects,
   maskUrl,
   parseUrl,
   wrap,
@@ -274,44 +276,87 @@ try {
         /**
          * Is the schema already ahead of the ledger?
          *
-         * The case that needs saying out loud: someone pasted SQL into the editor, so the
-         * objects exist while nothing recorded them. Re-running produces a wall of
-         * "already exists" and the fix is the opposite of the usual one — record, do not
-         * run.
+         * Someone pasted SQL into the editor, so the objects exist while nothing recorded
+         * them. Re-running produces a wall of "already exists" and the fix is the opposite
+         * of the usual one — record, do not run.
          *
-         * Probed by asking whether the first outstanding migration's first created
-         * relation is already there, rather than by the ledger's absence. A failed
-         * `db:push` creates the ledger before it fails, so keying off "no ledger" missed
-         * this exact case the first time it was tested against a database in that state.
+         * Probed by asking whether each outstanding migration's own objects are already
+         * there, rather than by the ledger's absence. A failed `db:push` creates the
+         * ledger before it fails, so keying off "no ledger" missed this exact case.
          */
-        const anchor = firstRelation(outstanding[0]);
-        const present =
-          anchor &&
-          (await pgLib.scalar(client, 'select to_regclass($1) is not null', [`public.${anchor}`])) ===
-            true;
+        lines.push('', `Outstanding: ${outstanding.map((m) => m.version).join(', ')}`, '');
 
-        if (present) {
-          lines.push(
-            '',
-            `But "${anchor}" already exists, and ${outstanding[0].version} is what creates it.`,
-            'So the schema was applied outside this history — SQL pasted into the editor, usually.',
-            '',
-            'Do NOT re-run these; they will fail on "already exists". Work out how far the',
-            'database actually got, then record those versions without running them:',
-            `  pnpm db:push --baseline ${outstanding.map((m) => m.version).slice(0, 3).join(',')}...`,
-            'and push whatever genuinely remains normally.',
-          );
-          return { status: 'fail', lines, value: { outstanding } };
+        let anyAlreadyPresent = false;
+
+        for (const m of outstanding) {
+          const effects = migrationEffects(m);
+          lines.push(`  ${m.file}`);
+          for (const line of describeEffects(effects)) lines.push(`    ${line}`);
+
+          // Does its work appear to be done already?
+          let present = null;
+          if (effects.anchor) {
+            present =
+              (await pgLib.scalar(client, 'select to_regclass($1) is not null', [
+                `public.${effects.anchor}`,
+              ])) === true;
+          } else if (effects.anchorColumn) {
+            const [table, column] = effects.anchorColumn.split('.');
+            present =
+              Number(
+                await pgLib.scalar(
+                  client,
+                  'select count(*) from information_schema.columns where table_schema = $1 and table_name = $2 and column_name = $3',
+                  ['public', table, column],
+                ),
+              ) > 0;
+          } else if (effects.inserts.length) {
+            // Insert-only, so there is no object to look for. Report what the table holds
+            // now — the number that answers "is this why my screen is empty?".
+            for (const i of effects.inserts) {
+              const n = await pgLib
+                .scalar(client, `select count(*) from ${i.table}`)
+                .catch(() => null);
+              lines.push(`    ${i.table} currently holds ${n ?? '?'} row(s)`);
+            }
+          }
+
+          if (present === true) {
+            anyAlreadyPresent = true;
+            lines.push(
+              `    ⚠ its objects ALREADY EXIST — the schema ran but the ledger did not record it`,
+            );
+          }
+          lines.push('');
         }
 
-        lines.push(
-          '',
-          `Outstanding: ${outstanding.map((m) => m.version).join(', ')}`,
-          ...outstanding.map((m) => `  ${m.file}`),
-          '',
-          `  pnpm db:push                     apply them here`,
-          `  pnpm db:bundle --from ${outstanding[0].version}         or paste them in the browser`,
-        );
+        if (anyAlreadyPresent) {
+          lines.push(
+            'At least one outstanding migration has already been applied to the schema',
+            'without being recorded. That is what pasting a bundle whose ledger inserts were',
+            'skipped looks like. Re-running it will fail on "already exists".',
+            '',
+            'Record those without running them, then apply whatever genuinely remains:',
+            `  pnpm db:push --baseline ${outstanding.filter((m) => true).map((m) => m.version).join(',')}`,
+            '',
+            'Confirm each one against this list first — baselining a migration that did not',
+            'run leaves a database claiming to be somewhere it is not.',
+          );
+        } else {
+          lines.push(
+            'To get current — pull first, then either:',
+            '',
+            `  pnpm db:bundle --from ${outstanding[0].version}`,
+            '     writes one file; paste it into the Supabase SQL editor and run it',
+            '',
+            '  pnpm db:push',
+            '     applies them directly, if the database is reachable from here',
+            '',
+            'A bundle generated before these migrations existed cannot contain them.',
+            'Regenerate rather than reuse — db:bundle is offline and costs nothing.',
+          );
+        }
+
         return { status: 'fail', lines, value: { outstanding } };
       }
 
