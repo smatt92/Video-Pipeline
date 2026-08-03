@@ -45,12 +45,13 @@ correct work.** The changes, each with its record:
 
 ## Working with Higgsfield
 
-Two surfaces, different jobs — do not confuse them:
+Three surfaces, different jobs — do not confuse them:
 
 | Surface | Use for | Never use for |
 |---|---|---|
 | Hosted MCP `https://mcp.higgsfield.ai/mcp` | Interactive exploration in this Claude Code session: trying models, motions, seeds, character refs; finding shot recipes | Production runs, cron jobs, anything needing retries or cost attribution |
-| `higgsfield-js` SDK (REST + webhook) | Everything in `src/trigger/` | Interactive back-and-forth |
+| `@higgsfield/client` SDK (REST + webhook) | Everything in `src/trigger/` | Interactive back-and-forth |
+| **Kiln's own MCP server** at `/api/mcp` | The Studio lane. Opus 5 reaches the drivers through tools that write every row | Exploration — it refuses anything the workspace is not set up to do, which is correct and not what you want at 1am with a seed to try |
 
 When an MCP experiment produces a shot recipe that works, persist it to the `prompts` table with `discovered_in='claude-code-mcp'` and the exact params. Production reads the library; it never improvises.
 
@@ -76,6 +77,7 @@ mechanism uncomputable.
 pnpm doctor                          # which failure is this? — run this first, always
 pnpm verify:ingest   "$DATABASE_URL" # 3 shapes → canonical, corrupt → error row
 pnpm verify:assemble "$DATABASE_URL" # 6 clips → one MP4, over a real S3 endpoint
+pnpm verify:studio   "$DATABASE_URL" # MCP server over real HTTP; generate_shot refuses
 ```
 
 ## Current phase

@@ -225,6 +225,7 @@ export type Database = {
           render_id: string | null
           script_id: string | null
           stage: string | null
+          studio_session_id: string | null
           unit: string
           usd_inr_rate: number | null
         }
@@ -242,6 +243,7 @@ export type Database = {
           render_id?: string | null
           script_id?: string | null
           stage?: string | null
+          studio_session_id?: string | null
           unit: string
           usd_inr_rate?: number | null
         }
@@ -259,6 +261,7 @@ export type Database = {
           render_id?: string | null
           script_id?: string | null
           stage?: string | null
+          studio_session_id?: string | null
           unit?: string
           usd_inr_rate?: number | null
         }
@@ -325,6 +328,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_script_vo_status"
             referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_studio_session_id_fkey"
+            columns: ["studio_session_id"]
+            isOneToOne: false
+            referencedRelation: "studio_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_studio_session_id_fkey"
+            columns: ["studio_session_id"]
+            isOneToOne: false
+            referencedRelation: "v_studio_session_spend"
+            referencedColumns: ["session_id"]
           },
         ]
       }
@@ -546,6 +563,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "studio_sessions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generations_studio_session_id_fkey"
+            columns: ["studio_session_id"]
+            isOneToOne: false
+            referencedRelation: "v_studio_session_spend"
+            referencedColumns: ["session_id"]
           },
         ]
       }
@@ -1468,6 +1492,8 @@ export type Database = {
           script_id: string | null
           spend_cap_inr: number | null
           status: string
+          stopped_at: string | null
+          stopped_reason: string | null
           title: string | null
           transcript: Json
         }
@@ -1482,6 +1508,8 @@ export type Database = {
           script_id?: string | null
           spend_cap_inr?: number | null
           status?: string
+          stopped_at?: string | null
+          stopped_reason?: string | null
           title?: string | null
           transcript?: Json
         }
@@ -1496,6 +1524,8 @@ export type Database = {
           script_id?: string | null
           spend_cap_inr?: number | null
           status?: string
+          stopped_at?: string | null
+          stopped_reason?: string | null
           title?: string | null
           transcript?: Json
         }
@@ -1929,6 +1959,46 @@ export type Database = {
           },
         ]
       }
+      v_studio_session_spend: {
+        Row: {
+          cost_inr: number | null
+          created_at: string | null
+          input_tokens: number | null
+          ledger_rows: number | null
+          model: string | null
+          output_tokens: number | null
+          script_id: string | null
+          session_id: string | null
+          spend_cap_inr: number | null
+          status: string | null
+          stopped_reason: string | null
+          title: string | null
+          turns: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "studio_sessions_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "studio_sessions_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_cost"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "studio_sessions_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_vo_status"
+            referencedColumns: ["script_id"]
+          },
+        ]
+      }
       v_unconfirmed_terminal_generations: {
         Row: {
           completed_at: string | null
@@ -2068,6 +2138,10 @@ export type Database = {
           deliveries: number
           generation_id: string
         }[]
+      }
+      refresh_studio_session_spend: {
+        Args: { p_session: string }
+        Returns: undefined
       }
       undefer_onboarding_step: {
         Args: { p_profile_id: string; p_step: number }

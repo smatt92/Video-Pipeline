@@ -52,7 +52,7 @@ export const NAV: readonly NavGroup[] = [
         href: '/studio',
         label: 'Studio',
         hint: 'Conversational lane — brief in, shots out',
-        status: blocked('1d', 'Needs the MCP server over the drivers'),
+        status: ready(),
       },
       {
         href: '/review',

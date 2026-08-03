@@ -122,6 +122,23 @@ const coreEnvSchema = z.object({
   // integration record, whose credential lives in Vault — see resolveCredential().
   ANTHROPIC_API_KEY: nonEmpty('ANTHROPIC_API_KEY').optional(),
 
+  /**
+   * Signing key for the bearer token the Studio lane mints per session.
+   *
+   * `/api/mcp` is publicly reachable by necessity — the Messages API's MCP connector
+   * fetches it from Anthropic's infrastructure, so it cannot sit behind the sign-in
+   * middleware. Its authentication is therefore this token and nothing else, and the token
+   * is scoped to one session so that a leaked one grants that session rather than every
+   * tool in the workspace.
+   *
+   * Optional at boot for the same reason the rest of this section is: a deployment that
+   * never opens a Studio session does not need it. `requireEnv` catches it at the moment a
+   * session tries to start, and the route refuses every request while it is unset —
+   * accepting unauthenticated tool calls because the key is missing would make the
+   * deployment's security depend on nobody finding the URL.
+   */
+  STUDIO_MCP_TOKEN_SECRET: nonEmpty('STUDIO_MCP_TOKEN_SECRET').optional(),
+
   // ── Driver selection ──────────────────────────────────────────────────────
   /**
    * Which registered driver generates video. Deliberately has no default: the whole

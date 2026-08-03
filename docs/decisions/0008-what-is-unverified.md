@@ -512,6 +512,85 @@ Unproven, in order of how much rests on it:
 with what each should produce and what a failure at that point means, because three of
 those failures look identical from the outside and have different causes.
 
+### 7. The Studio lane — RUN, except the one leg that needs a public hostname
+
+**Run.** `pnpm verify:studio "$DATABASE_URL"` creates a scratch database, applies all
+seventeen migrations to it, stands the MCP server up behind a real `node:http` socket, and
+drives it with real HTTP requests against the *same* `serveMcp` the Next route calls. Thirty
+checks, repeatable:
+
+```
+2. The MCP protocol over real HTTP
+  PASS  initialize — protocolVersion=2025-06-18
+  PASS  advertises tools only — the connector calls tools/list and tools/call and nothing else
+  PASS  a notification gets no response — 202, empty body
+  PASS  a batch drops the notification — 3 in, 2 out
+3. Authentication
+  PASS  no token is refused
+  PASS  a forged signature is refused
+  PASS  a valid signature over an unknown session is refused
+  PASS  a stopped session refuses its own token
+4. The six tools against a real database
+  PASS  generate_shot refuses on an untouched workspace — 2 things must be true first
+  PASS    · names the unverified video integration
+  PASS    · and the empty prompt library
+  PASS  a refused generation writes nothing — no script, no shot
+6. The spend cap stops the session
+  PASS  the next turn is refused before any model call
+  PASS  the session is capped, in a row
+  PASS  its token stops working at the MCP server
+  PASS  the cost rows survive the stop — nothing is rolled back
+```
+
+Three of those are worth naming individually.
+
+**The refusal is the expected outcome, and it is a result rather than an error.**
+`generate_shot` on a fresh install returns `{ refused: true, blockers: [...] }` listing
+*every* closed gate — an unverified video integration and an empty prompt library — not the
+first one hit. Refusing on credentials and then, one paid turn later, on the library is half
+an answer for the price of a whole one. Nothing is written: no concept, no script, no shot.
+
+**The cap stops before the model call, not after it.** A session already at its ceiling
+cannot buy one more turn to discover that it is at its ceiling. Exercised with no API key
+present at all, which is itself the proof: the pre-call check fired before anything reached
+the network.
+
+**The number the cap is enforced against is derived, not asserted.** 0017 makes
+`studio_sessions.cost_inr`, `input_tokens` and `output_tokens` trigger-derived from
+`cost_ledger`. The harness hand-edits the total to zero and shows the next ledger row
+correcting it. A spend cap enforced against a counter the spender maintains is not a control.
+
+**NOT RUN — and this is the whole of what is missing.** The Messages API's `mcp_servers`
+connector is **server-side**: Anthropic's infrastructure opens the HTTP connection to the
+MCP server URL. The client that called the Messages API does not. Addendum 01 §2 constraint
+3 says "no local servers", and the requirement it is really stating is that the URL be
+reachable *from Anthropic* — not from the process making the call. This container has no
+public hostname, so that one socket cannot be opened here by any arrangement of local
+wiring.
+
+What the harness does instead is stated plainly rather than papered over. Section 7 runs the
+real model against the real MCP server over a **bridge**: the same six tool objects declared
+as ordinary tools, executed by this process by POSTing `tools/call` to the same
+`/api/mcp` handler over real HTTP. Real Anthropic API, real MCP server, real protocol, real
+rows. The only substituted component is *which machine dials the socket*.
+
+> **Symptom if the connector leg is wrong:** the first production turn returns a
+> `mcp_tool_result` with `is_error` and a connection failure, or a 400 from the Messages API
+> before any tokens are spent if the `mcp_servers` / `mcp_toolset` pair is malformed. Both
+> are cheap and both are loud. The expensive failure mode — spending money and getting
+> nothing — is not available here, because the tools that spend money all refuse first.
+
+**Also not run: section 7 itself.** No `ANTHROPIC_API_KEY` was present in the container the
+lane was built in, so the live turn is skipped with a message saying what it would prove.
+Re-run with a key set and it executes: one real Opus 5 turn, the tool calls it makes, the
+refusal surfaced as a refusal, the transcript stored, and the two ledger rows. Until that
+has run, the parts of the lane that are proven are everything below the model call and
+nothing above it.
+
+**Also not run: `stitch_rough_cut` reaching the worker.** It refuses correctly when there is
+nothing to stitch, which is what the harness exercises. Enqueuing to Trigger.dev needs the
+deploy in `0010-trigger-deploy.md`.
+
 ## Gates, and where each can run
 
 | Gate | Runnable in this environment? |
@@ -521,6 +600,7 @@ those failures look identical from the outside and have different causes.
 | 3 — first real ElevenLabs response | Only if `api.elevenlabs.io` is opened. TTS is synchronous, so no callback is needed. |
 | 4 — first real Higgsfield generation | **No.** Replies by webhook and needs a publicly reachable callback URL. Run against a Vercel preview deploy. |
 | 5 — guided first video end to end | **No.** Same reason, plus it spans every vendor. |
+| Studio connector — Anthropic fetching `/api/mcp` | **No.** Needs a public hostname. Run against a Vercel preview deploy with `STUDIO_MCP_TOKEN_SECRET` set. |
 
 ## Closing this file
 

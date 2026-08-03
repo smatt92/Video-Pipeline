@@ -34,6 +34,15 @@
     "src/lib/assemble/**/*.ts",
     "src/lib/ingest/**/*.ts",
     "src/lib/storage/**/*.ts",
+    // The Studio lane, minus actions.ts — that one is a Server Action module and its
+    // imports (next/cache, next/headers) exist only inside the framework.
+    "src/lib/studio/tools.ts",
+    "src/lib/studio/mcp.ts",
+    "src/lib/studio/serve.ts",
+    "src/lib/studio/session.ts",
+    "src/lib/studio/materialise.ts",
+    "src/lib/studio/token.ts",
+    "src/lib/studio/read.ts",
     "src/lib/onboarding/gate.ts",
     "src/lib/onboarding/steps.ts"
   ]

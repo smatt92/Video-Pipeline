@@ -55,6 +55,12 @@ import { isOnboardingComplete } from '@/lib/onboarding/gate';
  *                     307 to an HTML page is a delivery most vendors will not retry, and
  *                     the generation it was reporting hangs until it times out — after
  *                     the money was spent.
+ *   /api/mcp          The Messages API's MCP connector is server-side: Anthropic's
+ *                     infrastructure makes the HTTP connection, carrying no cookie. A
+ *                     redirect here would turn every tool call into a login page. It is
+ *                     not unauthenticated — it requires a session-scoped bearer token it
+ *                     mints itself, and refuses every request while the signing key is
+ *                     unset. See src/lib/studio/token.ts.
  *   /login, /auth/*   Otherwise signing in requires being signed in.
  *   /onboarding/*     The gate's own destination.
  *   /settings/*       The wizard's steps are settings screens underneath. Locking them
@@ -66,7 +72,7 @@ import { isOnboardingComplete } from '@/lib/onboarding/gate';
  */
 
 /** Reachable with no session at all. */
-const PUBLIC_PATHS = ['/login', '/auth', '/api/webhooks', '/_next', '/favicon.ico'];
+const PUBLIC_PATHS = ['/login', '/auth', '/api/webhooks', '/api/mcp', '/_next', '/favicon.ico'];
 
 /** Reachable with an allowed session but incomplete setup. */
 const SETUP_PATHS = ['/onboarding', '/settings'];
