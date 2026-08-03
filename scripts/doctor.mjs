@@ -192,6 +192,82 @@ await check(
 );
 
 try {
+  // ── 2b. Which database is this, actually? ──────────────────────────────────
+  //
+  // Added after a diagnosis that took four queries to establish something this should have
+  // said in one line. The project had four Supabase projects, one active; the app had been
+  // signed into it; and its `public` schema was completely empty. Two different diagnoses
+  // had been offered — "the migrations are half-applied" and "the data is gone" — and
+  // neither was right: nothing had ever been applied, so there had never been a table to
+  // hold data.
+  //
+  // What distinguishes those three cases is not the migration ledger. It is the
+  // combination below:
+  //
+  //   relations 0, auth users 0  → almost certainly the wrong project, or a brand new one
+  //   relations 0, auth users >0 → the right project, never migrated. THIS is the case
+  //                                that reads as "my data is gone" and is not.
+  //   relations >0, ledger empty → someone pasted SQL without recording it (see the
+  //                                migration check below, which probes for exactly that)
+  //
+  // Printed as facts rather than as a verdict, because the verdict depends on what the
+  // operator expected to be here and this script does not know that.
+  await check('which database this is', async () => {
+    const target = parseUrl(url);
+    const host = target.host ?? '(unknown)';
+
+    // Supabase hostnames carry the project ref two different ways, and both are worth
+    // resolving: a direct connection puts it in the hostname, and a pooler connection puts
+    // it in the *username* as `postgres.<ref>`. Someone comparing the wrong one against
+    // their dashboard is exactly how you end up measuring a database you did not mean to.
+    const ref =
+      /^db\.([a-z0-9]+)\.supabase\.co$/.exec(host)?.[1] ??
+      (/\.pooler\.supabase\.com$/.test(host) ? (target.user ?? '').split('.')[1] : null) ??
+      null;
+
+    const relations = await pgLib.scalar(
+      client,
+      "select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r','v')",
+    );
+
+    // Both are Supabase-managed schemas, absent on a plain Postgres. Queried defensively so
+    // this check still works against the local databases the harnesses use.
+    const authUsers = await pgLib
+      .scalar(client, 'select count(*) from auth.users')
+      .catch(() => null);
+    const buckets = await pgLib
+      .scalar(client, 'select count(*) from storage.buckets')
+      .catch(() => null);
+
+    const lines = [
+      `host ${host}${ref ? `  project ${ref}` : ''}`,
+      `public: ${relations} tables and views`,
+    ];
+
+    if (authUsers !== null) {
+      lines.push(`auth users: ${authUsers}   storage buckets: ${buckets ?? 0}`);
+    }
+
+    // The one inference worth making, because it is the one people get wrong.
+    if (Number(relations) === 0 && authUsers !== null && Number(authUsers) > 0) {
+      lines.push(
+        '',
+        'Signed-in users exist and the schema is empty.',
+        'That is a database nothing was ever migrated into —',
+        'not one that lost its data. There was never a table here.',
+      );
+    } else if (Number(relations) === 0 && (authUsers === null || Number(authUsers) === 0)) {
+      lines.push(
+        '',
+        'Empty schema and no signed-in users. Either a fresh',
+        'project, or not the one the app has been talking to.',
+        'Check the ref above against your deployment.',
+      );
+    }
+
+    return { status: 'pass', lines };
+  });
+
   // ── 3. Vault ───────────────────────────────────────────────────────────────
   await check('supabase_vault is available', async () => {
     const installed = await pgLib.scalar(
