@@ -469,6 +469,18 @@ Declared rather than omitted on purpose: a config error surfaces at build time a
 minute, a runtime error surfaces after money moved. That is the cheaper of the two failures
 even though neither has been observed.
 
+**Duration is now asserted in the task, not only the harness.** `runAssemble` compares the
+render against the sum of its shots' recorded asset durations and writes a **failed** render
+on a disagreement. That is a stronger check than the one inside `assembleRoughCut`, which
+compares against the files it was handed: six identical files probe as six identical
+durations, so the input-sum check passed while the cut was one shot repeated six times.
+Exercised — a script whose six assets all point at one object is refused with
+`Render is 9.22s but its 6 shots sum to 10.03s`.
+
+Three bugs in this area have now produced a file that plays: a mismatched codec set, a
+dropped segment, and the basename collision. Duration caught all three and nothing else
+caught more than one.
+
 **Also not run:** clock skew. The 403 branch in `materialise` says signature windows are the
 usual cause, which is read from the SigV4 spec rather than observed — s3rver and this
 container share a clock.

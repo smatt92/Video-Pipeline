@@ -401,6 +401,96 @@ if (failResult.ok) {
   else ok('failure is a row', "renders.status = 'failed'");
 }
 
+// ── 6. The duration assertion must catch a collision the input-sum check cannot ──
+//
+// The basename collision wrote every download to the same path, so the concat list was six
+// identical paths. `assembleRoughCut` compares its output against the sum of the FILES it
+// was handed — six identical files probe as six identical durations, so that check passed
+// while the cut was one shot repeated. Only comparing against what the DATABASE says each
+// shot's asset is catches it.
+//
+// Its own script and its own rows. The first version of this section reused section 5's
+// fixtures, which by then carried a stray asset row, and the scrambled durations happened
+// to land inside the tolerance — the check reported a pass for the wrong reason. A test
+// that shares mutated state with the test before it is not testing what it says.
+console.log('\n6. A cut of six identical clips must be refused on duration\n');
+
+const collideScript = '00000000-0000-4000-8000-0000000c0111';
+await client.query(`delete from renders where script_id = $1`, [collideScript]);
+await client.query(
+  `delete from assets where generation_id in (select id from generations where idempotency_key like 'col-%')`,
+);
+await client.query(`delete from generations where idempotency_key like 'col-%'`);
+await client.query(`delete from shots where script_id = $1`, [collideScript]);
+await client.query(`delete from scripts where id = $1`, [collideScript]);
+await client.query(
+  // version 2 — one script per (concept, version), which the unique key enforces and
+  // which caught this on the first run.
+  `insert into scripts (id,concept_id,version,hook,beats,vo_text,structure_hash,drafted_by)
+   values ($1,$2,2,'hook','[]'::jsonb,'vo','h2','harness')`,
+  [collideScript, ids.concept],
+);
+
+// Six shots. Every asset points at clip 0's object — that is the collision — while each
+// row keeps the duration its own clip actually had, which is what ingest would have
+// recorded before the collision happened at assembly time.
+const collidedKey = `generations/collision-source/video.mp4`;
+{
+  const { readFile: rf } = await import('node:fs/promises');
+  const body = await rf(normalised[0].path);
+  const signed = await driver.presignPut({ key: collidedKey, contentType: 'video/mp4' });
+  await fetch(signed.url, {
+    method: 'PUT',
+    body: new Uint8Array(body),
+    headers: { 'content-type': 'video/mp4' },
+  });
+}
+
+for (const [i, clip] of normalised.entries()) {
+  const shot = (
+    await client.query(
+      `insert into shots (script_id,idx,duration_s,description,status)
+       values ($1,$2,2,'probe','ready') returning id`,
+      [collideScript, i],
+    )
+  ).rows[0].id;
+  const gen = (
+    await client.query(
+      `insert into generations (shot_id,kind,driver,model,status,idempotency_key,request_payload,submitted_at,confirmed_at)
+       values ($1,'video','higgsfield','dop-lite','succeeded',$2,'{}'::jsonb,now(),now()) returning id`,
+      [shot, `col-${i}`],
+    )
+  ).rows[0].id;
+  const meta = await probe(clip.path);
+  await client.query(
+    `insert into assets (generation_id,kind,storage_key,bytes,duration_s,width,height,normalized_at)
+     values ($1,'video',$2,1,$3,1080,1920,now())`,
+    [gen, collidedKey, meta.durationS],
+  );
+}
+
+const clip0 = await probe(normalised[0].path);
+console.log(
+  `  six shots, all pointing at one object: the cut will be ${(clip0.durationS * 6).toFixed(2)}s ` +
+    `while the rows claim ${expectedTotal.toFixed(2)}s`,
+);
+
+const collided = await runAssemble(
+  { scriptId: collideScript, variantLabel: 'collided' },
+  { db, driver, putBytes },
+);
+
+if (collided.ok) {
+  bad('basename collision', 'assembled a cut of six identical clips without complaint');
+} else if (collided.code !== 'duration_mismatch') {
+  bad('basename collision', `refused for the wrong reason: ${collided.code} — ${collided.detail.slice(0, 120)}`);
+} else {
+  ok('basename collision refused on duration', collided.detail.split('.')[0]);
+  const r = (await client.query('select status from renders where id = $1', [collided.renderId])).rows[0];
+  if (r?.status !== 'failed') bad('collision is a failed render', `status=${r?.status}`);
+  else ok('collision is a failed render', "renders.status = 'failed', not a note");
+}
+
 const afterTmp = (await readdir(tmpdir())).filter((f) => f.startsWith('kiln-assemble-')).length;
 if (afterTmp > beforeTmp) {
   bad('temp cleanup', `${afterTmp - beforeTmp} kiln-assemble-* director(ies) leaked`);
