@@ -5,6 +5,8 @@ import { revalidatePath } from 'next/cache';
 import { checkEmail } from '../auth/allowed';
 import { routeClient } from '../auth/supabase';
 import { serverClient } from '../db/server';
+import { env } from '../env';
+import { estimateRegenerate, executeRegenerate, type RegenerateEstimate } from '../generate/regenerate';
 import { recordReview, writeOrder, writeTrim } from './write';
 
 /**
@@ -88,6 +90,51 @@ export async function reorderShotsAction(
     const result = await writeOrder(serverClient(), scriptId, shotIds);
     revalidatePath(`/review/${renderId}`);
     return { status: result.ok ? 'ok' : 'error', message: result.message };
+  } catch (err) {
+    return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/**
+ * What regenerating this shot would cost, and whether it may happen.
+ *
+ * Read-only, and the dialog's whole content. Separate from the action that does it so the
+ * confirmation is built from live state rather than from whatever the page was rendered
+ * with — an integration disabled two minutes ago must close the dialog's answer, not be
+ * discovered after the charge.
+ */
+export async function estimateRegenerateAction(shotId: string): Promise<RegenerateEstimate> {
+  await requireUser();
+  return estimateRegenerate(serverClient(), shotId, { usdInrRate: env.USD_INR_RATE });
+}
+
+export async function regenerateShotAction(
+  renderId: string,
+  shotId: string,
+): Promise<ReviewState> {
+  try {
+    await requireUser();
+
+    const result = await executeRegenerate(serverClient(), shotId, {
+      usdInrRate: env.USD_INR_RATE,
+    });
+
+    revalidatePath(`/review/${renderId}`);
+
+    if (!result.ok) {
+      return {
+        status: 'error',
+        message: result.blockers.map((b) => `${b.detail} ${b.remedy}`).join(' · '),
+      };
+    }
+
+    return {
+      status: 'ok',
+      message:
+        `Queued as attempt ${result.attempt}, key ${result.idempotencyKey}. ` +
+        'The cost row is written by the submit path at the moment the vendor is called — a ' +
+        'queued generation that is never submitted has cost nothing.',
+    };
   } catch (err) {
     return { status: 'error', message: err instanceof Error ? err.message : String(err) };
   }

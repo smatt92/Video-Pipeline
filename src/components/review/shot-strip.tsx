@@ -3,6 +3,8 @@
 import { useRef, useState } from 'react';
 
 import { DRIFT_TOLERANCE_S, type TimelineSpan } from '@/lib/review/timeline';
+import type { ReviewState } from '@/lib/review/actions';
+import { RegenerateDialog } from './regenerate-dialog';
 
 /**
  * The shot strip: order, trims, and where each shot sits against the voice.
@@ -41,6 +43,8 @@ export interface ShotStripProps {
   onSaveOrder: () => void;
   onSetTrim: (shotId: string, inS: number | null, outS: number | null) => void;
   onToggleMark: (id: string) => void;
+  renderId: string;
+  onRegenerated: (state: ReviewState) => void;
 }
 
 export function ShotStrip(props: ShotStripProps) {
@@ -220,6 +224,15 @@ export function ShotStrip(props: ShotStripProps) {
                   label="✕"
                   title="Clear the trim"
                   onClick={() => props.onSetTrim(span.shot.id, null, null)}
+                />
+                {/* Regenerate lives beside the trim handles because it is the other thing
+                    you do to a shot you do not like — and unlike a trim, it spends money and
+                    cannot be undone. It is the only control here behind a confirmation. */}
+                <RegenerateDialog
+                  renderId={props.renderId}
+                  shotId={span.shot.id}
+                  shotLabel={`shot ${String(span.shot.idx).padStart(2, '0')}`}
+                  onDone={props.onRegenerated}
                 />
               </div>
 

@@ -47,6 +47,7 @@
     "src/lib/review/timeline.ts",
     "src/lib/review/read.ts",
     "src/lib/review/write.ts",
+    "src/lib/generate/regenerate.ts",
     "src/lib/onboarding/gate.ts",
     "src/lib/onboarding/steps.ts"
   ]

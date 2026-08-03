@@ -354,6 +354,8 @@ export function ReviewScreen(props: ReviewScreenProps) {
 
       <div className="flex min-w-0 flex-col gap-4">
         <ShotStrip
+          renderId={renderId}
+          onRegenerated={setMessage}
           spans={localSpans}
           selectedId={selectedId}
           reshootMarks={reshootMarks}

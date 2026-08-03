@@ -56,6 +56,12 @@ jobs:
       - name: Every guard is wired or explicitly exempt
         run: pnpm check:gates
 
+      # ── The worker image would carry ffmpeg ──────────────────────────────
+      # Without the build extension the first ingest dies with `spawn ffmpeg ENOENT`, after
+      # the generation has been paid for. A build-time error in place of a runtime one.
+      - name: Worker image declares every binary src/ spawns
+        run: pnpm check:trigger-build
+
       # ── The rule with teeth (CLAUDE.md rule 1) ───────────────────────────
       # First, because it is the cheapest and the one most likely to be violated by a
       # well-meaning shortcut.

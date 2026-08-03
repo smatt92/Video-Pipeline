@@ -31,16 +31,49 @@ bounded by a vendor. They are bounded by the machine, which does not have a row.
 
 Trigger.dev's CLI authenticates against your account, so these cannot be run from here.
 
+Trigger.dev's CLI authenticates against your account, so none of steps 1–4 can be run from
+here. Step 0 can, and does, on every push.
+
 ```bash
-# once, interactively — opens a browser
+# 0. Pre-deploy, no account needed — runs in CI already
+pnpm check:trigger-build
+
+# 1. Once, interactively — opens a browser
 pnpm dlx trigger.dev@4.5.9 login
 
-# from the repo root, with TRIGGER_PROJECT_REF set
-pnpm trigger:dev          # local worker against the dev environment
-pnpm trigger:deploy       # build and deploy to production
+# 2. Build the image WITHOUT deploying. This is the step that exercises the ffmpeg
+#    build extension for real. If it is going to fail, it fails here, for free.
+TRIGGER_PROJECT_REF=proj_… pnpm trigger:deploy:dry
+
+# 3. A local worker against the dev environment. Trigger a task from the dashboard and
+#    watch it run on your machine, with real logs.
+TRIGGER_PROJECT_REF=proj_… pnpm trigger:dev
+
+# 4. Deploy
+TRIGGER_PROJECT_REF=proj_… pnpm trigger:deploy
 ```
 
-`pnpm trigger:deploy` is `trigger.dev deploy`, already in `package.json`.
+**Do step 2 before step 4, every time.** `--dry-run` builds the deployment image locally
+and uploads nothing, which is the only way to find out whether the ffmpeg extension
+produces a working image without spending a deploy to learn it. It is the difference
+between a build error and `spawn ffmpeg ENOENT` on a run that has already been billed.
+
+### Step 0, and why it is separate
+
+`pnpm check:trigger-build` needs no account and no network. It scans `src/` for code that
+spawns a bare binary, confirms `@trigger.dev/build` still exports `ffmpeg` from
+`extensions/core`, calls it, and confirms `trigger.config.ts` declares it. That covers the
+class of breakage that would otherwise ship silently — a renamed export, a moved subpath, a
+dependency dropped from `package.json`, or somebody deleting the line while tidying.
+
+It does not build an image, so it cannot tell you the extension *works*. Step 2 is that.
+Two checks because they catch different things and the cheap one runs on every push.
+
+> Written before it caught anything, and then it caught itself. Its first version matched
+> `execFile('ffmpeg', …)` literally, and both files that spawn ffmpeg here do
+> `const run = promisify(execFile)` followed by `run('ffprobe', …)` — so it found nothing,
+> printed "no binary dependencies found" and passed. A green check asserting the opposite of
+> the truth, which is the failure it exists to prevent, one level up.
 
 ### Environment variables the worker needs
 
@@ -59,8 +92,7 @@ new tasks need specifically:
 ### ffmpeg on the worker
 
 `05b-ingest` and `07-assemble` shell out to `ffmpeg` and `ffprobe`. Trigger.dev's default
-image does not carry them. Add a build extension to `trigger.config.ts` before the first
-deploy:
+image carries neither, so the config declares the build extension:
 
 ```ts
 import { ffmpeg } from '@trigger.dev/build/extensions/core';
@@ -68,15 +100,16 @@ import { ffmpeg } from '@trigger.dev/build/extensions/core';
 build: { extensions: [ffmpeg()] },
 ```
 
-This is **not in the config yet**, deliberately: `@trigger.dev/build` is a dependency this
-repo does not have, and adding one that cannot be exercised here — the deploy is what
-exercises it — would be adding an unverified dependency to satisfy a checklist. Add it in
-the same commit as your first deploy attempt, where the failure is one command away from
-the fix.
+**This is now in the config**, and `@trigger.dev/build` is installed. The earlier version of
+this document argued for adding it only alongside a first deploy attempt, on the grounds
+that an unexercised dependency is an unverified one. That reasoning was inverted: a config
+error surfaces at build time and costs a minute, and a missing binary surfaces at runtime
+after money has moved. Declaring it is the cheaper of the two failures even though neither
+has been observed.
 
-**The symptom if you forget:** `05b-ingest` fails with `spawn ffmpeg ENOENT` on its first
-run, after the generation was paid for. The generation row records it, so nothing is lost
-beyond the wait.
+**The symptom if it is wrong or absent:** `05b-ingest` fails with `spawn ffmpeg ENOENT` on
+its first run, after the generation was paid for. The generation row records it, so nothing
+is lost beyond the wait and the credits.
 
 ## The local-fs guard
 
@@ -86,22 +119,30 @@ to construct without `KILN_LOCAL_STORAGE_ROOT`, which is unset everywhere except
 harnesses — so a production worker that somehow selected it fails at startup rather than
 writing media into a container filesystem that vanishes on the next deploy.
 
-`07-assemble` additionally throws for any driver other than `local-fs`, with a message
-saying exactly what is missing: ffmpeg reads files, so assembling from an object store
-needs each asset downloaded to the container first, and that download has never run against
-a real bucket. That throw is the honest state of it — see 0008 §7.
+`07-assemble` used to throw for any driver other than `local-fs`, because assembling from an
+object store needs each asset downloaded to the container first and that download had never
+run. It no longer does: the bucket path downloads every clip through `presignGet` and a
+plain `fetch`, and that whole leg is exercised against **s3rver** — a real S3-compatible
+server, through the real driver with only the endpoint changed — in `pnpm verify:assemble`,
+in CI, on every push. See 0008 §5d.
 
 ## What has been executed, and what has not
 
 **Executed here, against real ffmpeg and a real Postgres:**
 
 ```bash
+pnpm check:trigger-build                # the image would carry ffmpeg and ffprobe
 pnpm verify:ingest   "$DATABASE_URL"    # 3 shapes → canonical, corrupt → error row, unconfirmed → refused
-pnpm verify:assemble "$DATABASE_URL"    # 6 clips → one MP4, mismatched set refused, renders row written
+pnpm verify:assemble "$DATABASE_URL"    # 6 clips → one MP4 over a real S3 endpoint, wrong duration → failed render
 ```
 
-**Never executed:** the deploy itself, the ffmpeg build extension, the object-store
-download inside `07-assemble`, and every task's behaviour under Trigger's own runtime. The
-task bodies are thin wrappers over the functions the two harnesses drive directly — which
-is deliberate, because it is the part that can be tested — but "the wrapper is thin" is a
-reason to expect it to work, not evidence that it does.
+All three run in CI on every push.
+
+**Never executed:** the deploy itself, the ffmpeg build extension *as a built image*, and
+every task's behaviour under Trigger's own runtime. The task bodies are thin wrappers over
+functions the harnesses drive directly — which is deliberate, because it is the part that
+can be tested — but "the wrapper is thin" is a reason to expect it to work, not evidence
+that it does.
+
+`pnpm trigger:deploy:dry` closes the middle one, and it is the first thing to run when you
+have the account.

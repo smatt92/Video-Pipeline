@@ -713,6 +713,65 @@ same `TimelineSpan[]` the harness checks.
 timings are authored, not synthesised — there is no voice vendor in this path. What that
 leaves unproven is stage 6 producing timings of the shape assumed here, which is §4b.
 
+### 9. Regenerate — RUN, up to the vendor call it deliberately does not make
+
+**Run.** `pnpm verify:review` now covers it. On an untouched workspace `estimateRegenerate`
+refuses with both gates named — the video integration has never verified, and there is no
+verified credit rate — and `executeRegenerate` refuses on the same gates and queues nothing.
+Give it a verified integration and a verified rate and it prices, queues, and reports the
+key change the confirmation dialog has to state out loud:
+
+```
+  PASS  the estimate refuses on a fresh workspace — video_integration_unusable, no_rate_card_entry
+  PASS    · and names the pricing as the reason — no rupee figure from an unverified rate
+  PASS  a priced, verified shot estimates — ₹7.08 for 1 credit
+  PASS  a second regenerate mints a different key — …a2:4258c14e → …a3:4258c14e
+  PASS    · and bumps the attempt — 2 → 3
+  PASS  replaying the same key is refused by the unique constraint
+```
+
+Three properties worth naming.
+
+**The dialog's number is display, never authorisation.** `executeRegenerate` re-runs the
+whole estimate server-side rather than accepting anything the browser sends. A client that
+can post its own cost estimate can post a zero, at which point the guard reads as working
+while authorising an unpriced call — rule 5 inverted.
+
+**No cost row is written.** Regenerate creates an authorised `generations` row with a fresh
+key at `queued`; the ledger row belongs to the submit path, which writes it *before* the
+vendor call. Writing it here would record a charge for a call that may never happen, and a
+queued generation that is never submitted has cost nothing.
+
+**It defeats idempotency on purpose, and says so.** Rule 6 exists so retries do not
+double-charge; regenerate is the one operation that deliberately bumps `attempt` past it.
+The confirmation shows the old and new keys side by side, because an operator who has
+internalised "retries are safe here" will read a regenerate button as safe unless told
+otherwise, and two strings that visibly differ are harder to misread than a sentence
+promising they will.
+
+**NOT RUN: the vendor call itself.** Stage 5's submit path is unexecuted (§6), so a queued
+regeneration currently sits queued. That is the honest state and it is visible as a row.
+
+### 10. The Trigger worker image — checked, not built
+
+`pnpm check:trigger-build` runs in `pnpm check` and in CI. It scans `src/` for code that
+spawns a bare binary, confirms `@trigger.dev/build` still exports `ffmpeg` from
+`extensions/core`, calls it, and confirms `trigger.config.ts` declares it — covering a
+renamed export, a moved subpath, a dropped dependency, or somebody deleting the line while
+tidying.
+
+It caught itself first. The initial version matched `execFile('ffmpeg', …)` literally, and
+both files that spawn ffmpeg here do `const run = promisify(execFile)` then
+`run('ffprobe', …)` — so it found nothing, printed "no binary dependencies found", and
+passed. A green check asserting the opposite of the truth, which is the failure it exists to
+prevent, one level up. Fixed to match the binary as the first argument of any call in a file
+that imports `node:child_process`.
+
+**NOT RUN: a build.** Whether the extension installs a *working* ffmpeg is only observable
+by building the image. `pnpm trigger:deploy:dry` does exactly that and uploads nothing; it
+is the first thing to run once the account exists. Until then the symptom stands:
+`spawn ffmpeg ENOENT` on the first ingest, after the generation was paid for.
+
 ## Gates, and where each can run
 
 | Gate | Runnable in this environment? |

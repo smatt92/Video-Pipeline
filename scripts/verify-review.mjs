@@ -71,6 +71,7 @@ const { captionCues, mergeTakes, moveShot, DRIFT_TOLERANCE_S } =
   require(`${BUILD}/review/timeline.js`);
 const { readReview, readQueue } = require(`${BUILD}/review/read.js`);
 const { recordReview, writeOrder, writeTrim } = require(`${BUILD}/review/write.js`);
+const { estimateRegenerate, executeRegenerate } = require(`${BUILD}/generate/regenerate.js`);
 
 const pg = await import('./lib/pg.mjs');
 const { listMigrations } = await import('./lib/migrations.mjs');
@@ -617,10 +618,155 @@ const reviewerId = randomUUID();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// 7. The queue
+// 7. Regenerate — the confirmation's content, and what it refuses
 // ═══════════════════════════════════════════════════════════════════════════
 
-console.log('\n7. The queue\n');
+console.log('\n7. Regenerate\n');
+
+{
+  const shotId = shotIds[0];
+
+  // Compiled first, because an uncompiled shot cannot be priced — there is no model to look
+  // up — and the refusal would stop one gate earlier. That is correct behaviour and it is
+  // not the behaviour under test here.
+  await client.query(
+    `insert into prompts (id, name, driver, model, template, params, tags, discovered_in)
+     values ($1,'verify recipe','higgsfield','verify-model','{{description}}','{"motion":"push_in"}','{establishing}','manual')`,
+    ['bbbbbbbb-0000-0000-0000-000000000001'],
+  );
+  await client.query(
+    `update shots set prompt_id = $2, compiled_params = $3 where id = $1`,
+    [shotId, 'bbbbbbbb-0000-0000-0000-000000000001', JSON.stringify({ model: 'verify-model', motion: 'push_in' })],
+  );
+
+  // On an untouched workspace this refuses twice over: the video integration has never
+  // verified, and there is no verified credit rate. That is the dialog's whole job — no
+  // rupee figure is shown, and nothing is queued.
+  const refused = await estimateRegenerate(db, shotId, { usdInrRate: 88.5 });
+  if (refused.ok) {
+    bad('an unverified rate refuses the estimate', 'it produced a price');
+  } else {
+    const codes = refused.blockers.map((b) => b.code);
+    ok('the estimate refuses on a fresh workspace', codes.join(', '));
+
+    if (codes.includes('rate_unverified') || codes.includes('no_rate_card_entry')) {
+      ok('  · and names the pricing as the reason', 'no rupee figure from an unverified rate');
+    } else {
+      bad('  · and names the pricing as the reason', codes.join(', '));
+    }
+  }
+
+  const wouldWrite = await executeRegenerate(db, shotId, { usdInrRate: 88.5 });
+  if (wouldWrite.ok) bad('executing is refused too', 'it queued a generation');
+  else ok('executing is refused too, on the same gates', wouldWrite.blockers.map((b) => b.code).join(', '));
+
+  const { rows: none } = await client.query(
+    `select count(*)::int as n from generations where shot_id = $1 and status = 'queued'`, [shotId],
+  );
+  if (none[0].n === 0) ok('  · and nothing was queued');
+  else bad('  · and nothing was queued', `${none[0].n} rows`);
+}
+
+// Now make it possible, and check the thing the dialog has to say out loud.
+{
+  const shotId = shotIds[0];
+
+  await client.query(
+    `update integrations set is_enabled = true, last_verified_at = now() where slug = 'higgsfield'`,
+  );
+  await client.query(
+    `insert into rate_card (driver, model, endpoint, unit, unit_cost, currency, is_verified, source_note, effective_from)
+     values ('higgsfield','verify-model',null,'credit',0.08,'USD',true,'observed credit delta in the harness','1970-01-01T00:00:00Z')`,
+  );
+  const estimate = await estimateRegenerate(db, shotId, { usdInrRate: 88.5 });
+  if (!estimate.ok) {
+    bad('a priced, verified shot estimates', estimate.blockers.map((b) => b.detail).join(' · '));
+  } else {
+    ok('a priced, verified shot estimates', `₹${estimate.costInr.toFixed(2)} for ${estimate.quantity} ${estimate.unit}`);
+
+    if (Math.abs(estimate.costInr - 0.08 * 88.5) < 0.001) ok('  · the rupee figure is the rate times the rate');
+    else bad('  · the rupee figure is the rate times the rate', String(estimate.costInr));
+
+    // Asserted against the database rather than against an assumed baseline: this shot
+    // already carries the synthetic set's generation, so "previous" is that one and the new
+    // attempt is one past it. Hardcoding 1 here would have been an assertion about the
+    // fixture, not about the code.
+    const { rows: latest } = await client.query(
+      `select idempotency_key, attempt from generations where shot_id = $1 order by attempt desc limit 1`,
+      [shotId],
+    );
+
+    if (estimate.previousKey === latest[0].idempotency_key) {
+      ok('  · it reports the shot\'s current key as previous', estimate.previousKey);
+    } else {
+      bad('  · it reports the shot\'s current key as previous', `${estimate.previousKey} vs ${latest[0].idempotency_key}`);
+    }
+
+    if (estimate.attempt === latest[0].attempt + 1) {
+      ok('  · and the next attempt number', `${latest[0].attempt} → ${estimate.attempt}`);
+    } else {
+      bad('  · and the next attempt number', `${latest[0].attempt} → ${estimate.attempt}`);
+    }
+
+    const baseAttempt = estimate.attempt;
+
+    const first = await executeRegenerate(db, shotId, { usdInrRate: 88.5 });
+    if (first.ok) ok('the regeneration is queued', first.idempotencyKey);
+    else bad('the regeneration is queued', first.blockers.map((b) => b.detail).join(' · '));
+
+    // Rule 5, precisely: no money has moved, so no ledger row exists. The submit path
+    // writes it at the moment the vendor is called.
+    const { rows: ledger } = await client.query(
+      `select count(*)::int as n from cost_ledger where generation_id = $1`, [first.generationId],
+    );
+    if (ledger[0].n === 0) {
+      ok('  · and no cost row yet', 'a queued generation that is never submitted cost nothing');
+    } else {
+      bad('  · and no cost row yet', `${ledger[0].n} rows`);
+    }
+
+    // The claim the dialog makes: a second regenerate is a NEW key, therefore a new charge.
+    const second = await estimateRegenerate(db, shotId, { usdInrRate: 88.5 });
+    if (!second.ok) {
+      bad('a second regenerate estimates', second.blockers.map((b) => b.code).join(', '));
+    } else if (second.previousKey === first.idempotencyKey && second.newKey !== second.previousKey) {
+      ok('a second regenerate mints a different key', `${second.previousKey} → ${second.newKey}`);
+    } else {
+      bad('a second regenerate mints a different key', `${second.previousKey} → ${second.newKey}`);
+    }
+
+    if (second.ok && second.attempt === baseAttempt + 1) {
+      ok('  · and bumps the attempt', `${baseAttempt} → ${second.attempt}`);
+    } else if (second.ok) {
+      bad('  · and bumps the attempt', `${baseAttempt} → ${second.attempt}`);
+    }
+
+    // A retry of the SAME attempt must not create a second row. That is rule 6 holding
+    // where regenerate deliberately does not.
+    const replay = await executeRegenerateAtAttempt(shotId, first.idempotencyKey);
+    if (replay === 'refused') ok('replaying the same key is refused by the unique constraint');
+    else bad('replaying the same key is refused by the unique constraint', replay);
+  }
+}
+
+async function executeRegenerateAtAttempt(shotId, key) {
+  try {
+    await client.query(
+      `insert into generations (shot_id, kind, driver, model, request_payload, idempotency_key, status)
+       values ($1,'image','higgsfield','verify-model','{}',$2,'queued')`,
+      [shotId, key],
+    );
+    return 'it inserted a duplicate';
+  } catch (err) {
+    return /duplicate key|unique/i.test(err.message) ? 'refused' : err.message;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 8. The queue
+// ═══════════════════════════════════════════════════════════════════════════
+
+console.log('\n8. The queue\n');
 
 {
   const queue = await readQueue(db);
