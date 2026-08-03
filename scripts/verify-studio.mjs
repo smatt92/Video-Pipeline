@@ -76,9 +76,8 @@ const { PROTOCOL_VERSION } = require(`${BUILD}/studio/mcp.js`);
 const { startSession, runTurn } = require(`${BUILD}/studio/session.js`);
 const { readSession } = require(`${BUILD}/studio/read.js`);
 
-const pg = await import('./lib/pg.mjs');
-const { listMigrations } = await import('./lib/migrations.mjs');
 const { supabaseShim } = await import('./lib/supabase-shim.mjs');
+const { scratchDatabase } = await import('./lib/scratch.mjs');
 
 const SECRET = 'verify-studio-secret-not-a-real-one';
 
@@ -91,50 +90,11 @@ const bad = (l, d = '') => {
 
 // ── A scratch database, created and dropped per run ─────────────────────────
 //
-// Not the database in the URL. Half the assertions below are about *absence* — an empty
-// prompt library, no scripts, no shots — and those are only meaningful on a database
-// nothing has touched. Running twice against a shared database made the second run fail on
-// rows the first run wrote, which is the harness telling the truth about a harness that was
-// lying. `check:catalog` already does this for the same reason.
-const scratch = `kiln_studio_${process.pid}`;
-const scratchUrl = withDatabase(dbUrl, scratch);
-
-const admin = await pg.tryConnect(dbUrl);
-if (!admin.ok) {
-  const why = pg.classifyConnectionError(admin.error, dbUrl);
-  console.error(`\nCannot connect: ${why.cause ?? admin.error.message}\n${why.remedy ?? ''}\n`);
-  process.exit(2);
-}
-// CREATE DATABASE cannot run inside a transaction block, which is why this uses its own
-// connection rather than borrowing a pooled one.
-await admin.client.query(`drop database if exists ${scratch} with (force)`);
-await admin.client.query(`create database ${scratch}`);
-await admin.client.end();
-
-const connection = await pg.tryConnect(scratchUrl);
-if (!connection.ok) {
-  console.error(`Could not connect to the scratch database: ${connection.error.message}`);
-  process.exit(2);
-}
-const client = connection.client;
-
-for (const migration of listMigrations()) {
-  try {
-    await client.query(migration.sql);
-  } catch (err) {
-    console.error(`\nMigration ${migration.file} failed on an empty database:\n`);
-    console.error(pg.describeSqlError(err, migration.sql));
-    process.exit(1);
-  }
-}
-
+// Shared with every other harness — see scripts/lib/scratch.mjs for why absence assertions
+// need one.
+const scratch = await scratchDatabase(dbUrl, 'studio');
+const client = scratch.client;
 const db = supabaseShim(client);
-
-function withDatabase(url, name) {
-  const u = new URL(url);
-  u.pathname = `/${name}`;
-  return u.toString();
-}
 
 // ── A real HTTP server over the real handler ────────────────────────────────
 //
@@ -719,15 +679,7 @@ await shutdown();
 
 async function shutdown() {
   await new Promise((resolve) => server.close(resolve));
-  await client.end().catch(() => {});
-
-  // Dropped whether the run passed or failed. A scratch database left behind after every
-  // failed run is how a machine acquires forty of them.
-  const cleanup = await pg.tryConnect(dbUrl);
-  if (cleanup.ok) {
-    await cleanup.client.query(`drop database if exists ${scratch} with (force)`).catch(() => {});
-    await cleanup.client.end().catch(() => {});
-  }
+  await scratch.release();
   console.log(failures === 0 ? 'Studio lane checks passed.\n' : `${failures} check(s) failed.\n`);
   process.exit(failures === 0 ? 0 : 1);
 }

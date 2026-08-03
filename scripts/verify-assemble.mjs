@@ -32,7 +32,6 @@ const BUILD = new URL('../.verify-build/src/lib', import.meta.url).pathname;
 const { probe, isCanonical, normalise } = await import(`${BUILD}/ingest/normalise.js`);
 const { assembleRoughCut } = await import(`${BUILD}/assemble/rough-cut.js`);
 const { runAssemble } = await import(`${BUILD}/assemble/run.js`);
-const pg = await import('./lib/pg.mjs');
 
 let failures = 0;
 const ok = (l, d = '') => console.log(`  PASS  ${l}${d ? ` — ${d}` : ''}`);
@@ -229,7 +228,9 @@ if (!probeResult.ok) {
   ok('s3 round trip through the real driver', probeResult.detail);
 }
 
-const client = (await pg.tryConnect(dbUrl)).client;
+const { scratchDatabase } = await import('./lib/scratch.mjs');
+const scratch = await scratchDatabase(dbUrl, 'assemble');
+const client = scratch.client;
 const ids = {
   channel: '00000000-0000-4000-8000-0000000a55e1',
   concept: '00000000-0000-4000-8000-0000000a55e2',
@@ -499,7 +500,7 @@ if (afterTmp > beforeTmp) {
 }
 
 s3.close();
-await client.end();
+await scratch.release();
 await rm(work, { recursive: true, force: true });
 
 console.log(failures === 0 ? '\nRough cut works.\n' : `\n${failures} check(s) failed.\n`);

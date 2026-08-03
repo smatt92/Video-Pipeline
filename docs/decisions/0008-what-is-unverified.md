@@ -125,6 +125,24 @@ Current state, from `pnpm check:gates`:
 The four exemptions all fail the same way if run in CI: they need a live vendor account or
 spend money on a billed call. "It is slow" and "it is flaky" are explicitly not reasons.
 
+### 0c. Two harnesses passed once and failed the second time
+
+`verify-assemble` writes its fixtures under fixed UUIDs and tears them down at the end. Run
+it twice against the same database and the teardown died on a foreign key from the `renders`
+row the first run left behind. `verify-ingest` had the same shape.
+
+It passed in CI every time, because CI's database is always fresh. It failed for anyone who
+ran it twice locally — which is the worst shape a defect can have, since the person who hits
+it is the one being told the tooling is reliable.
+
+All four database harnesses now take a scratch database from `scripts/lib/scratch.mjs`:
+created, migrated, used, dropped, per run, whether the run passes or fails. One helper
+rather than a copy each — four copies of the same twenty-line block is drift waiting to
+happen, and the whole argument of §0a is that duplicated guard machinery is how guards
+quietly stop guarding.
+
+Confirmed by running all four twice in a row against one database. Eight passes.
+
 ### 0b. `check:enums` could not tell drift from an empty database
 
 Found by being fooled by it. Pointed at a database whose `public` schema had been dropped,

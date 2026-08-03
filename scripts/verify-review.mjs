@@ -73,9 +73,8 @@ const { readReview, readQueue } = require(`${BUILD}/review/read.js`);
 const { recordReview, writeOrder, writeTrim } = require(`${BUILD}/review/write.js`);
 const { estimateRegenerate, executeRegenerate } = require(`${BUILD}/generate/regenerate.js`);
 
-const pg = await import('./lib/pg.mjs');
-const { listMigrations } = await import('./lib/migrations.mjs');
 const { supabaseShim } = await import('./lib/supabase-shim.mjs');
+const { scratchDatabase } = await import('./lib/scratch.mjs');
 
 let failures = 0;
 const ok = (l, d = '') => console.log(`  PASS  ${l}${d ? ` — ${d}` : ''}`);
@@ -84,39 +83,9 @@ const bad = (l, d = '') => {
   failures++;
 };
 
-// ── Scratch database, as verify-studio does and for the same reason ─────────
-const scratch = `kiln_review_${process.pid}`;
-const withDb = (url, name) => {
-  const u = new URL(url);
-  u.pathname = `/${name}`;
-  return u.toString();
-};
-
-const admin = await pg.tryConnect(dbUrl);
-if (!admin.ok) {
-  const why = pg.classifyConnectionError(admin.error, dbUrl);
-  console.error(`\nCannot connect: ${why.cause ?? admin.error.message}\n${why.remedy ?? ''}\n`);
-  process.exit(2);
-}
-await admin.client.query(`drop database if exists ${scratch} with (force)`);
-await admin.client.query(`create database ${scratch}`);
-await admin.client.end();
-
-const connection = await pg.tryConnect(withDb(dbUrl, scratch));
-if (!connection.ok) {
-  console.error(`Could not connect to the scratch database: ${connection.error.message}`);
-  process.exit(2);
-}
-const client = connection.client;
-for (const m of listMigrations()) {
-  try {
-    await client.query(m.sql);
-  } catch (err) {
-    console.error(`\nMigration ${m.file} failed:\n`);
-    console.error(pg.describeSqlError(err, m.sql));
-    process.exit(1);
-  }
-}
+// ── Scratch database. See scripts/lib/scratch.mjs. ─────────────────────────
+const scratch = await scratchDatabase(dbUrl, 'review');
+const client = scratch.client;
 const db = supabaseShim(client);
 
 const work = await mkdtemp(join(tmpdir(), 'kiln-verify-review-'));
@@ -809,14 +778,8 @@ function spanDuration(words, voText, span) {
 }
 
 async function shutdown() {
-  await client.end().catch(() => {});
+  await scratch.release();
   await rm(work, { recursive: true, force: true });
-
-  const cleanup = await pg.tryConnect(dbUrl);
-  if (cleanup.ok) {
-    await cleanup.client.query(`drop database if exists ${scratch} with (force)`).catch(() => {});
-    await cleanup.client.end().catch(() => {});
-  }
 
   console.log(failures === 0 ? '\nReview screen checks passed.\n' : `\n${failures} check(s) failed.\n`);
   process.exit(failures === 0 ? 0 : 1);

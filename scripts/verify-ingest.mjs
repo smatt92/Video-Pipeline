@@ -44,7 +44,6 @@ const BUILD = new URL('../.verify-build/src/lib', import.meta.url).pathname;
 const { probe, isCanonical, CANONICAL } = await import(`${BUILD}/ingest/normalise.js`);
 const { runIngest } = await import(`${BUILD}/ingest/run.js`);
 
-const pg = (await import('./lib/pg.mjs'));
 
 // ── Fixtures: three clips nothing about which is canonical ──────────────────
 const CLIPS = [
@@ -130,7 +129,9 @@ const base = `http://127.0.0.1:${port}`;
 console.log(`\nServing them over HTTP at ${base}\n`);
 
 // ── Database fixture ────────────────────────────────────────────────────────
-const client = (await pg.tryConnect(dbUrl)).client;
+const { scratchDatabase } = await import('./lib/scratch.mjs');
+const scratch = await scratchDatabase(dbUrl, 'ingest');
+const client = scratch.client;
 if (!client) {
   console.error('could not connect to the database');
   process.exit(1);
@@ -353,7 +354,7 @@ else if (unconfirmedResult.code !== 'unconfirmed') {
 
 // ── Done ────────────────────────────────────────────────────────────────────
 server.close();
-await client.end();
+await scratch.release();
 await rm(work, { recursive: true, force: true });
 
 console.log(
