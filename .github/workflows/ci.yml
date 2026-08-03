@@ -144,6 +144,14 @@ jobs:
       - name: Review timeline, trims, reorder and the publish gate
         run: pnpm verify:review "$DATABASE_URL"
 
+      # ── Attribution, and the aggregate that leaves the building ──────────
+      # The roll-up is the one view in the schema written to be pasted into an email, so
+      # the anonymisation has to be a property of its columns rather than of whoever
+      # pastes it. This asserts the column set directly: a later migration that adds a
+      # title or an id to it fails here rather than in somebody's outbox.
+      - name: Referral attribution, and the roll-up carries nothing identifying
+        run: pnpm verify:referral "$DATABASE_URL"
+
       # ── The Studio lane, minus the leg that needs a public hostname ──────
       # Creates and drops its own scratch database, so it runs after the checks that read
       # the one above. Section 7 (the billed model call) skips without a key and says so.

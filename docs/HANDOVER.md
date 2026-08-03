@@ -31,6 +31,36 @@ produced, and watching a clip needs C.
 
 ---
 
+## Where the screens are now
+
+The entry flow moved, and three URLs you may have bookmarked are not where they were. This
+table is here so you do not go hunting for the board.
+
+| You want | Go to | Was |
+|---|---|---|
+| The board — every video by state | `/board` | `/` |
+| The setup wizard | `/setup` (steps at `/setup/1` … `/setup/10`) | `/onboarding` |
+| The product tour | `/onboarding` | behind sign-in, same path |
+| Whatever the app thinks you need | `/` | — |
+
+`/` is now a **splash**: it renders immediately, checks whether you are signed in and
+whether you have seen the tour, and sends you onward — to `/onboarding`, `/login` or
+`/board`. It is not a page you interact with, and it never holds you for more than the
+redirect.
+
+The two that moved, moved for the same reason: `/` had to become the one URL that decides
+where you go, and it could not do that while also being the board. `/onboarding` is now the
+*product tour*, which is public and sits before sign-in — the wizard that spends money took
+the new name (`/setup`) because it is a different thing entirely, and having them share a
+word was the source of the confusion.
+
+Setup is no longer a gate. Every screen opens with nothing connected; a task that needs an
+unverified integration refuses and names it. If a screen refuses, that is the answer, not a
+failure — the fix is the named step in `/setup`, and the sidebar checklist links straight
+to it.
+
+---
+
 ## A. Deploy the worker
 
 **Unblocks:** everything. No Trigger task has ever run.

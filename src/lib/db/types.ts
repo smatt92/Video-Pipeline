@@ -719,6 +719,9 @@ export type Database = {
           last_error: string | null
           last_verified_at: string | null
           profile_id: string | null
+          referral_code: string | null
+          referral_source: string | null
+          referred_at: string | null
           slug: string
         }
         Insert: {
@@ -733,6 +736,9 @@ export type Database = {
           last_error?: string | null
           last_verified_at?: string | null
           profile_id?: string | null
+          referral_code?: string | null
+          referral_source?: string | null
+          referred_at?: string | null
           slug: string
         }
         Update: {
@@ -747,6 +753,9 @@ export type Database = {
           last_error?: string | null
           last_verified_at?: string | null
           profile_id?: string | null
+          referral_code?: string | null
+          referral_source?: string | null
+          referred_at?: string | null
           slug?: string
         }
         Relationships: [
@@ -1842,6 +1851,18 @@ export type Database = {
         }
         Relationships: []
       }
+      v_partner_rollup: {
+        Row: {
+          cost_inr: number | null
+          driver: string | null
+          generations: number | null
+          period: string | null
+          renders_completed: number | null
+          unit: string | null
+          units_consumed: number | null
+        }
+        Relationships: []
+      }
       v_pronunciation_locators: {
         Row: {
           id: string | null
@@ -1896,6 +1917,16 @@ export type Database = {
           seconds_waiting: number | null
           shot_kind: string | null
           shots_waiting: number | null
+        }
+        Relationships: []
+      }
+      v_referral_attribution: {
+        Row: {
+          accounts_connected: number | null
+          accounts_verified: number | null
+          driver: string | null
+          period: string | null
+          referral_source: string | null
         }
         Relationships: []
       }
