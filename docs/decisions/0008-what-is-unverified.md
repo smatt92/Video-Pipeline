@@ -76,6 +76,73 @@ The vendor-isolation rule is the one to care about. It caught five real violatio
 this session, every one of them found because I ran it by hand. From here it catches the
 sixth without my cooperation.
 
+### 0a. Guards that gate nothing — now impossible to add silently
+
+§0 above is one instance of a pattern, and the pattern turned out to have a second one.
+`test:timings` — real assertions about the character→word converter, the only part of stage
+6 provable without the vendor — had been run by hand once and never since, because no
+command ran it. `verify:ingest`, `verify:assemble` and `verify:studio` were the same: real
+harnesses, invoked only when somebody remembered. And `verify-script-draft-direct.mjs` sat
+in `scripts/` with no `package.json` entry at all, reachable only by someone who already
+knew the filename.
+
+None of these was broken. That is the point — a correct guard nobody runs is worse than no
+guard, because its existence is read as coverage.
+
+`pnpm check:gates` now fails the build when a `check:*`, `test:*` or `verify:*` script is
+reachable from neither `pnpm check` nor `.github/workflows/ci.yml`, and it runs first in
+both. Three further rules keep the exemption list from becoming a graveyard:
+
+- An exemption naming a script that no longer exists fails.
+- An exemption for a script that *is* now wired fails — a stale reason reads as a current
+  one.
+- A `scripts/(check|verify|test)-*.mjs` file that no `package.json` script invokes fails.
+
+All three failure modes were exercised by introducing each fault deliberately and watching
+the check report it.
+
+Current state, from `pnpm check:gates`:
+
+```
+  check:catalog         ci
+  check:drift           ci
+  check:enums           ci
+  check:gates           check + ci
+  check:public-env      check + ci
+  check:vendors         check + ci
+  lint                  check + ci
+  test:timings          check + ci
+  typecheck             check + ci
+  verify:assemble       ci
+  verify:ingest         ci
+  verify:script         exempt
+  verify:script:direct  exempt
+  verify:storage        exempt
+  verify:studio         ci
+  verify:vault          exempt
+```
+
+The four exemptions all fail the same way if run in CI: they need a live vendor account or
+spend money on a billed call. "It is slow" and "it is flaky" are explicitly not reasons.
+
+### 0b. `check:enums` could not tell drift from an empty database
+
+Found by being fooled by it. Pointed at a database whose `public` schema had been dropped,
+it printed twenty-seven lines of `no CHECK constraint found in the database` and the summary
+`27 enum mismatch(es). Fix enums.ts, or add the migration you forgot.` Every line was
+literally true and the conclusion was wrong: the constraints were not missing, the *tables*
+were, and `enums.ts` was correct throughout — it passes all twenty-seven against a migrated
+database, and has done on every green CI run since `17e22cd`.
+
+This is the failure-indistinguishability that `pnpm doctor` exists to remove, in a script
+that predates it. Two very different problems printed the same, and the suggested remedy
+sent you to edit a file that was already right.
+
+Fixed. An empty schema is now its own outcome with its own exit code — 2, not 1, because 1
+means "the code and the database disagree" and that run never got far enough to have an
+opinion. A partially-migrated database is three distinct messages now rather than one:
+missing table, missing column, or a column that exists and carries no CHECK.
+
 ### 1. Supabase Vault — `scripts/verify-vault.mjs`
 
 **Still never executed against Supabase Vault.** The write path now exists — migration

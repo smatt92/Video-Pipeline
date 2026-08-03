@@ -73,6 +73,11 @@ typecheck, and this project has now twice found a defect that only a real run co
 a CHECK constraint rejecting a plausible value, and a schema that made an addendum's own
 mechanism uncomputable.
 
+`pnpm check:gates` is the guard on the guards: it fails when a `check:*`, `test:*` or
+`verify:*` script is reachable from neither `pnpm check` nor CI, and when an exemption
+outlives its reason. It runs first in both. Two guards had already gone unwired before it
+existed — see 0008 §0a.
+
 ```bash
 pnpm doctor                          # which failure is this? — run this first, always
 pnpm verify:ingest   "$DATABASE_URL" # 3 shapes → canonical, corrupt → error row

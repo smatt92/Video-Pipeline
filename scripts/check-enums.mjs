@@ -59,15 +59,58 @@ join pg_attribute att  on att.attrelid = rel.oid and att.attnum = k.attnum
 where con.contype = 'c' and nsp.nspname = 'public';
 `;
 
+/**
+ * How many of the schema's tables exist here at all.
+ *
+ * Asked before the constraints are, and the reason is a real incident: this script was
+ * pointed at a database whose `public` schema had been dropped, and it reported
+ * "27 enum mismatch(es). Fix enums.ts, or add the migration you forgot." Every line said
+ * "no CHECK constraint found in the database", which is literally true and completely
+ * misleading — the constraints were not missing, the *tables* were, and the suggested
+ * remedy sent someone to edit a file that was already correct.
+ *
+ * That is the failure this project keeps building tools to remove: two very different
+ * problems producing one indistinguishable message. A drift report and an unmigrated
+ * database are not the same finding and must not print the same way.
+ */
+const SCHEMA_PROBE = `
+select rel.relname as table_name, att.attname as column_name
+from pg_class rel
+join pg_namespace nsp on nsp.oid = rel.relnamespace
+left join pg_attribute att on att.attrelid = rel.oid and att.attnum > 0 and not att.attisdropped
+where nsp.nspname = 'public' and rel.relkind = 'r';
+`;
+
 let rows;
+let shape = [];
 try {
   // Rows arrive as objects rather than delimiter-split text. The previous version passed
   // -F with a control character to psql and split on it, which worked only because no
   // constraint definition happened to contain that byte. A real client removes the
   // question rather than answering it carefully.
-  rows = await withClient(dbUrl, (client) => client.query(sql).then((r) => r.rows));
+  ({ rows, shape } = await withClient(dbUrl, async (client) => ({
+    shape: (await client.query(SCHEMA_PROBE)).rows,
+    rows: (await client.query(sql)).rows,
+  })));
 } catch (err) {
   console.error(`could not query the database: ${err.message}`);
+  process.exit(2);
+}
+
+const liveTables = new Set(shape.map((r) => r.table_name));
+const liveColumns = new Set(
+  shape.filter((r) => r.column_name).map((r) => `${r.table_name}.${r.column_name}`),
+);
+
+if (liveTables.size === 0) {
+  console.error(
+    '\nThis database has no tables in `public`, so there are no CHECK constraints to ' +
+      'compare against.\n\n' +
+      '  This is NOT enum drift. enums.ts may be perfectly correct — nothing here can say.\n' +
+      '  Apply the migrations first:  pnpm db:push "<db-url>"\n\n' +
+      'Exit 2 rather than 1, because 1 means "the code and the database disagree" and this ' +
+      'run never got far enough to have an opinion.\n',
+  );
   process.exit(2);
 }
 
@@ -88,7 +131,28 @@ for (const { column, exportName } of pairs) {
     continue;
   }
   if (!live) {
-    console.error(`✗ ${column}: no CHECK constraint found in the database`);
+    // Three different problems used to print as one line. A missing table means the
+    // migrations are behind; a missing column means a migration was written wrong; a
+    // present column with no CHECK means the constraint was dropped or never added. They
+    // send you to three different places.
+    const [table] = column.split('.');
+    if (!liveTables.has(table)) {
+      console.error(
+        `✗ ${column}: table "${table}" does not exist here. The migrations are behind this ` +
+          'database, not enums.ts.',
+      );
+    } else if (!liveColumns.has(column)) {
+      console.error(
+        `✗ ${column}: table "${table}" exists but has no column "${column.split('.')[1]}". ` +
+          'ENUM_CONSTRAINT_MAP names a column the schema does not have.',
+      );
+    } else {
+      console.error(
+        `✗ ${column}: the column exists and carries no CHECK constraint. Either the ` +
+          'constraint was dropped, or it was never added and this enum has been a ' +
+          'suggestion rather than a guarantee.',
+      );
+    }
     failed++;
     continue;
   }

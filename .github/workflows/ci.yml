@@ -48,6 +48,14 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # ── Every guard must gate something ──────────────────────────────────
+      # First of all, because it is the check that says whether the rest of this file is
+      # the whole story. Twice a guard here has existed and run nowhere; this fails the
+      # build when a check-shaped script is reachable from neither `pnpm check` nor this
+      # workflow, and equally when an exemption outlives its reason.
+      - name: Every guard is wired or explicitly exempt
+        run: pnpm check:gates
+
       # ── The rule with teeth (CLAUDE.md rule 1) ───────────────────────────
       # First, because it is the cheapest and the one most likely to be violated by a
       # well-meaning shortcut.
@@ -63,6 +71,12 @@ jobs:
 
       - name: Lint
         run: pnpm lint
+
+      # ── The one part of stage 6 provable without the vendor ──────────────
+      # Character→word conversion and shot-duration derivation. Real assertions that had
+      # been run by hand exactly once, because nothing ran them.
+      - name: Voice timing unit tests
+        run: pnpm test:timings
 
       # ── Migrations must apply to an empty database, in order ─────────────
       # Forward-only means the sequence from nothing is the only sequence that matters.
@@ -93,6 +107,25 @@ jobs:
       # database precisely so the seed cannot rescue it.
       - name: Catalogue rows exist without the seed
         run: pnpm check:catalog "$DATABASE_URL"
+
+      # ── ffmpeg, for the two harnesses that produce and read real video ───
+      # The ingest and assembly paths have produced three bugs that made a file which
+      # plays and is wrong, and duration is the only signal that caught all three. That is
+      # not a class of bug to leave to a manual run.
+      - name: Install ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
+      - name: Ingest normalises to the canonical intermediate
+        run: pnpm verify:ingest "$DATABASE_URL"
+
+      - name: Rough cut assembles, and a wrong duration is a failed render
+        run: pnpm verify:assemble "$DATABASE_URL"
+
+      # ── The Studio lane, minus the leg that needs a public hostname ──────
+      # Creates and drops its own scratch database, so it runs after the checks that read
+      # the one above. Section 7 (the billed model call) skips without a key and says so.
+      - name: Studio MCP server, tools, auth and spend cap
+        run: pnpm verify:studio "$DATABASE_URL"
 
       - name: Build
         run: pnpm build

@@ -713,7 +713,7 @@ console.log('  The Messages API mcp_servers connector opens the HTTP connection 
 console.log('  /api/mcp from Anthropic’s infrastructure, not from this process. Section 7');
 console.log('  drove the same server over the same protocol from here instead. Everything');
 console.log('  on this side of that socket is exercised; the socket itself needs a public');
-console.log('  hostname. See docs/decisions/0008-what-is-unverified.md §6.\n');
+console.log('  hostname. See docs/decisions/0008-what-is-unverified.md §7.\n');
 
 await shutdown();
 
