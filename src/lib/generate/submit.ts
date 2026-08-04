@@ -1,3 +1,4 @@
+import { usability } from '../integrations/verify';
 import { primaryForKind } from '../drivers/catalog';
 import { submitGeneration } from '../drivers/video-submit';
 import { dispositionFor } from '../drivers/types';
@@ -84,6 +85,34 @@ export async function submitShots(
 
   const video = primaryForKind('video');
   if (!video) throw new Error('No video integration is marked primary in the catalogue.');
+
+  // ── An unverified integration cannot be selected by any pipeline task ──────
+  //
+  // This gate was missing, and stage 5 is the path that spends the most: one call submits
+  // every shot in a script. `regenerate.ts` checks `usability()`. The Studio's
+  // `generate_shot` checks it, names it as a blocker, and attaches the remedy — §7 of
+  // `verify:studio` produced exactly that refusal against the real API. Stage 5 read the
+  // integration row only for `concurrency_limit` and never looked at whether it was
+  // verified.
+  //
+  // The doc comment on `05-generate.ts` has always claimed "an unverified credential …
+  // each is a refusal with a name". It was describing a check that did not exist. What
+  // stage 5 actually required was that the *credential be present* — and a credential that
+  // is present is not a credential that works, which is the entire distinction
+  // `last_verified_at` exists to record. Enabling states intent; verifying states fact.
+  //
+  // A refusal rather than a throw, because it is a state a retry cannot change and the
+  // caller reports it. `verify:submit` §11 asserts both directions.
+  const use = await usability(db, video.slug);
+  if (!use.usable) {
+    return {
+      ok: false,
+      code: use.deferred ? 'video_integration_deferred' : 'video_integration_unusable',
+      detail:
+        `${use.reason} Settings → Integrations, then Test connection. Enabling states ` +
+        'intent; verifying states fact, and only the second one lets a task spend money.',
+    };
+  }
 
   const { data: shots, error } = await db
     .from('shots')

@@ -186,7 +186,85 @@ const ledgerCount = async () =>
 console.log('\nStage 5 — the submit path\n');
 
 // ═══════════════════════════════════════════════════════════════════════════
-console.log('1. Every refusal happens before the money\n');
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// "An unverified integration cannot be selected by any pipeline task."
+//
+// Stage 5 did not enforce that. `regenerate.ts` checks `usability()`; the Studio's
+// `generate_shot` checks it, names it, and attaches the remedy — §7 of verify:studio
+// produced exactly that refusal against the real API. Stage 5 read the integration row
+// only for `concurrency_limit`. It required the credential to be *present*, and a
+// credential that is present is not a credential that works, which is the whole point of
+// `last_verified_at`.
+//
+// This runs first because every section below it needs a verified integration, and running
+// it first is what makes the setup honest: the rest of this harness used to pass on a
+// workspace stage 5 was never allowed to spend from.
+console.log('0. An unverified integration refuses the whole script\n');
+{
+  const recipe = await makeRecipe();
+  await priceIt('soul');
+  const { scriptId } = await seedScript([{ promptId: recipe }]);
+
+  const before = seen.length;
+  const ledgerBefore = await ledgerCount();
+
+  // The catalogue row exists and is not verified — the state of a fresh install.
+  await client.query(
+    `update integrations set is_enabled = true, last_verified_at = null where slug = 'higgsfield'`,
+  );
+
+  const refused = await submitShots(scriptId, DEPS);
+  if (!refused.ok && refused.code === 'video_integration_unusable') {
+    ok('enabled but never verified is refused', refused.code);
+  } else {
+    bad('enabled but never verified is refused', JSON.stringify(refused).slice(0, 160));
+  }
+  if (seen.length === before) ok('  · before the vendor is called');
+  else bad('  · before the vendor is called', `${seen.length - before} request(s)`);
+  if ((await ledgerCount()) === ledgerBefore) ok('  · and before any cost row');
+  else bad('  · and before any cost row');
+
+  // The two instruments must agree. The board reads v_pipeline_blockers; stage 5 decides.
+  // A view that says "nothing is stopping this" about a script stage 5 will always refuse
+  // is worse than no view — it is the silence-reading mechanism reporting silence as
+  // readiness. 0028 added the workspace gates it was missing.
+  const { rows: blocked } = await client.query(
+    `select blocker, blocker_is_workspace_wide from v_pipeline_blockers where script_id = $1`,
+    [scriptId],
+  );
+  if (/no verified video integration/.test(blocked[0]?.blocker ?? '')) {
+    ok('  · and the blocker view says the same thing', blocked[0].blocker);
+  } else {
+    bad('  · and the blocker view says the same thing', JSON.stringify(blocked[0]));
+  }
+  if (blocked[0]?.blocker_is_workspace_wide === true) {
+    ok('  · flagged as workspace-wide, so the board shows it once', 'not once per concept');
+  } else {
+    bad('  · flagged as workspace-wide, so the board shows it once', JSON.stringify(blocked[0]));
+  }
+
+  // Verify it. Everything below this line depends on this line.
+  await client.query(
+    `update integrations set is_enabled = true, last_verified_at = now() where slug = 'higgsfield'`,
+  );
+
+  const { rows: cleared } = await client.query(
+    `select blocker from v_pipeline_blockers where script_id = $1`,
+    [scriptId],
+  );
+  // Not null — the *next* blocker down surfaces, which is the ordering working. The
+  // workspace gate sits ahead of the per-script ones precisely so a person is not sent to
+  // fix a host voice on a workspace that could not have generated anything either way.
+  if (/no host voice/.test(cleared[0]?.blocker ?? '')) {
+    ok('verifying it reveals the next blocker down', cleared[0].blocker);
+  } else {
+    bad('verifying it reveals the next blocker down', JSON.stringify(cleared[0]));
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('\n1. Every refusal happens before the money\n');
 {
   await priceIt('soul');
   const recipe = await makeRecipe();

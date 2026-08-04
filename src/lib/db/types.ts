@@ -2152,6 +2152,7 @@ export type Database = {
       v_pipeline_blockers: {
         Row: {
           blocker: string | null
+          blocker_is_workspace_wide: boolean | null
           channel_id: string | null
           concept_id: string | null
           created_at: string | null

@@ -63,7 +63,21 @@ export interface BoardRow {
 }
 
 export type BoardResult =
-  | { ok: true; rows: BoardRow[] }
+  | {
+      ok: true;
+      rows: BoardRow[];
+      /**
+       * The first blocker that belongs to the workspace rather than to any script — no
+       * verified video integration, or an empty prompt library. Null when neither holds.
+       *
+       * Surfaced separately because it is identical on every row, and a hundred rows all
+       * saying the same thing reads as a hundred problems when it is one. It also sends a
+       * person to Settings rather than to a shot list. `v_pipeline_blockers` grew these
+       * gates in 0028; before that it reported an ungeneratable workspace as having
+       * nothing wrong with it, and the board rendered those scripts as ready.
+       */
+      workspaceBlocker: string | null;
+    }
   | { ok: false; error: string; hint: string };
 
 /**
@@ -124,7 +138,13 @@ export async function readBoard(client?: Db): Promise<BoardResult> {
       };
     }
 
-    if (!concepts || concepts.length === 0) return { ok: true, rows: [] };
+    if (!concepts || concepts.length === 0) {
+      // Null rather than a probe of its own. `v_pipeline_blockers` is per script, so with
+      // no concepts it has nothing to report — and the empty state already says what would
+      // put something here. A workspace gate matters once there is something it is
+      // stopping.
+      return { ok: true, rows: [], workspaceBlocker: null };
+    }
 
     const ids = concepts.map((c) => c.id);
 
@@ -161,8 +181,18 @@ export async function readBoard(client?: Db): Promise<BoardResult> {
       // valuable part: the first reason to fix, not a list of everything wrong. That
       // ordering is a schema-level fact and belongs next to the schema.
       scriptIds.length
-        ? db.from('v_pipeline_blockers').select('script_id, concept_id, blocker').in('script_id', scriptIds)
-        : Promise.resolve({ data: [] as { script_id: string; concept_id: string; blocker: string | null }[] }),
+        ? db
+            .from('v_pipeline_blockers')
+            .select('script_id, concept_id, blocker, blocker_is_workspace_wide')
+            .in('script_id', scriptIds)
+        : Promise.resolve({
+            data: [] as {
+              script_id: string;
+              concept_id: string;
+              blocker: string | null;
+              blocker_is_workspace_wide: boolean | null;
+            }[],
+          }),
     ]);
 
     const shotToConcept = new Map<string, string>();
@@ -238,7 +268,10 @@ export async function readBoard(client?: Db): Promise<BoardResult> {
       };
     });
 
-    return { ok: true, rows };
+    const workspaceBlocker =
+      (blockers.data ?? []).find((b) => b.blocker_is_workspace_wide && b.blocker)?.blocker ?? null;
+
+    return { ok: true, rows, workspaceBlocker };
   } catch (err) {
     return {
       ok: false,

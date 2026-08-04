@@ -220,6 +220,30 @@ async function Board() {
 
   return (
     <>
+      {/*
+        One banner, not one per row.
+        A workspace-level blocker is identical on every concept, so rendering it in each row
+        turns one problem into a hundred and sends the reader to a shot list to fix a
+        Settings problem. It sits above everything because until it clears, nothing below it
+        can generate — which `v_pipeline_blockers` could not say at all before 0028: it
+        returned null, meaning nothing was stopping these scripts, while stage 5 would have
+        refused every one of them.
+      */}
+      {result.workspaceBlocker && (
+        <div
+          className="border-b px-5 py-3 text-sm"
+          style={{ borderColor: 'var(--state-blocked)', background: 'var(--state-blocked-bg)' }}
+        >
+          <div className={MAX_W}>
+            <span className="font-medium">Nothing here can generate yet.</span>{' '}
+            <span style={{ color: 'var(--text-muted)' }}>{result.workspaceBlocker}</span>{' '}
+            <Link href="/settings/integrations" className="underline">
+              Settings → Integrations
+            </Link>
+          </div>
+        </div>
+      )}
+
       <div className="border-b" style={{ borderColor: 'var(--border-subtle)' }}>
         <div className={`${MAX_W} flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4`}>
           {STATE_ORDER.map((state) => ({
