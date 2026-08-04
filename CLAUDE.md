@@ -176,6 +176,31 @@ register; an entry there is only correct while the number is genuinely unknowabl
 rows we have, and the probe is what keeps that honest. Assert the flip, not just the
 withholding — the withheld half passes on an empty database whatever you write.
 
+**A guard that permits the outcome its own message names is a fourth failure mode, and the
+refusing half tests green.** Not a guard for a state that cannot occur, and not one
+measuring the wrong quantity — one whose *accepting* branch delivers exactly what the
+refusal warns against, while reading as protection. Two instances, found one round apart and
+identical: `submit.ts` and `compile.ts` both refused a shot when no recipe was marked
+`accepts_character_ref`, warning that the alternatives "would generate a different-looking
+person and bill for it", and both accepting branches passed no reference either — nothing in
+`src/` reads the `characters` table.
+
+The tell is that a guard's test only exercises the refusal. That half passes on an empty
+database whatever the accept branch does, and it reads as coverage. **So for every refusal
+whose message names a bad outcome, assert that the accepting branch prevents that outcome** —
+by driving the accepting path, not by inspecting a fixture that was seeded past it. And when
+two stages guard the same thing, share one predicate: they drifted into the same wrong shape
+independently, and fixing one leaves the other claiming a protection it lacks, which reads
+exactly like a whole fix.
+
+**Never write a measurement you did not take.** When rule 5's reconcile cannot be obtained —
+the vendor's response carries no figure — the fix is not to write a reconcile equal to the
+estimate. That puts a fabricated number in the table everything derives from,
+indistinguishable from a measured one, and the ledger's whole value is that its rows can be
+checked. Record instead *how the figure was arrived at* (`cost_ledger.cost_source`), count
+the estimate, and label every surface that shows it. A real measurement lands the same way a
+verified rate does: by watching a balance move, not by reading a response body.
+
 **Mark the load-bearing assertion where two look alike.** `verify:submit` §0 and the old §9
 are the same three lines; §0 means something only because §4 submits to a vendor and then
 asserts the view said null about it, and nothing in §0 says so. A future reader has no way

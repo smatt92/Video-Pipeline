@@ -19,6 +19,8 @@
  * action is an exploratory session — not a bug report.
  */
 
+import { CHARACTER_REF_IS_PASSED, CHARACTER_REF_UNSUPPORTED } from '../generate/character-ref';
+
 export interface LibraryPrompt {
   id: string;
   name: string;
@@ -232,22 +234,22 @@ export function compileShot(
     };
   }
 
-  // A character reference that cannot be carried is not a degraded result, it is a
-  // different person. Refused rather than dropped.
-  const eligible = shot.characterId
-    ? byKind.filter((p) => p.acceptsCharacterRef)
-    : byKind;
-
-  if (eligible.length === 0) {
-    return {
-      resolved: false,
-      note:
-        `This shot carries a character reference and no "${shot.shotKind}" recipe for ` +
-        `"${driver}" is marked as carrying one through. ${byKind.length} recipe` +
-        `${byKind.length === 1 ? '' : 's'} match the kind but would drop the reference and ` +
-        'generate a different-looking person, which is worse than not generating it.',
-    };
+  // ── A character reference, and a guard that permitted what it forbade ──────
+  //
+  // This filtered to recipes marked `accepts_character_ref` and refused when none matched,
+  // saying the others "would drop the reference and generate a different-looking person".
+  // The accepting branch dropped it too — the compiled parameters below have never carried
+  // a reference field, and nothing in src/ reads the `characters` table.
+  //
+  // `submit.ts` had the identical guard with the identical hole, found first. Fixing that
+  // one left this one still claiming a protection it did not provide, which is why the
+  // reason now lives in one module both call: two guards drifted into the same wrong shape
+  // independently, and half a fix reads exactly like a whole one.
+  if (shot.characterId && !CHARACTER_REF_IS_PASSED) {
+    return { resolved: false, note: CHARACTER_REF_UNSUPPORTED };
   }
+
+  const eligible = byKind;
 
   // Rank, then take the tier. Nulls rank last and form their own tier, so an unmeasured
   // recipe never displaces a measured one.

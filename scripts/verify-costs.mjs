@@ -140,8 +140,8 @@ const a = await makeVideo('Priced end to end');
   const s = await expectOk(await readVideoCosts(db));
   eq('one per-video row', s.rows.length, 1);
   const row = s.rows[0];
-  eq('  · settled cost is the sum of the reconciled rows', Number(row.settledInr), 45.01);
-  eq('  · it counts towards the denominator', row.denominatorState, 'countable');
+  eq('  · incurred cost is the sum of the reconciled rows', Number(row.measuredInr ?? 0) + Number(row.estimatedInr ?? 0), 45.01);
+  eq('  · it counts towards the denominator', row.denominatorState, 'countable_estimated');
   eq('the denominator is 1', s.countable, 1);
   eq('cost per video equals the one video', Number(s.costPerVideoInr), 45.01);
 
@@ -175,10 +175,10 @@ const b = await makeVideo('Estimate then reconcile');
 
   const s = await expectOk(await readVideoCosts(db));
   const row = s.rows.find((r) => r.scriptId === b.scriptId);
-  eq('settled is the reconciled figure', Number(row.settledInr), 44);
-  if (row.openEstimateInr === null || Number(row.openEstimateInr) === 0) {
+  eq('the reconcile is the incurred figure', Number(row.estimatedInr ?? 0) + Number(row.measuredInr ?? 0), 44);
+  if (row.committedInr === null || Number(row.committedInr) === 0) {
     ok('the estimate is no longer outstanding', 'adding the two would bill this clip twice');
-  } else bad('the estimate is no longer outstanding', String(row.openEstimateInr));
+  } else bad('the estimate is no longer outstanding', String(row.committedInr));
   eq('  · but both rows are still counted as ledger rows', row.ledgerRows, 2);
 }
 
@@ -192,10 +192,10 @@ const c = await makeVideo('Mid flight');
 
   const s = await expectOk(await readVideoCosts(db));
   const row = s.rows.find((r) => r.scriptId === c.scriptId);
-  eq('committed spend is reported', Number(row.openEstimateInr), 40);
-  if (row.settledInr === null || Number(row.settledInr) === 0) {
-    ok('  · and is not counted as settled', 'money committed is not money measured');
-  } else bad('  · and is not counted as settled', String(row.settledInr));
+  eq('committed spend is reported', Number(row.committedInr), 40);
+  if ((row.measuredInr ?? 0) === 0 && (row.estimatedInr ?? 0) === 0) {
+    ok('  · and is not counted as incurred', 'the vendor may still refuse it for free');
+  } else bad('  · and is not counted as incurred', `${row.measuredInr} / ${row.estimatedInr}`);
   eq('  · nothing rendered, so it is not a video yet', row.denominatorState, 'not_rendered');
   eq("the denominator is unchanged by a video that has not rendered", s.countable, 2);
   eq('  · with the exclusion named', s.excluded.notRendered, 1);
@@ -212,15 +212,16 @@ const d = await makeVideo('Unpriced call');
 
   const s = await expectOk(await readVideoCosts(db));
   const row = s.rows.find((r) => r.scriptId === d.scriptId);
-  if (row.settledInr === null) ok('the video cost is null', 'an unknown cost is not a small one');
-  else bad('the video cost is null', String(row.settledInr));
-  eq('  · with the unpriced row counted', row.unpricedSettledRows, 1);
+  if (row.estimatedInr === null && row.measuredInr === null) {
+    ok('the video cost is null', 'an unknown cost is not a small one');
+  } else bad('the video cost is null', `${row.measuredInr} / ${row.estimatedInr}`);
+  eq('  · with the unpriced row counted', row.unpricedIncurredRows, 1);
   eq('  · and excluded from the average by name', row.denominatorState, 'unpriced');
   eq('the denominator did not silently grow', s.countable, 2);
   eq('  · the exclusion is reported', s.excluded.unpriced, 1);
-  if (s.settledTotalInr === null) {
+  if (s.estimatedTotalInr === null && s.measuredTotalInr === null) {
     ok('the site-wide total goes null too', 'a sum with an unknown member is unknown');
-  } else bad('the site-wide total goes null too', String(s.settledTotalInr));
+  } else bad('the site-wide total goes null too', String(s.estimatedTotalInr));
 }
 
 // ── 5. Spend that belongs to no video ───────────────────────────────────────────
@@ -272,9 +273,9 @@ console.log('\n5b. A Studio session that materialised a script\n');
   const row = s.rows.find((r) => r.scriptId === e.scriptId);
   if (!row) bad('the session’s spend lands on its video');
   else {
-    eq('the session’s spend lands on its video', Number(row.settledInr), 8);
+    eq('the session’s spend lands on its video', Number(row.measuredInr ?? 0) + Number(row.estimatedInr ?? 0), 8);
     eq('  · filed as studio, not as llm', Object.keys(row.componentInr).join(','), 'studio');
-    eq('  · and it counts towards the average', row.denominatorState, 'countable');
+    eq('  · and it counts towards the average', row.denominatorState, 'countable_estimated');
   }
 
   const stillUnattributed = s.unattributed
@@ -360,7 +361,7 @@ console.log('\n7. Two renders of one script\n');
   const row = s.rows.find((r) => r.scriptId === a.scriptId);
   eq('still one row', s.rows.filter((r) => r.scriptId === a.scriptId).length, 1);
   eq('  · with two renders counted', row.renders, 2);
-  eq('  · and the drafting cost not doubled', Number(row.settledInr), 45.01);
+  eq('  · and the drafting cost not doubled', Number(row.measuredInr ?? 0) + Number(row.estimatedInr ?? 0), 45.01);
 }
 
 // ── 8. Broken is not empty ──────────────────────────────────────────────────────

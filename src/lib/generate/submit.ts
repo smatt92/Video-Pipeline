@@ -5,6 +5,7 @@ import { dispositionFor } from '../drivers/types';
 import type { Db } from '../db/server';
 import type { Json } from '../db/types';
 import { currentRate } from '../cost/rate-card';
+import { CHARACTER_REF_IS_PASSED, CHARACTER_REF_UNSUPPORTED } from './character-ref';
 import { generationKey } from './keys';
 
 /**
@@ -191,16 +192,8 @@ export async function submitShots(
       // Until something passes the reference, a shot that carries one must be refused
       // outright. A named refusal is worth more than a generated stranger that is billed,
       // looks plausible, and destroys the consistency the reference exists to build.
-      if (shot.character_id) {
-        skipped.push({
-          shotId: shot.id,
-          reason:
-            'this shot carries a character reference and nothing passes one to the vendor ' +
-            'yet — `characters` has no reader anywhere in src/, and the compiled payload ' +
-            'carries no reference field. Submitting would generate a stranger and bill for ' +
-            'it, which is what the old `accepts_character_ref` gate said it was preventing ' +
-            'while letting it through.',
-        });
+      if (shot.character_id && !CHARACTER_REF_IS_PASSED) {
+        skipped.push({ shotId: shot.id, reason: CHARACTER_REF_UNSUPPORTED });
         continue;
       }
 

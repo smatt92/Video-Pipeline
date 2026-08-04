@@ -81,6 +81,14 @@ export const metricsAgeBucket = z.enum(['6h', '24h', '7d', '30d']);
 
 export const costEntryKind = z.enum(['estimate', 'reconcile', 'refund']);
 
+/**
+ * How a ledger row's figure was arrived at (migration 0032), which is a different question
+ * from `entry_kind`'s *when*. `rate_card` is quantity × a unit rate we hold; the quantity
+ * may be exact and the price is still ours. `measured` is the vendor's own figure or an
+ * observed credit-balance delta. Every row today is `rate_card`.
+ */
+export const costSource = z.enum(['rate_card', 'measured']);
+
 export const driverHealthState = z.enum(['closed', 'open', 'half_open']);
 
 // ── Studio lane (migration 0003) ────────────────────────────────────────────
@@ -213,6 +221,7 @@ export const ENUM_CONSTRAINT_MAP = {
   'publications.status': publicationStatus,
   'metrics_snapshots.age_bucket': metricsAgeBucket,
   'cost_ledger.entry_kind': costEntryKind,
+  'cost_ledger.cost_source': costSource,
   'driver_health.state': driverHealthState,
   'studio_sessions.status': studioSessionStatus,
   'generations.origin': rowOrigin,

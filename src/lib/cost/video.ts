@@ -39,18 +39,33 @@ export interface VideoCostRow {
   channelId: string;
   title: string;
   createdAt: string;
-  /** Null when any contributing row is unpriced. Never coerce this to 0. */
-  settledInr: number | null;
-  unpricedSettledRows: number;
-  /** Committed at submit, not yet reconciled. Reported beside settled, never added to it. */
-  openEstimateInr: number | null;
-  unpricedOpenRows: number;
+  /**
+   * Money parted with, priced from the vendor's own figure or an observed balance delta.
+   * Null when any contributing row is unpriced. Never coerce to 0.
+   */
+  measuredInr: number | null;
+  /**
+   * Money parted with, priced from our rate card. A completed generation lands here, which
+   * is what makes it countable without a fabricated reconcile — and why every surface that
+   * shows it has to say "estimated".
+   */
+  estimatedInr: number | null;
+  measuredRows: number;
+  unpricedIncurredRows: number;
+  /** Submitted, not yet terminal. The vendor may still refuse it for free. */
+  committedInr: number | null;
+  unpricedCommittedRows: number;
   ledgerRows: number;
   componentInr: Record<string, { inr: number | null; unpriced: number }>;
   renders: number;
   rendersReady: number;
   publicationsLive: number;
-  denominatorState: 'countable' | 'not_rendered' | 'unpriced' | 'nothing_settled';
+  denominatorState:
+    | 'countable_measured'
+    | 'countable_estimated'
+    | 'not_rendered'
+    | 'unpriced'
+    | 'nothing_incurred';
 }
 
 export interface UnattributedRow {
@@ -72,10 +87,19 @@ export interface CostSummary {
   unattributed: UnattributedRow[];
   /** The denominator, stated. Null cost when countable === 0. */
   countable: number;
+  /**
+   * The average, and whether any of it was measured.
+   *
+   * `basis` is not decoration. A figure built from rate-card estimates is a different claim
+   * from one built from what the vendor charged, and a caller that cannot tell them apart
+   * will present the first as the second. Today it is always 'estimated'.
+   */
   costPerVideoInr: number | null;
-  settledTotalInr: number | null;
-  openEstimateTotalInr: number | null;
-  excluded: { notRendered: number; unpriced: number; nothingSettled: number };
+  costPerVideoBasis: 'measured' | 'estimated' | 'mixed' | null;
+  measuredTotalInr: number | null;
+  estimatedTotalInr: number | null;
+  committedTotalInr: number | null;
+  excluded: { notRendered: number; unpriced: number; nothingIncurred: number };
   unattributedTotalInr: number | null;
   /** True when the ledger has no rows at all — a different fact from everything costing 0. */
   ledgerEmpty: boolean;
@@ -115,10 +139,12 @@ async function read(db: Db): Promise<CostSummary> {
     channelId: String(r.channel_id),
     title: String(r.title),
     createdAt: String(r.created_at),
-    settledInr: num(r.settled_inr),
-    unpricedSettledRows: Number(r.unpriced_settled_rows ?? 0),
-    openEstimateInr: num(r.open_estimate_inr),
-    unpricedOpenRows: Number(r.unpriced_open_rows ?? 0),
+    measuredInr: num(r.measured_inr),
+    estimatedInr: num(r.estimated_inr),
+    measuredRows: Number(r.measured_rows ?? 0),
+    unpricedIncurredRows: Number(r.unpriced_incurred_rows ?? 0),
+    committedInr: num(r.committed_inr),
+    unpricedCommittedRows: Number(r.unpriced_committed_rows ?? 0),
     ledgerRows: Number(r.ledger_rows ?? 0),
     componentInr: (r.component_inr ?? {}) as VideoCostRow['componentInr'],
     renders: Number(r.renders ?? 0),
@@ -139,14 +165,21 @@ async function read(db: Db): Promise<CostSummary> {
     }),
   );
 
-  const countableRows = rows.filter((r) => r.denominatorState === 'countable');
-  const settledTotal = countableRows.reduce<number>((a, r) => a + (r.settledInr ?? 0), 0);
+  const countableRows = rows.filter(
+    (r) => r.denominatorState === 'countable_measured' || r.denominatorState === 'countable_estimated',
+  );
+  const countableTotal = countableRows.reduce<number>(
+    (a, r) => a + (r.measuredInr ?? 0) + (r.estimatedInr ?? 0),
+    0,
+  );
+  const anyMeasured = countableRows.some((r) => r.measuredRows > 0);
+  const allMeasured = countableRows.length > 0 && countableRows.every((r) => (r.estimatedInr ?? 0) === 0);
 
   // A sum over rows with any unknown member is itself unknown. These two totals cover every
   // row on screen, not only the countable ones, so an unpriced row anywhere poisons them —
   // which is the correct behaviour and the reason they are separate from the average.
-  const anyUnpricedSettled = rows.some((r) => r.unpricedSettledRows > 0);
-  const anyUnpricedOpen = rows.some((r) => r.unpricedOpenRows > 0);
+  const anyUnpricedIncurred = rows.some((r) => r.unpricedIncurredRows > 0);
+  const anyUnpricedCommitted = rows.some((r) => r.unpricedCommittedRows > 0);
 
   return {
     rows,
@@ -155,17 +188,22 @@ async function read(db: Db): Promise<CostSummary> {
     costPerVideoInr:
       countableRows.length === 0
         ? null
-        : Math.round((settledTotal / countableRows.length) * 100) / 100,
-    settledTotalInr: anyUnpricedSettled
+        : Math.round((countableTotal / countableRows.length) * 100) / 100,
+    costPerVideoBasis:
+      countableRows.length === 0 ? null : allMeasured ? 'measured' : anyMeasured ? 'mixed' : 'estimated',
+    measuredTotalInr: anyUnpricedIncurred
       ? null
-      : rows.reduce<number>((a, r) => a + (r.settledInr ?? 0), 0),
-    openEstimateTotalInr: anyUnpricedOpen
+      : rows.reduce<number>((a, r) => a + (r.measuredInr ?? 0), 0),
+    estimatedTotalInr: anyUnpricedIncurred
       ? null
-      : rows.reduce<number>((a, r) => a + (r.openEstimateInr ?? 0), 0),
+      : rows.reduce<number>((a, r) => a + (r.estimatedInr ?? 0), 0),
+    committedTotalInr: anyUnpricedCommitted
+      ? null
+      : rows.reduce<number>((a, r) => a + (r.committedInr ?? 0), 0),
     excluded: {
       notRendered: rows.filter((r) => r.denominatorState === 'not_rendered').length,
       unpriced: rows.filter((r) => r.denominatorState === 'unpriced').length,
-      nothingSettled: rows.filter((r) => r.denominatorState === 'nothing_settled').length,
+      nothingIncurred: rows.filter((r) => r.denominatorState === 'nothing_incurred').length,
     },
     unattributedTotalInr: unattributed.some((u) => u.unpriced > 0)
       ? null

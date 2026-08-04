@@ -228,6 +228,7 @@ export type Database = {
           channel_id: string | null
           concept_id: string | null
           cost_inr: number | null
+          cost_source: string
           cost_usd: number
           driver: string
           entry_kind: string
@@ -247,6 +248,7 @@ export type Database = {
           channel_id?: string | null
           concept_id?: string | null
           cost_inr?: number | null
+          cost_source?: string
           cost_usd: number
           driver: string
           entry_kind?: string
@@ -266,6 +268,7 @@ export type Database = {
           channel_id?: string | null
           concept_id?: string | null
           cost_inr?: number | null
+          cost_source?: string
           cost_usd?: number
           driver?: string
           entry_kind?: string
@@ -1918,11 +1921,13 @@ export type Database = {
           component: string | null
           concept_id: string | null
           cost_inr: number | null
+          cost_source: string | null
           cost_usd: number | null
           driver: string | null
           entry_kind: string | null
           generation_id: string | null
           id: string | null
+          incurred: boolean | null
           occurred_at: string | null
           render_id: string | null
           script_id: string | null
@@ -2700,20 +2705,22 @@ export type Database = {
       v_video_cost: {
         Row: {
           channel_id: string | null
+          committed_inr: number | null
           component_inr: Json | null
           concept_id: string | null
           created_at: string | null
           denominator_state: string | null
+          estimated_inr: number | null
           ledger_rows: number | null
-          open_estimate_inr: number | null
+          measured_inr: number | null
+          measured_rows: number | null
           publications_live: number | null
           renders: number | null
           renders_ready: number | null
           script_id: string | null
-          settled_inr: number | null
           title: string | null
-          unpriced_open_rows: number | null
-          unpriced_settled_rows: number | null
+          unpriced_committed_rows: number | null
+          unpriced_incurred_rows: number | null
         }
         Relationships: [
           {

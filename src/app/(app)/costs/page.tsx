@@ -40,10 +40,11 @@ const inr = (v: number | null) =>
     : `₹${v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const EXCLUSION: Record<VideoCostRow['denominatorState'], string> = {
-  countable: '',
+  countable_measured: 'counted — measured',
+  countable_estimated: 'counted — from rate card',
   not_rendered: 'not a video yet — nothing has rendered',
   unpriced: 'cost unknown — a contributing call has no verified rate',
-  nothing_settled: 'nothing has settled — all spend is still committed',
+  nothing_incurred: 'nothing incurred yet — every charge is still committed',
 };
 
 export default async function CostsPage() {
@@ -81,25 +82,40 @@ export default async function CostsPage() {
 
       {/* The headline, with its denominator attached. Never one without the other. */}
       <section className="mt-6 grid gap-3 sm:grid-cols-3">
+        {/*
+          The basis is part of the number, not a footnote.
+
+          A figure built from rate-card estimates is a different claim from one built from
+          what the vendor charged, and the moment they are shown identically somebody quotes
+          the first as the second. Today it is always "from the rate card" — nothing writes
+          a measured figure — and the label says so rather than the page implying a
+          precision it does not have.
+        */}
         <Figure
           label="Cost per video"
           value={inr(costPerVideoInr)}
           sub={
             countable === 0
-              ? 'undefined — no video has both rendered and been fully priced'
-              : `over ${countable} video${countable === 1 ? '' : 's'}`
+              ? 'undefined — no video has both rendered and incurred a priced charge'
+              : `over ${countable} video${countable === 1 ? '' : 's'} · ${
+                  result.costPerVideoBasis === 'measured'
+                    ? 'measured'
+                    : result.costPerVideoBasis === 'mixed'
+                      ? 'part measured, part rate card'
+                      : 'from the rate card, not what the vendor charged'
+                }`
           }
           emphasis
         />
         <Figure
-          label="Settled"
-          value={inr(result.settledTotalInr)}
-          sub="reconciled spend, all videos"
+          label="Measured"
+          value={inr(result.measuredTotalInr)}
+          sub="what the vendor charged, or a balance seen to move"
         />
         <Figure
-          label="Committed"
-          value={inr(result.openEstimateTotalInr)}
-          sub="submitted, result not yet back"
+          label="From rate card"
+          value={inr(result.estimatedTotalInr)}
+          sub="incurred, priced by us rather than by them"
         />
       </section>
 
@@ -122,14 +138,17 @@ export default async function CostsPage() {
         This line is computed from the data — the day a reconcile row exists it stops
         appearing, without anyone remembering to remove it.
       */}
-      {!observed.generation_settled.observed && excluded.nothingSettled > 0 && (
+      {!observed.generation_settled.observed && countable > 0 && (
         <p
           className="mt-3 rounded-md border px-4 py-2 text-2xs"
           style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-muted)' }}
         >
-          <span className="font-medium">Nothing will settle yet.</span>{' '}
-          {withheld('generation_settled').missingWriter} Until then a generated video stays
-          committed rather than settled, and cannot enter the average.
+          <span className="font-medium">This average is priced by us, not by the vendor.</span>{' '}
+          {withheld('generation_settled').missingWriter} A completed generation is counted
+          from its estimate rather than skipped — inventing a reconcile equal to the estimate
+          would put a fabricated figure in the ledger everything derives from. The real one
+          lands when a credit-balance delta is observable, the same way a rate is verified:
+          by watching a balance move, not by reading a response body.
         </p>
       )}
 
@@ -146,7 +165,7 @@ export default async function CostsPage() {
               <thead>
                 <tr style={{ color: 'var(--text-faint)' }} className="text-left text-2xs">
                   <th className="px-4 py-2 font-normal">Concept</th>
-                  <th className="px-4 py-2 text-right font-normal">Settled</th>
+                  <th className="px-4 py-2 text-right font-normal">Incurred</th>
                   <th className="px-4 py-2 text-right font-normal">Committed</th>
                   <th className="px-4 py-2 font-normal">Where it went</th>
                   <th className="px-4 py-2 text-right font-normal">Renders</th>
@@ -161,12 +180,21 @@ export default async function CostsPage() {
                     style={{ borderColor: 'var(--border-subtle)' }}
                   >
                     <td className="px-4 py-2">{r.title}</td>
-                    <td className="px-4 py-2 text-right font-mono">{inr(r.settledInr)}</td>
+                    <td className="px-4 py-2 text-right font-mono">
+                      {inr(r.measuredInr === null && r.estimatedInr === null
+                        ? null
+                        : (r.measuredInr ?? 0) + (r.estimatedInr ?? 0))}
+                      {r.measuredRows === 0 && (r.estimatedInr ?? 0) > 0 && (
+                        <span className="ml-1 text-2xs" style={{ color: 'var(--text-faint)' }}>
+                          est
+                        </span>
+                      )}
+                    </td>
                     <td
                       className="px-4 py-2 text-right font-mono"
                       style={{ color: 'var(--text-muted)' }}
                     >
-                      {inr(r.openEstimateInr)}
+                      {inr(r.committedInr)}
                     </td>
                     <td
                       className="px-4 py-2 font-mono text-2xs"
@@ -183,9 +211,7 @@ export default async function CostsPage() {
                       {r.renders === 0 ? '—' : `${r.rendersReady}/${r.renders}`}
                     </td>
                     <td className="px-4 py-2 text-2xs" style={{ color: 'var(--text-faint)' }}>
-                      {r.denominatorState === 'countable'
-                        ? 'counted'
-                        : EXCLUSION[r.denominatorState]}
+                      {EXCLUSION[r.denominatorState]}
                     </td>
                   </tr>
                 ))}
@@ -194,9 +220,9 @@ export default async function CostsPage() {
           </div>
 
           <p className="mt-2 text-2xs" style={{ color: 'var(--text-faint)' }}>
-            {excluded.notRendered + excluded.unpriced + excluded.nothingSettled} of {rows.length}{' '}
+            {excluded.notRendered + excluded.unpriced + excluded.nothingIncurred} of {rows.length}{' '}
             excluded from the average — {excluded.notRendered} not rendered, {excluded.unpriced}{' '}
-            unpriced, {excluded.nothingSettled} with nothing settled. Excluded, and listed: an
+            unpriced, {excluded.nothingIncurred} with nothing incurred. Excluded, and listed: an
             average whose denominator you cannot see is not a measurement.
           </p>
         </>
@@ -231,7 +257,7 @@ export default async function CostsPage() {
               <thead>
                 <tr style={{ color: 'var(--text-faint)' }} className="text-left text-2xs">
                   <th className="px-4 py-2 font-normal">Stage</th>
-                  <th className="px-4 py-2 text-right font-normal">Settled</th>
+                  <th className="px-4 py-2 text-right font-normal">Incurred</th>
                   <th className="px-4 py-2 text-right font-normal">Committed</th>
                   <th className="px-4 py-2 text-right font-normal">Scripts</th>
                   <th className="px-4 py-2 text-right font-normal">Per script</th>

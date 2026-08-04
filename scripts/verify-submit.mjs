@@ -81,6 +81,7 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= 'harness';
 const BUILD = new URL('../.verify-build/src/lib', import.meta.url).pathname;
 const { submitShots } = require(`${BUILD}/generate/submit.js`);
 const { readCostByStage } = require(`${BUILD}/cost/by-stage.js`);
+const { compileShot } = require(`${BUILD}/shots/compile.js`);
 const { callbackUrl } = require(`${BUILD}/drivers/video-submit.js`);
 const { approveConcept } = require(`${BUILD}/concepts/approve.js`);
 const { readBoard } = require(`${BUILD}/pipeline/board.js`);
@@ -365,6 +366,33 @@ console.log('\n3. A character reference a recipe cannot carry is refused\n');
     ok('refused rather than submitted without it', 'a stranger, billed, is the alternative');
   } else {
     bad('refused rather than submitted without it', JSON.stringify(out));
+  }
+
+  // ── LOAD-BEARING ─────────────────────────────────────────────────────────
+  //
+  // Stage 4 asks the same question and had the same hole: it filtered to recipes marked
+  // `accepts_character_ref` and refused when none matched, while its accepting branch
+  // compiled parameters with no reference in them either. Fixing submit alone left compile
+  // still claiming a protection it did not provide — half a fix reads exactly like a whole
+  // one — so both now share one predicate.
+  //
+  // `compileShot` is called directly rather than inspecting the seeded rows: `seedScript`
+  // writes `compiled_params` itself, so asserting against the rows would test the fixture
+  // and pass whatever compile did.
+  const compiledOut = compileShot(
+    { shotKind: 'establishing', description: 'a shot', intent: 'to open', durationS: 3, characterId: randomUUID() },
+    [{
+      id: randomUUID(), name: 'accepting', driver: 'higgsfield', model: 'soul',
+      template: '{{description}}', params: {}, tags: ['establishing'], version: 1,
+      acceptsCharacterRef: true, isActive: true, winRate: null, timesCompiled: 0,
+      timesShipped: 0, lastCompiledAt: null,
+    }],
+    'higgsfield',
+  );
+  if (!compiledOut.resolved && /nothing passes one/.test(compiledOut.note ?? '')) {
+    ok('  · and stage 4 refuses it for the same reason', 'one predicate, both guards');
+  } else {
+    bad('  · and stage 4 refuses it for the same reason', JSON.stringify(compiledOut).slice(0, 160));
   }
 
   if (seen.length === before) ok('  · and the vendor was never called');
