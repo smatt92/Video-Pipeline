@@ -28,6 +28,7 @@ if (!dbUrl) { console.error('usage: node scripts/verify-limits.mjs <db-url>'); p
 
 const BUILD = new URL('../.verify-build/src/lib', import.meta.url).pathname;
 const { readLimits, soonestExpiry, QUOTAS } = require(`${BUILD}/pipeline/limits.js`);
+const { readObservability, WITHHELD } = require(`${BUILD}/pipeline/observability.js`);
 const { supabaseShim } = await import('./lib/supabase-shim.mjs');
 const { scratchDatabase } = await import('./lib/scratch.mjs');
 
@@ -242,6 +243,74 @@ console.log('\n3. A position, not a balance\n');
     ok('  · and becomes observed the moment anything records it', '12 credits');
   } else {
     bad('  · and becomes observed the moment anything records it', `${c2.consumptionObserved} / ${c2.creditsSpent}`);
+  }
+}
+
+// ── 4. Every withheld number, and the writer it is waiting for ─────────────────
+//
+// The registry generalises what §3 does for credits. Each entry is a number a screen
+// refuses to show, the column whose absence of a writer is the reason, and a probe that
+// answers whether that has changed — computed from the data rather than hardcoded, so a
+// screen turns itself on the day the writer lands.
+console.log('\n4. Numbers withheld pending a writer\n');
+{
+  const o = await readObservability(db);
+
+  eq('every entry has a probe', Object.keys(o).length, WITHHELD.length);
+
+  // ── LOAD-BEARING ─────────────────────────────────────────────────────────
+  //
+  // A hardcoded `false` with a comment would look identical to a working registry and stay
+  // false for ever. The whole value here is that no entry can be stuck off: the probes read
+  // rows, so the only way one stays withheld is that the rows genuinely are not there.
+  //
+  // `credits_spent` is ALREADY observed at this point, and nothing in this section did
+  // that: §3 set `credits_spent = 12` on one generation to test the credit card, and the
+  // flag flipped on its own two sections later. That is the property being asserted —
+  // the screen turns itself on when a writer appears, without anyone remembering to change
+  // it — and it is worth more as an accident of a neighbouring test than as a staged one.
+  if (o.credits_spent.observed && o.credits_spent.rows === 1) {
+    ok('a writer in §3 flipped credits_spent with nothing here doing it', '1 row');
+  } else {
+    bad('a writer in §3 flipped credits_spent with nothing here doing it', JSON.stringify(o.credits_spent));
+  }
+
+  // The two with no writer anywhere in src/ stay withheld.
+  if (!o.generation_settled.observed && !o.publication_outcome.observed) {
+    ok('  · while the two with no writer at all stay withheld', 'reconcile rows, publication outcomes');
+  } else {
+    bad('  · while the two with no writer at all stay withheld', JSON.stringify(o));
+  }
+
+  // The generation reconcile: rule 5 says "reconcile on completion" and nothing does it,
+  // so a video that generates can never become countable towards cost per video.
+  const { rows: [gen] } = await q(
+    `select id from generations where driver = 'higgsfield' limit 1`,
+  );
+  await q(
+    `insert into cost_ledger (generation_id, driver, entry_kind, unit, quantity, cost_usd, cost_inr)
+     values ($1,'higgsfield','reconcile','credit',1,0.08,7.08)`,
+    [gen.id],
+  );
+
+  const after = await readObservability(db);
+  if (after.generation_settled.observed && after.generation_settled.rows === 1) {
+    ok('  · and one reconcile row flips generation_settled on its own', '1 row');
+  } else {
+    bad('  · and one reconcile row flips generation_settled on its own', JSON.stringify(after.generation_settled));
+  }
+  if (!after.publication_outcome.observed) {
+    ok('  · while publication_outcome stays withheld', 'one writer does not enable the rest');
+  } else {
+    bad('  · while publication_outcome stays withheld', JSON.stringify(after.publication_outcome));
+  }
+
+  // Every entry has to say what appears when the writer lands, so the next person does not
+  // re-derive it. A registry that records only the absence is a TODO with better grammar.
+  if (WITHHELD.every((w) => w.whenWritten.length > 30 && w.missingWriter.length > 30)) {
+    ok('  · and each names both the missing writer and what appears when it lands');
+  } else {
+    bad('  · and each names both the missing writer and what appears when it lands');
   }
 }
 

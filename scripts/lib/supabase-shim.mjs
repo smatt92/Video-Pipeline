@@ -140,14 +140,38 @@ function builder(client, table, typesFor) {
     ignoreDuplicates: false,
     where: [],
     orders: [],
+    count: null,
+    head: false,
     limit: null,
     returning: null,
   };
 
   const api = {
-    select(c) {
+    /**
+     * `select(columns, { count, head })`.
+     *
+     * The options argument was silently ignored, which broke this shim's own contract —
+     * "anything the codebase might reach for and this does not implement fails loudly".
+     * It did not fail: it accepted the argument, dropped it, and returned `count:
+     * undefined`, which a caller reading `count ?? 0` turns into a confident zero.
+     *
+     * `readObservability` asks "has anything ever written this column" with
+     * `select('id', { count: 'exact', head: true })`. Against PostgREST that returns a real
+     * count; against the shim it returned zero, so a harness would have reported a number
+     * as withheld on a workspace where production would show it. The same two-instrument
+     * failure as the `pg_proc` one: the shim could not observe the thing and said so as a
+     * value rather than as an error.
+     */
+    select(c, opts) {
       if (st.mode === 'select') st.columns = c ?? '*';
       else st.returning = c ?? '*';
+      if (opts?.count) {
+        if (opts.count !== 'exact') {
+          throw new Error(`supabaseShim: select(count: '${opts.count}') is not implemented — only 'exact'.`);
+        }
+        st.count = 'exact';
+        st.head = opts.head === true;
+      }
       return api;
     },
     insert(p) {
@@ -242,7 +266,16 @@ function builder(client, table, typesFor) {
     },
     then(resolve, reject) {
       return exec().then(
-        ({ rows, error }) => resolve(error ? { data: null, error } : { data: rows, error: null }),
+        ({ rows, error }) => {
+          if (error) return resolve({ data: null, error, count: null });
+          // `head: true` means PostgREST returns no rows and only the count. Mirrored, so a
+          // caller that reads `data` on a head request gets the same null it would in
+          // production rather than a row list this shim happened to have.
+          if (st.count === 'exact') {
+            return resolve({ data: st.head ? null : rows, error: null, count: rows.length });
+          }
+          return resolve({ data: rows, error: null });
+        },
         reject,
       );
     },

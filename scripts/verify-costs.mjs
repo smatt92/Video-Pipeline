@@ -147,6 +147,19 @@ const a = await makeVideo('Priced end to end');
 
   const components = Object.keys(row.componentInr).sort().join(',');
   eq('  · broken out by component rather than one opaque total', components, 'llm,video');
+
+  // ── LOAD-BEARING ─────────────────────────────────────────────────────────
+  //
+  // §0 asserts `ledgerEmpty` is true on an empty ledger. That assertion passed for as long
+  // as it has existed and proved nothing: the `pg` shim ignored
+  // `select('id', { count: 'exact', head: true })` and returned `count: undefined`, which
+  // `count ?? 0` turned into a confident zero — so `ledgerEmpty` was true whatever the
+  // ledger held. Only the converse can tell the difference, and only after the shim was
+  // taught to count.
+  //
+  // The same two-instrument failure as the `pg_proc` one: the shim could not observe the
+  // thing and reported it as a value rather than as an error.
+  eq('  · and no longer empty once rows exist', s.ledgerEmpty, false);
 }
 
 // ── 2. An estimate and its reconcile are one charge ─────────────────────────────

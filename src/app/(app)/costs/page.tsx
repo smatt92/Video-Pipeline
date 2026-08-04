@@ -2,6 +2,7 @@ import Link from 'next/link';
 
 import { Hint } from '@/components/shell/hint';
 import { readCostByStage } from '@/lib/cost/by-stage';
+import { readObservability, withheld } from '@/lib/pipeline/observability';
 import { readVideoCosts, type VideoCostRow } from '@/lib/cost/video';
 
 /**
@@ -46,7 +47,11 @@ const EXCLUSION: Record<VideoCostRow['denominatorState'], string> = {
 };
 
 export default async function CostsPage() {
-  const [result, stages] = await Promise.all([readVideoCosts(), readCostByStage()]);
+  const [result, stages, observed] = await Promise.all([
+    readVideoCosts(),
+    readCostByStage(),
+    readObservability(),
+  ]);
 
   if (!result.ok) {
     return (
@@ -105,6 +110,26 @@ export default async function CostsPage() {
             : 'There is spend on the ledger but no finished video to divide it by, so the ' +
               'per-video figure is undefined rather than zero. It becomes a number when a ' +
               'script has rendered and every call it made has a verified rate.'}
+        </p>
+      )}
+
+      {/*
+        Why nothing will settle, said once rather than inferred from every row.
+
+        `denominator_state = nothing_settled` is honest about the row and silent about the
+        fact that it is permanent: nothing writes a reconcile row against a generation, so a
+        video that generates stays "in flight" for ever and can never become countable.
+        This line is computed from the data — the day a reconcile row exists it stops
+        appearing, without anyone remembering to remove it.
+      */}
+      {!observed.generation_settled.observed && excluded.nothingSettled > 0 && (
+        <p
+          className="mt-3 rounded-md border px-4 py-2 text-2xs"
+          style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-muted)' }}
+        >
+          <span className="font-medium">Nothing will settle yet.</span>{' '}
+          {withheld('generation_settled').missingWriter} Until then a generated video stays
+          committed rather than settled, and cannot enter the average.
         </p>
       )}
 

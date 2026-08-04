@@ -146,6 +146,15 @@ jobs:
       - name: Catalogue rows exist without the seed
         run: pnpm check:catalog "$DATABASE_URL"
 
+      # ── Two things for one concept ───────────────────────────────────────
+      # Runs again here WITH a url. `pnpm check` runs the static half; the column-overlap
+      # half needs information_schema, because deriving a view's columns from its SQL means
+      # writing a parser, and a parser that is wrong in one direction produces false
+      # confidence. The duplicate v_credit_position was caught by Postgres refusing it — at
+      # apply time, after both were committed. That was luck, not coverage.
+      - name: No concept is implemented twice
+        run: pnpm check:duplicates "$DATABASE_URL"
+
       # ── ffmpeg, for the two harnesses that produce and read real video ───
       # The ingest and assembly paths have produced three bugs that made a file which
       # plays and is wrong, and duration is the only signal that caught all three. That is

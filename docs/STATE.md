@@ -966,6 +966,76 @@ one carries `unverified` saying what is unproven about it, and none carries para
 asserted in `verify:studio` with the second marked LOAD-BEARING: a shape catalogue that could
 be mistaken for an import path is the failure the library exists to prevent.
 
+## 14. The duplicate guard, and numbers that turn themselves on
+
+### 14a. `check:duplicates`
+
+The two-modules rule had fired twice and neither catch was the rule working: `normalise.ts`
+was found by reading, and the second `v_credit_position` was found because **Postgres refused
+to create it** — at apply time, after both were committed, in the middle of a two-round audit
+of exactly that pattern. Luck is not coverage.
+
+Three checks, split by what can actually see each thing. Module basename collisions and a
+view created twice with no drop between are static and run in `pnpm check`. Column-set
+overlap between live views needs `information_schema`, because deriving a view's columns from
+its SQL means writing a parser and a parser that is wrong in one direction produces false
+confidence — that half runs in CI after the migrations step.
+
+Overlap is not automatically wrong, so both halves fail *until justified*, with the same
+outlived-exemption rule `check:gates` uses. Writing the exemptions found two things:
+
+- My first three guesses were wrong. I invented plausible-sounding pairs without measuring,
+  and the outlived-exemption rule caught all three on the first run — which is the mechanism
+  working on its author within a minute of existing.
+- Two real overlapping pairs, both justified after reading them: `v_render_cost` /
+  `v_script_cost` are different denominators over the same spend, and `v_replayed_callbacks`
+  / `v_unconfirmed_terminal_generations` are two different forgery signals over the same
+  columns. Five module basenames repeat, and `env.ts` × 3 is rule 1 being obeyed.
+
+Both halves negative-tested by breaking them.
+
+### 14b. Withheld numbers, generalised
+
+`src/lib/pipeline/observability.ts` is the register. Each entry is a number a screen refuses
+to show, the writer that does not exist, what the screen says instead, and what appears when
+the writer lands. Every one is answered by a **probe against the rows**, never a constant —
+which is the whole difference between a documented limitation and a permanent one.
+
+Three entries today:
+
+| Withheld | Missing writer |
+|---|---|
+| Credits remaining | `generations.credits_spent` — already handled, now in the register |
+| **Settled cost of a video generation** | **nothing writes a `reconcile` row against a `generation_id`** |
+| Whether a video went live | `publications.external_post_id` / `published_at` — manual publish, phase 1 |
+
+The middle row is the find. `submit.ts` writes the estimate; `confirm.ts` writes a status, an
+asset and an ingest enqueue, and no ledger row. **Rule 5 says "reconcile on completion" and
+that half has never existed** — so a video that generates stays `nothing_settled` for ever
+and can never become countable towards cost per video, no matter how many complete.
+`/costs` now says so, from the probe, so the line disappears on its own when a reconcile
+lands.
+
+Whether to write that reconcile is a decision I have not taken: the vendor's status response
+carries no credit figure in our driver's parsed shape, so a reconcile today could only assert
+the estimate as actual. That is a money-semantics judgement rather than a mechanical fix.
+
+### 14c. The shim could not count, and said so as a zero
+
+`readObservability` asks "has anything ever written this column" with
+`select('id', { count: 'exact', head: true })`. The `pg` shim ignored the options argument
+entirely and returned `count: undefined`, which `count ?? 0` turns into a confident zero —
+breaking the shim's own stated contract that anything unimplemented fails loudly.
+
+The consequence reached further than this round: `readVideoCosts` computes `ledgerEmpty` the
+same way, so **`verify:costs` §0's "the ledger is reported empty" has passed for as long as
+it has existed and proved nothing** — it would have passed with a full ledger. Only the
+converse can tell the difference, and only after the shim was taught to count. Both are
+asserted now, the converse marked LOAD-BEARING.
+
+Third instance of the two-instrument rule, and the same shape as the `pg_proc` one: the shim
+could not observe the thing and reported that as a value rather than as an error.
+
 ---
 
 ## How to refresh this document

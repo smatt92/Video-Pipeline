@@ -166,6 +166,16 @@ expensive stage in the pipeline; the collision is what made the omission invisib
 one side the moment you notice, even when both names are locally correct — *especially*
 then, because a locally correct name is the one nobody flags in review.
 
+**A number a screen withholds must be withheld by a probe, not by a constant.** The
+difference between a documented limitation and a permanent one is whether the screen can
+turn itself back on. `consumptionObserved` is computed from the rows — *has anything ever
+written this column* — so the day a writer lands the balance appears with nobody
+remembering to change it. A hardcoded `false` behind a comment saying the same thing looks
+identical in review and stays false for ever. `src/lib/pipeline/observability.ts` is the
+register; an entry there is only correct while the number is genuinely unknowable from the
+rows we have, and the probe is what keeps that honest. Assert the flip, not just the
+withholding — the withheld half passes on an empty database whatever you write.
+
 **Mark the load-bearing assertion where two look alike.** `verify:submit` §0 and the old §9
 are the same three lines; §0 means something only because §4 submits to a vendor and then
 asserts the view said null about it, and nothing in §0 says so. A future reader has no way
