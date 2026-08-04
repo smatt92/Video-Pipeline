@@ -127,6 +127,17 @@ The test for whether you have this problem is not "does each stage work". It is:
 name, in one query, why nothing came out?** If the answer needs four joins and a hypothesis,
 build the view before building the next stage.
 
+**And when you build it, check it can see the blockers that belong to no row.**
+`v_pipeline_blockers` checked four things and every one was a property of a row belonging to
+the script. Stage 5 refuses on three more that belong to no script at all — no verified
+video integration, an empty prompt library, no verified credit rate. So on a workspace with
+an unverified integration, a script with a host voice, shots, compiled parameters and derived
+durations returned `blocker = null`. Null means nothing is stopping it. The board rendered it
+ready; stage 5 would have refused it every time, for ever. The instrument built to read
+silence reported silence as readiness. A per-row view sees per-row problems; ask what the
+consumer refuses on that is *not* about any row, and put those first — they block everything
+at once, which makes them the earliest thing to fix.
+
 **A mechanism built to surface a failure mode is itself subject to that failure mode.**
 `v_pipeline_blockers` made silence readable, and nothing read it — the board derived state
 from row counts, so a concept that would never move rendered as `shot_listed` for ever. The
@@ -148,8 +159,19 @@ instances now, which makes it a rule rather than five local judgements:
 | step deferred | step done |
 | recipe never compiled | compiled and never shipped |
 | ffprobe could not read the duration | the file is 0 seconds long |
+| no video has finished, so cost per video is undefined | videos cost nothing |
 
-The last one is the sharpest. `probe()` returned `width ?? 0, height ?? 0, durationS ?? 0`,
+**The canonical example is the last row, because it is the rule applied to the one number
+rule 5 calls the headline metric.** `/costs` today has four ledger rows, ₹6.07, and zero
+renders. Cost per video is therefore *undefined* — there is no video to divide by — and the
+screen says so in those words. "₹0.00 per video" would be a claim that this pipeline
+produces videos for free, made by a page reporting that it has never produced one. That is
+clearer than any of the display cases above: it is not a missing measurement rendered
+wrongly, it is a **division by an empty set rendered as a result**. Whenever an average, a
+rate, or a per-unit figure has no denominator, the answer is undefined and the screen must
+say undefined.
+
+The ffprobe row is the sharpest of the display cases. `probe()` returned `width ?? 0, height ?? 0, durationS ?? 0`,
 so an unreadable file became 0×0×0s — `isCanonical` compared 0 against 1080, said no, and
 the pipeline **re-encoded a file whose properties were unknown** instead of reporting that
 it could not read it. The duration went to the assembler as a measurement, in the one path
