@@ -205,7 +205,6 @@ export async function saveRecipe(db: Db, input: RecipeInput): Promise<SaveResult
       is_active: true,
       // Left null on purpose. Backfilled from generation success and QA outcomes; no
       // generation has run, and a number here now would be invented.
-      win_rate: null,
     })
     .select('id, name, version')
     .single();
@@ -255,11 +254,36 @@ export async function listRecipes(db: Db): Promise<Recipe[]> {
   const [{ data: rows }, { data: usage }] = await Promise.all([
     db
       .from('prompts')
-      .select('id, name, driver, model, template, params, tags, version, is_active, retired_at, retired_reason, discovered_in, sample_output_url, win_rate, created_at, times_compiled, times_shipped, last_compiled_at, accepts_character_ref')
+      .select('id, name, driver, model, template, params, tags, version, is_active, retired_at, retired_reason, discovered_in, sample_output_url, created_at, accepts_character_ref')
       .order('name')
       .order('version', { ascending: false }),
     db.from('shots').select('prompt_id').not('prompt_id', 'is', null),
   ]);
+
+  // Performance from the view, not from columns on `prompts`.
+  //
+  // Those columns existed and nothing ever wrote them — `win_rate` was null on every row
+  // while `compile.ts` weighted recipe selection by it, so the tier ordering it documents
+  // could not have had an effect. Migration 0025 derives all four from rows instead, which
+  // cannot drift the way an incremented counter would across a replayed stage 4.
+  const { data: perf } = await db
+    .from('v_recipe_performance')
+    .select('prompt_id, times_compiled, times_shipped, last_compiled_at, win_rate');
+
+  const performance = new Map(
+    (perf ?? []).map((r) => [
+      r.prompt_id,
+      {
+        // `count(*)` is bigint, and both the pg driver and PostgREST hand bigints back as
+        // strings to avoid a silent precision loss past 2^53. Coerced here rather than at
+        // each use: "3" renders identically to 3 and compares and sorts as neither.
+        timesCompiled: Number(r.times_compiled ?? 0),
+        timesShipped: Number(r.times_shipped ?? 0),
+        lastCompiledAt: r.last_compiled_at,
+        winRate: r.win_rate === null ? null : Number(r.win_rate),
+      },
+    ]),
+  );
 
   const counts = new Map<string, number>();
   for (const row of usage ?? []) {
@@ -283,12 +307,12 @@ export async function listRecipes(db: Db): Promise<Recipe[]> {
     retiredReason: p.retired_reason,
     discoveredIn: p.discovered_in,
     sampleOutputUrl: p.sample_output_url,
-    winRate: p.win_rate === null ? null : Number(p.win_rate),
+    winRate: performance.get(p.id)?.winRate ?? null,
     createdAt: p.created_at,
     shotsUsing: counts.get(p.id) ?? 0,
-    timesCompiled: p.times_compiled,
-    timesShipped: p.times_shipped,
-    lastCompiledAt: p.last_compiled_at,
+    timesCompiled: performance.get(p.id)?.timesCompiled ?? 0,
+    timesShipped: performance.get(p.id)?.timesShipped ?? 0,
+    lastCompiledAt: performance.get(p.id)?.lastCompiledAt ?? null,
     acceptsCharacterRef: p.accepts_character_ref,
   }));
 }

@@ -83,6 +83,7 @@ const { submitShots } = require(`${BUILD}/generate/submit.js`);
 const { callbackUrl } = require(`${BUILD}/drivers/video-submit.js`);
 const { approveConcept } = require(`${BUILD}/concepts/approve.js`);
 const { readBoard } = require(`${BUILD}/pipeline/board.js`);
+const { listRecipes } = require(`${BUILD}/prompts/library.js`);
 const { supabaseShim } = await import('./lib/supabase-shim.mjs');
 const { scratchDatabase } = await import('./lib/scratch.mjs');
 
@@ -168,9 +169,12 @@ async function seedScript(shots) {
 async function makeRecipe({ acceptsCharacterRef = true } = {}) {
   const id = randomUUID();
   await client.query(
+    // Tagged with a shot kind, because `v_recipe_coverage` joins on `tags` — an untagged
+    // recipe is invisible to the concentration measure, which is itself worth knowing.
     `insert into prompts (id, name, driver, model, template, params, accepts_character_ref,
-                          discovered_in, is_active)
-     values ($1, $2, 'higgsfield', 'soul', 'a template', $3, $4, 'claude-code-mcp', true)`,
+                          discovered_in, is_active, tags)
+     values ($1, $2, 'higgsfield', 'soul', 'a template', $3, $4, 'claude-code-mcp', true,
+             array['establishing'])`,
     [id, `recipe-${id.slice(0, 8)}`, JSON.stringify({ model: 'soul' }), acceptsCharacterRef],
   );
   return id;
@@ -621,6 +625,122 @@ console.log('\n10. The board can tell stalled from progressing\n');
     }
   }
   await client.query(`update channels set host_voice_id = null where id = $1`, [channelId]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// The loop ARCHITECTURE §0.1 calls the durable asset.
+//
+// `prompts.win_rate`, `times_compiled`, `times_shipped` and `last_compiled_at` were only
+// ever selected — three readers, zero writers — while `compile.ts` weighted recipe
+// selection by `win_rate`. So production picked recipes using a permanently null number,
+// the library screen rendered "win rate unmeasured · compiled 0× · shipped 0×" for ever,
+// and `v_recipe_coverage` reported zero compiles for every shot kind since 0011.
+//
+// Nothing was broken. The screen is wired, reads real data, and looks entirely correct —
+// which is exactly why this class is hard to find. Migration 0025 derives all four from
+// rows instead.
+console.log('\n11. A recipe earns its place\n');
+{
+  const recipe = await makeRecipe();
+  const other = await makeRecipe();
+
+  // Three shots on this recipe, one on the other.
+  const { scriptId } = await seedScript([
+    { promptId: recipe },
+    { promptId: recipe },
+    { promptId: recipe },
+    { promptId: other },
+  ]);
+
+  const before = await listRecipes(db);
+  const mine = before.find((r) => r.id === recipe);
+
+  if (mine?.timesCompiled === 3) ok('compiles are counted from the shots', '3');
+  else bad('compiles are counted from the shots', String(mine?.timesCompiled));
+
+  // Compiled three times and shipped none is 0, not null — it HAS been tried, and 0 is the
+  // honest reading of that. Null is reserved for a recipe nothing has compiled at all.
+  // Writing this assertion the other way round first was my error, not the view's: the two
+  // states look alike and mean opposite things, which is exactly why the view separates them.
+  if (mine?.winRate === 0 && mine?.timesShipped === 0) {
+    ok('  · tried three times and shipped none is 0', 'a real result, not missing data');
+  } else {
+    bad('  · tried three times and shipped none is 0', `${mine?.winRate} / ${mine?.timesShipped}`);
+  }
+
+  // A recipe created and never used. Every other recipe in this database has compiled
+  // something by now, so this needs making rather than finding.
+  const neverUsed = await makeRecipe();
+  const withUnused = await listRecipes(db);
+  const untouched = withUnused.find((r) => r.id === neverUsed);
+  if (untouched && untouched.winRate === null) {
+    ok('  · while a recipe nothing compiled is null', 'absence of evidence, not evidence of failure');
+  } else {
+    bad('  · while a recipe nothing compiled is null', JSON.stringify(untouched?.winRate));
+  }
+
+  // Ship it: a render over that script, and a human passing it. Shipped is deliberately
+  // "reached a render a human passed" rather than "the generation succeeded" — a clip that
+  // rendered cleanly and was cut for being wrong is not a win.
+  const renderId = randomUUID();
+  await client.query(
+    `insert into renders (id, script_id, variant_group_id, variant_label, format, width, height,
+                          duration_s, status, kind, origin)
+     values ($1, $2, $3, 'a', 'shorts_9x16', 1080, 1920, 30, 'ready', 'final', 'pipeline')`,
+    [renderId, scriptId, randomUUID()],
+  );
+
+  const reviewerId = randomUUID();
+  await client.query(
+    `insert into reviews (id, render_id, reviewer_id, decision, human_edit_count, structure_novel)
+     values ($1, $2, $3, 'pass', 2, true)`,
+    [randomUUID(), renderId, reviewerId],
+  );
+
+  const after = await listRecipes(db);
+  const shipped = after.find((r) => r.id === recipe);
+
+  if (shipped?.timesShipped === 3 && shipped?.winRate === 1) {
+    ok('a passed review makes every shot in it a win', '3 of 3, win rate 1');
+  } else {
+    bad('a passed review makes every shot in it a win', `${shipped?.timesShipped}, ${shipped?.winRate}`);
+  }
+
+  // A reshoot must not count. This is the assertion that keeps the number editorial rather
+  // than a restatement of "the vendor returned a file".
+  const reshootRender = randomUUID();
+  const { scriptId: rejectedScript } = await seedScript([{ promptId: other }]);
+  await client.query(
+    `insert into renders (id, script_id, variant_group_id, variant_label, format, width, height,
+                          duration_s, status, kind, origin)
+     values ($1, $2, $3, 'a', 'shorts_9x16', 1080, 1920, 30, 'ready', 'final', 'pipeline')`,
+    [reshootRender, rejectedScript, randomUUID()],
+  );
+  await client.query(
+    `insert into reviews (id, render_id, reviewer_id, decision, human_edit_count, structure_novel)
+     values ($1, $2, $3, 'reshoot', 1, true)`,
+    [randomUUID(), reshootRender, reviewerId],
+  );
+
+  const final = await listRecipes(db);
+  const otherRecipe = final.find((r) => r.id === other);
+  if (otherRecipe?.timesCompiled === 2 && otherRecipe?.timesShipped === 1) {
+    ok('  · and a reshoot does not', `compiled 2, shipped 1, win rate ${otherRecipe.winRate}`);
+  } else {
+    bad('  · and a reshoot does not', `${otherRecipe?.timesCompiled} / ${otherRecipe?.timesShipped}`);
+  }
+
+  // The second instrument, which had also been reading the dead columns.
+  const { rows: coverage } = await client.query(
+    `select shot_kind, compiles, ships, top_recipe_share from v_recipe_coverage
+      where compiles > 0`,
+  );
+  if (coverage.length > 0) {
+    ok('v_recipe_coverage measures something at last', `${coverage[0].shot_kind}: ${coverage[0].compiles} compiles`);
+  } else {
+    bad('v_recipe_coverage measures something at last', 'still zero for every kind');
+  }
 }
 
 vendor.close();

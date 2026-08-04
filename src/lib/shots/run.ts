@@ -178,9 +178,21 @@ export async function runShotlist(
   //
   // A lookup, not a generation. An empty library is the expected state on a fresh install
   // and produces unresolved shots with a note, not an error.
-  const { data: libraryRows } = await db
-    .from('prompts')
-    .select('id, name, driver, model, template, params, tags, version, is_active, win_rate, times_compiled, last_compiled_at, accepts_character_ref');
+  //
+  // Performance comes from `v_recipe_performance` rather than from columns on `prompts`.
+  // This is the read that made the defect matter: `compile.ts` weights the tier ordering by
+  // `winRate`, and the column it used was never written by anything, so every recipe scored
+  // null and the weighting was inert. See migration 0025.
+  const [{ data: libraryRows }, { data: perfRows }] = await Promise.all([
+    db
+      .from('prompts')
+      .select('id, name, driver, model, template, params, tags, version, is_active, accepts_character_ref'),
+    db
+      .from('v_recipe_performance')
+      .select('prompt_id, times_compiled, last_compiled_at, win_rate'),
+  ]);
+
+  const perf = new Map((perfRows ?? []).map((r) => [r.prompt_id, r]));
 
   const library: LibraryPrompt[] = (libraryRows ?? []).map((p) => ({
     id: p.id,
@@ -195,9 +207,13 @@ export async function runShotlist(
     tags: p.tags ?? [],
     version: p.version,
     isActive: p.is_active,
-    winRate: p.win_rate === null ? null : Number(p.win_rate),
-    timesCompiled: p.times_compiled,
-    lastCompiledAt: p.last_compiled_at,
+    winRate:
+      perf.get(p.id)?.win_rate === null || perf.get(p.id)?.win_rate === undefined
+        ? null
+        : Number(perf.get(p.id)!.win_rate),
+    // bigint over the wire is a string — see the note in prompts/library.ts.
+    timesCompiled: Number(perf.get(p.id)?.times_compiled ?? 0),
+    lastCompiledAt: perf.get(p.id)?.last_compiled_at ?? null,
     acceptsCharacterRef: p.accepts_character_ref,
   }));
 

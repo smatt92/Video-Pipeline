@@ -15,7 +15,7 @@ which are merely wired — which is the reason it exists.
 One vendor has ever been called from this codebase: **Anthropic**, twice, on 2026-08-01,
 producing a script and a shotlist and four `cost_ledger` rows totalling **₹6.07**. Nothing
 else has spoken to a vendor. Everything else that works, works against synthetic inputs in
-a harness — which is a real and useful category, covering 313 assertions across fifteen
+a harness — which is a real and useful category, covering 319 assertions across fifteen
 harnesses, all green as of today. Stage 5 is wired and proven up to the vendor, and the three
 unbuilt stages are built. The pipeline now chains from an approved concept to a submitted
 generation — see §8 for the one missing column that had been making that chain inert.
@@ -61,14 +61,14 @@ difference is always the vendor.
 | `verify:scaling` | **11** | The compiled stylesheet in a real Chromium at seven widths, WCAG 1.4.4 / 1.4.10 / 1.4.12 / 2.5.8 | A probe page, not the app's own screens |
 | `verify:tour` | **20** | `/onboarding` in a real Chromium: canvas, contrast under the actual text, reduced motion, context loss | SwiftShader, not a GPU |
 | `verify:referral` | **9** | Attribution written once and not overwritten; the roll-up carries nothing identifying | Ledger rows are inserted, not earned |
-| `verify:submit` | **36** | Stage 5: every refusal before the spend, one submit per shot, the vendor error taxonomy, the approval transition, the blocker view | A local server stands in for the vendor's HTTP surface |
+| `verify:submit` | **42** | Stage 5: every refusal before the spend, one submit per shot, the vendor error taxonomy, the approval transition, the blocker view | A local server stands in for the vendor's HTTP surface |
 | `verify:concepts` | **29** | Stage 2: the rubric arithmetic, the validations a decode constraint cannot express, drafts only, the batch charge dividing | A local server stands in for the Messages API |
 | `verify:metadata` | **18** | Stage 9: refusal without a passing review, the DB publish gate in both directions, the title-shape check | Same |
 | `verify:trends` | **12** | Stage 1: the velocity proxy, same-day dedup keeping the later reading, a source being down | A local server stands in for the feed |
 | `verify:webhook` | **25** | The callback over real HTTP: secret gate, payload gate, delivery RPC, replay, the vendor overruling the body | A local server stands in for the status endpoint |
 | `verify:ingest` | **5** | 3 source shapes → the canonical intermediate; a corrupt file → an error row | Sources are ffmpeg-generated |
 
-**Total: 313 assertions, all green today, and all fifteen harnesses run in CI.** Four further
+**Total: 319 assertions, all green today, and all fifteen harnesses run in CI.** Four further
 guards are exempt with reasons: `verify:vault` and `verify:storage` need a live Supabase
 project, and the two `verify:script*` variants spend money on a billed model call.
 
@@ -233,6 +233,36 @@ rather than a control that is *absent*. Worth fixing; not worth fixing first.
 
 ---
 
+## 5c. Screens that would look the same after one run and after a thousand
+
+The inverse of §5a, and a better test — because these screens are *wired*. They read real
+data, they render correctly, and nothing about them signals the gap. §5a's screens at least
+had a fixture import to grep for; these have nothing.
+
+The question: **what does this screen show that changes as the system is used, and is
+anything actually writing it?**
+
+The sweep is two greps — which accumulation columns exist, and which are written:
+
+```bash
+psql "$DATABASE_URL" -tAc "select table_name||'.'||column_name from information_schema.columns
+  where column_name ~ '(count|times_|win_rate|last_|_total)' and table_schema='public'"
+
+for c in win_rate times_compiled times_shipped; do
+  echo "$c: $(grep -rl "$c" src/lib src/trigger --include=*.ts)"
+done
+```
+
+A column with readers and no writers is the signal. Cross-check the aggregate views the same
+way — `for v in $(grep -ho 'v_[a-z_]*' supabase/migrations/*.sql | sort -u)` against `src/`
+finds views nobody reads, which is the §5b failure in view form.
+
+Standing as of this round: `v_video_cost` and `v_referral_attribution` have no reader.
+`v_video_cost` is the headline metric's own view and `/costs` is a disabled route — that is
+the next one worth doing, and it is a screen to build rather than a defect to fix.
+
+---
+
 ## 5b. Built, tested, unreachable
 
 The category no register catches, because **everything about it is green**. The code
@@ -352,65 +382,72 @@ account is empty. Both spellings are asserted, because they arrive by different 
 
 ## 8. The smallest gap I picked, and why
 
-**The rate card screen rendered a fixture** — `src/app/(app)/settings/rate-card/page.tsx`.
+**The learning loop accumulated nothing** — migration 0025.
 
-### The sweep, reframed
+### What the sweep found
 
-The question changed this round from "what has no caller" to **"which screens render
-fixtures, and what would they show against real data?"** — because that is what the last two
-picks turned out to be underneath.
+No screen reads any accumulation column. Not one. `win_rate`, `times_compiled`,
+`times_shipped`, `last_compiled_at` — zero screens.
 
-The refinement that made it useful: the interesting cases are not screens with obvious
-placeholder data. They are screens that render **identically against fixtures, against a
-real database, and against an empty one** — where you cannot tell by looking whether it
-works. The board was exactly that until last round.
+Then the second grep, which is the one that mattered: **no code writes them either.** Three
+readers, zero writers. `win_rate` was set to `null` at insert and never touched again.
 
-Of twenty screens, three read fixtures. `settings/voice` was fixed last round.
-`settings/guardrails` is a policy display with no write path yet. `settings/rate-card` was
-the one that mattered.
+And `src/lib/shots/compile.ts` *weights recipe selection by `win_rate`*. So production has
+been picking recipes using a permanently null number, and the tier ordering that file
+documents at length cannot ever have had an effect.
 
-### Why this one
+### Why this was the pick
 
-Its own previous docstring said it:
+ARCHITECTURE §0.1 names this as the entire product thesis:
 
-> an unverified rate produces no rupee figure anywhere in the product, and a submit that
-> cannot be priced refuses to run. That is already enforced below the UI — **this is where
-> you make it stop being true**.
+> The durable asset is the *loop* … Nobody can copy your accumulated hook-performance data.
+> Everybody can copy your model choice.
 
-And it rendered `RATE_CARD` from `src/lib/fixtures/settings.ts`, so it could not.
+The loop accumulated nothing. Videos get made, recipes get used, and the system never gets
+better — because the evidence that would make it better was never written. Same inert-chain
+shape as 0024, one level up: the *learning* loop rather than the production one.
 
-`priceLlmCall` and `requirePricing` refuse on an unverified rate, so **stages 2, 3, 5, 6 and
-9 all stop**. Every rate ships at zero and unverified, deliberately — no vendor publishes
-these and a plausible default would be believed, summed, and put in a business case. So this
-one screen stands between a configured install and every stage that costs money.
+And the library screen was wired the whole time. It reads real data and displays
+`win rate unmeasured · compiled 0× · shipped 0×`, correctly, for ever. **No screen change
+was needed** — the screen was never the bug, which is precisely what makes this class hard
+to find.
 
-Same shape as the host voice, wider blast radius: the voice blocked one chain; this blocks
-everything paid.
+### Derived, not counted
 
-### What changed
+The obvious repair is to increment the counters. That trades a column nothing writes for a
+column that drifts: stage 4 is replayable, a re-run would double-count, and a corrected
+shotlist would leave the old recipe's tally permanently high. A counter wrong in a way
+nobody can detect is worse than one obviously zero.
 
-- `readRateCard` returns rows, empty, or broken — the three-outcome rule the board follows.
-  An empty card that could mean "nothing seeded" or "the query failed" hides the second case,
-  and the second case means every paid stage is refusing invisibly.
-- `setRateAction` **appends**. `currentRate` reads the newest `effective_from` at or before
-  now, so a correction supersedes without rewriting history. The ledger's
-  `unit_cost_snapshot` protects the *figure*; without the old row, "why was this video ₹40"
-  has no answer. There is no delete.
-- A verified rate of zero is refused: it would claim somebody checked and the call is free,
-  which no paid endpoint is. Unverified is the honest state and the refusal is doing its job.
-- A source note under eight characters is refused. The number comes from a balance delta,
-  and one nobody can re-derive is what a cost-per-video claim ultimately rests on.
-- Superseded rows are counted and shown rather than hidden — a rate revised four times is a
-  rate somebody is struggling to pin down.
+`v_recipe_performance` derives all four from rows. `shots.prompt_id` says which recipe
+compiled a shot; the path to a passed review is a join. The columns are dropped rather than
+kept beside it — two sources for one fact is the failure CLAUDE.md names.
 
-Six assertions in `verify:concepts` §8, including the one that would catch a divergence
-nobody would otherwise see: **the pipeline reads the same rate the screen shows.** If those
-drift, the card displays a verified rate while a stage still refuses, which is the exact
-confusion the screen exists to remove.
+**Shipped means "reached a render a human passed"**, not "the generation succeeded". A clip
+that rendered cleanly and was cut for being wrong is not a win, and the whole value of the
+number is that it reflects editorial judgement rather than the vendor's. Asserted in both
+directions: a `pass` counts, a `reshoot` does not.
 
-One of those assertions was wrong on its first run and the code was right — I hard-coded
-`revisions === 1` when the migrations already seed a `soul` row. Derived from the row count
-now, for the reason the field exists: a rate can have more history than you expect.
+**`win_rate` is null on an unused recipe and 0 on one tried and never shipped.** Those look
+alike and mean opposite things — absence of evidence versus evidence of failure — and
+sorting them together would retire recipes nobody has judged. I wrote that assertion
+backwards first; the view was right.
+
+### A second instrument, found on the way
+
+`v_recipe_coverage` (0011) measures templating concentration — what share of a shot kind's
+compiles went to its busiest recipe, where 1.0 means one recipe is doing all the work. It
+summed `times_compiled`, so it has reported **zero compiles for every shot kind since it was
+written**. An alarm wired to a sensor nobody connected. Rebuilt on the derived view.
+
+### And a bug in my own fix
+
+`count(*)` is bigint, and both the pg driver and PostgREST return bigints as strings to
+avoid silent precision loss past 2^53. `timesCompiled` was arriving as `"3"` — which renders
+identically to `3` and compares and sorts as neither. Caught by the harness on its first
+run, coerced at the boundary.
+
+Six assertions in `verify:submit` §11.
 
 ---
 

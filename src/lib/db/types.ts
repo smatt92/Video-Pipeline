@@ -1006,7 +1006,6 @@ export type Database = {
           driver: string
           id: string
           is_active: boolean
-          last_compiled_at: string | null
           model: string
           name: string
           params: Json
@@ -1015,10 +1014,7 @@ export type Database = {
           sample_output_url: string | null
           tags: string[] | null
           template: string
-          times_compiled: number
-          times_shipped: number
           version: number
-          win_rate: number | null
         }
         Insert: {
           accepts_character_ref?: boolean
@@ -1027,7 +1023,6 @@ export type Database = {
           driver: string
           id?: string
           is_active?: boolean
-          last_compiled_at?: string | null
           model: string
           name: string
           params?: Json
@@ -1036,10 +1031,7 @@ export type Database = {
           sample_output_url?: string | null
           tags?: string[] | null
           template: string
-          times_compiled?: number
-          times_shipped?: number
           version?: number
-          win_rate?: number | null
         }
         Update: {
           accepts_character_ref?: boolean
@@ -1048,7 +1040,6 @@ export type Database = {
           driver?: string
           id?: string
           is_active?: boolean
-          last_compiled_at?: string | null
           model?: string
           name?: string
           params?: Json
@@ -1057,10 +1048,7 @@ export type Database = {
           sample_output_url?: string | null
           tags?: string[] | null
           template?: string
-          times_compiled?: number
-          times_shipped?: number
           version?: number
-          win_rate?: number | null
         }
         Relationships: []
       }
@@ -1575,6 +1563,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "shots_prompt_fk"
+            columns: ["prompt_id"]
+            isOneToOne: false
+            referencedRelation: "v_recipe_performance"
+            referencedColumns: ["prompt_id"]
+          },
+          {
             foreignKeyName: "shots_script_id_fkey"
             columns: ["script_id"]
             isOneToOne: false
@@ -2040,6 +2035,20 @@ export type Database = {
           seconds_waiting: number | null
           shot_kind: string | null
           shots_waiting: number | null
+        }
+        Relationships: []
+      }
+      v_recipe_performance: {
+        Row: {
+          driver: string | null
+          is_active: boolean | null
+          last_compiled_at: string | null
+          model: string | null
+          name: string | null
+          prompt_id: string | null
+          times_compiled: number | null
+          times_shipped: number | null
+          win_rate: number | null
         }
         Relationships: []
       }
