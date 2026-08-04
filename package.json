@@ -48,6 +48,7 @@
     "verify:submit": "tsc -p tsconfig.verify.json && node scripts/verify-submit.mjs",
     "verify:webhook": "tsc -p tsconfig.verify.json && node scripts/verify-webhook.mjs",
     "verify:referral": "tsc -p tsconfig.verify.json && node scripts/verify-referral.mjs",
+    "verify:costs": "tsc -p tsconfig.verify.json && node scripts/verify-costs.mjs",
     "verify:scaling": "node scripts/verify-scaling.mjs",
     "verify:tour": "node scripts/verify-tour.mjs"
   },

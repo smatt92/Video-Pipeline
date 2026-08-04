@@ -205,6 +205,15 @@ jobs:
       - name: Referral attribution, and the roll-up carries nothing identifying
         run: pnpm verify:referral "$DATABASE_URL"
 
+      # ── Cost per video, the headline metric ──────────────────────────────
+      # The assertion that matters here is exhaustiveness: every cost_ledger row lands in
+      # exactly one of v_video_cost and v_cost_unattributed. A headline metric does not
+      # usually go wrong by being computed incorrectly — it goes wrong by being computed
+      # over a set somebody quietly narrowed, and that shows up here rather than as a
+      # flatteringly low number on a dashboard nobody can audit.
+      - name: Cost per video, with its denominator
+        run: pnpm verify:costs "$DATABASE_URL"
+
       # ── The Studio lane, minus the leg that needs a public hostname ──────
       # Creates and drops its own scratch database, so it runs after the checks that read
       # the one above. Section 7 (the billed model call) skips without a key and says so.

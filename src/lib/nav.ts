@@ -91,8 +91,8 @@ export const NAV: readonly NavGroup[] = [
       {
         href: '/costs',
         label: 'Costs',
-        hint: 'Cost per video, credit burn, yield',
-        status: blocked('1c', 'Needs real generations to cost'),
+        hint: 'Cost per video, with the denominator',
+        status: ready(),
       },
       {
         href: '/analytics',
