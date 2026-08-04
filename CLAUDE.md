@@ -127,6 +127,20 @@ The test for whether you have this problem is not "does each stage work". It is:
 name, in one query, why nothing came out?** If the answer needs four joins and a hypothesis,
 build the view before building the next stage.
 
+**An assertion is evidence only when its two sides arrive by independent routes.** One
+root, three surfaces so far, and the general form is what makes the fourth one findable:
+
+| Surface | Instance | What independence means there |
+|---|---|---|
+| A view checked against a model of itself | `verify:submit` §9 — the assertion expected null because it was built from the same understanding of the world the view was built from; both were wrong together | The consumer: stage 5 actually submitting is the only evidence that null meant generatable |
+| A harness asserting a row it seeded | `seedScript` wrote `compiled_params`; the assertion read it back and would have passed whatever `compileShot` did | Drive the code under test and assert its return value |
+| An identity over one source's own numbers | `verify:concepts` §7 divided the view's `batch_inr` by the view's `concepts_landed` and compared to the view's `inr_per_concept` — a ÷ b = c holds however wrong a and b are | Fetch the denominator from the `concepts` table, which the view does not control |
+
+The mechanical test for all three, and for the fourth when it arrives: **trace each side of
+the comparison back to the line that produced it. If the traces meet before they reach the
+code under test, the assertion is a tautology** — it can fail only on a typo, and green
+means a source agrees with itself.
+
 **A check can measure exactly the right thing and still be vacuous, because the state it
 measures was unreachable.** This is a third failure mode for guards, distinct from the two
 above: not a guard that runs nowhere, and not a guard measuring the wrong quantity — a guard
@@ -138,8 +152,7 @@ world: the workspace had no verified video integration, so stage 5 would have re
 script every time. Nothing was miswired. The check simply never entered the state it was
 describing, and green meant only that.
 
-The tell is that the assertion's subject is produced by the same model being asserted. A
-producer checked against a model of itself agrees with itself, for ever, at no cost. **So
+The tell is the first surface of the independent-routes rule above. **So
 close the loop with the consumer, in both directions:** when the producer says blocked, the
 consumer must refuse for the same reason; when the consumer succeeds, the producer must have
 said clear. The second half is the one worth adding first — it is what catches an assertion
@@ -210,8 +223,8 @@ rest on, say `LOAD-BEARING` on it and name what makes it true. Two rules of thum
 one it is: it is usually the assertion about rows that do *not* exist, and it is usually the
 one whose subject was produced by a different module than the one doing the asserting.
 
-**A fifth variant, and the one most likely to repeat: an assertion whose subject was
-written by the harness rather than by the code under test.** `seedScript` inserts
+**The second surface of the independent-routes rule, and the one most likely to repeat:
+an assertion whose subject was written by the harness rather than by the code under test.** `seedScript` inserts
 `compiled_params` itself, so asserting against the seeded `shots` rows would have passed
 whatever `compileShot` did — including nothing. The fix was to call `compileShot` directly
 and assert its return value.
@@ -234,6 +247,26 @@ lucky: they read `shots.status` after `submitShots` set it, `renders.status` aft
 already written the rule down in a comment — *"asserted against the database rather than
 against an assumed baseline … hardcoding 1 here would have been an assertion about the
 fixture"* — one harness before it was needed.
+
+**Every `bigint` and `numeric` crosses the wire as a string, and a loose comparison hides
+it.** Third instance now: `timesCompiled` arriving as `"3"`, `count(*)` as `"4"` in a
+`===` against a number, and `concepts_landed > 0` passing because `"4" > 0` coerces true.
+
+The two facts that make this worth a rule rather than three fixes. **Postgres sends `bigint`
+and `numeric` as text on purpose** — both exceed what a double can hold exactly, and the
+driver will not silently lose precision on your behalf. And **the detection and the fix are
+the same change**: `>`, `<`, `==` and truthiness all coerce, so they work and hide it;
+`===`, `Number.isInteger` and arithmetic against a literal do not. Writing the strict
+comparison is how you find out.
+
+So: `Number()` at the boundary, in the mapper that turns a row into a domain object, never
+at the point of use. A sweep of `src/` found the convention already held everywhere except
+`concepts/run.ts`, where `velocity` and `volume` reached a typed `number | null` field
+uncoerced — harmless today because the only consumer interpolates it into a prompt, and a
+silent coercion the first time anyone writes `s.velocity > threshold`. The type would have
+promised it could not happen. `verify-vault` had the inverse: `remaining === '0'`, correct
+by hard-coding the transport's stringiness, which inverts the idiom every other harness uses
+and fails for the wrong reason the day the driver returns a number.
 
 **A sixth variant, and the hardest to see: an assertion phrased loosely enough to stay true
 in a world it was not written for.** Not vacuous when written — genuinely testing something

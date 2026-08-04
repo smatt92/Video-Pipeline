@@ -121,7 +121,11 @@ try {
   // for a codebase whose rule is that external payloads are never trusted.
   await q('delete from vault.secrets where id = $1', [secretId]);
   const remaining = await q('select count(*) from vault.secrets where id = $1', [secretId]);
-  if (remaining === '0') {
+  // Number(), not === '0'. The old comparison worked by hard-coding the transport's
+  // stringiness rather than coercing at the boundary — correct today, and silently
+  // inverted the idiom every other harness uses. If the driver ever returns a real
+  // number, '0' === 0 is false and the pass becomes a fail for the wrong reason.
+  if (Number(remaining) === 0) {
     pass('delete removes the secret', 'row count is 0');
     secretId = null;
   } else {

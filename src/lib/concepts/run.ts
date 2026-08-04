@@ -155,8 +155,14 @@ export async function runConcepts(
           source: s.source,
           term: s.term,
           region: s.region,
-          velocity: s.velocity,
-          volume: s.volume,
+          // Coerced at the boundary. `velocity` and `volume` are numeric columns and at
+          // least one live transport delivers numerics as strings, so without this the
+          // value satisfies the declared `number | null` type and is a string at runtime.
+          // Today it survives because the only consumer is template interpolation; the
+          // first `s.velocity > threshold` anywhere downstream would coerce silently and
+          // the type would have promised it could not.
+          velocity: s.velocity === null ? null : Number(s.velocity),
+          volume: s.volume === null ? null : Number(s.volume),
         })),
         recentTitles: (recent ?? []).map((r) => r.title),
         seed: payload.seed,
