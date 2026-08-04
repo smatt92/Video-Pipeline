@@ -24,6 +24,8 @@ import { serverClient } from '@/lib/db/server';
 interface Integrity {
   unconfirmed: number;
   replayed: number;
+  /** Submits whose vendor call cannot be accounted for. The only one about money. */
+  stuck: number;
   unreadable: string | null;
 }
 
@@ -31,30 +33,39 @@ async function readIntegrity(): Promise<Integrity> {
   try {
     const db = serverClient();
 
-    const [unconfirmed, replayed] = await Promise.all([
+    // `v_stuck_submits` is the third signal and the only one about money. A generation
+    // whose row was written and whose vendor call cannot be accounted for may have been
+    // charged for nothing — and the view's own comment says the correct response is a
+    // human look, which requires the number reaching a human. It had no reader: it was
+    // named once, in a comment in `submit.ts` explaining that a refused cost row leaves a
+    // row this view would surface, and nothing surfaced it.
+    const [unconfirmed, replayed, stuck] = await Promise.all([
       db.from('v_unconfirmed_terminal_generations').select('id', { count: 'exact', head: true }),
       db.from('v_replayed_callbacks').select('id', { count: 'exact', head: true }),
+      db.from('v_stuck_submits').select('id', { count: 'exact', head: true }),
     ]);
 
-    const failure = unconfirmed.error ?? replayed.error;
-    if (failure) return { unconfirmed: 0, replayed: 0, unreadable: failure.message };
+    const failure = unconfirmed.error ?? replayed.error ?? stuck.error;
+    if (failure) return { unconfirmed: 0, replayed: 0, stuck: 0, unreadable: failure.message };
 
     return {
       unconfirmed: unconfirmed.count ?? 0,
       replayed: replayed.count ?? 0,
+      stuck: stuck.count ?? 0,
       unreadable: null,
     };
   } catch (err) {
     return {
       unconfirmed: 0,
       replayed: 0,
+      stuck: 0,
       unreadable: err instanceof Error ? err.message : 'unknown error',
     };
   }
 }
 
 export async function IntegrityAlert() {
-  const { unconfirmed, replayed, unreadable } = await readIntegrity();
+  const { unconfirmed, replayed, stuck, unreadable } = await readIntegrity();
 
   if (unreadable) {
     return (
@@ -70,7 +81,7 @@ export async function IntegrityAlert() {
   }
 
   // The ordinary case, and the reason this is worth having: nothing on screen at all.
-  if (unconfirmed === 0 && replayed === 0) return null;
+  if (unconfirmed === 0 && replayed === 0 && stuck === 0) return null;
 
   const parts: string[] = [];
   if (unconfirmed > 0) {
@@ -78,6 +89,10 @@ export async function IntegrityAlert() {
   }
   if (replayed > 0) {
     parts.push(`${replayed} job${replayed === 1 ? '' : 's'} with repeat callbacks`);
+  }
+  // First in the sentence when present, because it is the one that may have cost money.
+  if (stuck > 0) {
+    parts.unshift(`${stuck} submit${stuck === 1 ? '' : 's'} unaccounted for`);
   }
 
   return (
@@ -92,7 +107,9 @@ export async function IntegrityAlert() {
         border: '1px solid var(--border-strong)',
       }}
       title={
-        unconfirmed > 0
+        stuck > 0
+          ? 'A generation row was written and its vendor call cannot be accounted for. It may have been charged for and produced nothing, or it may have succeeded with the confirmation lost. Deliberately not auto-resolved: retrying may double-charge and abandoning may discard a generation that succeeded, so the only correct response is a human look.'
+          : unconfirmed > 0
           ? 'A generation reached a terminal state without the vendor confirming it. The callback carries a shared secret rather than a signature, so this is what a forged completion looks like. Investigate before trusting any asset it produced.'
           : 'A job received more than one callback. A vendor retry after a timeout is ordinary and harmless — the confirmation is compare-and-set, so a replay changes nothing. A long gap between the first and last delivery is not ordinary.'
       }

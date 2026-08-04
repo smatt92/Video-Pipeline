@@ -555,6 +555,40 @@ console.log('\n4. A real submit — row first, job id after\n');
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+//
+// v_stuck_submits had no reader. It was named once, in a comment in submit.ts explaining
+// that a refused cost row leaves a `submitting` row this view would surface — and nothing
+// surfaced it. It is the only integrity signal about money: a generation whose vendor call
+// cannot be accounted for may have been charged for and produced nothing.
+console.log('\n4b. A submit that cannot be accounted for is visible\n');
+{
+  const recipe = await makeRecipe();
+  const { scriptId, shotIds } = await seedScript([{ promptId: recipe }]);
+
+  // The state submit.ts leaves behind when the cost row is refused: a row in `submitting`
+  // with no vendor job id. Written directly because the production path that produces it
+  // requires the ledger insert to fail, which needs a broken constraint rather than a
+  // fixture — and what is under test here is whether the view surfaces the state, not how
+  // it arises.
+  await client.query(
+    `insert into generations (shot_id, kind, driver, model, request_payload, idempotency_key,
+                              status, submitted_at)
+     values ($1,'image','higgsfield','soul','{}'::jsonb,$2,'submitting', now() - interval '2 hours')`,
+    [shotIds[0], `stuck-${randomUUID()}`],
+  );
+
+  const { rows } = await client.query(
+    `select id, charged from v_stuck_submits where shot_id = $1`, [shotIds[0]],
+  );
+  if (rows.length === 1) ok('a submit stuck with no job id is surfaced', `charged=${rows[0].charged}`);
+  else bad('a submit stuck with no job id is surfaced', `${rows.length} rows`);
+
+  // Cleaned up so the scenarios below, which count generations, are not perturbed.
+  await client.query(`delete from generations where shot_id = $1`, [shotIds[0]]);
+  void scriptId;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 console.log('\n5. A resubmit is refused by the key, not billed twice\n');
 {
   const recipe = await makeRecipe();
