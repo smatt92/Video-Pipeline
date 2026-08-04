@@ -754,6 +754,79 @@ is the uncomfortable one — a near-twin of `v_partner_rollup`, which is the one
 Not deleted this round because unlike `v_shot_readiness` it is not a strict duplicate, and
 deleting on suspicion is how the wrong copy goes.
 
+## 11. Two views given consumers, and what reading them properly exposed
+
+### 11a. `v_cost_by_stage` could not see the most expensive stage
+
+It filtered `where stage is not null`, and stage 5's ledger rows set no stage at all. The
+`stage: 'still'` in `submit.ts` is a field of the **vendor payload** naming which half of the
+two-call chain is being submitted — it never reached the ledger, and it is what made this
+look already-set at a glance. So every figure the view produced was a breakdown of the LLM
+stages presented as a breakdown of the pipeline, with video generation structurally invisible
+to the view named for it.
+
+Three further corrections, each a standing rule: `sum(cost_inr)` skipped nulls so an unpriced
+row vanished from its stage's total; estimate and reconcile were added together; and a bare
+total per stage looks identical after one video and after a hundred, so `scripts` is now the
+denominator and `inr_per_script` is derived from it.
+
+The stage vocabulary stays in TypeScript. `v_cost_by_stage` returns only stages that have
+rows; `CHARGING_STAGES` in `cost/by-stage.ts` fills in the never-ran ones as `hasRun: false`
+with null figures. **A stage that has never run must not render as ₹0** — "assembly is free"
+and "assembly has never been built" are different claims. A third copy of the vocabulary in
+SQL is how the shot-kind list would have gone wrong.
+
+### 11b. The fourth `ON CONFLICT` against a partial index
+
+`voice/run.ts` used `upsert(..., { onConflict: 'script_id,stage,entry_kind,unit' })`.
+`cost_ledger_script_stage_entry_key` cannot be inferred for **two** independent reasons: it
+is partial (`where script_id is not null`) *and* its third column is an expression
+(`coalesce(stage,'')`). So the audio vendor bills for the speech and no ledger row lands.
+
+I wrote last round that a fourth instance was impossible because the Studio's write had been
+folded into `writeLlmCost` and there was no fourth place to put it. **That was wrong.**
+`writeLlmCost` covers LLM subjects priced in tokens; voice is priced in characters and has
+always had its own writer, so it was never in scope of that claim. The lesson is not about
+the line — it is that "there is no fourth place" is a claim about the whole codebase and I
+made it from one module.
+
+Stage 6 was also the only money-spending stage with no database harness, which is why
+nothing caught it. `verify:voice` now exists, and its §3 asserts both that the insert lands
+*and* that the upsert it replaced still cannot run — so the fix cannot be quietly reverted
+by someone who finds insert-and-catch uglier.
+
+### 11c. `v_script_vo_status` counted instead of answering
+
+`takes`, `total_duration_s`, `characters_billed`, `shots_timed` — four numbers that grow,
+none of them an answer to the question the voice stage raises, which is *where does the chain
+stop*. It now returns `vo_state`, and the counts are evidence for it.
+
+`stitched_untimed` is the state 03 → 04 → 05 sat in for a week with fifteen harnesses green.
+The distinction that makes the screen worth having: `stitched_untimed` and `not_started` both
+have zero timed shots, and only one of them means money has already been spent. A screen that
+merged them would be the reassuring one. Settings → Voice now shows the distribution, which
+is the artifact; the list is the evidence.
+
+### 11d. Load-bearing assertions, marked
+
+`verify:submit` §0 and the old §9 are the same three lines, and §0 means something only
+because §4 submits to a vendor and then asserts the view said null about it. Nothing in §0
+said so. Sections that carry an assertion the others rest on now say `LOAD-BEARING` and name
+what makes it true. Two rules of thumb for which one it is: usually the assertion about rows
+that do *not* exist, and usually the one whose subject was produced by a different module
+than the one asserting.
+
+Writing this round's first draft of `verify:costs` §5c proved the rule immediately — it
+asserted that `05-generate` spend was attributed, against a harness whose ledger rows are all
+written by a local helper that sets no stage. It failed, correctly. The claim about
+production moved to `verify:submit` §4, where a real `submitShots` writes the row.
+
+### 11e. Rule 1's seventh catch
+
+`pnpm check:vendors` refused this round's own comment in `voice/run.ts`, which named the
+audio vendor while explaining a ledger defect. Second time it has fired on a comment that
+named a vendor in the course of explaining something correct, and it was right both times.
+
 ---
 
 ## How to refresh this document
@@ -761,7 +834,7 @@ deleting on suspicion is how the wrong copy goes.
 ```bash
 pnpm check                                  # everything that needs no database
 export DATABASE_URL=...                     # any Postgres you may create databases on
-for h in ingest assemble review studio referral webhook submit concepts metadata trends costs; do pnpm verify:$h "$DATABASE_URL"; done
+for h in ingest assemble review studio referral webhook submit concepts metadata trends costs voice; do pnpm verify:$h "$DATABASE_URL"; done
 pnpm build && pnpm verify:scaling && pnpm verify:tour
 ```
 

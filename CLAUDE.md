@@ -146,6 +146,15 @@ said clear. The second half is the one worth adding first — it is what catches
 that has never run in the state it claims to test. Adding it here found a real defect in one
 run: stage 5 submitted, and paid for, a shot on a script the view called blocked.
 
+**Mark the load-bearing assertion where two look alike.** `verify:submit` §0 and the old §9
+are the same three lines; §0 means something only because §4 submits to a vendor and then
+asserts the view said null about it, and nothing in §0 says so. A future reader has no way
+to tell them apart — and the vacuous one is the one that looks reassuring, because it makes
+a clean claim with no messy dependency. So where a section contains an assertion the others
+rest on, say `LOAD-BEARING` on it and name what makes it true. Two rules of thumb for which
+one it is: it is usually the assertion about rows that do *not* exist, and it is usually the
+one whose subject was produced by a different module than the one doing the asserting.
+
 Before adding a gate or an assertion, ask what write path produces the state it guards. If
 the answer is none, the guard is this failure mode being built on purpose. A fourth
 workspace gate for "active recipes that carry no shot kind" was dropped for exactly that

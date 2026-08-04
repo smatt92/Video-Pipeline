@@ -279,6 +279,20 @@ export async function submitShots(
       const { error: costError } = await db.from('cost_ledger').insert({
         generation_id: generationId,
         driver: video.slug,
+        // Stage 5's rows carried no `stage` at all. `v_cost_by_stage` filters on
+        // `stage is not null`, so the single most expensive thing this pipeline does was
+        // structurally invisible to the view named for it — every figure it produced was a
+        // breakdown of the LLM stages presented as a breakdown of the pipeline.
+        //
+        // Safe to add: the index that governs this row is
+        // `cost_ledger_generation_entry_key (generation_id, entry_kind)`, which does not
+        // include stage; and `cost_ledger_script_stage_entry_key` applies only where
+        // `script_id is not null`, which a generation row never is.
+        //
+        // Not to be confused with `payload.stage = 'still'` a few lines above — that is the
+        // vendor's field naming the half of the two-call chain being submitted, and it is
+        // what made this look already-set at a glance.
+        stage: '05-generate',
         entry_kind: 'estimate',
         unit: 'credit',
         quantity: 1,

@@ -30,6 +30,7 @@ if (!dbUrl) { console.error('usage: node scripts/verify-costs.mjs <db-url>'); pr
 
 const BUILD = new URL('../.verify-build/src/lib', import.meta.url).pathname;
 const { readVideoCosts } = require(`${BUILD}/cost/video.js`);
+const { readCostByStage, CHARGING_STAGES } = require(`${BUILD}/cost/by-stage.js`);
 const { supabaseShim } = await import('./lib/supabase-shim.mjs');
 const { scratchDatabase } = await import('./lib/scratch.mjs');
 
@@ -267,6 +268,62 @@ console.log('\n5b. A Studio session that materialised a script\n');
     .filter((u) => u.component === 'studio')
     .reduce((a, u) => a + u.rowsN, 0);
   eq('  · the unmaterialised session’s row stays unattributed', stillUnattributed, 1);
+}
+
+// ── 5c. Cost by stage, and the stages that have never run ───────────────────────
+//
+// This section seeds its own stage-carrying rows, so it proves the VIEW'S ARITHMETIC and
+// nothing about whether production writes a stage. The first draft of it asserted that
+// `05-generate` spend was attributed — against a harness whose ledger rows are all written
+// by a local `ledger()` helper that sets no stage at all. It failed, and it was right to:
+// I had written the vacuous-precondition bug one round after adding the rule for it.
+//
+// The claim about production lives in `verify:submit` §4, where a real `submitShots` call
+// writes the row. Two assertions that look alike; only one of them can be wrong about the
+// world.
+console.log('\n5c. Spend per stage, with a denominator\n');
+{
+  const f = await makeVideo('Staged spend');
+  await ledger({ script_id: f.scriptId, stage: '03-script', driver: 'anthropic', quantity: 900,
+                 unit: 'input_token', cost_usd: 0.01, cost_inr: 1.5, entry_kind: 'reconcile' });
+  await ledger({ script_id: f.scriptId, stage: '03-script', driver: 'anthropic', quantity: 300,
+                 unit: 'output_token', cost_usd: 0.02, cost_inr: 2.5, entry_kind: 'reconcile' });
+
+  const s = await expectOk(await readCostByStage(db));
+
+  // LOAD-BEARING. Every other assertion here is a property of rows that exist; this is the
+  // only one about rows that do NOT. A stage with no ledger row must come back hasRun:false
+  // with null figures, because rendering ₹0 for it claims the stage is free rather than
+  // unbuilt — and on this workspace that is most of them.
+  const neverRun = s.rows.filter((r) => !r.hasRun);
+  if (neverRun.length > 0 && neverRun.every((r) => r.settledInr === null && r.inrPerScript === null)) {
+    ok('a stage that never ran reports null, not ₹0', `${neverRun.length} of ${s.rows.length}`);
+  } else {
+    bad('a stage that never ran reports null, not ₹0', JSON.stringify(neverRun.slice(0, 2)));
+  }
+
+  eq('every charging stage appears, run or not', s.rows.length >= CHARGING_STAGES.length, true);
+
+  const llm = s.rows.find((r) => r.stage === '03-script');
+  if (llm && llm.hasRun) {
+    eq('  · a stage that ran carries its settled total', Number(llm.settledInr), 4);
+    eq('  · with the script count as its denominator', llm.scripts, 1);
+    eq('  · and a per-script figure derived from it', Number(llm.inrPerScript), 4);
+  } else {
+    bad('  · a stage that ran carries its settled total', JSON.stringify(llm));
+  }
+
+  // Unpriced poisons the stage total rather than shrinking it.
+  await ledger({ script_id: f.scriptId, stage: '03-script', driver: 'anthropic', quantity: 1,
+                 unit: 'thinking_token', cost_usd: 0, cost_inr: null, entry_kind: 'reconcile' });
+  const after = await expectOk(await readCostByStage(db));
+  const poisoned = after.rows.find((r) => r.stage === '03-script');
+  if (poisoned.settledInr === null && poisoned.inrPerScript === null) {
+    ok('one unpriced row makes the stage total unknown', 'not smaller');
+  } else {
+    bad('one unpriced row makes the stage total unknown', JSON.stringify(poisoned));
+  }
+  eq('  · and says how many rows it could not price', poisoned.unpricedRows, 1);
 }
 
 // ── 6. Exhaustiveness ───────────────────────────────────────────────────────────

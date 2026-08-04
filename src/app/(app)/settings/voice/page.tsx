@@ -4,6 +4,7 @@ import { Hint } from '@/components/shell/hint';
 import { AUDIO_MODEL_POLICY } from '@/lib/drivers/catalog';
 import { serverClient } from '@/lib/db/server';
 import { PRONUNCIATIONS, VOICE_SETTINGS } from '@/lib/fixtures/settings';
+import { readVoiceStatus } from '@/lib/voice/status';
 
 /**
  * Voice.
@@ -30,6 +31,8 @@ export default async function VoicePage() {
     .order('created_at', { ascending: true })
     .limit(1)
     .maybeSingle();
+
+  const status = await readVoiceStatus();
 
   return (
     <>
@@ -130,6 +133,62 @@ export default async function VoicePage() {
           </div>
         ))}
       </Panel>
+
+      {/*
+        What the voice stage has produced.
+        Placed here because setting a host voice raises exactly one next question — did it
+        work — and until now nothing on any screen could answer it.
+
+        The inverse test up front: a list of scripts with take counts looks identical after
+        one script and after a hundred, so the distribution is the artifact and the list is
+        the evidence. `stitched_untimed` is the state that made 03 → 04 → 05 provably inert
+        for a week with every per-stage harness green, and it has never been visible
+        anywhere until this panel.
+      */}
+      <SectionHeader
+        title="What the voice stage has produced"
+        hint="Where the chain stops, per script. The counts are evidence for the state, not the point of it."
+      />
+      {!status.ok ? (
+        <Panel>
+          <div className="px-4 py-3 text-sm">
+            <div>{status.hint}</div>
+            <div className="mt-1 font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+              {status.error}
+            </div>
+          </div>
+        </Panel>
+      ) : status.noScripts ? (
+        <Panel>
+          <div className="px-4 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>
+            No scripts yet, so the voice stage has had nothing to run on. This is an empty
+            workspace, not a stuck one — every script will appear here from the moment stage 3
+            writes it.
+          </div>
+        </Panel>
+      ) : (
+        <Panel>
+          {status.distribution.map((d) => (
+            <Row key={d.state} label={`${d.label} — ${d.n}`} help={d.means}>
+              <span
+                className="font-mono text-2xs"
+                style={{
+                  color:
+                    d.n === 0
+                      ? 'var(--text-faint)'
+                      : d.state === 'timed'
+                        ? 'var(--state-live)'
+                        : d.state === 'stitched_untimed' || d.state === 'takes_unstitched'
+                          ? 'var(--state-blocked)'
+                          : 'var(--text-muted)',
+                }}
+              >
+                {d.n === 0 ? '—' : `${d.n} script${d.n === 1 ? '' : 's'}`}
+              </span>
+            </Row>
+          ))}
+        </Panel>
+      )}
     </>
   );
 }

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { Hint } from '@/components/shell/hint';
+import { readCostByStage } from '@/lib/cost/by-stage';
 import { readVideoCosts, type VideoCostRow } from '@/lib/cost/video';
 
 /**
@@ -45,7 +46,7 @@ const EXCLUSION: Record<VideoCostRow['denominatorState'], string> = {
 };
 
 export default async function CostsPage() {
-  const result = await readVideoCosts();
+  const [result, stages] = await Promise.all([readVideoCosts(), readCostByStage()]);
 
   if (!result.ok) {
     return (
@@ -172,6 +173,88 @@ export default async function CostsPage() {
             excluded from the average — {excluded.notRendered} not rendered, {excluded.unpriced}{' '}
             unpriced, {excluded.nothingSettled} with nothing settled. Excluded, and listed: an
             average whose denominator you cannot see is not a measurement.
+          </p>
+        </>
+      )}
+
+      {/*
+        Cost by stage.
+        The same inverse test as the page above it, one level down: a bar per stage looks
+        identical after one video and after a hundred, so every row carries the number of
+        scripts the stage charged and the per-script figure derived from it. A stage that has
+        never run says so rather than showing ₹0 — "assembly is free" and "assembly has never
+        been built" are different claims and only one is true here.
+      */}
+      <h2 className="mt-8 mb-2 text-sm font-medium">By stage</h2>
+      {!stages.ok ? (
+        <div
+          className="rounded-md border px-4 py-3 text-sm"
+          style={{ borderColor: 'var(--state-blocked)', background: 'var(--state-blocked-bg)' }}
+        >
+          <div>{stages.hint}</div>
+          <div className="mt-1 font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+            {stages.error}
+          </div>
+        </div>
+      ) : (
+        <>
+          <div
+            className="overflow-x-auto rounded-md border"
+            style={{ borderColor: 'var(--border-subtle)', background: 'var(--surface-1)' }}
+          >
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ color: 'var(--text-faint)' }} className="text-left text-2xs">
+                  <th className="px-4 py-2 font-normal">Stage</th>
+                  <th className="px-4 py-2 text-right font-normal">Settled</th>
+                  <th className="px-4 py-2 text-right font-normal">Committed</th>
+                  <th className="px-4 py-2 text-right font-normal">Scripts</th>
+                  <th className="px-4 py-2 text-right font-normal">Per script</th>
+                  <th className="px-4 py-2 font-normal">What it buys</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stages.rows.map((r) => (
+                  <tr
+                    key={r.stage}
+                    className="border-t"
+                    style={{ borderColor: 'var(--border-subtle)', opacity: r.hasRun ? 1 : 0.55 }}
+                  >
+                    <td className="px-4 py-2">
+                      {r.label}{' '}
+                      <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+                        {r.stage}
+                      </span>
+                    </td>
+                    {r.hasRun ? (
+                      <>
+                        <td className="px-4 py-2 text-right font-mono">{inr(r.settledInr)}</td>
+                        <td
+                          className="px-4 py-2 text-right font-mono"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          {inr(r.openEstimateInr)}
+                        </td>
+                        <td className="px-4 py-2 text-right font-mono">{r.scripts}</td>
+                        <td className="px-4 py-2 text-right font-mono">{inr(r.inrPerScript)}</td>
+                      </>
+                    ) : (
+                      <td className="px-4 py-2 text-2xs" colSpan={4} style={{ color: 'var(--text-faint)' }}>
+                        never run — not ₹0
+                      </td>
+                    )}
+                    <td className="px-4 py-2 text-2xs" style={{ color: 'var(--text-muted)' }}>
+                      {r.what}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2 text-2xs" style={{ color: 'var(--text-faint)' }}>
+            {stages.stagesRun} of {stages.rows.length} charging stages have ever written a ledger
+            row. A per-script figure is undefined for a stage that has charged no script, and is
+            shown as an em dash rather than as zero.
           </p>
         </>
       )}

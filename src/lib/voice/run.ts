@@ -265,23 +265,45 @@ export async function runVoice(
   const costUsd = charactersBilled * rate.rate.unitCostUsd;
   const costInr = costUsd * usdInrRate;
 
-  const { error: costError } = await db.from('cost_ledger').upsert(
-    {
-      script_id: script.id,
-      concept_id: script.concept_id,
-      driver,
-      stage: '06-voice',
-      entry_kind: 'reconcile',
-      unit: 'character',
-      quantity: charactersBilled,
-      cost_usd: costUsd,
-      cost_inr: costInr,
-      usd_inr_rate: usdInrRate,
-    },
-    { onConflict: 'script_id,stage,entry_kind,unit', ignoreDuplicates: true },
-  );
+  // ── Insert, not upsert — the fourth instance of the same defect ────────────
+  //
+  // `onConflict: 'script_id,stage,entry_kind,unit'` cannot infer
+  // `cost_ledger_script_stage_entry_key` for two independent reasons: it is **partial**
+  // (`where script_id is not null`), and its third column is an **expression**
+  // (`coalesce(stage,'')`) rather than a bare column. Postgres will not infer either
+  // without the statement repeating them, and supabase-js can express neither. Against a
+  // correctly migrated database this fails with "no unique or exclusion constraint
+  // matching the ON CONFLICT specification" — so the audio vendor bills for the speech and
+  // no ledger row lands. Rule 5's headline failure.
+  //
+  // Fixed already in `generate/submit.ts`, in `writeLlmCost`, and in the Studio lane. I
+  // wrote last round that a fourth instance was impossible because the Studio's write had
+  // been folded into `writeLlmCost` and there was no fourth place to put it. That was
+  // wrong: `writeLlmCost` covers *LLM* subjects, priced in tokens, and voice is priced in
+  // characters — so stage 6 has always had its own writer and was never in scope of that
+  // claim. The lesson is not about this line; it is that "there is no fourth place" is a
+  // claim about the whole codebase and I made it from one module.
+  //
+  // Stage 6 is also the only money-spending stage with no database harness, which is why
+  // nothing caught it. `verify:voice` is the gap this exposes; `test:timings` exercises the
+  // arithmetic and never touches a ledger.
+  const { error: costError } = await db.from('cost_ledger').insert({
+    script_id: script.id,
+    concept_id: script.concept_id,
+    driver,
+    stage: '06-voice',
+    entry_kind: 'reconcile',
+    unit: 'character',
+    quantity: charactersBilled,
+    cost_usd: costUsd,
+    cost_inr: costInr,
+    usd_inr_rate: usdInrRate,
+  });
 
-  if (costError) {
+  // A retry of a take already charged. The charge stands; there is nothing to do.
+  if (costError && /duplicate key|unique constraint/i.test(costError.message)) {
+    // fall through
+  } else if (costError) {
     throw new Error(
       `Cost ledger write failed for script ${script.id} after ${charactersBilled} characters ` +
         `were billed: ${costError.message}`,

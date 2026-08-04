@@ -80,6 +80,7 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= 'harness';
 
 const BUILD = new URL('../.verify-build/src/lib', import.meta.url).pathname;
 const { submitShots } = require(`${BUILD}/generate/submit.js`);
+const { readCostByStage } = require(`${BUILD}/cost/by-stage.js`);
 const { callbackUrl } = require(`${BUILD}/drivers/video-submit.js`);
 const { approveConcept } = require(`${BUILD}/concepts/approve.js`);
 const { readBoard } = require(`${BUILD}/pipeline/board.js`);
@@ -404,6 +405,25 @@ console.log('\n4. A real submit — row first, job id after\n');
     ok('  · and the blocker view said nothing was stopping it', 'agreement, in the clear direction');
   } else {
     bad('  · and the blocker view said nothing was stopping it', JSON.stringify(clear[0]));
+  }
+
+  // ── LOAD-BEARING: the claim about production, not about a fixture ─────────
+  //
+  // verify:costs §5c asserts the same shape — that `05-generate` shows spend — but it seeds
+  // its own stage-carrying rows, so it can only prove the view's arithmetic. This row was
+  // written by the real `submitShots` a few lines above. It is the only place that can say
+  // whether production sets `stage` at all.
+  //
+  // It could not, until this round. The `stage: 'still'` in submit.ts is a field of the
+  // vendor payload; the ledger row set no stage, `v_cost_by_stage` filters on
+  // `stage is not null`, and the most expensive thing this pipeline does was invisible to
+  // the view named for it. A fixture-seeded assertion would have passed throughout.
+  const byStage = await readCostByStage(db);
+  const gen = byStage.ok && byStage.rows.find((r) => r.stage === '05-generate');
+  if (gen && gen.hasRun && Number(gen.openEstimateInr) > 0) {
+    ok('  · and the stage breakdown sees it', `05-generate ₹${Number(gen.openEstimateInr).toFixed(2)} committed`);
+  } else {
+    bad('  · and the stage breakdown sees it', JSON.stringify(gen));
   }
 
   const call = seen[before];

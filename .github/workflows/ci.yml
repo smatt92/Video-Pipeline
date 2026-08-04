@@ -214,6 +214,13 @@ jobs:
       - name: Cost per video, with its denominator
         run: pnpm verify:costs "$DATABASE_URL"
 
+      # ── Stage 6, which had no database harness at all ────────────────────
+      # test:timings exercises the character→word arithmetic and never touches a ledger,
+      # which is why the fourth ON CONFLICT-against-a-partial-index defect sat here
+      # untouched: ElevenLabs would bill for the speech and no cost row would land.
+      - name: Where the voice chain stops, and its ledger write
+        run: pnpm verify:voice "$DATABASE_URL"
+
       # ── The Studio lane, minus the leg that needs a public hostname ──────
       # Creates and drops its own scratch database, so it runs after the checks that read
       # the one above. Section 7 (the billed model call) skips without a key and says so.

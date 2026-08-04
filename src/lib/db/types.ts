@@ -2026,10 +2026,15 @@ export type Database = {
       }
       v_cost_by_stage: {
         Row: {
-          cost_inr: number | null
-          cost_usd: number | null
           entries: number | null
+          first_at: string | null
+          inr_per_script: number | null
+          last_at: string | null
+          open_estimate_inr: number | null
+          scripts: number | null
+          settled_inr: number | null
           stage: string | null
+          unpriced_rows: number | null
         }
         Relationships: []
       }
@@ -2371,16 +2376,35 @@ export type Database = {
       v_script_vo_status: {
         Row: {
           characters_billed: number | null
-          fully_stitched: boolean | null
+          concept_id: string | null
+          cost_inr: number | null
           script_id: string | null
           shots: number | null
           shots_timed: number | null
           takes: number | null
           total_duration_s: number | null
+          unbilled_takes: number | null
+          unmeasured_takes: number | null
+          unstitched_takes: number | null
           vo_chars: number | null
-          vo_text: string | null
+          vo_state: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "scripts_concept_id_fkey"
+            columns: ["concept_id"]
+            isOneToOne: false
+            referencedRelation: "concepts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scripts_concept_id_fkey"
+            columns: ["concept_id"]
+            isOneToOne: false
+            referencedRelation: "v_pipeline_blockers"
+            referencedColumns: ["concept_id"]
+          },
+        ]
       }
       v_stuck_submits: {
         Row: {
