@@ -32,6 +32,7 @@ const BUILD = new URL('../.verify-build/src/lib', import.meta.url).pathname;
 const { probe, isCanonical, normalise } = await import(`${BUILD}/ingest/normalise.js`);
 const { assembleRoughCut } = await import(`${BUILD}/assemble/rough-cut.js`);
 const { runAssemble } = await import(`${BUILD}/assemble/run.js`);
+const { planComposition } = await import(`${BUILD}/assemble/composition.js`);
 
 let failures = 0;
 const ok = (l, d = '') => console.log(`  PASS  ${l}${d ? ` — ${d}` : ''}`);
@@ -502,6 +503,102 @@ if (afterTmp > beforeTmp) {
 s3.close();
 await scratch.release();
 await rm(work, { recursive: true, force: true });
+
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// The final composition's input contract, exercisable without a renderer.
+//
+// @remotion/renderer is not installed and is a dependency decision, so the composition
+// itself is queued in DECISIONS-PENDING. What is buildable now is the part where the bugs
+// live: a caption that outlives the file, a hook under the platform's own chrome, a
+// duration nobody measured. All three produce a file that plays and is wrong, which stage 7
+// has already done three times.
+console.log('\n9. The final composition can be planned before it can be rendered\n');
+{
+  const words = [
+    { w: 'Road', start: 0.0, end: 0.4 },
+    { w: 'salt', start: 0.4, end: 0.9 },
+    { w: 'dissolves', start: 1.0, end: 1.8 },
+    { w: 'bridges', start: 1.9, end: 2.6 },
+  ];
+
+  const good = planComposition({
+    format: 'shorts_9x16', width: 1080, height: 1920, fps: 30,
+    durationS: 3.0, hook: 'Your bridges are dissolving', words,
+  });
+
+  if (good.ok) ok('a measured file plans', `${good.plan.durationInFrames} frames`);
+  else bad('a measured file plans', JSON.stringify(good));
+
+  if (good.ok) {
+    // Rounded up. One frame short of the audio ends on a cut mid-word.
+    if (good.plan.durationInFrames === 90) ok('  · frames round up rather than truncating', '90');
+    else bad('  · frames round up rather than truncating', String(good.plan.durationInFrames));
+
+    if (good.plan.hook.endS === 2) ok('  · the hook is on screen for the first seconds', '0–2s');
+    else bad('  · the hook is on screen for the first seconds', String(good.plan.hook.endS));
+
+    // The safe box is derived from fractions, so it survives a resolution change. A safe
+    // area measured in pixels at 1080x1920 silently stops being safe at 720x1280, which is
+    // the form this mistake usually takes.
+    const half = planComposition({
+      format: 'shorts_9x16', width: 540, height: 960, fps: 30,
+      durationS: 3.0, hook: 'x', words,
+    });
+    const ratioBig = good.plan.safeBox.height / 1920;
+    const ratioSmall = half.ok ? half.plan.safeBox.height / 960 : -1;
+    if (Math.abs(ratioBig - ratioSmall) < 0.002) {
+      ok('  · and the safe box is the same fraction at half the resolution', ratioBig.toFixed(3));
+    } else {
+      bad('  · and the safe box is the same fraction at half the resolution', `${ratioBig} vs ${ratioSmall}`);
+    }
+
+    // ── LOAD-BEARING ─────────────────────────────────────────────────────
+    //
+    // An unverified safe area must say so on every plan it produces. Captions under the
+    // follow button look like a design choice rather than a bug, so the only thing that
+    // makes them findable is the plan admitting the insets were never checked against a
+    // real post. This flips the day somebody measures one and sets verified.
+    if (good.plan.problems.some((p) => /never been checked against a real post/.test(p))) {
+      ok('  · and says the safe area is unverified', 'not a measurement');
+    } else {
+      bad('  · and says the safe area is unverified', JSON.stringify(good.plan.problems));
+    }
+  }
+
+  // A caption outliving the file is drift between the voice and the picture — reported,
+  // never clamped, because clamping hides exactly what the audio-first ordering prevents.
+  const drifted = planComposition({
+    format: 'shorts_9x16', width: 1080, height: 1920, fps: 30,
+    durationS: 1.5, hook: 'x', words,
+  });
+  if (drifted.ok && drifted.plan.problems.some((p) => /end after the file does/.test(p))) {
+    ok('a cue outliving the file is reported', 'not clamped — clamping hides the drift');
+  } else {
+    bad('a cue outliving the file is reported', JSON.stringify(drifted.ok ? drifted.plan.problems : drifted));
+  }
+
+  const unmeasured = planComposition({
+    format: 'shorts_9x16', width: 1080, height: 1920, fps: 30,
+    durationS: 0, hook: 'x', words,
+  });
+  if (!unmeasured.ok && unmeasured.code === 'no_duration') {
+    ok('an unmeasured duration refuses', 'unknown is not zero');
+  } else {
+    bad('an unmeasured duration refuses', JSON.stringify(unmeasured));
+  }
+
+  const silent = planComposition({
+    format: 'shorts_9x16', width: 1080, height: 1920, fps: 30,
+    durationS: 3, hook: 'x', words: [],
+  });
+  if (!silent.ok && silent.code === 'no_timings') {
+    ok('no word timings refuses', 'a final render without captions is a rough cut with extra steps');
+  } else {
+    bad('no word timings refuses', JSON.stringify(silent));
+  }
+}
+
 
 console.log(failures === 0 ? '\nRough cut works.\n' : `\n${failures} check(s) failed.\n`);
 process.exit(failures === 0 ? 0 : 1);

@@ -86,3 +86,54 @@ preceded it: the ledger will then hold two rows about one charge that do not agr
 **Recommendation: A, with the delta surfaced on `/costs`.** C throws away the signal. B is
 correct accounting but the ledger already keys `(generation_id, entry_kind)`, so A gets the
 same visibility for no schema change. Not C under any circumstances.
+
+---
+
+## 4. `@remotion/renderer` — the dependency stage 7's final render needs
+
+**Status:** blocking the second half of item 6. `remotion` and `@remotion/player` are
+installed and named in CLAUDE.md's stack; `@remotion/renderer` — the package that actually
+produces a file server-side — is **not installed**, and CLAUDE.md's rule is to ask before
+adding a dependency it does not name.
+
+What shipped without it: `src/lib/assemble/composition.ts`, the composition's input
+contract — cues, hook window, per-format safe box, frame count — with `verify:assemble` §9
+exercising it against synthetic timings. That is deliberately the half where the bugs live
+(a caption outliving the file, a hook under the platform's chrome, a duration nobody
+measured) and it needs no renderer.
+
+What it cannot do without the dependency: produce an MP4.
+
+**Options**
+
+| | |
+|---|---|
+| A. Add `@remotion/renderer` | The intended path. It is a large install with a headless-Chromium dependency, and it runs in `src/trigger/` only — rule 3 forbids it on Vercel anyway. |
+| B. Burn captions with ffmpeg `drawtext` instead | No new dependency; ffmpeg is already required. Loses everything Remotion is for — the hook typography, transitions, anything that is not a subtitle. |
+| C. Leave the final render unbuilt | Rough cut only. Phase 1 publishes by hand, so a rough cut is arguably shippable. |
+
+**Recommendation: A, when you are awake to approve it.** B is a real fallback and worth
+knowing exists, but it makes the final render a different product from the one the
+composition plan was designed for, and `composition.ts` would then be describing a layout
+nothing implements — a plan with no consumer, which is the pattern this project keeps
+deleting.
+
+**One thing to check before A:** `@remotion/renderer` downloads a Chromium at install. The
+Trigger.dev build extension already declares ffmpeg (`check:trigger-build` enforces that
+every binary `src/` spawns is declared) — it will need the same treatment, and that check
+is what will tell you so.
+
+---
+
+## 5. Safe-area insets have never been checked against a real post
+
+`SAFE_AREAS` in `composition.ts` carries `verified: false` on every entry and every plan it
+produces reports that as a problem. The numbers are conservative guesses at where each
+platform's own chrome sits.
+
+Fifteen seconds each, on a phone, once there is a video to post: play one, note where the
+title, handle and action rail actually land, and set the fractions. Until then the flag says
+the insets are unmeasured, which is the honest state — and captions under the follow button
+look like a design choice rather than a bug, so nothing else would catch it.
+
+No options and no recommendation. It needs eyes on a handset, which is yours.

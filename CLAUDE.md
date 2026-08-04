@@ -259,6 +259,15 @@ the same change**: `>`, `<`, `==` and truthiness all coerce, so they work and hi
 `===`, `Number.isInteger` and arithmetic against a literal do not. Writing the strict
 comparison is how you find out.
 
+**And `Number()` is a decision, not a conversion.** The stringiness is a correctness
+guarantee rather than a transport quirk — Postgres will not silently lose precision on your
+behalf, so wrapping in `Number()` is *accepting* precision loss because the range is known
+safe. A row count, a token count and a rupee figure all are. A `bigint` id, an external
+byte offset, or anything that could exceed 2^53 is not, and for those the string is the
+value: compare and store it as text and never let it near a double. Write it so it reads as
+a decision, because "just wrap it in `Number()`" is the lesson somebody takes away
+otherwise, and it is the wrong one exactly where it matters most.
+
 So: `Number()` at the boundary, in the mapper that turns a row into a domain object, never
 at the point of use. A sweep of `src/` found the convention already held everywhere except
 `concepts/run.ts`, where `velocity` and `volume` reached a typed `number | null` field
