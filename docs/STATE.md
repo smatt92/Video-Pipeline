@@ -169,6 +169,37 @@ in sequence, not in parallel.
 
 ---
 
+## 4a. What was gated, and what was only reported
+
+Run 53 (`7c339f8`) is **green end to end** — 34 steps, every conclusion `success`, nothing
+skipped, 7m38s. First full green since run 43. Read off the step list rather than the badge.
+
+That run is also the honest re-verification: CI executes each command separately and fails
+on a non-zero exit, which is a stricter check than any local loop and is not susceptible to
+the grep mistake in §4b.
+
+**Which claims were actually gated, by commit:**
+
+| Run | Commit | What CI actually did | Ungated |
+|---|---|---|---|
+| 44 | `8055cf2` referral + fork | failed | step unknown |
+| 45–49 | `bbe89c8` … `daff0d6` | **steps 1–33 ran and passed**; hung at 34 | `verify:tour` only |
+| 50 | `9449c80` rate card | **failed at Lint, step 13** | steps 14–34 — every harness, the build, scaling, tour |
+| 51 | `eb25981` recipe performance | **failed at Lint, step 13** | same |
+| 53 | `7c339f8` | all 34 | none |
+
+So the picture is not uniform, and "all in CI" was wrong in two different degrees. For the
+five middle commits it was very nearly true — everything except one assertion had run. For
+the rate card and the recipe-performance work it was badly wrong: CI stopped at lint, so
+twenty-one steps including all fifteen harnesses never executed on those commits at all.
+
+**What that does and does not undermine.** Run 53 contains every one of those changes
+cumulatively, and it is green — so the *code* is now gated. What was not gated was the
+claim at the time I made it, on the commit I made it about. Those are different things, and
+I had been reporting the second as if it were the first.
+
+---
+
 ## 4b. CI has not been green, and I said it was
 
 **Correction, and it invalidates a claim in six commit messages.** Runs 44–51 on this
@@ -244,6 +275,33 @@ This is the third time this project has found a guard that was not guarding, and
 time the guard in question was the one whose entire job is to catch the other two.
 
 ---
+
+---
+
+## 4c. The highest-severity thing in this branch
+
+Not the fifth instance of a rule — **the worst one**, and it deserves saying separately.
+
+`probe()` in `src/lib/ingest/normalise.ts` returned `width ?? 0, height ?? 0,
+durationS ?? 0`. A file ffprobe opened but could not fully describe became **0×0×0s**.
+
+Two consequences, and the second is the one that matters:
+
+- `isCanonical` compared 0 against 1080, said no, and the pipeline **re-encoded a file whose
+  properties were unknown** — taking the repair path for an asset nobody had measured,
+  rather than reporting that it could not be read.
+- The duration went to the assembler **as a measurement**. This is the one path in the
+  project where a wrong duration has already produced three separate bugs that made a file
+  which plays and is wrong, and `verify:assemble` exists precisely because duration was the
+  only signal that caught all three.
+
+So an unreadable input silently acquired a plausible-looking number in the exact place the
+codebase already knows plausible-looking numbers are most dangerous. It is now a throw
+naming what could not be read, which `runIngest` turns into an error row.
+
+Ranked against the other four instances — unpriced vs ₹0, never-run vs failed, deferred vs
+done, unmeasured vs measured-at-zero — those are misleading displays. This one silently
+changes what the pipeline *does* with a paid-for asset.
 
 ---
 
