@@ -109,6 +109,43 @@ export async function runMetadata(
     return { ok: false, code: 'no_render', detail: `no render ${payload.renderId}`, costInr: null };
   }
 
+  // ── The render has to be a video before anything describes one ─────────────
+  //
+  // `status` was already selected here and never looked at, and `duration_s` reached the
+  // prompt as `Number(render.duration_s ?? 0)`. Together those made the worst version of
+  // the absent-versus-zero mistake this project keeps finding, in the duration path where
+  // three bugs have already produced a file that plays and is wrong:
+  //
+  //   · A queued or failed render has no file. This stage would still pay for a call and
+  //     write a draft publication describing it.
+  //   · A ready render with no recorded duration would be described to the model as
+  //     `runtime: 0s`, and the model would write a title, a description and tags for a
+  //     zero-second video — confidently, because 0 is a number and nothing in the prompt
+  //     says it might be a missing measurement.
+  //
+  // Both are refusals rather than defaults, and both sit here, above the pricing probe, so
+  // no money moves on a render nobody can describe. Failure states are rows: these codes
+  // come back to the Trigger task, which records them.
+  if (render.status !== 'ready') {
+    return {
+      ok: false,
+      code: 'render_not_ready',
+      detail: `render ${render.id} is ${render.status}; metadata describes a finished video`,
+      costInr: null,
+    };
+  }
+
+  if (render.duration_s === null) {
+    return {
+      ok: false,
+      code: 'no_duration',
+      detail:
+        `render ${render.id} is ready but has no recorded duration. That is unknown, not ` +
+        `zero — describing it as a 0s video is how a wrong runtime reaches a publication.`,
+      costInr: null,
+    };
+  }
+
   const { data: script } = await db
     .from('scripts')
     .select('id, hook, vo_text, concept_id')
@@ -232,7 +269,7 @@ export async function runMetadata(
             hook: script.hook,
             voText: script.vo_text,
             recentTitles,
-            durationSeconds: Number(render.duration_s ?? 0),
+            durationSeconds: Number(render.duration_s),
           }),
         },
       ],

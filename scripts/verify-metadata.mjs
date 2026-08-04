@@ -103,7 +103,7 @@ for (const unit of ['input_token', 'output_token']) {
 }
 
 let n = 0;
-async function seedRender({ withPass = true } = {}) {
+async function seedRender({ withPass = true, durationS = 42, status = 'ready' } = {}) {
   n++;
   const conceptId = randomUUID();
   const scriptId = randomUUID();
@@ -122,8 +122,8 @@ async function seedRender({ withPass = true } = {}) {
   await client.query(
     `insert into renders (id, script_id, variant_group_id, variant_label, format, width, height,
                           duration_s, status, kind, origin)
-     values ($1, $2, $3, 'a', 'shorts_9x16', 1080, 1920, 42, 'ready', 'final', 'pipeline')`,
-    [renderId, scriptId, randomUUID()],
+     values ($1, $2, $3, 'a', 'shorts_9x16', 1080, 1920, $4, $5, 'final', 'pipeline')`,
+    [renderId, scriptId, randomUUID(), durationS, status],
   );
 
   let reviewId = null;
@@ -191,6 +191,38 @@ console.log('\n2. No metadata without a passing review\n');
   else bad('the run refuses', JSON.stringify(out).slice(0, 160));
 
   if (calls === before) ok('  · before the model is called', 'no charge for an unpublishable row');
+  else bad('  · before the model is called', `${calls - before} call(s)`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// The render has to be a video before anything describes one. `status` was selected here
+// and never read, and `duration_s` reached the prompt through `?? 0` — so an unmeasured
+// render was described to the model as `runtime: 0s` and it wrote a title for a
+// zero-second video, confidently, because 0 is a number. Absent and zero, in the duration
+// path, before a paid call.
+console.log('\n2b. The render has to be a finished, measured video\n');
+{
+  const { renderId } = await seedRender({ status: 'rendering' });
+  const before = calls;
+  nextMeta = meta('A render that has not finished');
+
+  const out = await runMetadata({ renderId }, { ...DEPS, runId: `run-${randomUUID()}` });
+  if (!out.ok && out.code === 'render_not_ready') ok('an unfinished render is refused', out.code);
+  else bad('an unfinished render is refused', JSON.stringify(out).slice(0, 160));
+  if (calls === before) ok('  · before the model is called', 'nothing to describe, nothing to pay for');
+  else bad('  · before the model is called', `${calls - before} call(s)`);
+}
+{
+  const { renderId } = await seedRender({ durationS: null });
+  const before = calls;
+  nextMeta = meta('A render nobody measured');
+
+  const out = await runMetadata({ renderId }, { ...DEPS, runId: `run-${randomUUID()}` });
+  if (!out.ok && out.code === 'no_duration') {
+    ok('a ready render with no duration is refused', 'unknown is not 0s');
+  } else bad('a ready render with no duration is refused', JSON.stringify(out).slice(0, 160));
+  if (calls === before) ok('  · before the model is called');
   else bad('  · before the model is called', `${calls - before} call(s)`);
 }
 
