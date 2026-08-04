@@ -322,6 +322,7 @@ Two of the last three picks were this shape underneath:
 | `board` | Row counts only, no blocker | A permanently stuck concept read as `shot_listed` for ever |
 | `settings/voice` | `VOICE_SETTINGS.hostVoice`, a constant | The column existed and nothing could write it; the whole chain stayed inert |
 | `settings/rate-card` | `RATE_CARD`, a constant | Every paid stage refuses and the screen that fixes it could not |
+| `settings/guardrails` | `GUARDRAILS`, a fixture | Displayed 12 shots against a constraint enforcing 8 — see §9a. The last of them. |
 
 ### How to run this sweep
 
@@ -562,12 +563,124 @@ Six assertions in `verify:submit` §11.
 
 ---
 
+## 9. This round — guardrails, cost per video, and stage 9's zero-second video
+
+### 9a. The last fixture screen was not merely unwired. It was wrong.
+
+`settings/guardrails` was the final screen reading `src/lib/fixtures/settings.ts`, and the
+sweep that found it characterised it as *a display that is wrong rather than a control that
+is absent*. That turned out to be exact, and worse than expected:
+
+| Row | Displayed | Actually |
+|---|---|---|
+| Max shots per video | 12, "shotlist compile" | `ShotlistSchema` rejects anything over **8** |
+| Spend cap — per day | ₹2,000, "submit path, summed from cost_ledger" | Nothing sums `cost_ledger` over any window |
+| Spend cap — per month | ₹25,000, same | Same |
+| Circuit breaker | 5 failures / 60,000ms, `driver_health` | `driver_health` has no reader and no writer; 0013's own comment says so |
+| Max shot duration | 5s, "shot split" | No cap exists anywhere |
+| Concurrency (×2) | `unknown` | Both **are** enforced, per run, from `integrations.concurrency_limit` |
+| Spend cap — per Studio session | ₹500 | **True and live** — `startSessionAction` reads this row |
+
+Eight rows rendered identically and one was real. A wrong guardrail display is worse than an
+absent control: an absent control is visibly absent, and a wrong number is believed — and
+the whole reason this screen exists is so "is this on?" does not need a grep.
+
+`src/lib/settings/guardrails.ts` replaces it, and the two ways of lying are now structural
+rather than corrected. A `kind: 'code'` row takes its value from the enforcing module's
+exported constant (`MAX_SHOTS_PER_SHOTLIST`), so the displayed and enforced numbers are one
+binding. A `kind: 'none'` row **has no `value` field on its branch** — the type will not
+carry one — so "not enforced" cannot render as a figure or as zero. `kind: 'runtime'` is the
+third state, because two were not enough: enforced-but-read-per-run is not the same fact as
+not-enforced.
+
+`check:guardrails` is what reads it. It rejects a numeric literal on a `code` row, and
+asserts every `none` probe still finds nothing under `src/` — **an assertion of absence,
+which fails at the moment somebody wires `driver_health` and leaves the row claiming nobody
+did.** Both were negative-tested by breaking them deliberately.
+
+The max-shot-duration cap stays absent on purpose, not pending: durations come from real
+word timings in stage 6, and a ceiling applied after that truncates video against audio that
+still runs.
+
+### 9b. Cost per video, the headline metric, had no reader
+
+Rule 5 calls cost-per-video the project's headline metric and it has been unanswerable for
+the whole build. Not because `cost_ledger` is wrong — it is exact — but because turning it
+into a per-video number takes four joins and a decision about three different ways of being
+uncertain, which is the condition under which people stop asking and start assuming.
+
+Migration 0026 adds `v_cost_attributed`, `v_video_cost` and `v_cost_unattributed`, and the
+view refuses three things that each produce a plausible number: adding an estimate to a
+reconcile (double-counts every completed generation), treating an unpriced row as free (an
+unknown cost is not a smaller one — `settled_inr` goes null), and dropping spend that
+belongs to no video (`v_cost_unattributed` is the complement, exhaustive with it).
+
+`/costs` was designed against its own inverse test *before* it was written. A costs page's
+obvious shape is a big number at the top, and that number looks identical after one video
+and after a hundred — the board's row-count defect wearing different clothes. So the rows
+are the artifact, the average is derived, the denominator is printed beside it, and every
+excluded video is listed with its reason.
+
+**What it renders today, and why the empty state says so:** four ledger rows, ₹6.07, from
+drafting and shotlist compilation on one script. Zero renders, zero generations, zero
+publications. Cost per video is therefore **undefined, not ₹0** — rendering ₹0.00 would be
+the absent-versus-zero violation on the one number rule 5 names. Three outcomes, never two:
+rows, empty, or broken, and the broken case names migration 0026 rather than blaming data.
+
+`verify:costs` drives `readVideoCosts` — the production reader — over eight scenarios. The
+load-bearing one is **exhaustiveness**: every `cost_ledger` row lands in exactly one of the
+two views. A headline metric does not usually go wrong by being computed incorrectly; it
+goes wrong by being computed over a set somebody quietly narrowed. That now fails a harness.
+It caught one defect while being written: `ledger_rows` summed the settled and open counts,
+which under-counts by one row per superseded estimate.
+
+### 9c. Stage 9 would have written a title for a zero-second video
+
+The sweep this round was CLAUDE.md's own instruction — *grep for `?? 0` on a value that
+means a measurement*. Twenty hits, nineteen of them counts where absent genuinely is zero.
+The twentieth:
+
+```ts
+durationSeconds: Number(render.duration_s ?? 0),   // → "runtime: 0s" in the prompt
+```
+
+`renders.duration_s` is nullable. An unmeasured render was described to the model as a
+zero-second video, and the model wrote a title, description and tags for it — confidently,
+because 0 is a number and nothing in the prompt says it might be a missing measurement. That
+text becomes a draft publication.
+
+Second defect in the same three lines: `status` was selected and never looked at, so a
+queued, rendering or failed render — one with no file at all — would still get a paid call
+and a draft describing it.
+
+Both are refusals now (`render_not_ready`, `no_duration`), placed **above the pricing
+probe** so no money moves. `verify:metadata` §2b asserts each is refused *and* that zero
+model calls were made; the second assertion is the one that matters.
+
+This is the same rule in the same duration path as the `probe()` fix in §4c. Three duration
+bugs have already shipped here that made a file which plays and is wrong. It was invisible
+to every green check because `0` typechecks.
+
+### 9d. Still with no reader
+
+The views sweep, run as `create view` names against `src/` and `scripts/`:
+
+`v_cost_by_stage`, `v_cost_per_1k_views`, `v_entry_state`, `v_script_vo_status`,
+`v_shot_readiness`, `v_referral_attribution` (read only by its harness), `v_concept_cost`.
+`v_cost_attributed` is read by `v_video_cost` — a SQL-level reader, which counts.
+
+Each is the pattern CLAUDE.md names: a mechanism built to make something visible, with
+nothing that reads it. `v_shot_readiness` and `v_script_vo_status` are the interesting two,
+because they are about exactly the inert 03 → 04 → 05 chain §7 describes.
+
+---
+
 ## How to refresh this document
 
 ```bash
 pnpm check                                  # everything that needs no database
 export DATABASE_URL=...                     # any Postgres you may create databases on
-for h in ingest assemble review studio referral webhook submit concepts metadata trends; do pnpm verify:$h "$DATABASE_URL"; done
+for h in ingest assemble review studio referral webhook submit concepts metadata trends costs; do pnpm verify:$h "$DATABASE_URL"; done
 pnpm build && pnpm verify:scaling && pnpm verify:tour
 ```
 
