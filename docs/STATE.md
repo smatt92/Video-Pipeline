@@ -1,7 +1,20 @@
 # What exists, and what it has actually done
 
-**Written:** 2026-08-03 · **Method:** surveyed from the repository and the databases, not
-transcribed from `0008`. Every count below is from a run performed while writing this.
+**Written:** 2026-08-03 · **Accuracy pass:** 2026-08-04 · **Method:** surveyed from the
+repository and the databases, not transcribed from `0008`. Every count in the original was
+from a run performed while writing it.
+
+The 2026-08-04 pass re-derived everything that could be read from the repository — the
+Trigger task list, which harnesses CI runs, which stages have a task — and corrected §3.3,
+which had drifted far enough to contradict §3.1 on the same page. It deliberately did **not**
+refresh the assertion counts: `.env.local` is gone from the working container and the
+database-backed harnesses cannot run there, so those numbers keep their original date
+rather than acquiring a new one they did not earn. §2 states that in full.
+
+**The general rule this document now follows:** a number here carries the date it was
+measured, and a number that could not be re-measured keeps its old date rather than being
+adjusted toward what it probably is. An inventory whose figures drift toward plausibility
+is worse than one that is openly out of date, because only the second kind can be caught.
 
 `HANDOVER.md` is what you do next. `0008` is the running register of what is unproven and
 why. **This is the standing inventory**: everything that exists, sorted by the strength of
@@ -16,7 +29,8 @@ One vendor has ever been called from this codebase: **Anthropic**, twice, on 202
 producing a script and a shotlist and four `cost_ledger` rows totalling **₹6.07**. Nothing
 else has spoken to a vendor. Everything else that works, works against synthetic inputs in
 a harness — which is a real and useful category, covering 319 assertions across fifteen
-harnesses, all green as of today. Stage 5 is wired and proven up to the vendor, and the three
+harnesses when last counted on 2026-08-03; nineteen now run in CI, and §2 says why the
+count was not retaken. Stage 5 is wired and proven up to the vendor, and the three
 unbuilt stages are built. The pipeline now chains from an approved concept to a submitted
 generation — see §8 for the one missing column that had been making that chain inert.
 
@@ -68,10 +82,24 @@ difference is always the vendor.
 | `verify:webhook` | **25** | The callback over real HTTP: secret gate, payload gate, delivery RPC, replay, the vendor overruling the body | A local server stands in for the status endpoint |
 | `verify:ingest` | **5** | 3 source shapes → the canonical intermediate; a corrupt file → an error row | Sources are ffmpeg-generated |
 
-**Total: 319 assertions. Every harness exits 0 locally as of this revision — verified by
-exit code rather than by grepping output, see §4b — and all fifteen are wired into CI.** Four further
+**Total on 2026-08-03: 319 assertions across fifteen harnesses, every one exiting 0
+locally — verified by exit code rather than by grepping output, see §4b.** Four further
 guards are exempt with reasons: `verify:vault` and `verify:storage` need a live Supabase
 project, and the two `verify:script*` variants spend money on a billed model call.
+
+**Not re-measured on 2026-08-04, and the reason is worth stating.** CI now runs **nineteen**
+harnesses — `verify:costs`, `verify:limits`, `verify:pilot` and `verify:voice` joined after
+the count above was taken — so the table is four rows short and the total is an
+undercount of unknown size. It is left at yesterday's figure with yesterday's date rather
+than adjusted by guess, because a count is a measurement and this project's rule is not to
+write one it did not take.
+
+Why it could not be taken: `.env.local` is gone from the working container and there is no
+Docker, no local Postgres and no credentials, so the database-backed harnesses cannot run
+here. `pnpm check` (all fourteen static guards) and `pnpm build` do run and pass; CI has
+every harness and is green on this branch's last completed run. The honest statement is
+therefore "green in CI, unrunnable locally", and the number stays stale-but-dated instead of
+becoming fresh-but-invented.
 
 ### What the synthetic category has actually caught
 
@@ -100,7 +128,12 @@ Ordered by how much rests on it. Everything here typechecks, builds, and has nev
 ### 3.1 Stage 5 — submit. **Now wired, and it cost three defects to find out.**
 
 Resolved. `05-generate.ts` exists, the Studio's `generate_shot` calls through it, and
-`pnpm verify:submit` covers 26 assertions in CI. See §7 for what wiring it revealed —
+`pnpm verify:submit` covers it in CI — 26 assertions when this paragraph was written, 42 by
+the §2 table's count a day later, and more since; the harness is one of the fastest-growing
+in the repo and a figure written inline goes stale within days. **Two numbers for one
+quantity in one document is the same defect as two modules for one concept**, so the count
+lives in the §2 table alone and this sentence points at it. See §7 for what wiring it
+revealed —
 including that `submitShots` did not call a vendor at all.
 
 ### 3.2 The webhook transport — **closed, except the vendor's reply**
@@ -115,25 +148,39 @@ driver's Zod schema accepts. That is Gate 4 and nothing local can settle it.
 
 ### 3.3 Stages with no Trigger task at all
 
-`src/trigger/` contains five tasks: `03-script`, `04-prompt-compile`, `05b-ingest`,
-`06-voice`, `07-assemble`. The pipeline has eleven stages.
+**Corrected 2026-08-04.** This section said `src/trigger/` contained five tasks and marked
+stages 1, 2, 5 and 9 as "nothing written". All four exist. Worse, §3.1 two screens above
+already said stage 5 was resolved — so the document disagreed with itself, and the table
+is the half a person scans.
+
+That is the failure this document exists to prevent, committed by this document. A
+standing inventory is trusted *because* it is meant to be surveyed rather than remembered,
+and a stale row in it is more dangerous than no row: it reads as a measurement. The counts
+below are re-derived from `ls src/trigger/` at the date above, not carried forward.
+
+`src/trigger/` contains **nine** tasks. The pipeline has eleven stages.
 
 | Stage | Task? | Note |
 |---|---|---|
-| 1 Trend intake | **no** | Nothing written |
-| 2 Concept generation | **no** | Nothing written |
-| 3 Script + shotlist | yes | Has run against Anthropic |
-| 4 Prompt compile | yes | Never invoked — nothing calls it |
-| 5 Generate | **no** | See 3.1 |
-| 5b Ingest | yes | Harness-proven; the webhook that enqueues it is now harness-proven too |
-| 6 Voice | yes | Never called ElevenLabs |
-| 7 Assemble | yes | Harness-proven end to end |
+| 1 Trend intake | yes | `01-trends`. Harness-proven (`verify:trends`); no real feed called |
+| 2 Concept generation | yes | `02-concept`. Harness-proven; a local server stands in for the Messages API |
+| 3 Script + shotlist | yes | `03-script`. Has run against Anthropic — the one real-vendor run |
+| 4 Prompt compile | yes | `04-prompt-compile`. Reached from stage 3; `verify:submit` covers the chain |
+| 5 Generate | yes | `05-generate`. Wired and harness-proven up to the vendor. See §3.1 |
+| 5b Ingest | yes | `05b-ingest`. Harness-proven; the webhook that enqueues it is too |
+| 6 Voice | yes | `06-voice`. Harness-proven; the audio vendor has never been called |
+| 7 Assemble | yes | `07-assemble`. Rough cut harness-proven end to end. The final render's *plan* exists (`src/lib/assemble/composition.ts`); the renderer is not installed — DECISIONS-PENDING 4 |
 | 8 QA gate | n/a | A screen, not a task; harness-proven |
-| 9 Metadata | **no** | Nothing written |
-| 10 Publish | **no** | Manual in Phase 1, by decision |
-| 11 Measure | **no** | Nothing written |
+| 9 Metadata | yes | `09-metadata`. Harness-proven, including the publish gate in both directions |
+| 10 Publish | **no** | Manual in Phase 1, by decision. Not a gap |
+| 11 Measure | **no** | Phase 4. Not a gap |
 
-`04-prompt-compile` is the quiet one: it exists, and no code path triggers it.
+So the true statement is no longer "stages with no Trigger task" but **"stages that have
+never spoken to their vendor"**, which is every row above except stage 3. The section keeps
+its number because `0008` and `HANDOVER.md` both cite it.
+
+`04-prompt-compile` was "the quiet one: it exists, and no code path triggers it". That is
+also no longer true — stage 3 reaches it, and `verify:submit` drives the chain through it.
 
 ### 3.4 The rest
 
