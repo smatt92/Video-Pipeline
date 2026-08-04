@@ -177,6 +177,23 @@ branch: `failure, cancelled, cancelled, cancelled, cancelled, failure, failure`.
 
 Two separate faults, and neither is a CI configuration problem.
 
+**Corrected once more, and the correction is the point.** I first blamed unbounded awaits
+in `verify-tour` — the websocket open, the CDP round trips, rAF in a headless browser — and
+said the harness passed locally with exit 0. It did not. `timeout 280 pnpm verify:tour`
+exits **124**: it prints all 22 PASS lines, prints its closing summary, and then never
+exits. `stop()` was registered on `process.on('exit')`, which never fires while a handle is
+open, and the spawned `next start` child is one. The failure path called `process.exit(1)`
+and worked, so **the defect only ever appeared when everything was fine** — which is run 49
+exactly: 33 green steps and a 34th that started and never completed.
+
+I read the log and called it green, one turn after writing the rule that says not to. The
+bounded awaits stay — a browser that stops answering must not wait for ever either — but
+they were not the cause. Fixed with an explicit `stop()` and `process.exit(0)`.
+
+Sweeping the other harnesses for the same shape flags seven that spawn a server and never
+exit explicitly; all seven measured exit 0, because they close their handles. The
+pattern-match is not the signal. The exit code is.
+
 **Runs 46–49 hung for exactly six hours** and were killed by GitHub's default job timeout.
 Every step passed; `verify:tour` started and never returned. Three awaits in it could not
 finish — the devtools websocket `open` event, each CDP round trip, and the in-page probe,

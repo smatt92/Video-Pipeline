@@ -675,6 +675,25 @@ console.log('\n5. A lost context takes the backdrop away and nothing else\n');
   }
 }
 
+// ── Exit, explicitly, on both paths ─────────────────────────────────────────
+//
+// **This is the CI hang, and it was not the awaits.**
+//
+// `stop()` is registered on `process.on('exit')`, and that event never fires while a handle
+// is open. The spawned `next start` child is one, so on the *success* path this file printed
+// every PASS line, printed the closing summary, and then sat there until something killed
+// it. The failure path called `process.exit(1)` and worked, which is why the defect only
+// ever appeared when everything was fine — run 49 in CI is exactly that: 33 green steps and
+// a 34th that started and never completed.
+//
+// Diagnosed the wrong way round first. The bounded awaits added earlier are correct and
+// stay — a browser that stops answering must not wait for ever either — but they were not
+// the cause, and believing they were cost a round. The tell was available the whole time:
+// `timeout 280 pnpm verify:tour` exits 124, while the log it produced was entirely green.
+// One more instance of the rule this same commit added to CLAUDE.md: **the exit code is the
+// result; the output is a description of it.**
+stop();
+
 if (failures > 0) {
   console.error(`\n${failures} failure(s).\n`);
   process.exit(1);
@@ -685,3 +704,8 @@ console.log(
     'cannot be read.\n' +
     'What no harness can tell you: whether it looks any good. Open /onboarding.\n',
 );
+
+// Not `return`, and not falling off the end. Chromium is spawned per run() and the server
+// child outlives this scope; an explicit zero is the only way this process is guaranteed to
+// end rather than to linger on whatever handle is still open.
+process.exit(0);
