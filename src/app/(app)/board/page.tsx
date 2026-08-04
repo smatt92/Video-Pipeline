@@ -3,11 +3,13 @@ import { Suspense } from 'react';
 
 import { IntegrityAlert } from '@/components/pipeline/integrity-alert';
 import { LimitsStrip } from '@/components/pipeline/limits-strip';
+import { PathStrip } from '@/components/pipeline/path-strip';
 import { Hint } from '@/components/shell/hint';
 import { StateGlyph } from '@/components/shell/state-glyph';
 import type { VideoState } from '@/lib/fixtures/pipeline';
 import { deferralState, inertBecause } from '@/lib/onboarding/deferred';
 import { readLimits } from '@/lib/pipeline/limits';
+import { readPath } from '@/lib/pipeline/path';
 import { readBoard, type BoardRow, type ConceptState } from '@/lib/pipeline/board';
 
 /**
@@ -143,10 +145,11 @@ function Row({ row }: { row: BoardRow }) {
 }
 
 async function Board() {
-  const [result, deferrals, limits] = await Promise.all([
+  const [result, deferrals, limits, path] = await Promise.all([
     readBoard(),
     deferralState(),
     readLimits(),
+    readPath(),
   ]);
 
   if (!result.ok) {
@@ -315,6 +318,25 @@ async function Board() {
               {limits.error}
             </div>
           </div>
+        </div>
+      )}
+
+      {/*
+        Where each concept is on the path.
+        The board above answers "is everything okay?" across concepts; this answers "where
+        am I?" for one, which nothing has ever told a first-time user. Capped at four:
+        beyond that it stops being an orientation device and becomes a second board.
+      */}
+      {path.ok && path.positions.length > 0 && (
+        <div className={`${MAX_W} space-y-2 px-5 py-4`}>
+          {path.positions.slice(0, 4).map((p) => (
+            <PathStrip key={p.conceptId} position={p} />
+          ))}
+          {path.positions.length > 4 && (
+            <p className="text-2xs" style={{ color: 'var(--text-faint)' }}>
+              {path.positions.length - 4} more below, in the list.
+            </p>
+          )}
         </div>
       )}
 

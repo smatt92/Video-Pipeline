@@ -262,6 +262,29 @@ console.log('\n4. Rejecting costs one clip, not six\n');
   }
 }
 
+// ── 5. The path has a reader ────────────────────────────────────────────────────
+//
+// A path nobody renders is a view with no reader wearing different clothes. This asserts
+// the position is derivable for a real script, and that the stage list the component
+// iterates is the one `readPath` returns — the two drifting apart is how the strip would
+// silently start drawing a stale order.
+console.log('\n5. The path is readable end to end\n');
+{
+  const p = await readPath(db);
+  if (!p.ok) { bad('readPath succeeds', `${p.error}`); }
+  else {
+    ok('readPath returns positions', `${p.positions.length} concept(s)`);
+    const one = p.positions[0];
+    eq('  · every position carries one entry per stage', one.stages.length, PATH.length);
+    eq('  · in the same order as PATH', one.stages.map((s) => s.key).join(','), PATH.map((s) => s.key).join(','));
+
+    // Exactly one stage is current-ish; the rest are done or ahead. A position with two
+    // "current" stages would render as two places at once.
+    const live = one.stages.filter((s) => ['current', 'blocked', 'waiting_on_you'].includes(s.state));
+    eq('  · and exactly one stage is where you are', live.length, 1);
+  }
+}
+
 await scratch.release();
 
 console.log('');
