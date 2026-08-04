@@ -1470,6 +1470,11 @@ export type Database = {
           human_edit_count: number
           human_edit_diff: string | null
           id: string
+          pilot_approved_at: string | null
+          pilot_approved_by: string | null
+          pilot_generation_id: string | null
+          pilot_reject_reason: string | null
+          pilot_rejected_at: string | null
           structure_hash: string
           version: number
           vo_text: string
@@ -1485,6 +1490,11 @@ export type Database = {
           human_edit_count?: number
           human_edit_diff?: string | null
           id?: string
+          pilot_approved_at?: string | null
+          pilot_approved_by?: string | null
+          pilot_generation_id?: string | null
+          pilot_reject_reason?: string | null
+          pilot_rejected_at?: string | null
           structure_hash: string
           version?: number
           vo_text: string
@@ -1500,6 +1510,11 @@ export type Database = {
           human_edit_count?: number
           human_edit_diff?: string | null
           id?: string
+          pilot_approved_at?: string | null
+          pilot_approved_by?: string | null
+          pilot_generation_id?: string | null
+          pilot_reject_reason?: string | null
+          pilot_rejected_at?: string | null
           structure_hash?: string
           version?: number
           vo_text?: string
@@ -1518,6 +1533,34 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_pipeline_blockers"
             referencedColumns: ["concept_id"]
+          },
+          {
+            foreignKeyName: "scripts_pilot_generation_id_fkey"
+            columns: ["pilot_generation_id"]
+            isOneToOne: false
+            referencedRelation: "generations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scripts_pilot_generation_id_fkey"
+            columns: ["pilot_generation_id"]
+            isOneToOne: false
+            referencedRelation: "v_replayed_callbacks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scripts_pilot_generation_id_fkey"
+            columns: ["pilot_generation_id"]
+            isOneToOne: false
+            referencedRelation: "v_stuck_submits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scripts_pilot_generation_id_fkey"
+            columns: ["pilot_generation_id"]
+            isOneToOne: false
+            referencedRelation: "v_unconfirmed_terminal_generations"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2236,6 +2279,7 @@ export type Database = {
       }
       v_pipeline_blockers: {
         Row: {
+          awaiting_pilot_approval: boolean | null
           blocker: string | null
           blocker_is_workspace_wide: boolean | null
           channel_id: string | null
@@ -2748,6 +2792,14 @@ export type Database = {
       }
     }
     Functions: {
+      approve_pilot_once: {
+        Args: {
+          p_approved_by?: string
+          p_generation_id: string
+          p_script_id: string
+        }
+        Returns: boolean
+      }
       assert_vault_available: { Args: never; Returns: undefined }
       confirm_generation_once: {
         Args: {

@@ -238,6 +238,14 @@ jobs:
       - name: Vendor limits and the credit clock
         run: pnpm verify:limits "$DATABASE_URL"
 
+      # ── The pilot shot, and the path ─────────────────────────────────────
+      # Stage 5 used to commit six clips in one call. The pilot sends one, and approving is
+      # a compare-and-set because approving spends. Also asserts the path draws voice before
+      # videos — sorting it by stage number would teach the mistake the audio-first
+      # inversion exists to prevent.
+      - name: One shot before six, and voice before videos
+        run: pnpm verify:pilot "$DATABASE_URL"
+
       # ── The Studio lane, minus the leg that needs a public hostname ──────
       # Creates and drops its own scratch database, so it runs after the checks that read
       # the one above. Section 7 (the billed model call) skips without a key and says so.

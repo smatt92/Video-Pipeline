@@ -56,6 +56,8 @@
     "src/lib/pipeline/board.ts",
     "src/lib/pipeline/limits.ts",
     "src/lib/pipeline/observability.ts",
+    "src/lib/pipeline/path.ts",
+    "src/lib/generate/pilot.ts",
     "src/lib/cost/rate-card.ts",
     "src/lib/prompts/library.ts",
     "src/lib/metadata/run.ts",

@@ -54,7 +54,13 @@ export interface SubmitDeps {
 }
 
 export type SubmitOutcome =
-  | { ok: true; submitted: number; skipped: { shotId: string; reason: string }[] }
+  | {
+      ok: true;
+      submitted: number;
+      skipped: { shotId: string; reason: string }[];
+      /** Set when this run submitted a pilot and stopped. The rest wait on a human. */
+      pilot?: { generationId: string; shotId: string; heldBack: number; estimatedInr: number | null };
+    }
   | { ok: false; code: string; detail: string };
 
 const noop = { info: () => {}, error: () => {} };
@@ -154,13 +160,54 @@ export async function submitShots(
     return { ok: true, submitted: 0, skipped };
   }
 
+  // ── The pilot gate ────────────────────────────────────────────────────────
+  //
+  // The first submit for a script sends ONE shot and stops. Six clips at ₹50–200 each used
+  // to be committed in a single call, so the first thing anybody learned about a recipe was
+  // learned six charges in — and on a recipe's first outing the look is usually wrong.
+  //
+  // Mode is derived here, never passed in. A caller that could ask for `fanout` could ask
+  // for it before the pilot was approved, and then the control is a convention rather than
+  // a gate. `pilot_approved_at` is read from the row: the database decided it, via
+  // `approve_pilot_once`, and nothing takes the caller's word for it.
+  const { data: script } = await db
+    .from('scripts')
+    .select('pilot_generation_id, pilot_approved_at, pilot_rejected_at')
+    .eq('id', scriptId)
+    .maybeSingle();
+
+  if (script?.pilot_rejected_at) {
+    return {
+      ok: false,
+      code: 'pilot_rejected',
+      detail:
+        'The pilot shot for this script was rejected. Change the recipe and submit a new '
+        + 'pilot — fanning out on a look somebody has already turned down is exactly the '
+        + 'spend this control exists to prevent.',
+    };
+  }
+
+  if (script?.pilot_generation_id && !script.pilot_approved_at) {
+    return {
+      ok: false,
+      code: 'awaiting_pilot_approval',
+      detail:
+        `A pilot shot is already generated and waiting on a decision. ${ready.length - 1} `
+        + 'more shots are held back until it is approved.',
+    };
+  }
+
+  const isPilotRun = !script?.pilot_approved_at;
+  const toSubmit = isPilotRun ? ready.slice(0, 1) : ready;
+  const heldBack = ready.length - toSubmit.length;
+
   // Priced before anything is submitted, not per shot. Discovering on shot four that the
   // rate is unverified would leave three billed calls unaccounted.
-  const model = readModel(ready[0].compiled_params);
+  const model = readModel(toSubmit[0].compiled_params);
   const rate = await requirePricing(db, video.slug, model, '/v1/text2image/soul');
 
   let submitted = 0;
-  const queue = [...ready];
+  const queue = [...toSubmit];
 
   // A fixed pool rather than Promise.all: the ceiling is the account's, and firing every
   // shot at once is how an undocumented limit gets found by a fan-out rather than by a
@@ -366,6 +413,38 @@ export async function submitShots(
   await Promise.all(workers);
 
   log.info('submitted', { submitted, skipped: skipped.length, concurrency: deps.concurrency });
+
+  // Recorded AFTER the submit, not before. A failed submit must not leave a script waiting
+  // on a pilot that does not exist — the blocker view would say "waiting on pilot approval"
+  // for ever with nothing to look at, which is the state this control invents becoming the
+  // silence the control was added to prevent.
+  if (isPilotRun && submitted === 1) {
+    const { data: pilotGen } = await db
+      .from('generations')
+      .select('id, shot_id')
+      .eq('shot_id', toSubmit[0].id)
+      .order('attempt', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (pilotGen) {
+      await db.from('scripts').update({ pilot_generation_id: pilotGen.id }).eq('id', scriptId);
+      return {
+        ok: true,
+        submitted,
+        skipped,
+        pilot: {
+          generationId: pilotGen.id,
+          shotId: pilotGen.shot_id ?? toSubmit[0].id,
+          heldBack,
+          // What approving commits to, computed while it can still be declined. The whole
+          // control is that this number is visible before the decision, not after it.
+          estimatedInr: heldBack === 0 ? 0 : rate.unitCostUsd * usdInrRate * heldBack,
+        },
+      };
+    }
+  }
+
   return { ok: true, submitted, skipped };
 }
 

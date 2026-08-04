@@ -456,10 +456,17 @@ console.log('\n4. A real submit — row first, job id after\n');
     `select blocker from v_pipeline_blockers where script_id = $1`,
     [scriptId],
   );
-  if (clear[0] && clear[0].blocker === null) {
-    ok('  · and the blocker view said nothing was stopping it', 'agreement, in the clear direction');
+  // The agreement, in the clear direction — restated for the pilot.
+  //
+  // Before 0033 this asserted `blocker === null` after a successful submit. It is now the
+  // pilot blocker, and that is the control working rather than a regression: the submit
+  // itself created the state the view is reporting. The claim being made is unchanged —
+  // nothing was stopping the submit — so the assertion is that the ONLY thing stopping it
+  // now is the decision the submit just asked for.
+  if (/waiting on pilot approval/.test(clear[0]?.blocker ?? '')) {
+    ok('  · and the only thing stopping it now is the decision it just asked for', 'agreement, in the clear direction');
   } else {
-    bad('  · and the blocker view said nothing was stopping it', JSON.stringify(clear[0]));
+    bad('  · and the only thing stopping it now is the decision it just asked for', JSON.stringify(clear[0]));
   }
 
   // ── LOAD-BEARING: the claim about production, not about a fixture ─────────
@@ -555,6 +562,17 @@ console.log('\n5. A resubmit is refused by the key, not billed twice\n');
 
   const { scriptId } = await seedScript([{ promptId: recipe }]);
   await submitShots(scriptId, DEPS);
+
+  // The pilot has to be approved before the fan-out path is reachable at all, and this
+  // section is about the idempotency key rather than the pilot gate. Without this the
+  // second call returns `awaiting_pilot_approval` and never reaches the key — which would
+  // look like the key working while testing the gate in front of it.
+  const { rows: [pilotRow] } = await client.query(
+    `select pilot_generation_id from scripts where id = $1`, [scriptId],
+  );
+  await client.query(
+    `select approve_pilot_once($1, $2)`, [scriptId, pilotRow.pilot_generation_id],
+  );
 
   const callsAfterFirst = seen.length;
   const ledgerAfterFirst = await ledgerCount();

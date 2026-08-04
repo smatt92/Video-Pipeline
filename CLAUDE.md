@@ -210,6 +210,31 @@ rest on, say `LOAD-BEARING` on it and name what makes it true. Two rules of thum
 one it is: it is usually the assertion about rows that do *not* exist, and it is usually the
 one whose subject was produced by a different module than the one doing the asserting.
 
+**A fifth variant, and the one most likely to repeat: an assertion whose subject was
+written by the harness rather than by the code under test.** `seedScript` inserts
+`compiled_params` itself, so asserting against the seeded `shots` rows would have passed
+whatever `compileShot` did — including nothing. The fix was to call `compileShot` directly
+and assert its return value.
+
+The tell is mechanical and worth applying to every harness, because **every harness seeds**:
+*if the harness produced the row you are asserting about, you are testing the harness.* Ask
+of each assertion which line wrote the value being read. If the answer is a fixture helper
+rather than a call into `src/`, the assertion is describing the setup.
+
+Seeding is not the problem — a harness has to create a world. The problem is asserting
+against the part of that world the harness wrote rather than against what the code did to
+it. Seed the *inputs*, assert the *outputs*.
+
+**The column name tells you nothing.** `shots.compiled_params` is written by production —
+by stage 4, which is exactly what made the bad assertion look right — and in that harness it
+was written by `seedScript`. Only the line that wrote it *in this run* decides. Sweeping the
+other harnesses on that basis found them clean, and the reason is structural rather than
+lucky: they read `shots.status` after `submitShots` set it, `renders.status` after
+`assemble()` set it, `concepts.status` after `approveConcept` set it. `verify-review` had
+already written the rule down in a comment — *"asserted against the database rather than
+against an assumed baseline … hardcoding 1 here would have been an assertion about the
+fixture"* — one harness before it was needed.
+
 Before adding a gate or an assertion, ask what write path produces the state it guards. If
 the answer is none, the guard is this failure mode being built on purpose. A fourth
 workspace gate for "active recipes that carry no shot kind" was dropped for exactly that

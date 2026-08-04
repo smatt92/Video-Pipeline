@@ -89,3 +89,31 @@ Write these numbers down before Phase 2 ends. Pre-commitment beats post-hoc rati
 | Median 3s retention across first 15 published | < 45% → hook problem, not a tooling problem; more automation won't fix it |
 | Any monetization strike under the inauthentic content policy | Full stop and re-architect the editorial gate |
 | Time from trend detection to published video | > 48h → you've lost the trend-riding advantage the whole thesis rests on |
+
+## Studio surface — recorded, not built
+
+From a competitor's App Mode screen, noted so they are not re-derived. Both are for after
+the current sweep.
+
+**1. Quota at the point of action.** Runs remaining beside the Run control, not in Settings.
+Same argument as the limits card on the board and a better placement — the number matters
+at the moment you are about to spend, not when you go looking for it. Note the constraint
+the limits card already established: `in_flight` is real and `hits_*` is real, and there is
+no windowed quota this codebase can observe, so "runs remaining" has to mean remaining
+against the concurrency ceiling, not against a reset window. No countdown over a ceiling.
+
+**2. A structured/freeform toggle over recipe params — with one condition.** Typed fields
+for the common path, raw JSON for verbatim capture.
+
+The condition is the whole of it: **exactly one is authoritative at any moment, and the
+screen states which.** The reference implementation shows dropdowns reading
+"Long Waves / Platinum White" beside a prompt reading "loose waves, copper red", with the
+custom-prompt toggle OFF — two sources for one fact, visibly disagreeing, nothing indicating
+which wins. That is the failure this project has spent a week removing: a display that is
+wrong rather than a control that is absent, and the guardrails screen showing 12 against a
+constraint enforcing 8 was the same shape.
+
+So if it is built: the toggle sets which source is authoritative, the inactive one renders
+as derived-and-stale rather than as an equal field, and `RecipeInputSchema` validates
+whichever is authoritative. If the two cannot be kept in sync structurally, ship only the
+raw JSON — verbatim capture is what the library is for.
