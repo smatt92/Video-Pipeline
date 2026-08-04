@@ -196,3 +196,27 @@ export async function submitGeneration(p: SubmitParams): Promise<SubmitResult> {
     client.close();
   }
 }
+
+/**
+ * The vendor's own `stage` field, which is not our `stage`.
+ *
+ * A shot is two calls: text→image produces a still, image→video animates it. The vendor
+ * names that half `stage`, and `cost_ledger.stage` names the *pipeline* stage. Those two
+ * words sat twenty lines apart in `generate/submit.ts`, and the ledger insert set no stage
+ * for months while every reader saw `stage:` beside a value and moved on. `v_cost_by_stage`
+ * filtered on `stage is not null` and could not see the most expensive stage in the
+ * pipeline — the collision is what made the omission invisible.
+ *
+ * Both names are locally correct, which is precisely why nobody flagged it. So the vendor's
+ * one lives here, in the driver layer where vendor vocabulary belongs, behind a name that
+ * cannot be mistaken for ours.
+ */
+export const VENDOR_CALL_STILL = 'still' as const;
+
+/** The still half of a shot's two-call chain, as the vendor expects it. */
+export function stillCallPayload(
+  params: Record<string, unknown>,
+  extra: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return { ...params, stage: VENDOR_CALL_STILL, ...extra };
+}

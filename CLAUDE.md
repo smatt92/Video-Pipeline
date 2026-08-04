@@ -146,6 +146,26 @@ said clear. The second half is the one worth adding first — it is what catches
 that has never run in the state it claims to test. Adding it here found a real defect in one
 run: stage 5 submitted, and paid for, a shot on a script the view called blocked.
 
+**A claim of exhaustiveness must be verified by enumeration, not by inspecting the case in
+front of you.** "There is no other place this happens" is a statement about the whole
+codebase, and reading one module cannot support it. I wrote that a fourth `ON CONFLICT`
+against a partial index was impossible because the third had been folded into
+`writeLlmCost` — from inside `writeLlmCost`, which covers LLM subjects priced in tokens. A
+fourth writer had existed all along in `voice/run.ts`, because voice is priced in characters
+and was never in scope of the module I was looking at. Before writing "the only", "there is
+no other", or "this cannot happen again", grep for the *shape* across `src/` and paste the
+result — and if the shape is hard to grep for, that is the finding, not an excuse.
+
+**When two things in adjacent code share a name and mean different things, the collision is
+itself the defect.** `submit.ts` builds a vendor payload with `stage: 'still'` — the vendor's
+field for which half of the two-call chain is being submitted — twenty lines above the
+`cost_ledger` insert, whose `stage` column means the pipeline stage. The ledger row set no
+stage for months, and every reading of that code saw the word `stage` next to a value and
+moved on. `v_cost_by_stage` filtered on `stage is not null` and could not see the most
+expensive stage in the pipeline; the collision is what made the omission invisible. Rename
+one side the moment you notice, even when both names are locally correct — *especially*
+then, because a locally correct name is the one nobody flags in review.
+
 **Mark the load-bearing assertion where two look alike.** `verify:submit` §0 and the old §9
 are the same three lines; §0 means something only because §4 submits to a vendor and then
 asserts the view said null about it, and nothing in §0 says so. A future reader has no way

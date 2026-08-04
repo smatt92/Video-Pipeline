@@ -888,6 +888,84 @@ one concept, nearly committed, in the middle of a two-round audit of exactly tha
   own the moment one row carries a figure, and `verify:limits` §3 asserts both directions —
   so the screen starts showing a balance without anybody remembering to change it.
 
+## 13. What the reference workflows exposed
+
+Three ComfyUI workflows were supplied as reference, explicitly not as importable recipes —
+they call Seedream/Seedance, GPT-Image-2 and Gemini Omni directly, so no params transplant.
+Nothing was imported. Reading them for *shape* found one live defect and settled two design
+questions.
+
+### 13a. `accepts_character_ref` gated a reference that is never passed
+
+The workflows name their references positionally inside the prompt text — *"Use @image_1 as
+a start frame. Reference @image_2 for the full body shots"* — and asking whether our template
+could express that made something else obvious first:
+
+`submit.ts` refused a shot whose recipe was not marked `accepts_character_ref`, with the
+reason *"refused rather than submitted without it, which would generate a stranger and bill
+for it."* The **accepted** path submitted without it too. Nothing in `src/` reads the
+`characters` table at all; the compiled payload has no reference field and never had one.
+
+So the gate let through exactly the outcome its own message named. **That is the inverse of
+the vacuous-precondition failure** — not a guard for a state that cannot occur, but a guard
+that permits the state it claims to prevent, while reading as protection. And the reason it
+read as covered: `verify:submit` §3 tested only the refusing half.
+
+A shot carrying a character reference is now refused outright until something passes one.
+§3 asserts both halves, with the accepting one marked LOAD-BEARING — it flips the day a
+reference is actually passed, which is the point.
+
+### 13b. Named reference slots — the answer is "one, and we cannot express it"
+
+`characters` has `external_ref_id` and `reference_urls[]`, so multiple images *per character*
+are expressible. `shots.character_id` is singular, so two distinct reference subjects — a
+start frame and an identity reference — are not. And `TEMPLATE_VARS` is
+`description, intent, duration`: the template has no vocabulary for referring to a reference
+at all.
+
+Adding named slots now would guard a state no write path produces, which is the rule from
+§10a. The honest order is: pass the one reference we have, then find out whether a second
+subject is needed, then widen the schema.
+
+### 13c. Duration in the prompt text — unverified, and the gap named
+
+The Gemini Omni workflow carries a note in the graph itself: *"requires you to specify the
+`duration` and `aspect ratio` in the prompt"*, which is the entire reason its Prompt
+Constructor subgraph exists. Our compile step assumes structured params.
+
+**Whether any Higgsfield model has the same requirement cannot be checked from here** — the
+hosted MCP server is not connected in this session, and guessing which models need it is
+precisely the guess this project refuses elsewhere. What can be said structurally:
+
+- `{{duration}}` is available to a template and `compiled_params.duration_s` is set, so a
+  recipe *can* carry duration in prompt text today.
+- Nothing records **which** models require it, and nothing enforces the pairing. A recipe for
+  such a model whose template omits `{{duration}}` compiles cleanly and produces a clip of
+  the wrong length — the same silent-wrongness class as the three duration bugs.
+- The smallest closing change is a per-recipe list of params that must also appear in the
+  template text, checked in `RecipeInputSchema`. It is not being built until a model is known
+  to need it, for the §10a reason.
+
+### 13d. A fixed-slot skeleton, which is not a recipe
+
+`prompts/skeletons.ts` records the Seedream poster prompt read as seven ordered slots —
+subject, surface, colour event, background, typography, decoration, mood. The surface slot
+is the interesting one: it carries a negative clause *inside* a positive prompt
+("no cracks or broken facial surfaces"), which is how models with no negative-prompt
+parameter get their exclusions, and an author who does not know that gets cracked chrome.
+
+Freeform prose degrades unevenly — a description that happens to mention background and mood
+produces a different class of image from one that does not, and the prompt reads fine either
+way. Named slots make an omission visible as an empty slot rather than as an image that is
+subtly flatter than the last one. That matters most for `graphic_plate` and `detail_macro`,
+where the subject is a designed surface and anything unsaid is invented.
+
+`list_prompt_recipes` returns skeletons **only when the library is empty** — the one moment
+an author needs a shape rather than a warning — and that is also what reads the module. Every
+one carries `unverified` saying what is unproven about it, and none carries params, both
+asserted in `verify:studio` with the second marked LOAD-BEARING: a shape catalogue that could
+be mistaken for an import path is the failure the library exists to prevent.
+
 ---
 
 ## How to refresh this document

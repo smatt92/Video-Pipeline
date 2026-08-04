@@ -7,6 +7,7 @@ import type { Json } from '../db/types';
 import { primaryForKind } from '../drivers/catalog';
 import { usability } from '../integrations/verify';
 import { listRecipes, RecipeInputSchema, saveRecipe } from '../prompts/library';
+import { SKELETONS, skeletonOutline } from '../prompts/skeletons';
 import { SHOT_KIND_KEYS } from '../shots/kinds';
 import { materialiseScript } from './materialise';
 
@@ -132,6 +133,27 @@ const listPromptRecipes: StudioTool = {
             'recipe is only worth saving once its parameters have actually produced a clip ' +
             'you watched — explore against the vendor\u2019s own hosted MCP server in Claude ' +
             'Code, then save the exact params here with save_prompt_recipe.'
+          : undefined,
+
+      // Returned only when there is nothing to list, which is the one moment an author
+      // needs a starting shape rather than a warning. Skeletons are NOT recipes: no params,
+      // no sample output, never run against our driver — `unverified` says so on every one,
+      // and the model is told the route to the library still runs through a watched clip.
+      //
+      // This is also what reads `prompts/skeletons.ts`. A shape catalogue with no caller
+      // would be the same failure as a view with no reader, and harder to notice, because
+      // its existence reads as coverage.
+      skeletons:
+        recipes.length === 0
+          ? SKELETONS.map((sk) => ({
+              key: sk.key,
+              label: sk.label,
+              shot_kinds: sk.shotKinds,
+              slots: sk.slots.map((slot) => ({ name: slot.name, asks: slot.asks })),
+              outline: skeletonOutline(sk),
+              provenance: sk.provenance,
+              unverified: sk.unverified,
+            }))
           : undefined,
       recipes: recipes.map((r) => ({
         id: r.id,

@@ -1,6 +1,6 @@
 import { usability } from '../integrations/verify';
 import { primaryForKind } from '../drivers/catalog';
-import { submitGeneration } from '../drivers/video-submit';
+import { stillCallPayload, submitGeneration } from '../drivers/video-submit';
 import { dispositionFor } from '../drivers/types';
 import type { Db } from '../db/server';
 import type { Json } from '../db/types';
@@ -171,35 +171,47 @@ export async function submitShots(
 
       const params = asRecord(shot.compiled_params);
 
-      // The character reference, refused rather than dropped — the same rule compilation
-      // applies. A recipe that cannot carry the reference generates a different-looking
-      // person, which destroys the asset the reference exists to build.
+      // ── The character reference, and a gate that permitted what it forbade ────
+      //
+      // This used to refuse a shot whose recipe was not marked `accepts_character_ref`,
+      // with the reason "refused rather than submitted without it, which would generate a
+      // stranger and bill for it". The *accepted* path then submitted without it too:
+      // nothing anywhere in `src/` reads the `characters` table, and the payload below is
+      // the compiled params plus a duration. There is no reference in it and never was.
+      //
+      // So the gate let through exactly the outcome it named. That is the inverse of the
+      // vacuous-precondition failure — not a guard for a state that cannot occur, but a
+      // guard that permits the state it claims to prevent, while reading as protection.
+      // The reference-slot shape in the ComfyUI workflows is what exposed it: they name
+      // their references positionally in the prompt text (`@image_1` as start frame,
+      // `@image_2` for full body), and asking whether our template could express that made
+      // it obvious our template cannot express a reference at all — `TEMPLATE_VARS` is
+      // description, intent, duration.
+      //
+      // Until something passes the reference, a shot that carries one must be refused
+      // outright. A named refusal is worth more than a generated stranger that is billed,
+      // looks plausible, and destroys the consistency the reference exists to build.
       if (shot.character_id) {
-        const { data: prompt } = await db
-          .from('prompts')
-          .select('accepts_character_ref, name')
-          .eq('id', shot.prompt_id!)
-          .maybeSingle();
-
-        if (!prompt?.accepts_character_ref) {
-          skipped.push({
-            shotId: shot.id,
-            reason:
-              `this shot carries a character reference and recipe "${prompt?.name ?? shot.prompt_id}" ` +
-              'is not marked as carrying one through. Refused rather than submitted without ' +
-              'it, which would generate a stranger and bill for it.',
-          });
-          continue;
-        }
+        skipped.push({
+          shotId: shot.id,
+          reason:
+            'this shot carries a character reference and nothing passes one to the vendor ' +
+            'yet — `characters` has no reader anywhere in src/, and the compiled payload ' +
+            'carries no reference field. Submitting would generate a stranger and bill for ' +
+            'it, which is what the old `accepts_character_ref` gate said it was preventing ' +
+            'while letting it through.',
+        });
+        continue;
       }
 
-      const payload = {
-        ...params,
-        // Stills first. The video call is submitted by the webhook handler once this one
-        // succeeds — see the note at the top about not billing a video off a failed still.
-        stage: 'still' as const,
-        duration_s: Number(shot.duration_s),
-      };
+      // Stills first. The video call is submitted by the webhook handler once this one
+      // succeeds — see the note at the top about not billing a video off a failed still.
+      //
+      // Built by the driver rather than spelled out here, because the vendor's `stage` field
+      // and `cost_ledger.stage` are different things that shared a word twenty lines apart —
+      // and that collision is why the ledger insert below carried no stage at all for
+      // months. Vendor vocabulary lives in the driver layer.
+      const payload = stillCallPayload(params, { duration_s: Number(shot.duration_s) });
 
       const key = generationKey({
         shotId: shot.id,

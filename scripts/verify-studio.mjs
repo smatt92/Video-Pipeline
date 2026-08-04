@@ -321,6 +321,35 @@ console.log('\n4. The six tools against a real database\n');
   } else {
     bad('list_prompt_recipes on an empty library', JSON.stringify(result));
   }
+
+  // Skeletons come back only when there is nothing to list — the one moment an author needs
+  // a starting shape. This is also what reads `prompts/skeletons.ts`: a shape catalogue with
+  // no caller is a view with no reader wearing different clothes, and harder to notice,
+  // because its existence reads as coverage.
+  const skeletons = result?.skeletons;
+  if (Array.isArray(skeletons) && skeletons.length > 0 && skeletons[0].slots?.length > 0) {
+    ok('  · with a starting shape to author against', skeletons.map((s) => s.key).join(', '));
+  } else {
+    bad('  · with a starting shape to author against', JSON.stringify(skeletons));
+  }
+
+  // ── LOAD-BEARING ─────────────────────────────────────────────────────────
+  //
+  // A skeleton must never be mistakable for a recipe. It has no params, no sample output,
+  // and has never run against our driver; the route to the library still runs through a
+  // watched clip. `unverified` saying so on every one is what keeps a shape catalogue from
+  // becoming an import path — which is the failure the library exists to prevent, and the
+  // one thing that would make adding these a mistake rather than an aid.
+  if (skeletons?.every?.((s) => typeof s.unverified === 'string' && s.unverified.length > 20)) {
+    ok('  · every one saying what is unproven about it', 'a shape, not a recipe');
+  } else {
+    bad('  · every one saying what is unproven about it', JSON.stringify(skeletons));
+  }
+  if (skeletons?.every?.((s) => s.params === undefined)) {
+    ok('  · and carrying no params for anyone to transplant');
+  } else {
+    bad('  · and carrying no params for anyone to transplant');
+  }
 }
 
 {

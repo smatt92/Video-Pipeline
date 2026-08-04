@@ -4,6 +4,7 @@ import { currentRate } from '../cost/rate-card';
 import type { Db } from '../db/server';
 import type { Json } from '../db/types';
 import { primaryForKind } from '../drivers/catalog';
+import { stillCallPayload } from '../drivers/video-submit';
 import { usability } from '../integrations/verify';
 import { generationKey } from './keys';
 
@@ -188,7 +189,7 @@ export async function estimateRegenerate(
     .maybeSingle();
 
   const attempt = (previous?.attempt ?? 0) + 1;
-  const payload = { ...params, stage: 'still' as const, shot_id: shotId };
+  const payload = stillCallPayload(params, { shot_id: shotId });
   const newKey = generationKey({ shotId, attempt, kind: 'image', payload });
 
   const costUsd = priced.unitCostUsd * CREDITS_PER_SHOT;
@@ -232,7 +233,7 @@ export async function executeRegenerate(
     .eq('id', shotId)
     .maybeSingle();
 
-  const payload = { ...asRecord(shot?.compiled_params), stage: 'still' as const, shot_id: shotId };
+  const payload = stillCallPayload(asRecord(shot?.compiled_params), { shot_id: shotId });
 
   const { data, error } = await db
     .from('generations')

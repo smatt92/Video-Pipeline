@@ -369,6 +369,33 @@ console.log('\n3. A character reference a recipe cannot carry is refused\n');
 
   if (seen.length === before) ok('  · and the vendor was never called');
   else bad('  · and the vendor was never called', `${seen.length - before} request(s)`);
+
+  // ── LOAD-BEARING ─────────────────────────────────────────────────────────
+  //
+  // The assertion above tested the refusing half and passed for months. This is the other
+  // half, and it is where the defect was: a recipe marked `accepts_character_ref` was
+  // ACCEPTED, and then submitted with no reference in the payload — because nothing in
+  // src/ reads the `characters` table and the compiled params carry no reference field.
+  // The gate let through precisely the outcome its own message named, "a stranger, billed".
+  //
+  // The inverse of the vacuous-precondition failure: not a guard for a state that cannot
+  // occur, but a guard that permits the state it claims to prevent while reading as
+  // protection. Testing only the refusing side is what let it read as covered.
+  //
+  // This flips the day something passes a reference — which is the point.
+  const accepting = await makeRecipe({ acceptsCharacterRef: true });
+  const beforeAccept = seen.length;
+  const { scriptId: s2 } = await seedScript([{ promptId: accepting, characterId }]);
+  const out2 = await submitShots(s2, DEPS);
+
+  const reason2 = out2.skipped?.[0]?.reason ?? '';
+  if (out2.submitted === 0 && /nothing passes one to the vendor/.test(reason2)) {
+    ok('a recipe that accepts one is refused too', 'because nothing passes it');
+  } else {
+    bad('a recipe that accepts one is refused too', JSON.stringify(out2).slice(0, 200));
+  }
+  if (seen.length === beforeAccept) ok('  · and it is still not billed');
+  else bad('  · and it is still not billed', `${seen.length - beforeAccept} request(s)`);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
