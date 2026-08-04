@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 
-import { priceLlmCall } from '../cost/llm';
+import { priceLlmCall, writeLlmCost } from '../cost/llm';
 import type { Db } from '../db/server';
 import type { Json } from '../db/types';
 import { STUDIO_TOOLS, toolDescriptors } from './tools';
@@ -587,25 +587,38 @@ async function settleTurn(
     };
   }
 
-  const rows = priced.rows.map((r) => ({
-    driver: 'anthropic',
-    stage: 'studio',
-    entry_kind: 'reconcile' as const,
-    studio_session_id: sessionId,
-    unit: r.unit,
-    quantity: r.quantity,
-    cost_usd: r.costUsd,
-    cost_inr: r.costInr,
-    usd_inr_rate: priced.usdInrRate,
-    idempotency_key: `studio:${idempotencyBase}:${r.unit}`,
-  }));
-
-  const { error: costError } = await db
-    .from('cost_ledger')
-    .upsert(rows, { onConflict: 'idempotency_key', ignoreDuplicates: true });
-
-  if (costError) {
-    return { ok: false, detail: `Cost ledger write failed after the turn was billed: ${costError.message}` };
+  // ── One writer, and this is a correction found by a real session ──────────
+  //
+  // This built its own rows and called `.upsert(..., { onConflict: 'idempotency_key' })`.
+  // `cost_ledger_idempotency_key_uniq` is a *partial* unique index — `where idempotency_key
+  // is not null` — and Postgres will not infer a partial index for ON CONFLICT unless the
+  // statement repeats its predicate, which supabase-js cannot express. Against a correctly
+  // migrated database every write failed with "no unique or exclusion constraint matching
+  // the ON CONFLICT specification".
+  //
+  // The same defect was found and fixed twice before, in `generate/submit.ts` and in
+  // `writeLlmCost`. It survived here for exactly one reason: this was a third copy of a
+  // write that should never have had two. Rule 5's headline failure is what it produced —
+  // §7 of `verify:studio` ran a real session, Anthropic billed six turns, and not one
+  // ledger row landed. The spend cap is derived from those rows, so the cap could not fire
+  // either; §6 passes only because it writes its rows synthetically.
+  //
+  // So the studio subject moves into `writeLlmCost` rather than being repaired in place.
+  // A fourth instance is now impossible because there is no fourth place to put it.
+  try {
+    await writeLlmCost(db, {
+      kind: 'studio',
+      sessionId,
+      idempotencyKey: `studio:${idempotencyBase}`,
+      stage: 'studio',
+    }, priced);
+  } catch (err) {
+    return {
+      ok: false,
+      detail:
+        `Cost ledger write failed after the turn was billed: ` +
+        `${err instanceof Error ? err.message : String(err)}`,
+    };
   }
 
   return { ok: true, costInr: priced.totalInr };

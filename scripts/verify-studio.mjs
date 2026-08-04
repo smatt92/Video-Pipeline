@@ -646,6 +646,25 @@ if (!apiKey) {
       if (d.summary.ledgerRows >= 2) ok('the cost rows landed', `${d.summary.ledgerRows} rows, ₹${d.summary.costInr.toFixed(2)}`);
       else bad('the cost rows landed', `${d.summary.ledgerRows} rows`);
 
+      // Printed, not just counted. This section exists to prove money and rows move
+      // together, and the run that found the ON CONFLICT defect reported "0 rows" — a
+      // count told you something was wrong and could not tell you what. The rows
+      // themselves reconcile against the rate card, which a total cannot.
+      const { rows: ledger } = await client.query(
+        `select unit, quantity, cost_usd, cost_inr, entry_kind, idempotency_key
+           from cost_ledger where studio_session_id = $1 order by unit`,
+        [live.sessionId],
+      );
+      console.log('\n        ── the ledger rows ──\n');
+      for (const l of ledger) {
+        console.log(
+          `        ${l.unit.padEnd(13)} ${String(l.quantity).padStart(6)}  ` +
+            `$${Number(l.cost_usd).toFixed(6)}  ₹${Number(l.cost_inr).toFixed(5)}  ` +
+            `${l.entry_kind}  ${l.idempotency_key}`,
+        );
+      }
+      console.log('');
+
       if (d.summary.inputTokens > 0 && d.summary.outputTokens > 0) {
         ok('token counts are real', `${d.summary.inputTokens} in / ${d.summary.outputTokens} out`);
       } else {

@@ -231,6 +231,44 @@ console.log('\n5. Money spent on nothing that became a video\n');
   } else bad('  · and none of it is attributed to a video');
 }
 
+// ── 5b. A Studio session that did make something ────────────────────────────────
+//
+// The other half of §5, and the half 0026 got wrong. `studio_sessions.script_id` is
+// materialised on first generation and is the ONLY place that link exists — the ledger row
+// cannot carry both studio_session_id and script_id, because the
+// (script_id, stage, entry_kind, unit) unique index would collide on the session's second
+// turn and swallow it as a retry. So a session that produced a video had its entire spend
+// filed under "belongs to no video" for ever.
+console.log('\n5b. A Studio session that materialised a script\n');
+{
+  const e = await makeVideo('Made in the Studio');
+  await makeRender(e.scriptId);
+  const sessionId = randomUUID();
+  await q(
+    `insert into studio_sessions (id, model, spend_cap_inr, script_id)
+     values ($1,'claude-opus-5',500,$2)`,
+    [sessionId, e.scriptId],
+  );
+  await ledger({ studio_session_id: sessionId, driver: 'anthropic', quantity: 1200,
+                 unit: 'input_token', cost_usd: 0.03, cost_inr: 2.5, entry_kind: 'reconcile' });
+  await ledger({ studio_session_id: sessionId, driver: 'anthropic', quantity: 400,
+                 unit: 'output_token', cost_usd: 0.06, cost_inr: 5.5, entry_kind: 'reconcile' });
+
+  const s = await expectOk(await readVideoCosts(db));
+  const row = s.rows.find((r) => r.scriptId === e.scriptId);
+  if (!row) bad('the session’s spend lands on its video');
+  else {
+    eq('the session’s spend lands on its video', Number(row.settledInr), 8);
+    eq('  · filed as studio, not as llm', Object.keys(row.componentInr).join(','), 'studio');
+    eq('  · and it counts towards the average', row.denominatorState, 'countable');
+  }
+
+  const stillUnattributed = s.unattributed
+    .filter((u) => u.component === 'studio')
+    .reduce((a, u) => a + u.rowsN, 0);
+  eq('  · the unmaterialised session’s row stays unattributed', stillUnattributed, 1);
+}
+
 // ── 6. Exhaustiveness ───────────────────────────────────────────────────────────
 console.log('\n6. The two views are exhaustive over the ledger\n');
 {

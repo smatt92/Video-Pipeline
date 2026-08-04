@@ -123,9 +123,10 @@ export function llmCostRows(subject: LlmCostSubject, pricing: Extract<LlmPricing
     stage: subject.stage,
     entry_kind: 'reconcile' as const,
     usd_inr_rate: pricing.usdInrRate,
-    concept_id: subject.kind === 'channel' ? null : subject.conceptId,
+    concept_id: subject.kind === 'channel' || subject.kind === 'studio' ? null : subject.conceptId,
     channel_id: subject.kind === 'channel' ? subject.channelId : null,
     script_id: subject.kind === 'script' ? subject.scriptId : null,
+    studio_session_id: subject.kind === 'studio' ? subject.sessionId : null,
     idempotency_key:
       subject.kind === 'script' ? null : `${subject.idempotencyKey}:${r.unit}`,
     unit: r.unit,
@@ -145,7 +146,25 @@ export type LlmCostSubject =
    * billed, and once they do the charge belongs to all of them. The channel is what the
    * call is actually about — see migration 0023 and `v_concept_cost`, which divides.
    */
-  | { kind: 'channel'; channelId: string; idempotencyKey: string; stage: PipelineStage };
+  | { kind: 'channel'; channelId: string; idempotencyKey: string; stage: PipelineStage }
+  /**
+   * A Studio turn.
+   *
+   * The fourth subject, and it exists because the Studio lane had its **own** copy of this
+   * write — building the rows inline and calling `.upsert(..., { onConflict:
+   * 'idempotency_key' })` against a partial unique index. That is the exact defect fixed in
+   * `generate/submit.ts` and then again here, in a third place, where it survived precisely
+   * because it was a third place. A real session found it: six turns completed, Anthropic
+   * billed them, and every ledger row was refused.
+   *
+   * Deliberately no `script_id`, even once the session materialises one.
+   * `cost_ledger_script_stage_entry_key` is unique on
+   * `(script_id, coalesce(stage,''), entry_kind, unit)`, so a second turn on a materialised
+   * session would collide and be swallowed as a retry — money moving with no row, which is
+   * the failure this whole subject exists to prevent. The attribution to a video is made in
+   * `v_cost_attributed`, which reaches the script through `studio_sessions.script_id`.
+   */
+  | { kind: 'studio'; sessionId: string; idempotencyKey: string; stage: 'studio' };
 
 /**
  * Which stage spent the money, matching the `src/trigger/` filename.
@@ -221,7 +240,9 @@ export async function writeLlmCost(
         ? `script ${subject.scriptId}`
         : subject.kind === 'channel'
           ? `channel ${subject.channelId}`
-          : `concept ${subject.conceptId}`;
+          : subject.kind === 'studio'
+            ? `studio session ${subject.sessionId}`
+            : `concept ${subject.conceptId}`;
     throw new Error(
       `Cost ledger write failed for ${what} after the call was billed: ${error.message}`,
     );
