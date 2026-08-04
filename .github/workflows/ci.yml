@@ -73,6 +73,13 @@ jobs:
       - name: Font sizes are on the scale
         run: pnpm check:scalable-sizes
 
+      # The Guardrails screen showed 12 max shots against a constraint enforcing 8, and two
+      # spend caps nothing sums. This asserts the displayed number is the enforced binding,
+      # and that every "not enforced" row is still true — an assertion of absence, which
+      # fails at the moment somebody wires one and forgets to say so.
+      - name: Guardrail register matches what the code enforces
+        run: pnpm check:guardrails
+
       # ── The rule with teeth (CLAUDE.md rule 1) ───────────────────────────
       # First, because it is the cheapest and the one most likely to be violated by a
       # well-meaning shortcut.

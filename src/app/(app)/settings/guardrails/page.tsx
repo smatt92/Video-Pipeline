@@ -1,41 +1,50 @@
-import { Panel, Row, SectionHeader, UnverifiedBanner } from '@/components/settings/parts';
-import { GUARDRAILS } from '@/lib/fixtures/settings';
+import { Panel, Row, SectionHeader } from '@/components/settings/parts';
+import { GUARDRAILS } from '@/lib/settings/guardrails';
 
 /**
  * Guardrails.
  *
- * These enforce rather than warn. Each row names where the check actually happens, so
- * "is this on?" is answerable by reading one column instead of by grepping.
+ * This screen answers one question — which limits are actually on, and at what number — so
+ * that answering it does not require grepping. Until this change it answered wrongly: it
+ * showed 12 shots against a constraint that enforces 8, and two spend caps that nothing
+ * sums. Eight rows looked alike and one was real.
  *
- * Two of them are deliberately null. Concurrency comes from the vendor's plan tier and
- * is unknown until that integration verifies — and an unknown ceiling must not be
- * guessed, because a guess above the real limit produces a permanent failure rate that
- * reads as vendor flakiness rather than as our own misconfiguration.
+ * So the three outcomes are now visually distinct, and the distinction is the register's,
+ * not this file's. A number appears only where a number is enforced. Enforced-but-read-at-
+ * run-time gets an em dash and its source. Not enforced gets the words "not enforced" and
+ * the reason — never a figure, never zero.
  */
 export default function GuardrailsPage() {
+  const live = GUARDRAILS.filter((g) => g.kind !== 'none').length;
+
   return (
     <>
       <SectionHeader
         title="Guardrails"
-        hint="Enforced, not advisory. Where a limit is unknown it stays null rather than taking a plausible default."
+        hint={`${live} of ${GUARDRAILS.length} are enforced. The rest say so rather than showing a number nothing checks.`}
       />
-      <UnverifiedBanner what="These values are defaults, not settings anyone has chosen." />
 
       <Panel>
         {GUARDRAILS.map((g) => (
-          <Row key={g.key} label={g.label} help={g.help}>
+          <Row key={g.key} label={g.label} help={g.kind === 'none' ? g.why : g.help}>
             <div className="flex items-baseline gap-3">
-              {g.value === null ? (
+              {g.kind === 'none' ? (
+                <span className="font-mono text-sm" style={{ color: 'var(--state-killed)' }}>
+                  not enforced
+                </span>
+              ) : g.kind === 'runtime' ? (
                 <span className="font-mono text-sm" style={{ color: 'var(--text-faint)' }}>
-                  unknown
+                  —
                 </span>
               ) : (
                 <span className="font-mono text-sm">
-                  {g.unit === '₹' ? `₹${g.value.toLocaleString('en-IN')}` : `${g.value} ${g.unit}`}
+                  {g.unit === '₹'
+                    ? `₹${g.value.toLocaleString('en-IN')}`
+                    : `${g.value} ${g.unit}`}
                 </span>
               )}
               <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
-                {g.enforcedAt}
+                {g.kind === 'none' ? 'nothing reads this' : g.site}
               </span>
             </div>
           </Row>

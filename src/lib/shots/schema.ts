@@ -29,8 +29,21 @@ export const ShotDraftSchema = z.object({
   intent: z.string().min(1).describe('Why this shot rather than another. A short phrase.'),
 });
 
+/**
+ * The real ceiling on a shotlist, exported rather than inlined.
+ *
+ * The Guardrails screen used to display 12 for this, sourced from a fixture, while the
+ * decode constraint below rejected anything over 8. A guardrails screen exists to answer
+ * "is this on, and at what number?" without grepping — a screen that answers it wrongly is
+ * worse than no screen, because it is believed. The registry in
+ * `src/lib/settings/guardrails.ts` imports these two, so the displayed number and the
+ * enforced number cannot drift: there is only one of them.
+ */
+export const MIN_SHOTS_PER_SHOTLIST = 2;
+export const MAX_SHOTS_PER_SHOTLIST = 8;
+
 export const ShotlistSchema = z.object({
-  shots: z.array(ShotDraftSchema).min(2).max(8),
+  shots: z.array(ShotDraftSchema).min(MIN_SHOTS_PER_SHOTLIST).max(MAX_SHOTS_PER_SHOTLIST),
 });
 
 export type ShotDraft = z.infer<typeof ShotDraftSchema>;

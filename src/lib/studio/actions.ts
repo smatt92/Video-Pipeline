@@ -6,7 +6,7 @@ import { checkEmail } from '../auth/allowed';
 import { routeClient } from '../auth/supabase';
 import { serverClient } from '../db/server';
 import { env } from '../env';
-import { GUARDRAILS } from '../fixtures/settings';
+import { sessionSpendCap } from '../settings/guardrails';
 import { resolveCredentials } from '../integrations/credentials';
 import { runTurn, startSession, type ToolChannel } from './session';
 import { mintSessionToken } from './token';
@@ -46,9 +46,7 @@ async function requireUser() {
  * `spend_cap_inr` is about a loop that "can burn a lot of tokens on one bad turn".
  */
 export async function proposedSessionCap(): Promise<number | null> {
-  const guardrail = GUARDRAILS.find((g) => g.key === 'spend_cap_session_inr');
-  const value = Number(guardrail?.value);
-  return Number.isFinite(value) && value > 0 ? value : null;
+  return sessionSpendCap();
 }
 
 export async function startSessionAction(
