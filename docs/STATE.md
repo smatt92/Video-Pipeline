@@ -673,6 +673,87 @@ Each is the pattern CLAUDE.md names: a mechanism built to make something visible
 nothing that reads it. `v_shot_readiness` and `v_script_vo_status` are the interesting two,
 because they are about exactly the inert 03 → 04 → 05 chain §7 describes.
 
+## 10. The gate I did not add, and a blocker that was not blocking
+
+### 10a. `matching_recipes` is not a fourth workspace gate, and the reason is the round's finding
+
+The proposal was: a library whose recipes match no shot kind is an ungeneratable workspace,
+same family as the three gates 0028 added. It is not, for two independent reasons.
+
+**The state cannot occur.** Both recipe-write paths validate through `RecipeInputSchema`,
+whose `tags` is `z.array(z.enum(SHOT_KIND_KEYS)).min(1)`. The Studio's `save_prompt_recipe`
+declares a looser `z.array(z.string())` in its own args, but re-validates through the
+library schema before writing — so an untagged or off-vocabulary recipe is refused at both
+doors. A gate here would guard a state no write path produces, and the assertion for it
+would go green for ever while proving nothing. That is precisely the failure this round is
+about; building it deliberately would have been worse than the accident.
+
+**`matching_recipes` already has a reader.** `v_unresolved_shots` computes it with the
+identical correlated subquery, is scoped to the shots the question is about
+(`compiled_params is null`), and is read by `unresolvedShots()`. `v_shot_readiness` was a
+second view over the same concept with no reader at all — the two-modules rule at view
+level — and 0029 drops it.
+
+### 10b. The agreement, closed in the other direction
+
+0028 asserted that when stage 5 refuses, `v_pipeline_blockers` names the same reason. The
+converse was missing and is the one that matters: **a script stage 5 actually submitted must
+have had `blocker = null`.**
+
+It found a defect on the first run. Stage 5 submitted a shot — spent money, wrote the
+estimate row, got a job id — on a script the view called blocked with *"no host voice on the
+channel — stage 6 cannot run"*. The view was wrong. Stage 5 needs `derived_from_vo`; it does
+not need a host voice, which is what lets *stage 6* produce that state. The branch sat
+unconditionally at the top of the CASE and fired regardless.
+
+The reachable version is ordinary: set a host voice, run stage 6, then change voice provider
+or clear the setting. Every already-timed script on that channel now reports a stage-6
+blocker stage 6 has already satisfied. Same harm as `blocker = null` on an ungeneratable
+workspace, pointed the other way — a confidently wrong answer to "why did nothing come out?"
+
+0029 moves the host voice inside the durations branch, where it explains that branch rather
+than pre-empting it: *"durations are still estimates and the channel has no host voice"* when
+it is what is stopping stage 6, and *"durations are still estimates — stage 6 has not run"*
+when it is not.
+
+### 10c. The vacuous-precondition sweep
+
+The question: which assertions are true only because something upstream never worked?
+
+`verify:review` came out clean and is the pattern done right — it asserts the refusal on a
+fresh workspace, *then* verifies the integration and adds the rate, *then* asserts the
+positive. Both branches, in the same section.
+
+The productive form of the question turned out not to be "is this assertion negative?" but
+**"is the thing being asserted produced by the same model doing the asserting?"** A producer
+checked against a model of itself agrees with itself, at no cost, for ever. That reframes the
+sweep as: which views are asserted by a harness with no consumer asserted alongside?
+
+| View | Harness | Production reader |
+|---|---|---|
+| `v_pipeline_blockers` | verify:submit | board — **both directions now asserted** |
+| `v_video_cost` | verify:costs | `readVideoCosts`, which the harness drives |
+| `v_concept_cost` | verify:concepts | `cost/llm.ts` |
+| `v_recipe_coverage` | verify:submit | `prompts/library.ts` |
+| `v_replayed_callbacks` | verify:webhook | integrity alert |
+| `v_deferred_steps` | doctor | `integrations/verify.ts` |
+| `v_recipe_performance` | — | `shots/run.ts`, `library.ts` |
+| `v_unresolved_shots` | — | `library.ts` |
+| `v_unconfirmed_terminal_generations` | — | integrity alert |
+| **`v_referral_attribution`** | — | **none** — `readPartnerRollup` reads `v_partner_rollup` |
+| **`v_stuck_submits`** | — | **none** — named in one comment in `submit.ts` |
+| **`v_script_vo_status`** | — | **none** |
+| **`v_entry_state`** | — | **none** |
+| **`v_cost_by_stage`** | — | **none** |
+| **`v_cost_per_1k_views`** | — | **none** |
+
+The six in bold are not all the same thing and should not be treated alike.
+`v_cost_per_1k_views` needs published videos and belongs to phase 4; `v_cost_by_stage` and
+`v_script_vo_status` are answerable now and simply have no screen. `v_referral_attribution`
+is the uncomfortable one — a near-twin of `v_partner_rollup`, which is the one that is read.
+Not deleted this round because unlike `v_shot_readiness` it is not a strict duplicate, and
+deleting on suspicion is how the wrong copy goes.
+
 ---
 
 ## How to refresh this document

@@ -253,13 +253,24 @@ console.log('0. An unverified integration refuses the whole script\n');
     `select blocker from v_pipeline_blockers where script_id = $1`,
     [scriptId],
   );
-  // Not null — the *next* blocker down surfaces, which is the ordering working. The
-  // workspace gate sits ahead of the per-script ones precisely so a person is not sent to
-  // fix a host voice on a workspace that could not have generated anything either way.
-  if (/no host voice/.test(cleared[0]?.blocker ?? '')) {
-    ok('verifying it reveals the next blocker down', cleared[0].blocker);
+  // Null, and this is the assertion §9 used to make vacuously.
+  //
+  // §9 said "a ready script has none — null, not a message" and passed for days on a
+  // workspace stage 5 was never allowed to spend from. The assertion is unchanged in
+  // shape; what changed is that it now means something, and the reason is not in this
+  // block. §4 submits a script exactly like this one to the vendor and then asserts the
+  // view said null about it. A producer checked against a model of itself agrees with
+  // itself; only the consumer can say whether the model was right.
+  //
+  // The host voice is deliberately still unset here. 0029 stopped reporting it as a
+  // blocker for a script whose durations are already derived, because stage 5 does not
+  // need one — it needs `derived_from_vo`, and the voice is what lets stage 6 produce
+  // that. Before 0029 this returned the host-voice message about scripts stage 5 was
+  // submitting successfully.
+  if (cleared[0] && cleared[0].blocker === null) {
+    ok('verifying it clears the blocker', 'null, and §4 proves null meant generatable');
   } else {
-    bad('verifying it reveals the next blocker down', JSON.stringify(cleared[0]));
+    bad('verifying it clears the blocker', JSON.stringify(cleared[0]));
   }
 }
 
@@ -372,6 +383,28 @@ console.log('\n4. A real submit — row first, job id after\n');
 
   if (out.ok && out.submitted === 1) ok('one shot submitted', JSON.stringify(out.skipped));
   else bad('one shot submitted', JSON.stringify(out));
+
+  // ── The agreement, closed in the other direction ─────────────────────────
+  //
+  // §0 asserts that when stage 5 refuses, the blocker view names the same reason. This is
+  // the converse and the one that matters more: a script stage 5 actually submitted must
+  // have had `blocker = null`.
+  //
+  // Without it, §9's failure recurs in a new shape. §9 asserted `blocker === null` for a
+  // "ready" script and passed for days — the view said null, the assertion expected null,
+  // and both were wrong about the world, because the workspace could not generate at all.
+  // A producer asserted against a model of itself agrees with itself. Only the consumer
+  // can say whether the model was right, and here the consumer has just spoken: it
+  // submitted. That is the strongest evidence available that null meant what it claimed.
+  const { rows: clear } = await client.query(
+    `select blocker from v_pipeline_blockers where script_id = $1`,
+    [scriptId],
+  );
+  if (clear[0] && clear[0].blocker === null) {
+    ok('  · and the blocker view said nothing was stopping it', 'agreement, in the clear direction');
+  } else {
+    bad('  · and the blocker view said nothing was stopping it', JSON.stringify(clear[0]));
+  }
 
   const call = seen[before];
   if (call) ok('  · the vendor was called once', call.url);

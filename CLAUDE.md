@@ -127,6 +127,30 @@ The test for whether you have this problem is not "does each stage work". It is:
 name, in one query, why nothing came out?** If the answer needs four joins and a hypothesis,
 build the view before building the next stage.
 
+**A check can measure exactly the right thing and still be vacuous, because the state it
+measures was unreachable.** This is a third failure mode for guards, distinct from the two
+above: not a guard that runs nowhere, and not a guard measuring the wrong quantity — a guard
+measuring the right quantity in a world where the precondition could not occur.
+
+`verify:submit` §9 asserted `blocker === null` for a script it called ready, and passed for
+days. The view returned null, the assertion expected null, and both were wrong about the
+world: the workspace had no verified video integration, so stage 5 would have refused that
+script every time. Nothing was miswired. The check simply never entered the state it was
+describing, and green meant only that.
+
+The tell is that the assertion's subject is produced by the same model being asserted. A
+producer checked against a model of itself agrees with itself, for ever, at no cost. **So
+close the loop with the consumer, in both directions:** when the producer says blocked, the
+consumer must refuse for the same reason; when the consumer succeeds, the producer must have
+said clear. The second half is the one worth adding first — it is what catches an assertion
+that has never run in the state it claims to test. Adding it here found a real defect in one
+run: stage 5 submitted, and paid for, a shot on a script the view called blocked.
+
+Before adding a gate or an assertion, ask what write path produces the state it guards. If
+the answer is none, the guard is this failure mode being built on purpose. A fourth
+workspace gate for "active recipes that carry no shot kind" was dropped for exactly that
+reason: both write paths validate through `RecipeInputSchema`, so the state cannot occur.
+
 **And when you build it, check it can see the blockers that belong to no row.**
 `v_pipeline_blockers` checked four things and every one was a property of a row belonging to
 the script. Stage 5 refuses on three more that belong to no script at all — no verified

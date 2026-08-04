@@ -612,13 +612,6 @@ export type Database = {
             foreignKeyName: "generations_shot_id_fkey"
             columns: ["shot_id"]
             isOneToOne: false
-            referencedRelation: "v_shot_readiness"
-            referencedColumns: ["shot_id"]
-          },
-          {
-            foreignKeyName: "generations_shot_id_fkey"
-            columns: ["shot_id"]
-            isOneToOne: false
             referencedRelation: "v_unresolved_shots"
             referencedColumns: ["shot_id"]
           },
@@ -2349,13 +2342,6 @@ export type Database = {
             foreignKeyName: "generations_shot_id_fkey"
             columns: ["shot_id"]
             isOneToOne: false
-            referencedRelation: "v_shot_readiness"
-            referencedColumns: ["shot_id"]
-          },
-          {
-            foreignKeyName: "generations_shot_id_fkey"
-            columns: ["shot_id"]
-            isOneToOne: false
             referencedRelation: "v_unresolved_shots"
             referencedColumns: ["shot_id"]
           },
@@ -2396,91 +2382,6 @@ export type Database = {
         }
         Relationships: []
       }
-      v_shot_readiness: {
-        Row: {
-          compile_note: string | null
-          covers_speech: boolean | null
-          duration_s: number | null
-          duration_source: string | null
-          generatable: boolean | null
-          idx: number | null
-          matching_recipes: number | null
-          script_id: string | null
-          shot_id: string | null
-          shot_kind: string | null
-          status: string | null
-        }
-        Insert: {
-          compile_note?: string | null
-          covers_speech?: never
-          duration_s?: number | null
-          duration_source?: string | null
-          generatable?: never
-          idx?: number | null
-          matching_recipes?: never
-          script_id?: string | null
-          shot_id?: string | null
-          shot_kind?: string | null
-          status?: string | null
-        }
-        Update: {
-          compile_note?: string | null
-          covers_speech?: never
-          duration_s?: number | null
-          duration_source?: string | null
-          generatable?: never
-          idx?: number | null
-          matching_recipes?: never
-          script_id?: string | null
-          shot_id?: string | null
-          shot_kind?: string | null
-          status?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "shots_script_id_fkey"
-            columns: ["script_id"]
-            isOneToOne: false
-            referencedRelation: "scripts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "shots_script_id_fkey"
-            columns: ["script_id"]
-            isOneToOne: false
-            referencedRelation: "v_pipeline_blockers"
-            referencedColumns: ["script_id"]
-          },
-          {
-            foreignKeyName: "shots_script_id_fkey"
-            columns: ["script_id"]
-            isOneToOne: false
-            referencedRelation: "v_script_cost"
-            referencedColumns: ["script_id"]
-          },
-          {
-            foreignKeyName: "shots_script_id_fkey"
-            columns: ["script_id"]
-            isOneToOne: false
-            referencedRelation: "v_script_structure_novelty"
-            referencedColumns: ["script_id"]
-          },
-          {
-            foreignKeyName: "shots_script_id_fkey"
-            columns: ["script_id"]
-            isOneToOne: false
-            referencedRelation: "v_script_vo_status"
-            referencedColumns: ["script_id"]
-          },
-          {
-            foreignKeyName: "shots_script_id_fkey"
-            columns: ["script_id"]
-            isOneToOne: false
-            referencedRelation: "v_video_cost"
-            referencedColumns: ["script_id"]
-          },
-        ]
-      }
       v_stuck_submits: {
         Row: {
           charged: boolean | null
@@ -2519,13 +2420,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "shots"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "generations_shot_id_fkey"
-            columns: ["shot_id"]
-            isOneToOne: false
-            referencedRelation: "v_shot_readiness"
-            referencedColumns: ["shot_id"]
           },
           {
             foreignKeyName: "generations_shot_id_fkey"
@@ -2629,13 +2523,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "shots"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "generations_shot_id_fkey"
-            columns: ["shot_id"]
-            isOneToOne: false
-            referencedRelation: "v_shot_readiness"
-            referencedColumns: ["shot_id"]
           },
           {
             foreignKeyName: "generations_shot_id_fkey"
