@@ -81,10 +81,16 @@ same list of whatever environment it can see.
 
 ## 3. What I would do first, and why
 
-1. **Restore `.env.local`**, then run the five DB-backed harnesses. Nothing this session
-   touched a query, and the one production change — routing stage 5's callback-URL check
-   through `requireEnv` — is exercised by `verify:submit`, which has not re-run since. It is
-   a behaviour-preserving swap and I expect it green; expecting is not knowing.
+1. **Restore `.env.local`.** Lower priority than it looked when this file was first written:
+   CI run 74 covers `678aa40` and its step 31 — *"Stage 5 refuses before it spends, and
+   submits exactly once"*, which is `verify:submit` — passed. That is the one production
+   change this session made, the `requireEnv` swap in stage 5, and it is proven. Restoring
+   the file is for the *next* change, not for validating this one.
+
+   Worth noticing how that correction happened: the sentence originally here said the
+   harness "has not re-run since", which was true of this container and false of the world.
+   A statement about what has been verified is scoped to an instrument, and dropping the
+   instrument from the sentence turns a true observation into a false claim.
 
 2. **Decide DECISIONS-PENDING 5** (the FX rate). Every day it stays open is more ledger rows
    carrying a number nobody set.
@@ -124,8 +130,9 @@ same list of whatever environment it can see.
 | 71 | `d7d9d0b` | success |
 | 72 | `698a3ef` | success |
 | 73 | `497634e` | success |
-| 74 | `678aa40` | in progress when this was written — step 9, the new `Worker env manifest matches what tasks reach`, passed |
-| 75 | `0b0dc6c` | queued behind 74 |
+| 74 | `678aa40` | steps 1–38 success, including step 9 (the new `Worker env manifest matches what tasks reach`) and step 31 (`verify:submit`, covering the `requireEnv` swap). Build and the two browser harnesses still running when this was written |
+| 75 | `0b0dc6c` | queued behind 74 — docs only |
+| 76 | this commit | docs only |
 
 **Read these by step list, not by summary.** `pnpm check` chains fourteen tools and only
 some of them print a failure marker this project's greps recognise; `$?` is the only signal
