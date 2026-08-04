@@ -283,10 +283,18 @@ console.log('\n4. A partial batch keeps what is good\n');
     bad('one kept, one rejected', JSON.stringify(out).slice(0, 200));
   }
 
-  if (out.costInr && out.costInr > 0) {
-    ok('  · and the whole call is still charged', 'the model was paid for both');
+  // The exact figure, not `> 0`.
+  //
+  // `> 0` stays true through any pricing bug that still charges something — swapped input
+  // and output rates, a usage field read from the wrong place, a hardcoded 1. The stub
+  // fixes the usage (900 in, 400 out) and the harness seeds the rate (0.000005 USD/token
+  // both units, 88.5 to the rupee), so the answer is computable and there is no reason to
+  // assert a weaker one.
+  const expected4 = Number(((900 + 400) * 0.000005 * 88.5).toFixed(6));
+  if (Number(out.costInr?.toFixed(6)) === expected4) {
+    ok('  · and the whole call is charged, at the figure the rates give', `₹${expected4}`);
   } else {
-    bad('  · and the whole call is still charged', String(out.costInr));
+    bad('  · and the whole call is charged, at the figure the rates give', `expected ₹${expected4}, got ${out.costInr}`);
   }
 }
 
@@ -309,8 +317,19 @@ console.log('\n5. A failed call is still a charge\n');
   if (!out.ok && out.code === 'truncated') ok('a truncated batch is refused', out.code);
   else bad('a truncated batch is refused', JSON.stringify(out).slice(0, 160));
 
-  if (out.costInr && out.costInr > 0) ok('  · and charged', `₹${out.costInr.toFixed(4)}`);
-  else bad('  · and charged', String(out.costInr));
+  // ── LOAD-BEARING ─────────────────────────────────────────────────────────
+  //
+  // This section's stated purpose is that "a failure path that drops the usage
+  // under-reports cost permanently", and `> 0` is exactly the assertion that cannot detect
+  // it: a truncated call recorded as 1 input token instead of 800 passes. The whole point
+  // is 4000 output tokens being billed on a call that produced nothing usable, so the
+  // assertion has to be the figure those 4000 tokens come to.
+  const expected5 = Number(((800 + 4000) * 0.000005 * 88.5).toFixed(6));
+  if (Number(out.costInr?.toFixed(6)) === expected5) {
+    ok('  · and charged for every token the ceiling consumed', `₹${expected5}`);
+  } else {
+    bad('  · and charged for every token the ceiling consumed', `expected ₹${expected5}, got ${out.costInr}`);
+  }
 
   const { rows } = await client.query(
     `select count(*)::int as n from cost_ledger where idempotency_key like $1`,
@@ -358,6 +377,26 @@ console.log('\n7. The batch charge divides\n');
     `select concepts_landed, batch_inr, inr_per_concept from v_concept_cost where channel_id = $1`,
     [channelId],
   );
+
+  // ── LOAD-BEARING ─────────────────────────────────────────────────────────
+  //
+  // The denominator is checked against the concepts table, not against the view's own
+  // count. Dividing `batch_inr` by `concepts_landed` and comparing to `inr_per_concept`
+  // asserts only that the view is internally consistent — a ÷ b = c holds however wrong a
+  // and b are. A producer checked against a model of itself agrees with itself, which is
+  // the failure §9 of verify:submit shipped for days.
+  const { rows: actual } = await client.query(
+    `select count(*)::int as n from concepts where channel_id = $1`, [channelId],
+  );
+  // Number() on both sides: `count(*)` is bigint and arrives as a string from pg, so the
+  // strict comparison fails on "4" === 4. The old `concepts_landed > 0` never noticed,
+  // because "4" > 0 coerces true — a loose assertion hiding a type confusion, which is the
+  // second thing tightening this found.
+  if (rows.length > 0 && Number(rows[0].concepts_landed) === Number(actual[0].n)) {
+    ok('the denominator is the concepts that actually landed', `${actual[0].n}, counted independently`);
+  } else {
+    bad('the denominator is the concepts that actually landed', `view says ${rows[0]?.concepts_landed}, table has ${actual[0].n}`);
+  }
 
   if (rows.length > 0 && rows[0].concepts_landed > 0) {
     const expected = Number(rows[0].batch_inr) / rows[0].concepts_landed;

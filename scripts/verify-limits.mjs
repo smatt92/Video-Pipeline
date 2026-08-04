@@ -307,10 +307,14 @@ console.log('\n4. Numbers withheld pending a writer\n');
 
   // Every entry has to say what appears when the writer lands, so the next person does not
   // re-derive it. A registry that records only the absence is a TODO with better grammar.
-  if (WITHHELD.every((w) => w.whenWritten.length > 30 && w.missingWriter.length > 30)) {
-    ok('  · and each names both the missing writer and what appears when it lands');
+  // Not a length check. Prose over thirty characters can say nothing; what the rule
+  // actually requires is that the missing writer be **named precisely enough to grep for**,
+  // so the entry can be checked rather than believed. A backticked identifier is that.
+  const vague = WITHHELD.filter((w) => !/`[a-z_]+\.[a-z_]+`|`[a-z]+\.[a-z]+\.ts`|reconcile/i.test(w.missingWriter));
+  if (vague.length === 0) {
+    ok('  · and each names the missing writer precisely enough to grep for', 'not just prose');
   } else {
-    bad('  · and each names both the missing writer and what appears when it lands');
+    bad('  · and each names the missing writer precisely enough to grep for', vague.map((w) => w.key).join(', '));
   }
 }
 

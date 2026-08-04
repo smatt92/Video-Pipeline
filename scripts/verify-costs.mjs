@@ -309,11 +309,18 @@ console.log('\n5c. Spend per stage, with a denominator\n');
   // only one about rows that do NOT. A stage with no ledger row must come back hasRun:false
   // with null figures, because rendering ₹0 for it claims the stage is free rather than
   // unbuilt — and on this workspace that is most of them.
+  // Exactly one stage has charged at this point (03-script, seeded above), so the count of
+  // never-run stages is knowable. `> 0` would stay true if the reader broke and reported
+  // every stage as never-run — the failure that would make this whole panel wrong.
   const neverRun = s.rows.filter((r) => !r.hasRun);
-  if (neverRun.length > 0 && neverRun.every((r) => r.settledInr === null && r.inrPerScript === null)) {
+  const expectedNeverRun = CHARGING_STAGES.length - 1;
+  if (
+    neverRun.length === expectedNeverRun
+    && neverRun.every((r) => r.settledInr === null && r.inrPerScript === null)
+  ) {
     ok('a stage that never ran reports null, not ₹0', `${neverRun.length} of ${s.rows.length}`);
   } else {
-    bad('a stage that never ran reports null, not ₹0', JSON.stringify(neverRun.slice(0, 2)));
+    bad('a stage that never ran reports null, not ₹0', `expected ${expectedNeverRun}, got ${neverRun.length}`);
   }
 
   eq('every charging stage appears, run or not', s.rows.length >= CHARGING_STAGES.length, true);

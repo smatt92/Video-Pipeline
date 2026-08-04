@@ -235,6 +235,31 @@ already written the rule down in a comment — *"asserted against the database r
 against an assumed baseline … hardcoding 1 here would have been an assertion about the
 fixture"* — one harness before it was needed.
 
+**A sixth variant, and the hardest to see: an assertion phrased loosely enough to stay true
+in a world it was not written for.** Not vacuous when written — genuinely testing something
+— but survivable by the very change it should have caught. `verify:concepts` §5 exists
+because "a failure path that drops the usage under-reports cost permanently", and asserted
+`costInr > 0`. A truncated call recorded as 1 input token instead of 800 passes that. The
+section's whole subject was 4,000 output tokens billed for nothing usable, and the
+assertion could not see the number.
+
+The test is not "is this assertion true" but **"what change would leave it true that should
+not?"** Where the harness fixes the inputs — a stubbed usage, a seeded rate — the exact
+answer is computable and there is no reason to assert a weaker one. `> 0`, `.length > n`,
+`.test(/substring/)` and truthiness are all this shape: they describe a family of worlds,
+and behaviour changes move you between members of it.
+
+Two things fell out of tightening four of them. Simulating the exact bug §5 was written for
+— halving the stubbed output tokens — now fails the harness, which it did not before. And
+`concepts_landed > 0` was hiding a bigint-as-string boundary, because `"4" > 0` coerces
+true while `"4" === 4` does not: a loose assertion can conceal a type confusion as easily as
+a behaviour one.
+
+The counter-example worth remembering is the one that behaved: `verify:submit` §4 asserted
+`blocker === null` after a successful submit, and when the pilot gate landed it **failed**
+rather than surviving. That is what a tight assertion does when the world changes — it
+breaks, you look, and you restate it deliberately.
+
 Before adding a gate or an assertion, ask what write path produces the state it guards. If
 the answer is none, the guard is this failure mode being built on purpose. A fourth
 workspace gate for "active recipes that carry no shot kind" was dropped for exactly that

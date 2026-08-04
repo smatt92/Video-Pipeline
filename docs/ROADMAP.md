@@ -117,3 +117,8 @@ So if it is built: the toggle sets which source is authoritative, the inactive o
 as derived-and-stale rather than as an equal field, and `RecipeInputSchema` validates
 whichever is authoritative. If the two cannot be kept in sync structurally, ship only the
 raw JSON — verbatim capture is what the library is for.
+
+**Decided: raw JSON only, unless the two can be kept in sync structurally.** Not a
+preference — the typed layer is worth having only if it cannot drift, and a drifting typed
+layer is the defect this project spent a week deleting rather than a convenience worth the
+risk.
