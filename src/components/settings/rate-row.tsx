@@ -80,19 +80,36 @@ export function RateRow({ row }: { row: RateCardRow }) {
               of a claim, and the board's `unpriced` column says the same thing the same way. */}
           {row.isVerified ? `${row.currency === 'USD' ? '$' : ''}${row.unitCost}` : '—'}
         </span>
-        <span className="text-right">
+        {/* ── Two elements, not one ────────────────────────────────────────────
+            The state and the control were the same button, tinted `--state-live` when
+            verified. `kiln/token-form-rule` refuses that and is right: the two colour
+            systems are 40° apart in hue and not separable at a glance, so what carries the
+            distinction is *form* — a pressable rectangle is never a state indicator. One
+            element cannot be both.
+
+            So the dot says what the rate is, and the button says what you can do to it. */}
+        <span className="flex items-center justify-end gap-2">
+          <span
+            className="font-mono text-2xs"
+            style={{ color: row.isVerified ? 'var(--state-live)' : 'var(--text-faint)' }}
+          >
+            {row.isVerified ? 'verified' : 'unverified'}
+          </span>
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
             className="rounded-xs px-[6px] py-[2px] font-mono text-2xs"
             style={{
-              background: 'var(--surface-2)',
-              color: row.isVerified ? 'var(--state-live)' : 'var(--text-faint)',
+              // --accent-muted, not --accent-soft: the latter does not exist and would have
+              // resolved to nothing, which is a transparent background rather than an error.
+              background: open ? 'var(--accent-muted)' : 'var(--surface-2)',
+              color: open ? 'var(--accent)' : 'var(--text-muted)',
               minHeight: 'var(--hit-min)',
             }}
             aria-expanded={open}
+            aria-label={`Record a rate for ${row.model} per ${row.unit}`}
           >
-            {row.isVerified ? 'verified' : 'unverified'}
+            {open ? 'cancel' : 'record'}
           </button>
         </span>
       </div>

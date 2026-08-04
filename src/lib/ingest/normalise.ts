@@ -74,13 +74,44 @@ export async function probe(path: string): Promise<ProbeResult> {
   const [num, den] = (video.avg_frame_rate ?? '0/1').split('/').map(Number);
   const fps = den ? num / den : 0;
 
+  // ── Unreadable is not zero ───────────────────────────────────────────────
+  //
+  // These were `?? 0`, and the consequence is the worst instance of that mistake in this
+  // codebase. A probe that could not report dimensions returned 0×0, `isCanonical` compared
+  // 0 against 1080 and said no, and the pipeline **re-encoded the file** — taking the repair
+  // path for a file whose properties are unknown rather than reporting that it could not be
+  // read. Duration was the same: `0`, flowing into the assembler as a real number, in the
+  // one path where a wrong duration has already produced three bugs that made a file which
+  // plays and is wrong.
+  //
+  // Throwing is right and consistent: this function already throws when there is no video
+  // stream, and `runIngest` turns a throw into an error row rather than an exception, so a
+  // corrupt asset becomes a row that names the problem.
+  const missing: string[] = [];
+  if (video.width === undefined) missing.push('width');
+  if (video.height === undefined) missing.push('height');
+  if (!den || !Number.isFinite(fps) || fps <= 0) missing.push('frame rate');
+  const durationRaw = parsed.format?.duration;
+  if (durationRaw === undefined || !Number.isFinite(Number(durationRaw))) {
+    missing.push('duration');
+  }
+
+  if (missing.length > 0) {
+    throw new Error(
+      `ffprobe read the container but could not report ${missing.join(', ')}. Refusing to ` +
+        'treat an unreadable property as zero: 0×0 would fail the canonical check and send ' +
+        'this file down the re-encode path, and a duration of 0 would reach the assembler ' +
+        'as a measurement.',
+    );
+  }
+
   return {
-    width: video.width ?? 0,
-    height: video.height ?? 0,
+    width: video.width!,
+    height: video.height!,
     fps,
     codec: video.codec_name ?? 'unknown',
     pixFmt: video.pix_fmt ?? 'unknown',
-    durationS: Number(parsed.format?.duration ?? 0),
+    durationS: Number(durationRaw),
     hasAudio: (parsed.streams ?? []).some((s) => s.codec_type === 'audio'),
   };
 }

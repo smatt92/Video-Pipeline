@@ -68,7 +68,8 @@ difference is always the vendor.
 | `verify:webhook` | **25** | The callback over real HTTP: secret gate, payload gate, delivery RPC, replay, the vendor overruling the body | A local server stands in for the status endpoint |
 | `verify:ingest` | **5** | 3 source shapes → the canonical intermediate; a corrupt file → an error row | Sources are ffmpeg-generated |
 
-**Total: 319 assertions, all green today, and all fifteen harnesses run in CI.** Four further
+**Total: 319 assertions. Every harness exits 0 locally as of this revision — verified by
+exit code rather than by grepping output, see §4b — and all fifteen are wired into CI.** Four further
 guards are exempt with reasons: `verify:vault` and `verify:storage` need a live Supabase
 project, and the two `verify:script*` variants spend money on a billed model call.
 
@@ -165,6 +166,41 @@ driver's Zod schema accepts. That is Gate 4 and nothing local can settle it.
 Note the ordering constraint that is easy to miss: the prompt library is blocked on
 Higgsfield, and stage 5 refuses without a library entry. So Higgsfield unblocks two things
 in sequence, not in parallel.
+
+---
+
+## 4b. CI has not been green, and I said it was
+
+**Correction, and it invalidates a claim in six commit messages.** Runs 44–51 on this
+branch: `failure, cancelled, cancelled, cancelled, cancelled, failure, failure`. I reported
+"all in CI" each round and let it read as "and CI passes". It did not.
+
+Two separate faults, and neither is a CI configuration problem.
+
+**Runs 46–49 hung for exactly six hours** and were killed by GitHub's default job timeout.
+Every step passed; `verify:tour` started and never returned. Three awaits in it could not
+finish — the devtools websocket `open` event, each CDP round trip, and the in-page probe,
+which waits on `requestAnimationFrame`. rAF does not necessarily fire in a headless browser
+with no compositor, which is the likely root; the other two are why nothing pointed at it.
+All three are now bounded and each names itself on expiry, and the job carries
+`timeout-minutes: 20`. A hang is the one outcome that reports nothing, so a harness that
+cannot finish must fail.
+
+**Runs 50–51 failed at Lint**, on the `token-form-rule` violation Vercel later surfaced. CI
+caught it. The rule is correct and the fix is a two-element split — the state on a label, the
+accent on the control — because one element cannot be both.
+
+**Why I did not notice** is the part worth keeping. I verified `pnpm check` with
+`grep -cE '✗|FAIL'` and reported zero. `pnpm check` chains eight tools; five are this
+project's harnesses, which print `FAIL`, and three are eslint, tsc and shell scripts, which
+do not. eslint prints `✖` (U+2716); I grepped for `✗` (U+2717). The command exited 1 the
+whole time and I never looked.
+
+A summary written in one tool's vocabulary cannot see the others. `$?` is the only signal
+all of them agree on. Now a rule in CLAUDE.md.
+
+Vercel builds independently of CI, so a red CI never blocked it — but nothing was green to
+block anything for six commits, which is the actual answer to "why did this reach Vercel".
 
 ---
 

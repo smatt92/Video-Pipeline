@@ -138,6 +138,30 @@ alert nobody routes, a log line in a file nobody opens: each is the original pro
 the costume of its own solution, and each is *harder* to notice than what it replaced,
 because its existence reads as coverage.
 
+**"Absent" and "zero" are different facts and must never share a representation.** Five
+instances now, which makes it a rule rather than five local judgements:
+
+| Absent | Zero |
+|---|---|
+| no verified rate — the call refuses | the call is free |
+| never run | ran and failed |
+| step deferred | step done |
+| recipe never compiled | compiled and never shipped |
+| ffprobe could not read the duration | the file is 0 seconds long |
+
+The last one is the sharpest. `probe()` returned `width ?? 0, height ?? 0, durationS ?? 0`,
+so an unreadable file became 0×0×0s — `isCanonical` compared 0 against 1080, said no, and
+the pipeline **re-encoded a file whose properties were unknown** instead of reporting that
+it could not read it. The duration went to the assembler as a measurement, in the one path
+where a wrong duration has already produced three bugs that made a file which plays and is
+wrong.
+
+In the database use `null` and let a CHECK or a view keep it honest; in TypeScript use
+`null` and make the type carry it; on screen use an em dash and never `0`. `?? 0` on a
+value that means a measurement is the smell — grep for it. The cost is asymmetric: a
+missing thing rendered as zero is silently believed, summed, and acted on, while a zero
+rendered as missing is merely annoying.
+
 **Two modules for one concept is worse than none.** `src/lib/generate/normalise.ts` and
 `src/lib/ingest/normalise.ts` both existed; one defined `TARGET`/`conforms`, the other
 `CANONICAL`/`isCanonical`, they disagreed about the canonical intermediate, and only one was
@@ -154,6 +178,18 @@ pnpm verify:assemble "$DATABASE_URL" # 6 clips → one MP4, over a real S3 endpo
 pnpm verify:studio   "$DATABASE_URL" # MCP server over real HTTP; generate_shot refuses
 pnpm verify:review   "$DATABASE_URL" # a trim drifts every later shot; the publish gate holds
 ```
+
+**Check the exit code. Never grep the output for a failure marker.** `pnpm check` chains
+eight tools; five are this project's harnesses, which print `FAIL`, and three are eslint,
+tsc and shell scripts, which do not. Verifying the chain with `grep -cE '✗|FAIL'` reported
+zero failures on a run that exited 1 — eslint prints `✖` (U+2716), not `✗` (U+2717), and
+the word "error". Six commits were pushed claiming CI was green while it had been red or
+hanging the whole time.
+
+The general form: **a summary written in one tool's vocabulary cannot see the others.**
+`$?` is the only signal every one of them agrees on. If a command's result matters, branch
+on its exit code; if you want the detail too, capture the output *and* the code, and let
+the code decide.
 
 ## Current phase
 

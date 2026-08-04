@@ -112,6 +112,37 @@ const ENV = {
 //
 // Node 22 has a WebSocket client built in, so this needs no dependency.
 
+/**
+ * Every await in this file is bounded, and that is a repair rather than a precaution.
+ *
+ * This harness hung on a GitHub runner and took four consecutive CI runs to the 6-hour job
+ * timeout with it. Every other step passed; this one started and never returned, so the
+ * runs read as `cancelled` rather than `failed` and nothing pointed at the cause.
+ *
+ * Three awaits could not finish: the websocket `open` event (a socket that neither opens
+ * nor errors waits for ever), each CDP round trip (a browser that stops answering is
+ * indistinguishable from one that is slow), and the in-page probe — which waits on
+ * `requestAnimationFrame`, and rAF does not necessarily fire in a headless browser with no
+ * compositor. The last is the likely root; the other two are why nobody could tell.
+ *
+ * Rather than guess which, all three are bounded and each says which one expired. A harness
+ * that cannot finish must fail, because a hang is the one outcome that reports nothing.
+ */
+const DEADLINE_MS = 30_000;
+
+function deadline(promise, what, ms = DEADLINE_MS) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error(`timed out after ${ms}ms: ${what}`)),
+      ms,
+    );
+    promise.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); },
+    );
+  });
+}
+
 let msgId = 0;
 function cdp(ws, method, params = {}, sessionId) {
   const id = ++msgId;
@@ -128,8 +159,11 @@ function cdp(ws, method, params = {}, sessionId) {
   });
 }
 
+const cdpBounded = (ws, method, params, sessionId) =>
+  deadline(cdp(ws, method, params, sessionId), `CDP ${method}`);
+
 async function evaluate(ws, expression) {
-  const r = await cdp(ws, 'Runtime.evaluate', {
+  const r = await cdpBounded(ws, 'Runtime.evaluate', {
     expression,
     awaitPromise: true,
     returnByValue: true,
@@ -151,6 +185,17 @@ function probeScript({ loseContext = false, advance = 0 } = {}) {
   return `
 (async () => {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // rAF does not necessarily fire in a headless browser with no compositor, and an
+  // unresolved rAF here is what took four CI runs to the six-hour job timeout. Falling back
+  // to a timer keeps the read late enough to be a painted frame and guarantees it happens.
+  const frame = () =>
+    new Promise((resolve) => {
+      let done = false;
+      const go = () => { if (!done) { done = true; resolve(); } };
+      requestAnimationFrame(go);
+      setTimeout(go, 250);
+    });
   const out = { steps: [] };
   // Long enough for the eased camera to arrive. Measuring mid-transition would report a
   // frame nobody ever looks at, and the contrast numbers below would move run to run.
@@ -185,7 +230,7 @@ function probeScript({ loseContext = false, advance = 0 } = {}) {
       // the read in rAF is what makes this see what was actually painted rather than a
       // cleared buffer.
       const px = await new Promise((resolve) => {
-        requestAnimationFrame(() => {
+        frame().then(() => {
           const w = gl.drawingBufferWidth, h = gl.drawingBufferHeight;
           const buf = new Uint8Array(w * h * 4);
           gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
@@ -271,7 +316,7 @@ function probeScript({ loseContext = false, advance = 0 } = {}) {
       const pageBg = parse(getComputedStyle(document.body).backgroundColor);
 
       out.contrast = await new Promise((resolve) => {
-        requestAnimationFrame(() => {
+        frame().then(() => {
           const w = gl.drawingBufferWidth, h = gl.drawingBufferHeight;
           const buf = new Uint8Array(w * h * 4);
           gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, buf);
@@ -378,14 +423,18 @@ async function run(label, { flags = [], loseContext = false, advance = 0, viewpo
     if (!target) throw new Error(`chromium never opened a devtools port for "${label}"`);
 
     ws = new WebSocket(target.webSocketDebuggerUrl);
-    await new Promise((resolve, reject) => {
-      ws.addEventListener('open', resolve, { once: true });
-      ws.addEventListener('error', () => reject(new Error('devtools socket refused')), {
-        once: true,
-      });
-    });
+    await deadline(
+      new Promise((resolve, reject) => {
+        ws.addEventListener('open', resolve, { once: true });
+        ws.addEventListener('error', () => reject(new Error('devtools socket refused')), {
+          once: true,
+        });
+      }),
+      'the devtools websocket never opened',
+      15_000,
+    );
 
-    await cdp(ws, 'Runtime.enable');
+    await cdpBounded(ws, 'Runtime.enable');
 
     // Hydration, not merely load. `document.readyState` goes complete while React is still
     // catching up, and every interactive assertion below would then race it.

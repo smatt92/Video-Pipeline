@@ -9,6 +9,13 @@ jobs:
   check:
     runs-on: ubuntu-latest
 
+    # ── A hang must fail, not wait ───────────────────────────────────────────
+    # Four consecutive runs died at GitHub's 6-hour default because `verify:tour` started
+    # and never returned. They reported `cancelled` rather than `failed`, which reads as
+    # somebody stopping them rather than as a defect, and nothing pointed at the step.
+    # Twenty minutes is roughly 4× the honest runtime; anything past it is a hang.
+    timeout-minutes: 20
+
     # The enum check talks to a real Postgres rather than a fixture, because the thing
     # being checked is whether the code agrees with the database — a fixture would only
     # prove the code agrees with itself.
