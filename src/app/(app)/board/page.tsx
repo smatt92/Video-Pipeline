@@ -2,10 +2,12 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 
 import { IntegrityAlert } from '@/components/pipeline/integrity-alert';
+import { LimitsStrip } from '@/components/pipeline/limits-strip';
 import { Hint } from '@/components/shell/hint';
 import { StateGlyph } from '@/components/shell/state-glyph';
 import type { VideoState } from '@/lib/fixtures/pipeline';
 import { deferralState, inertBecause } from '@/lib/onboarding/deferred';
+import { readLimits } from '@/lib/pipeline/limits';
 import { readBoard, type BoardRow, type ConceptState } from '@/lib/pipeline/board';
 
 /**
@@ -141,7 +143,11 @@ function Row({ row }: { row: BoardRow }) {
 }
 
 async function Board() {
-  const [result, deferrals] = await Promise.all([readBoard(), deferralState()]);
+  const [result, deferrals, limits] = await Promise.all([
+    readBoard(),
+    deferralState(),
+    readLimits(),
+  ]);
 
   if (!result.ok) {
     return (
@@ -189,6 +195,18 @@ async function Board() {
           shotlist, stage 5 generations — each moves the row up this list without anything
           else being done to it.
         </p>
+
+        {/*
+          Rendered on the empty board too, and deliberately. Credits expire about 90 days
+          after purchase whether or not a single concept exists, and nothing is billed at
+          the moment they evaporate — so an empty pipeline is exactly when the clock is
+          easiest to forget and most expensive to miss.
+        */}
+        {limits.ok && (
+          <div className="mt-6">
+            <LimitsStrip limits={limits.limits} credits={limits.credits} noPurchases={limits.noPurchases} />
+          </div>
+        )}
 
         {(videoInert || audioInert) && (
           <div
@@ -274,6 +292,31 @@ async function Board() {
           </div>
         </div>
       </div>
+
+      {/*
+        Above the concept list, below the state counts. These are two limits you hit
+        unexpectedly and then spend an hour diagnosing, and the 90-day credit clock runs
+        whether or not anything is in the pipeline — so it belongs on the screen opened
+        daily rather than three clicks into Settings.
+      */}
+      {limits.ok ? (
+        <div className={`${MAX_W} px-5 py-4`}>
+          <LimitsStrip limits={limits.limits} credits={limits.credits} noPurchases={limits.noPurchases} />
+        </div>
+      ) : (
+        <div className={`${MAX_W} px-5 py-4`}>
+          <div
+            className="rounded-md border px-4 py-3 text-sm"
+            style={{ borderColor: 'var(--state-blocked)', background: 'var(--state-blocked-bg)' }}
+          >
+            <div>Limits and credits could not be read.</div>
+            <div className="mt-1" style={{ color: 'var(--text-muted)' }}>{limits.hint}</div>
+            <div className="mt-1 font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+              {limits.error}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div style={{ background: 'var(--surface-inset)' }}>
         <div

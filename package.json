@@ -50,6 +50,7 @@
     "verify:referral": "tsc -p tsconfig.verify.json && node scripts/verify-referral.mjs",
     "verify:costs": "tsc -p tsconfig.verify.json && node scripts/verify-costs.mjs",
     "verify:voice": "tsc -p tsconfig.verify.json && node scripts/verify-voice.mjs",
+    "verify:limits": "tsc -p tsconfig.verify.json && node scripts/verify-limits.mjs",
     "verify:scaling": "node scripts/verify-scaling.mjs",
     "verify:tour": "node scripts/verify-tour.mjs"
   },

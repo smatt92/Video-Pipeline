@@ -827,6 +827,67 @@ production moved to `verify:submit` §4, where a real `submitShots` writes the r
 audio vendor while explaining a ledger defect. Second time it has fired on a comment that
 named a vendor in the course of explaining something correct, and it was right both times.
 
+## 12. Limits and the credit clock, and the numerator neither has
+
+Both blocks were asked for as dashboard additions. Applying the inverse test up front turned
+them into the same finding: **this project tracks purchases and ceilings, and does not track
+consumption.** The natural rendering of each — usage over ceiling, credits remaining —
+requires a numerator that does not exist, and inventing one puts a fabricated figure on the
+screen the operator checks daily.
+
+### 12a. The limits block
+
+| Piece | Available? |
+|---|---|
+| Ceiling | `integrations.concurrency_limit`, **null on every driver** — read from the account at verification, and nothing has verified |
+| Usage, live | `in_flight` — real, and 0 for ever on a workspace that has never generated |
+| Usage, retrospective | `generations.error_code` — **real and the part that survives the inverse test** |
+| Reset countdown | **does not exist**, and must not be drawn |
+
+A concurrency ceiling is not a window. A countdown beside it would be a fiction, and the one
+windowed quota worth showing — YouTube's 10,000 units/day — has *structurally* unobservable
+consumption in phase 1, because publishing is by hand and this codebase makes no call against
+it. `QUOTAS` in `pipeline/limits.ts` is therefore an empty array with the reason written into
+it, and it gains a row the day `src/lib/publish/` calls the API.
+
+`concurrency_limited` and `rate_limited` are counted apart, and that is the assertion the
+card's shape rests on. `drivers/types.ts` keeps them distinct because one wants a queue and
+the other exponential backoff, and treating a concurrency ceiling as a rate limit produces a
+retry storm that makes the ceiling worse. A merged "times you were limited" figure would
+erase a distinction the driver layer maintains to prevent exactly that.
+
+"Never submitted" and "never limited" render differently — an em dash, not a zero.
+
+### 12b. The credit clock
+
+`generations.credits_spent` **has no writer anywhere in `src/`**. So a "remaining" figure
+today would be the purchase total, unchanged for ever, presented as though it moved.
+
+That is the absent-versus-zero rule in its most expensive form so far, and it is worth
+naming precisely because it is not the usual shape: not a missing measurement rendered as
+zero, but **a stale constant rendered as a live balance** — on the screen opened every day,
+about money. `creditsUnexpired` is 1,500 in the harness and putting it under a heading
+reading "remaining" would look right, read right, and be wrong.
+
+What is exact today is the clock, and it is the part that matters daily: credits die about
+90 days after purchase whether or not anything used them, and **nothing is billed at the
+moment they evaporate**, so the cost ledger structurally cannot see the loss. That is the
+argument for the card being on the board rather than in Settings.
+
+`v_credit_position` was **extended, not replaced** — it has existed since 0008 and
+`onboarding/step-view.ts` reads four of its columns. The first draft of 0031 created a
+second view of the same name and failed to apply, which is how it was caught. Two views for
+one concept, nearly committed, in the middle of a two-round audit of exactly that.
+
+### 12c. What would make each real
+
+- Limits: nothing, for the retrospective half — it works the moment a generation is refused.
+  The ceiling fills in when an integration verifies.
+- Credits: a writer for `generations.credits_spent`. The vendor returns credits spent on
+  completion, so the webhook handler is where it belongs. `consumptionObserved` flips on its
+  own the moment one row carries a figure, and `verify:limits` §3 asserts both directions —
+  so the screen starts showing a balance without anybody remembering to change it.
+
 ---
 
 ## How to refresh this document
@@ -834,7 +895,7 @@ named a vendor in the course of explaining something correct, and it was right b
 ```bash
 pnpm check                                  # everything that needs no database
 export DATABASE_URL=...                     # any Postgres you may create databases on
-for h in ingest assemble review studio referral webhook submit concepts metadata trends costs voice; do pnpm verify:$h "$DATABASE_URL"; done
+for h in ingest assemble review studio referral webhook submit concepts metadata trends costs voice limits; do pnpm verify:$h "$DATABASE_URL"; done
 pnpm build && pnpm verify:scaling && pnpm verify:tour
 ```
 

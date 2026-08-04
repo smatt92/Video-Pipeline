@@ -452,6 +452,13 @@ export type Database = {
             referencedRelation: "v_credit_position"
             referencedColumns: ["integration_id"]
           },
+          {
+            foreignKeyName: "credit_purchases_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "v_driver_limits"
+            referencedColumns: ["integration_id"]
+          },
         ]
       }
       driver_health: {
@@ -671,6 +678,13 @@ export type Database = {
             referencedRelation: "v_credit_position"
             referencedColumns: ["integration_id"]
           },
+          {
+            foreignKeyName: "integration_checks_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "v_driver_limits"
+            referencedColumns: ["integration_id"]
+          },
         ]
       }
       integration_events: {
@@ -708,6 +722,13 @@ export type Database = {
             columns: ["integration_id"]
             isOneToOne: false
             referencedRelation: "v_credit_position"
+            referencedColumns: ["integration_id"]
+          },
+          {
+            foreignKeyName: "integration_events_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "v_driver_limits"
             referencedColumns: ["integration_id"]
           },
         ]
@@ -753,6 +774,13 @@ export type Database = {
             columns: ["integration_id"]
             isOneToOne: false
             referencedRelation: "v_credit_position"
+            referencedColumns: ["integration_id"]
+          },
+          {
+            foreignKeyName: "integration_secrets_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "v_driver_limits"
             referencedColumns: ["integration_id"]
           },
         ]
@@ -2061,12 +2089,18 @@ export type Database = {
       }
       v_credit_position: {
         Row: {
+          amount_usd: number | null
           credits_expired: number | null
+          credits_expiring_30d: number | null
+          credits_recorded: number | null
+          credits_spent_total: number | null
           credits_unexpired: number | null
           days_until_expiry: number | null
           integration_id: string | null
+          kind: string | null
           last_purchase_at: string | null
           next_expiry: string | null
+          purchases: number | null
           slug: string | null
         }
         Relationships: []
@@ -2105,6 +2139,54 @@ export type Database = {
           profile_id: string | null
           reason: string | null
           step: number | null
+        }
+        Relationships: []
+      }
+      v_driver_limits: {
+        Row: {
+          concurrency_limit: number | null
+          concurrency_source: string | null
+          hits_concurrency: number | null
+          hits_credits: number | null
+          hits_rate: number | null
+          in_flight: number | null
+          integration_id: string | null
+          is_enabled: boolean | null
+          is_verified: boolean | null
+          kind: string | null
+          last_hit_at: string | null
+          slug: string | null
+          submits_total: number | null
+        }
+        Insert: {
+          concurrency_limit?: number | null
+          concurrency_source?: string | null
+          hits_concurrency?: never
+          hits_credits?: never
+          hits_rate?: never
+          in_flight?: never
+          integration_id?: string | null
+          is_enabled?: boolean | null
+          is_verified?: never
+          kind?: string | null
+          last_hit_at?: never
+          slug?: string | null
+          submits_total?: never
+        }
+        Update: {
+          concurrency_limit?: number | null
+          concurrency_source?: string | null
+          hits_concurrency?: never
+          hits_credits?: never
+          hits_rate?: never
+          in_flight?: never
+          integration_id?: string | null
+          is_enabled?: boolean | null
+          is_verified?: never
+          kind?: string | null
+          last_hit_at?: never
+          slug?: string | null
+          submits_total?: never
         }
         Relationships: []
       }

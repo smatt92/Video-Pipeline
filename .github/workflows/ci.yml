@@ -221,6 +221,14 @@ jobs:
       - name: Where the voice chain stops, and its ledger write
         run: pnpm verify:voice "$DATABASE_URL"
 
+      # ── The two limits you hit unexpectedly, and the 90-day clock ────────
+      # Both blocks are the most tempting places in the app to render a fabricated number,
+      # because the natural shape of each needs a numerator that does not exist. Most of
+      # these assertions are about what must NOT appear: an unknown ceiling stays unknown,
+      # a fallback is never a reading, and a purchase total is never a balance.
+      - name: Vendor limits and the credit clock
+        run: pnpm verify:limits "$DATABASE_URL"
+
       # ── The Studio lane, minus the leg that needs a public hostname ──────
       # Creates and drops its own scratch database, so it runs after the checks that read
       # the one above. Section 7 (the billed model call) skips without a key and says so.
