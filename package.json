@@ -27,7 +27,7 @@
     "check:duplicates": "node scripts/check-duplicates.mjs",
     "check:trigger-build": "node scripts/check-trigger-build.mjs",
     "check:scalable-sizes": "node scripts/check-scalable-sizes.mjs",
-    "check": "pnpm check:gates && pnpm check:vendors && pnpm check:public-env && pnpm check:trigger-build && pnpm check:scalable-sizes && pnpm check:guardrails && pnpm check:duplicates && pnpm typecheck && pnpm lint && pnpm test:timings && pnpm test:entry && pnpm test:tour",
+    "check": "pnpm check:gates && pnpm check:vendors && pnpm check:public-env && pnpm check:trigger-build && pnpm check:trigger-env && pnpm check:scalable-sizes && pnpm check:guardrails && pnpm check:duplicates && pnpm typecheck && pnpm lint && pnpm test:timings && pnpm test:entry && pnpm test:tour",
     "prebuild": "node scripts/check-public-env.mjs",
     "check:public-env": "node scripts/check-public-env.mjs",
     "check:drift": "node scripts/check-drift.mjs",
@@ -54,7 +54,8 @@
     "verify:limits": "tsc -p tsconfig.verify.json && node scripts/verify-limits.mjs",
     "verify:pilot": "tsc -p tsconfig.verify.json && node scripts/verify-pilot.mjs",
     "verify:scaling": "node scripts/verify-scaling.mjs",
-    "verify:tour": "node scripts/verify-tour.mjs"
+    "verify:tour": "node scripts/verify-tour.mjs",
+    "check:trigger-env": "node scripts/check-trigger-env.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

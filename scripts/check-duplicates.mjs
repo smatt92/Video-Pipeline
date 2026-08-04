@@ -75,6 +75,13 @@ const MODULE_EXEMPTIONS = {
     + 'vendor name may appear outside the driver layer, storage/env.ts the same for the '
     + 'bucket, and lib/env.ts is the app\u2019s own validated config. Merging them would put '
     + 'vendor names in core config, which check:vendors refuses.',
+  'worker-env.ts':
+    'Three, for the same reason env.ts is three, and composed the same way: '
+    + 'trigger/worker-env.ts is the manifest and spreads in the other two, which exist '
+    + 'because drivers/ and storage/ are the only directories permitted to name a vendor '
+    + 'or a bucket. These are fragments of one list rather than three lists — the parser '
+    + 'in scripts/lib/worker-env.mjs concatenates them and fails on a name declared twice, '
+    + 'so they cannot drift into disagreeing about a variable.',
   'supabase.ts':
     'auth/supabase.ts is the browser/server auth client; storage/supabase.ts is the S3 '
     + 'storage driver. Same vendor, two capabilities, and rule 2 keeps the byte-moving one '

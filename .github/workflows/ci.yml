@@ -69,6 +69,14 @@ jobs:
       - name: Worker image declares every binary src/ spawns
         run: pnpm check:trigger-build
 
+      # The same failure one layer up: not a missing binary but a missing variable. The
+      # Trigger.dev environment is configured in a different dashboard from Vercel's and
+      # nothing said which variables belong in it, so the list was reconstructed from
+      # memory at deploy time. This fails when a task can reach a variable the manifest
+      # does not name — which is how such a list goes stale.
+      - name: Worker env manifest matches what tasks reach
+        run: pnpm check:trigger-env
+
       # ── Nothing may set a font size --ui-scale cannot move ───────────────
       - name: Font sizes are on the scale
         run: pnpm check:scalable-sizes

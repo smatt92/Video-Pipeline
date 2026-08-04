@@ -125,7 +125,46 @@ is what will tell you so.
 
 ---
 
-## 5. Safe-area insets have never been checked against a real post
+## 5. `USD_INR_RATE` defaults to 88.5, and the default lands on money rows
+
+**Status:** found while deriving the worker's environment manifest. Verified in the source
+before writing this: `src/lib/env.ts:159` declares it `z.coerce.number().positive().default(88.5)`,
+and six trigger tasks pass `usdInrRate: env.USD_INR_RATE` into the cost-ledger write.
+
+So a Trigger.dev environment that never sets it does not fail, warn, or leave a null. It
+**snapshots 88.5 onto every `cost_ledger` row**, and `/costs` then presents a rupee figure
+this project invented as though it were the rate in force when the money moved. Nothing
+downstream can tell that figure apart from a real one — which is the whole difficulty.
+
+That is the "never write a measurement you did not take" rule, applied to the input of the
+headline metric rather than to the metric itself. `observedUsdInr` in `src/lib/generate/pilot.ts`
+already returns `null` rather than a default for exactly this reason; the schema predates
+that decision and never caught up.
+
+The manifest now declares it `required: true` with that reasoning, so `pnpm doctor` and
+`pnpm check:trigger-env` both name it. **That is a checklist, not a guarantee** — nothing
+stops a deploy without it.
+
+**Options**
+
+| | |
+|---|---|
+| A. Drop the default; make it required at the point of a ledger write | `requireEnv('USD_INR_RATE', 'writing a cost row')`. A worker without it refuses to spend money rather than mislabelling what it spent. Costs: an unset variable now breaks a pipeline that currently runs. |
+| B. Keep the default, add `rate_source` to `cost_ledger` | `'configured'` vs `'fallback'`, and `/costs` says which. Honest, surfaces the problem instead of preventing it, and needs a migration. |
+| C. Leave it | The rate is roughly right, so the figure is roughly right. Until the rupee moves, or until somebody quotes the number. |
+
+**Recommendation: A.** It is the same shape as the `?? 0` on a duration — a plausible value
+standing in for an absent one, in the one path where being quietly wrong is worst. B is
+strictly more informative but it makes the fabricated rate a supported state with a column
+to describe it, and the fabricated rate should not be a supported state. C is the current
+behaviour and the reason this entry exists.
+
+Not done unattended because it changes what a money row means, and because A makes an
+absent variable stop a running pipeline — a real operational trade, and yours.
+
+---
+
+## 6. Safe-area insets have never been checked against a real post
 
 `SAFE_AREAS` in `composition.ts` carries `verified: false` on every entry and every plan it
 produces reports that as a problem. The numbers are conservative guesses at where each

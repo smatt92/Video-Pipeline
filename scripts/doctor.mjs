@@ -57,8 +57,14 @@ function report(status, name, lines = []) {
  * distinction exists: it can fail while migrations, enums and rows are all perfectly
  * checkable, and hiding four real answers behind it was worse than the missing extension.
  */
-async function check(name, fn, { gate = false } = {}) {
-  if (blocked) {
+async function check(name, fn, { gate = false, independent = false } = {}) {
+  // `independent: true` means no gate above can entail this one's result — it does not
+  // touch the database at all. Without it the worker-environment check reported BLOCKED
+  // behind "DATABASE_URL is set", which is this file's own documented bug wearing a new
+  // hat: an answer it could give perfectly well, withheld because something unrelated
+  // failed first. `gate` and `independent` are different axes — one is "can I entail
+  // others", the other is "can others entail me".
+  if (blocked && !independent) {
     report('block', name, [`Not run — fix "${blocked}" first.`]);
     return null;
   }
@@ -707,6 +713,62 @@ try {
 } finally {
   await client?.end().catch(() => {});
 }
+
+// ── The worker's environment ─────────────────────────────────────────────────
+//
+// Deliberately outside the database block: it needs no connection, and it is the one check
+// here about the *other* deployment target. `check:trigger-env` proves the manifest matches
+// the code and explicitly cannot see any environment; this asks the same list of the
+// environment it can see, which is the half that answers "why did the run fail".
+//
+// Reported as a warning rather than a failure. A local shell legitimately lacks the
+// worker's variables — that is not a broken machine, and making it fail would train
+// everyone to ignore a red line that is usually wrong.
+await check('the worker has the variables its manifest names', async () => {
+  let manifest;
+  try {
+    const mod = await import('./lib/worker-env.mjs');
+    manifest = await mod.readManifest();
+  } catch (err) {
+    return {
+      status: 'warn',
+      lines: [`Could not read the worker env manifest: ${err.message}`],
+    };
+  }
+
+  const missing = manifest
+    .filter((v) => v.required)
+    .filter((v) => {
+      const value = process.env[v.name];
+      return value === undefined || value.trim() === '';
+    })
+    .map((v) => v.name);
+
+  if (missing.length === 0) {
+    return {
+      status: 'pass',
+      lines: [
+        `All ${manifest.filter((v) => v.required).length} required worker variables are set here.`,
+        '',
+        'This machine, not the Trigger.dev environment — nothing local can see that one. ' +
+          'Run `pnpm check:trigger-env` for the list to paste into its dashboard.',
+      ],
+    };
+  }
+
+  return {
+    status: 'warn',
+    lines: [
+      `${missing.length} variable(s) the worker's manifest calls required are unset here:`,
+      `    ${missing.join(', ')}`,
+      '',
+      'Fine on a machine that never runs a task. Not fine in the Trigger.dev environment: ' +
+        'a deploy missing any of these produces a run that fails naming a variable rather ' +
+        'than the configuration step that omitted it — after a generation has been paid ' +
+        'for. `pnpm check:trigger-env` prints each one with what breaks without it.',
+    ],
+  };
+}, { independent: true });
 
 // ── Summary ──────────────────────────────────────────────────────────────────
 const count = (s) => results.filter((r) => r.status === s).length;

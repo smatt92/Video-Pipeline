@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { primaryForKind } from '@/lib/drivers/catalog';
 import { serverClient } from '@/lib/db/server';
-import { env } from '@/lib/env';
+import { env, requireEnv } from '@/lib/env';
 import { expectedWebhookSecret } from '@/lib/drivers/video-status';
 import { requireCredential } from '@/lib/integrations/credentials';
 import { submitShots, type SubmitOutcome } from '@/lib/generate/submit';
@@ -84,16 +84,17 @@ export const generateTask = schemaTask({
     // name and `pnpm check:vendors` refuses it here, correctly. The driver already had this
     // accessor for the receiving side of the same secret.
     const webhookSecret = expectedWebhookSecret();
-    const webhookBaseUrl = env.WEBHOOK_CALLBACK_BASE_URL;
 
-    if (!webhookBaseUrl) {
-      // Same class as the missing secret below: a submit whose completion has nowhere to
-      // arrive. Separate check so the message names which half is absent.
-      throw new Error(
-        'WEBHOOK_CALLBACK_BASE_URL is unset, so the vendor would have no address to call ' +
-          'back. Refusing to submit rather than paying for a generation nothing can confirm.',
-      );
-    }
+    // Same class as the missing secret below: a submit whose completion has nowhere to
+    // arrive. Separate check so the message names which half is absent.
+    //
+    // Through `requireEnv` rather than a hand-rolled `if (!env.X) throw`, which is what
+    // this was. The variable is optional at boot on purpose and `src/lib/env.ts` says so
+    // in five places, each promising that `requireEnv` catches it at the point of use —
+    // and `requireEnv` had no callers anywhere in the repo. The behaviour was right and
+    // the mechanism the documentation named was inert, so deleting this line would have
+    // left every one of those comments still claiming coverage.
+    const webhookBaseUrl = requireEnv('WEBHOOK_CALLBACK_BASE_URL', 'submitting a generation');
 
     if (!webhookSecret) {
       // Refusing here rather than submitting is the whole of rule 4's safety. A submit with
