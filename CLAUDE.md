@@ -338,6 +338,33 @@ alert nobody routes, a log line in a file nobody opens: each is the original pro
 the costume of its own solution, and each is *harder* to notice than what it replaced,
 because its existence reads as coverage.
 
+**A caller that is itself uncalled is not a caller.** "Does this have a caller?" is the
+question this project asks to avoid building the complete-and-unreachable module, and it is
+not safe to ask one link deep. Reachability is transitive and terminates only at something
+outside the code: a route, a page, a component a page renders, a Trigger task, a cron, a
+harness, or a framework convention like `middleware`. Anything else is an island, however
+many arrows point into it.
+
+Three instances, found in one sweep, and two of them **say in their own header that they
+avoided this**:
+
+| Module | The comment | The fact |
+|---|---|---|
+| `01-trends.ts` | *"Its caller is a button, not a cron. `runTrendsNowAction` invokes this … what mattered immediately is that this task had no caller at all, which is the category three other modules were just pulled out of"* | `runTrendsNowAction` has no caller. There is no button. The chain got one link longer and still ends in nothing |
+| `09-metadata.ts` | *"It has a caller from the day it exists … written this way deliberately: a sweep three rounds ago found four complete-and-unreachable modules, and the cheapest moment to avoid being the fifth is now"* | `requestMetadata` has no caller. It is the fifth |
+| `verify.ts` | `onboarding/actions.ts`: *"`isUsable()` still returns false and every pipeline task still refuses"* | `isUsable` had no callers; `usability` is what the tasks call. A second name for one concept, alive only in prose |
+
+The tell is that **the prose was the evidence**. Each was written by someone who had just
+been burned by an unreachable module, checked for a caller, found one, and stopped — which
+is one step further than not checking at all and lands in the same place. Add a link and the
+question feels answered.
+
+So: when you write "this has a caller", name the *entry point*, not the intermediate — "the
+Review screen's Request metadata button calls this" is checkable and "`requestMetadata`
+calls this" is not. And when you read such a comment, follow it to the end before believing
+it. The two above are worse than silence: they are a claim of coverage that reads as having
+been verified.
+
 **"Absent" and "zero" are different facts and must never share a representation.** Five
 instances now, which makes it a rule rather than five local judgements:
 

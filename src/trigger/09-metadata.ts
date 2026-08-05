@@ -11,9 +11,12 @@ import { runMetadata, type MetadataRunResult } from '@/lib/metadata/run';
  *
  * A wrapper, like every other stage, so the logic can be driven by a harness.
  *
- * ── It has a caller from the day it exists ───────────────────────────────────
+ * ── It does NOT have a caller, and this heading used to say it did ──────────
  *
- * `requestMetadata` in `src/lib/review/actions.ts` calls this, and the harness drives
+ * `requestMetadata` in `src/lib/review/actions.ts` calls this — **and nothing calls
+ * `requestMetadata`**, so this paragraph was wrong on the day it was written. It says below
+ * that it exists to avoid being the fifth complete-and-unreachable module; it is the fifth.
+ * The harness drives
  * `runMetadata` directly. Written this way deliberately: a sweep three rounds ago found
  * four complete-and-unreachable modules, and the cheapest moment to avoid being the fifth
  * is now.

@@ -15,9 +15,12 @@ import { runTrends, type TrendRunResult } from '@/lib/trends/run';
  * are deliberate rather than forgotten — see the note in `run.ts`, which says so where a
  * reader auditing rule 5 will look.
  *
- * ── Its caller is a button, not a cron ───────────────────────────────────────
+ * ── Its caller would be a button, and the button is unbuilt ─────────────────
  *
- * `runTrendsNowAction` invokes this. §4 of ARCHITECTURE says stage 1 is cron four times
+ * `runTrendsNowAction` invokes this — **and nothing invokes that**, so this task is still
+ * unreachable and this paragraph used to claim otherwise. The chain got one link longer and
+ * still ends in nothing; see CLAUDE.md on a caller that is itself uncalled. The button is
+ * unbuilt. §4 of ARCHITECTURE says stage 1 is cron four times
  * daily and it will be; a schedule is a decision about how often to hit somebody else's
  * public feed, and that decision has not been made. What mattered immediately is that this
  * task had no caller at all, which is the category three other modules were just pulled out

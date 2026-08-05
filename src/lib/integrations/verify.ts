@@ -244,17 +244,6 @@ export async function verifyIntegration(db: Db, slug: string): Promise<VerifyOut
   return { ok, slug, checks, latencyMs, summary };
 }
 
-/**
- * Whether a pipeline task may select this integration.
- *
- * The rule from Addendum 01, unchanged: *an unverified integration cannot be selected by
- * any pipeline task.* Enabled is not sufficient and never was — enabling is a statement of
- * intent, verifying is a statement of fact.
- */
-export async function isUsable(db: Db, slug: string): Promise<boolean> {
-  return (await usability(db, slug)).usable;
-}
-
 export interface Usability {
   usable: boolean;
   /** Why not, in a sentence a task can put in a row and a person can act on. */
@@ -264,7 +253,17 @@ export interface Usability {
 }
 
 /**
- * The same rule, with the reason attached.
+ * Whether a pipeline task may select this integration, and why not when it may not.
+ *
+ * The rule from Addendum 01, unchanged: *an unverified integration cannot be selected by
+ * any pipeline task.* Enabled is not sufficient and never was — enabling is a statement of
+ * intent, verifying is a statement of fact.
+ *
+ * There used to be an `isUsable()` beside this returning just the boolean. It had no
+ * callers — `submit.ts` and `regenerate.ts` both call this one — and it was named by a
+ * comment in `onboarding/actions.ts` as the thing that makes a deferred integration refuse.
+ * Two names for one concept, one of them existing only in prose. Deleted rather than
+ * documented: a superseded function is not history, git is.
  *
  * Deferral changes nothing about the answer — a deferred integration is unverified and
  * therefore unusable, exactly as before. What it changes is the *sentence*: "never

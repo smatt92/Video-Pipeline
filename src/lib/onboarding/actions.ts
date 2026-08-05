@@ -679,8 +679,8 @@ export async function setConcurrency(
  * Record a step as deliberately skipped.
  *
  * Not a pass. `completeStep` is never called, `onboarding_completed_steps` is untouched,
- * and the integration the step configures stays unverified — so `isUsable()` still returns
- * false and every pipeline task still refuses. What changes is the gate, and only the gate.
+ * and the integration the step configures stays unverified — so `usability()` still says
+ * unusable and every pipeline task still refuses. What changes is the gate, and only the gate.
  *
  * The reason is required and enforced in SQL rather than here, because a deferral without
  * one cannot be told apart from a step somebody forgot, and the banner that names it would

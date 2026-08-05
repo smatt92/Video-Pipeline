@@ -298,6 +298,35 @@ One thing that is not optional whichever you pick: any row already written carri
 
 ---
 
+## 8. Two Server Actions with no button — where do the buttons go?
+
+**Status:** found by the sweep, and the code is corrected to stop lying about it. What is
+left is placement and copy, which is why it is here rather than done.
+
+`runTrendsNowAction` (stage 1) and `requestMetadata` (stage 9) are both complete, both
+enqueue their task correctly, and **neither is called by anything**. The two Trigger tasks
+each carry a header paragraph claiming the opposite — see CLAUDE.md's new entry on a caller
+that is itself uncalled; the comments have been corrected to say what is true.
+
+Nothing about the mechanism is in question. What I did not want to decide unattended:
+
+| | `runTrendsNowAction` | `requestMetadata` |
+|---|---|---|
+| Where | `/trends`? the board? Settings? | The review screen, presumably beside the pass decision |
+| When enabled | Always, or only when the last run is older than something? | Only after a passing review — the task refuses otherwise, so a button that is always live means a button that usually errors |
+| Copy | "Run now" vs "Check for trends" — the second is honest about it hitting somebody else's feed | "Request metadata" vs "Draft title and description" |
+| The real question | §4 of ARCHITECTURE says stage 1 is cron four times daily. A manual button may be a stopgap or may be the actual Phase 1 answer | Whether this is a button at all, or whether passing a review should just enqueue it |
+
+**Recommendation: build both as buttons, and make `requestMetadata` automatic on a passing
+review as well.** The metadata task refuses without a passing review anyway, so the review
+passing *is* the trigger condition — a button that can only be pressed at exactly one moment
+is a worse version of doing it at that moment. Keep the button too, for re-drafting.
+
+For trends, a manual button first and the cron after the schedule decision, which is a
+decision about how often to hit a public feed and is yours.
+
+---
+
 ## 6. Safe-area insets have never been checked against a real post
 
 `SAFE_AREAS` in `composition.ts` carries `verified: false` on every entry and every plan it
