@@ -1,4 +1,6 @@
 import { ffmpeg } from '@trigger.dev/build/extensions/core';
+
+import { headlessShell } from './src/lib/trigger/headless-shell';
 import { defineConfig } from '@trigger.dev/sdk';
 
 /**
@@ -55,7 +57,14 @@ export default defineConfig({
    * error surfaces at build time and costs a minute; a runtime error surfaces after money
    * moved. Declaring it is the cheaper failure of the two. See 0008 §7.
    */
-  build: { extensions: [ffmpeg()] },
+  /**
+   * ffmpeg, and a browser Remotion can actually drive.
+   *
+   * `headlessShell()` is ours because no shipped extension installs the right browser —
+   * `puppeteer()` installs Chrome-stable, which supports only *new* headless mode and which
+   * Remotion refuses. See that file for why the wrong browser is worse than none.
+   */
+  build: { extensions: [ffmpeg(), headlessShell()] },
 
   dirs: ['./src/trigger'],
 });

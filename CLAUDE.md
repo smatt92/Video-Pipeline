@@ -338,6 +338,21 @@ alert nobody routes, a log line in a file nobody opens: each is the original pro
 the costume of its own solution, and each is *harder* to notice than what it replaced,
 because its existence reads as coverage.
 
+**A dependency that installs the wrong version of a thing is worse than one that installs
+nothing**, because the failure moves from build time to runtime and lands after money has
+moved. Check what an extension actually installs by **reading it**, not by its name.
+
+Trigger's `puppeteer()` extension sounds like the answer to "the worker needs a browser". Its
+source runs `apt-get install google-chrome-stable` and sets `PUPPETEER_EXECUTABLE_PATH`.
+Chrome-stable supports only the *new* headless mode; Remotion drives the old one and refuses
+outright. Adding it would have made the image bigger, the deploy succeed, and the first
+render fail on a worker after the clips it was assembling had been generated and paid for —
+whereas *no* extension at least fails at the first render on a developer's machine.
+
+The general shape: a missing dependency fails loudly and early, a wrong one fails quietly and
+late. So when an extension, plugin or preset claims to provide a capability, open it and read
+what it installs. The name is a summary somebody else wrote for a different use case.
+
 **When an assertion fails on output you believe is correct, suspect the instrument before
 the threshold.** `verify:render` compared `format=duration` against the plan and reported
 4.053s on a render that was exactly 4.000s. The obvious response is to widen the tolerance,
