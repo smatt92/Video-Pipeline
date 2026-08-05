@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 import { serverClient } from '@/lib/db/server';
 import { runIngest } from '@/lib/ingest/run';
+import { putterFor } from '@/lib/storage/put';
 import { storage } from '@/lib/storage';
 import { localPathFor, writeStreamLocal } from '@/lib/storage/local';
 
@@ -27,45 +28,6 @@ const Payload = z.object({
   assetUrl: z.url(),
   kind: z.enum(['video', 'image', 'audio']).default('video'),
 });
-
-/**
- * Byte writing is driver-specific and deliberately not on `StorageDriver`.
- *
- * The interface hands out URLs so that no Vercel route can be tempted to proxy media
- * (rule 2). This worker has no such limit, so the write is resolved here per driver
- * rather than by widening an interface every call site can see.
- */
-function putterFor(): {
-  put: (key: string, body: Readable) => Promise<number>;
-  localPath?: (key: string) => string;
-} {
-  const driver = storage();
-
-  if (driver.slug === 'local-fs') {
-    return { put: writeStreamLocal, localPath: localPathFor };
-  }
-
-  // The object-store path. Presign a PUT and stream to it — the same URL shape a browser
-  // would use, so this exercises the mechanism the browser upload depends on rather than a
-  // privileged side channel that could work while that one is broken.
-  return {
-    put: async (key, body) => {
-      const signed = await driver.presignPut({ key, contentType: 'video/mp4' });
-      const chunks: Buffer[] = [];
-      for await (const chunk of body) chunks.push(Buffer.from(chunk));
-      const bytes = Buffer.concat(chunks);
-      const response = await fetch(signed.url, {
-        method: 'PUT',
-        body: new Uint8Array(bytes),
-        headers: { 'content-type': 'video/mp4' },
-      });
-      if (!response.ok) {
-        throw new Error(`Presigned PUT returned ${response.status} for ${key}`);
-      }
-      return bytes.length;
-    },
-  };
-}
 
 export const ingestTask = schemaTask({
   id: '05b-ingest',

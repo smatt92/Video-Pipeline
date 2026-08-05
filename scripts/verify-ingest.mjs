@@ -113,7 +113,21 @@ await createWriteStream(corruptPath).end(Buffer.from('not an mp4, just some byte
 const files = new Map(built.map((b) => [`/${b.name}`, b.path]));
 files.set('/corrupt', corruptPath);
 
+// Two extra routes for the presigned-PUT check at the end of this file: one that accepts a
+// PUT and one that rejects it. Here rather than in a second server so the harness has one
+// HTTP surface to reason about.
 const server = createServer((req, res) => {
+  if ((req.url ?? '').startsWith('/put-accept/')) {
+    req.resume();
+    req.on('end', () => res.writeHead(200).end());
+    return;
+  }
+  if ((req.url ?? '').startsWith('/put-reject/')) {
+    req.resume();
+    req.on('end', () => res.writeHead(403).end());
+    return;
+  }
+
   const path = files.get(req.url ?? '');
   if (!path) {
     res.writeHead(404).end();
@@ -351,6 +365,60 @@ if (unconfirmedResult.ok) bad('unconfirmed generation', 'was ingested');
 else if (unconfirmedResult.code !== 'unconfirmed') {
   bad('unconfirmed generation', `refused for the wrong reason: ${unconfirmedResult.code}`);
 } else ok('unconfirmed generation', 'refused before any fetch');
+
+// ── The presigned-PUT refusal, now that it is reachable ─────────────────────
+//
+// This `throw` lived in `05b-ingest.ts` and `07-assemble.ts` — the same code twice, with
+// the same message — and in both places it was unreachable: no harness imports a Trigger
+// task. It now lives in `src/lib/storage/put.ts` as one implementation, and `putterFor`
+// takes the driver so this can hand it one whose presigned URL rejects.
+//
+// LOAD-BEARING. The message says the bytes "have been paid for and have nowhere to live",
+// so what is being asserted is that a failed upload FAILS rather than being swallowed and
+// reported as a successful ingest. A silent success here would mean a generation charged,
+// a row marked done, and no file.
+{
+  const { putterFor } = await import(`${BUILD}/storage/put.js`);
+
+  // A driver that presigns to a URL the stub rejects. Everything else about it is the real
+  // shape, so the failure is the response status and not a malformed call.
+  const rejecting = {
+    slug: 'harness-rejects',
+    presignPut: async ({ key }) => ({ url: `${base}/put-reject/${encodeURIComponent(key)}`, key }),
+  };
+
+  const { put } = putterFor(rejecting);
+  let threw = null;
+  try {
+    await put('some/key.mp4', createReadStream(built[0].path));
+  } catch (err) {
+    threw = err;
+  }
+
+  if (threw === null) {
+    bad('a rejected presigned PUT throws', 'the upload reported success and stored nothing');
+  } else if (!/Presigned PUT returned 403/.test(String(threw.message))) {
+    bad('a rejected presigned PUT throws', `wrong message: ${threw.message}`);
+  } else {
+    ok('a rejected presigned PUT throws', 'named the status and the key');
+  }
+
+  // The accepting branch, because a guard whose only tested half is the refusal passes on
+  // an empty world whatever the other half does. Same driver shape, a URL the stub accepts.
+  const accepting = {
+    slug: 'harness-accepts',
+    presignPut: async ({ key }) => ({ url: `${base}/put-accept/${encodeURIComponent(key)}`, key }),
+  };
+  const bytes = await putterFor(accepting).put(
+    'some/key.mp4',
+    createReadStream(built[0].path),
+  );
+  if (typeof bytes === 'number' && bytes > 0) {
+    ok('an accepted presigned PUT returns the byte count', `${bytes} bytes`);
+  } else {
+    bad('an accepted presigned PUT returns the byte count', `got ${bytes}`);
+  }
+}
 
 // ── Done ────────────────────────────────────────────────────────────────────
 server.close();

@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 import { runAssemble } from '@/lib/assemble/run';
 import { serverClient } from '@/lib/db/server';
+import { putterFor } from '@/lib/storage/put';
 import { storage } from '@/lib/storage';
 import { writeStreamLocal } from '@/lib/storage/local';
 
@@ -26,34 +27,6 @@ const Payload = z.object({
   variantLabel: z.string().min(1).max(40).default('rough'),
 });
 
-/**
- * Writing bytes is driver-specific and deliberately not on `StorageDriver`.
- *
- * The interface hands out URLs so no Vercel route can proxy media (rule 2). This worker
- * has no such limit, so the write is resolved per driver here rather than by widening an
- * interface every call site can see. Reading is not resolved here — that goes through
- * `presignGet` in `materialise`, which is the same door the browser uses.
- */
-function putterFor(): (key: string, body: Readable) => Promise<number> {
-  const driver = storage();
-
-  if (driver.slug === 'local-fs') return writeStreamLocal;
-
-  return async (key, body) => {
-    const signed = await driver.presignPut({ key, contentType: 'video/mp4' });
-    const chunks: Buffer[] = [];
-    for await (const chunk of body) chunks.push(Buffer.from(chunk));
-    const bytes = Buffer.concat(chunks);
-    const response = await fetch(signed.url, {
-      method: 'PUT',
-      body: new Uint8Array(bytes),
-      headers: { 'content-type': 'video/mp4' },
-    });
-    if (!response.ok) throw new Error(`Presigned PUT returned ${response.status} for ${key}`);
-    return bytes.length;
-  };
-}
-
 export const assembleTask = schemaTask({
   id: '07-assemble',
   schema: Payload,
@@ -69,7 +42,7 @@ export const assembleTask = schemaTask({
     const result = await runAssemble(payload, {
       db,
       driver: storage(),
-      putBytes: putterFor(),
+      putBytes: putterFor().put,
       log: {
         info: (m, d) => logger.info(m, d as Record<string, unknown>),
         error: (m, d) => logger.error(m, d as Record<string, unknown>),
