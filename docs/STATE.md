@@ -1,15 +1,15 @@
 # What exists, and what it has actually done
 
-**Written:** 2026-08-03 · **Accuracy pass:** 2026-08-04 · **Method:** surveyed from the
+**Written:** 2026-08-03 · **Accuracy passes:** 2026-08-04, 2026-08-05 · **Method:** surveyed from the
 repository and the databases, not transcribed from `0008`. Every count in the original was
 from a run performed while writing it.
 
 The 2026-08-04 pass re-derived everything that could be read from the repository — the
 Trigger task list, which harnesses CI runs, which stages have a task — and corrected §3.3,
 which had drifted far enough to contradict §3.1 on the same page. It deliberately did **not**
-refresh the assertion counts: `.env.local` is gone from the working container and the
-database-backed harnesses cannot run there, so those numbers keep their original date
-rather than acquiring a new one they did not earn. §2 states that in full.
+refresh the assertion counts, because the harnesses could not run in the container at the
+time. **The 2026-08-05 pass took them** — every figure in §2 is now a measurement from a run
+performed while writing it, and §2 explains why the gap existed.
 
 **The general rule this document now follows:** a number here carries the date it was
 measured, and a number that could not be re-measured keeps its old date rather than being
@@ -28,9 +28,9 @@ which are merely wired — which is the reason it exists.
 One vendor has ever been called from this codebase: **Anthropic**, twice, on 2026-08-01,
 producing a script and a shotlist and four `cost_ledger` rows totalling **₹6.07**. Nothing
 else has spoken to a vendor. Everything else that works, works against synthetic inputs in
-a harness — which is a real and useful category, covering 319 assertions across fifteen
-harnesses when last counted on 2026-08-03; nineteen now run in CI, and §2 says why the
-count was not retaken. Stage 5 is wired and proven up to the vendor, and the three
+a harness — which is a real and useful category, covering **486 assertions across twenty
+harnesses**, all measured on 2026-08-05 against a local Postgres that turned out to have
+been available all along. Stage 5 is wired and proven up to the vendor, and the three
 unbuilt stages are built. The pipeline now chains from an approved concept to a submitted
 generation — see §8 for the one missing column that had been making that chain inert.
 
@@ -66,40 +66,55 @@ difference is always the vendor.
 
 | Harness | Assertions | What it drives | Where the synthesis is |
 |---|---|---|---|
+| `verify:submit` | **62** | Stage 5: every refusal before the spend, one submit per shot, the vendor error taxonomy, the approval transition, the blocker view, the moved callback guards, `resolveDriver` | A local server stands in for the vendor's HTTP surface |
 | `verify:review` | **51** | Timeline, trims, reorder, caption seams, structure novelty, the publish gate | Clips are ffmpeg test patterns; word timings are authored |
-| `verify:studio` | **38** (+1 skip) | The MCP server over real HTTP: initialize, tools/list, auth, forged and cross-session tokens, batch, the spend cap | No model on the other end — §7 is the skip |
-| `test:timings` | **16** | Character→word conversion, shot-duration derivation | Timings are constructed, not synthesised by a vendor |
-| `test:tour` | **16** | Tour steps ↔ scene beats, and that the scene cannot draw text | Pure data; no browser needed |
-| `test:entry` | **15** | All eight combinations of (signed in, seen on record, seen cookie) | None — it is a total function over a finite domain |
-| `verify:assemble` | **12** | 6 clips → one MP4 over a real S3 endpoint, and a wrong duration failing the render | s3rver stands in for the bucket; clips are generated |
-| `verify:scaling` | **11** | The compiled stylesheet in a real Chromium at seven widths, WCAG 1.4.4 / 1.4.10 / 1.4.12 / 2.5.8 | A probe page, not the app's own screens |
-| `verify:tour` | **20** | `/onboarding` in a real Chromium: canvas, contrast under the actual text, reduced motion, context loss | SwiftShader, not a GPU |
-| `verify:referral` | **9** | Attribution written once and not overwritten; the roll-up carries nothing identifying | Ledger rows are inserted, not earned |
-| `verify:submit` | **42** | Stage 5: every refusal before the spend, one submit per shot, the vendor error taxonomy, the approval transition, the blocker view | A local server stands in for the vendor's HTTP surface |
-| `verify:concepts` | **29** | Stage 2: the rubric arithmetic, the validations a decode constraint cannot express, drafts only, the batch charge dividing | A local server stands in for the Messages API |
-| `verify:metadata` | **18** | Stage 9: refusal without a passing review, the DB publish gate in both directions, the title-shape check | Same |
-| `verify:trends` | **12** | Stage 1: the velocity proxy, same-day dedup keeping the later reading, a source being down | A local server stands in for the feed |
+| `verify:costs` | **45** | Cost per video and its denominator; the ledger's arithmetic | Ledger rows are inserted |
+| `verify:studio` | **41** | The MCP server over real HTTP: initialize, tools/list, auth, forged and cross-session tokens, batch, the spend cap | No model on the other end |
+| `verify:concepts` | **30** | Stage 2: the rubric arithmetic, the validations a decode constraint cannot express, drafts only, the batch charge dividing | A local server stands in for the Messages API |
+| `verify:limits` | **30** | Vendor limits and the credit clock | Readings are inserted |
 | `verify:webhook` | **25** | The callback over real HTTP: secret gate, payload gate, delivery RPC, replay, the vendor overruling the body | A local server stands in for the status endpoint |
-| `verify:ingest` | **5** | 3 source shapes → the canonical intermediate; a corrupt file → an error row | Sources are ffmpeg-generated |
+| `verify:metadata` | **22** | Stage 9: refusal without a passing review, the DB publish gate in both directions, the title-shape check | Same |
+| `verify:pilot` | **22** | One shot before six; voice before videos; the path surface | Fixtures |
+| `verify:tour` | **22** | `/onboarding` in a real Chromium: canvas, contrast under the actual text, reduced motion, context loss | SwiftShader, not a GPU |
+| `verify:assemble` | **20** | 6 clips → one MP4 over a real S3 endpoint, a wrong duration failing the render, and the composition plan | s3rver stands in for the bucket; clips are generated |
+| `test:timings` | **16** | Character→word conversion, shot-duration derivation | Timings are constructed |
+| `test:tour` | **16** | Tour steps ↔ scene beats, and that the scene cannot draw text | Pure data; no browser |
+| `verify:voice` | **16** | Where the voice chain stops, and its ledger write | Stubbed vendor surface |
+| `test:entry` | **15** | All eight combinations of (signed in, seen on record, seen cookie) | None — a total function over a finite domain |
+| **`verify:render`** | **14** | **The final composition rendered by real Chromium to a real MP4, measured against its plan** | Synthetic clips over local HTTP; authored word timings |
+| `verify:trends` | **12** | Stage 1: the velocity proxy, same-day dedup keeping the later reading, a source being down | A local server stands in for the feed |
+| `verify:scaling` | **11** | The compiled stylesheet in a real Chromium at seven widths, WCAG 1.4.4 / 1.4.10 / 1.4.12 / 2.5.8 | A probe page, not the app's own screens |
+| `verify:referral` | **9** | Attribution written once and not overwritten; the roll-up carries nothing identifying | Ledger rows are inserted |
+| `verify:ingest` | **7** | 3 source shapes → the canonical intermediate; a corrupt file → an error row; the presigned-PUT guard both ways | Sources are ffmpeg-generated |
 
-**Total on 2026-08-03: 319 assertions across fifteen harnesses, every one exiting 0
-locally — verified by exit code rather than by grepping output, see §4b.** Four further
-guards are exempt with reasons: `verify:vault` and `verify:storage` need a live Supabase
-project, and the two `verify:script*` variants spend money on a billed model call.
+**Total on 2026-08-05: 486 assertions across twenty harnesses, every one exiting 0 — and
+this is the first count in three days that was actually taken.**
 
-**Not re-measured on 2026-08-04, and the reason is worth stating.** CI now runs **nineteen**
-harnesses — `verify:costs`, `verify:limits`, `verify:pilot` and `verify:voice` joined after
-the count above was taken — so the table is four rows short and the total is an
-undercount of unknown size. It is left at yesterday's figure with yesterday's date rather
-than adjusted by guess, because a count is a measurement and this project's rule is not to
-write one it did not take.
+| | |
+|---|---|
+| Database-backed (14) | **392** — ingest 7, assemble 20, review 51, concepts 30, metadata 22, trends 12, submit 62, webhook 25, referral 9, costs 45, voice 16, limits 30, pilot 22, studio 41 |
+| No database (5) | **80** — timings 16, entry 15, tour 16, scaling 11, tour-browser 22 |
+| Render (1) | **14** — `verify:render`, new, exempt from CI on a browser question |
 
-Why it could not be taken: `.env.local` is gone from the working container and there is no
-Docker, no local Postgres and no credentials, so the database-backed harnesses cannot run
-here. `pnpm check` (all fourteen static guards) and `pnpm build` do run and pass; CI has
-every harness and is green on this branch's last completed run. The honest statement is
-therefore "green in CI, unrunnable locally", and the number stays stale-but-dated instead of
-becoming fresh-but-invented.
+Four further guards are exempt with reasons: `verify:vault` and `verify:storage` need a live
+Supabase project, the two `verify:script*` variants spend money on a billed model call, and
+`verify:render` needs a browser supporting old headless mode — see `check-gates.mjs`, which
+fails if any of those reasons stops being true.
+
+**Why the previous figure sat stale for two days, and what changed.** The count was frozen
+at 319/fifteen with its original date because the container was believed to have no Postgres
+and the harnesses could not run. That belief came from `initdb` exiting 1 — it refuses to run
+as root — and the server binary was present the whole time. `scripts/pg-scratch.sh` now
+stands the cluster up in three commands, and every harness executes.
+
+The rule the document adopted while it could not measure held up: the stale figure kept its
+old date rather than drifting toward plausibility, so the gap between 319 and 486 is visible
+rather than having been quietly closed by a guess.
+
+**One note on the instrument, since it bit during this count.** Harnesses print `PASS` two
+ways — most indented, `test:timings` at column 0 — and a counter matching only the indented
+form reported 0 for a harness with 16 passing assertions. A count is only as good as the
+pattern that took it; this one matches both.
 
 ### What the synthetic category has actually caught
 
