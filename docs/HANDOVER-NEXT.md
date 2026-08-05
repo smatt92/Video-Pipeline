@@ -28,7 +28,7 @@ every item is not bureaucracy.
 
 ---
 
-## 0. The Trigger layer's test reach — PARTLY CLOSED, and the classification matters
+## 0b. The Trigger layer's test reach — PARTLY CLOSED, and the classification matters
 
 **The choice: move the guards down.** Not a harness that imports tasks. The seven `throw`s
 are not one category, and classifying them was most of the work:
