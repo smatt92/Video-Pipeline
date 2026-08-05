@@ -56,57 +56,32 @@ which build extension the worker image needs is the open question in DECISIONS-P
 
 ---
 
-## 0b. The Trigger layer's test reach — PARTLY CLOSED, and the classification matters
+## 0b. The Trigger layer's test reach — CLOSED
 
-**The choice: move the guards down.** Not a harness that imports tasks. The seven `throw`s
-are not one category, and classifying them was most of the work:
+Seven `throw`s lived in `src/trigger/`, unreachable because no harness imports a task. The
+answer was **move the guards down**, not build a harness that reaches into tasks — and the
+classification is why:
 
-| | Refusal | Verdict |
-|---|---|---|
-| `05-generate:104` | no webhook secret | **Moved into `submitShots`.** A decision about a *value* |
-| `05-generate` requireEnv | no callback base URL | **Moved into `submitShots`.** Same |
-| `05b-ingest:63`, `07-assemble:52` | presigned PUT returned non-OK | **Should move** — and they are the *same helper duplicated in two tasks*, so this is also a two-modules-for-one-concept fix. Belongs in the storage layer. NOT DONE |
-| `05-generate:75`, `06-voice:50` | no primary integration for kind | **Should move**, but the task needs the resolved driver to fetch credentials first, so moving it means moving credential resolution too. `submitShots` already duplicates the 05 one. NOT DONE |
-| `05b-ingest:101`, `07-assemble:84` | rethrow of a lib result's code/detail | **Legitimately task-level.** They contain no decision — they convert an already-tested lib refusal into a run failure. Nothing to move |
+| Refusal | Where it went |
+|---|---|
+| webhook secret, callback base URL | `submitShots`, as named refusals. `verify:submit` §14 drives both by passing an empty string and asserts **no vendor request was made** |
+| presigned-PUT status ×2 | `src/lib/storage/put.ts` — one implementation instead of two that had already drifted. `verify:ingest` drives both branches against a stub that 403s and one that accepts |
+| no primary integration ×2, with credential resolution | `src/lib/integrations/resolve.ts`. `verify:submit` §15 drives the happy path and the missing-credential refusal |
+| the two rethrows | Stayed. They contain no decision — they convert an already-tested lib refusal into a run failure |
 
-So: 2 of 7 moved and now drivable, 4 should move and are specified above, 1 pair is correct
-where it is. **The reason a harness-imports-tasks pattern was the wrong answer** is that it
-would have built machinery to reach guards that were in the wrong place — your instruction,
-and it held up under the classification: every guard worth reaching turned out to be a
-decision about a value, which belongs where the value is used.
+**Four throws remain in `src/trigger/` and all four are that last shape.** That is the target
+state: a task resolves configuration and hands it down; deciding whether it is sufficient
+belongs where a harness can drive it.
 
-`verify:submit` §14 drives both moved refusals by passing an empty string, and asserts **no
-vendor request was made** rather than just the refusal code — the accepting-branch half,
-counted from the vendor stub rather than from anything `submitShots` says about itself.
+Two things the moves taught, both worth keeping:
 
-**Unrun locally.** §14 is new code in a harness this container cannot execute. CI is the
-check; if it is red, that section is the first place to look.
-
----
-
-## 0z. The original finding: no harness imports a Trigger task
-
-Seven `throw`s live in `src/trigger/` and **none of them is exercised by anything**.
-`grep -rn "trigger/0" scripts/` returns nothing: all fifteen harnesses drive `src/lib/`
-functions with a deps object, so a task's own guards are not merely unexercised — they are
-unreachable from the harness that appears to cover the stage.
-
-The two in `05-generate.ts` are the ones that matter. Their messages say a submit without a
-callback URL or a webhook secret "runs, it bills, and nothing ever confirms it", and
-`verify:submit` — 42 assertions, green — drives `submitShots` directly with `webhookBaseUrl`
-hardcoded in its deps. The guard sits one layer above what the harness can touch.
-
-**This is the first thing to fix and it is not small.** Two routes, and they compose:
-
-1. **Move what can move.** A refusal about a *value* belongs in the lib function, where a
-   harness can drive it. The task should resolve configuration and hand it down.
-2. **For what genuinely belongs to the task** — refusals about the environment the task runs
-   in — the harness has to import the task and drive `run`. Nothing does this today, so it is
-   a new pattern rather than an addition to an existing one.
-
-Related and cheaper: no harness anywhere deletes an environment variable to exercise a
-refusal. Every one sets its scaffolding with `??=` at the top, which guarantees the value
-exists for the whole file. See the CLAUDE.md rules on both.
+- **The harness caught a real error in `resolveDriver`.** My first version required every
+  catalogue secret field; the video integration has three, not the two I assumed, and the
+  third is the webhook secret that `submitShots` refuses on with a better message. Requiring
+  it there would have made that refusal a branch production could never enter.
+- **`no_primary_integration` is not covered.** `primaryForKind` reads a code catalogue, so
+  the state cannot be produced from a harness without mocking the module. Said plainly rather
+  than left as a gap that reads as coverage.
 
 ---
 
