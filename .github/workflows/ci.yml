@@ -63,6 +63,16 @@ jobs:
       - name: Every guard is wired or explicitly exempt
         run: pnpm check:gates
 
+      # ── And every guard must be reachable by the name we call it by ──────
+      # Second, because check:gates proves a guard is *wired* and this proves the command
+      # that runs it is *ours*. `doctor` is a pnpm builtin: `pnpm doctor` ran pnpm's own
+      # diagnostic — no output, exit 0 — for as long as that script existed, so every
+      # "ran it, it passed" was a claim about nothing. Asks the installed pnpm rather than
+      # consulting a list, and carries a positive control so a broken probe cannot report
+      # a clean run.
+      - name: No package script is shadowed by a pnpm builtin
+        run: pnpm check:script-names
+
       # ── The worker image would carry ffmpeg ──────────────────────────────
       # Without the build extension the first ingest dies with `spawn ffmpeg ENOENT`, after
       # the generation has been paid for. A build-time error in place of a runtime one.

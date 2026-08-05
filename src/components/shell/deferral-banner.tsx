@@ -31,7 +31,7 @@ export async function DeferralBanner() {
       >
         Deferred-step status could not be read ({state.unavailable}). If migrations are
         outstanding this banner cannot tell you what is inert — run{' '}
-        <code className="font-mono">pnpm doctor</code>.
+        <code className="font-mono">pnpm db:doctor</code>.
       </div>
     );
   }

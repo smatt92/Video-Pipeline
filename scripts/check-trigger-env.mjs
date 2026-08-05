@@ -39,7 +39,7 @@
  *         the manifest says what happens without it.
  *
  * DOES NOT: look at the Trigger.dev environment. It has no credentials and should not have
- *           any. `pnpm doctor` reports which of the required names are absent *here*, which
+ *           any. `pnpm db:doctor` reports which of the required names are absent *here*, which
  *           is the same question asked of a machine it can actually see.
  *
  * Usage: node scripts/check-trigger-env.mjs
@@ -151,5 +151,5 @@ if (problems.length > 0) {
 console.log(
   '\nThe manifest names every variable a Trigger task can reach.\n' +
     'This does not prove the Trigger.dev environment has them — nothing here can see it.\n' +
-    '`pnpm doctor` asks that question of the environment it can see.\n',
+    '`pnpm db:doctor` asks that question of the environment it can see.\n',
 );

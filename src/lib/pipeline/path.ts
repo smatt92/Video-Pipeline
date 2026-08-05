@@ -126,7 +126,7 @@ export async function readPath(client?: Db): Promise<PathResult> {
       ok: false,
       error: err.message,
       hint: /does not exist|schema cache/i.test(err.message)
-        ? 'A pipeline view is missing, so the migrations are not fully applied. Run `pnpm doctor`.'
+        ? 'A pipeline view is missing, so the migrations are not fully applied. Run `pnpm db:doctor`.'
         : 'The read failed. This is not an empty workspace — that returns positions: [].',
     };
   }

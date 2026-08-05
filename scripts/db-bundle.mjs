@@ -36,7 +36,7 @@
  * `--lean` drops each migration's text from the ledger row it writes, which is about a
  * third of the file size. Nothing in this repo reads that column; see `ledgerInsert`.
  *
- * With no range it bundles everything. Run `pnpm doctor` first: it prints exactly which
+ * With no range it bundles everything. Run `pnpm db:doctor` first: it prints exactly which
  * versions are already applied, which is the number to pass to --from.
  */
 
@@ -126,7 +126,7 @@ begin
 
   if seen is not null then
     raise exception
-      'Already applied: %. Nothing in this file has been run and the transaction is rolling back. Run pnpm doctor, then pnpm db:bundle --from <the next version> for what is actually outstanding.',
+      'Already applied: %. Nothing in this file has been run and the transaction is rolling back. Run pnpm db:doctor, then pnpm db:bundle --from <the next version> for what is actually outstanding.',
       seen;
   end if;
 end

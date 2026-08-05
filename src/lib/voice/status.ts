@@ -112,7 +112,7 @@ export async function readVoiceStatus(client?: Db): Promise<VoStatusResult> {
       ok: false,
       error: error.message,
       hint: /does not exist|schema cache/i.test(error.message)
-        ? 'v_script_vo_status is missing, so migration 0030 has not been applied. Run `pnpm doctor`.'
+        ? 'v_script_vo_status is missing, so migration 0030 has not been applied. Run `pnpm db:doctor`.'
         : 'The read failed. This is not an empty workspace — that returns rows: [] and noScripts true.',
     };
   }

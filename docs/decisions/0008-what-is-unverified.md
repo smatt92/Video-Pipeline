@@ -16,6 +16,33 @@ that has never executed against the thing it targets is not the same as code tha
 CLAUDE.md rule 8 is explicit: *a feature is done when it's visible and triggered in a real
 run against real APIs.* None of the below is done.
 
+### Where the Supabase MCP server runs, and why it kept confusing this file
+
+**On Anthropic's infrastructure, not in this container.** That single fact resolves a week
+of contradictory conclusions, and it is worth stating at the top because several entries
+below were written without it.
+
+The contradiction looked like this: an MCP call against the hosted project returns rows,
+while `psql "$DATABASE_URL"` against the same project times out from the same session, and
+`curl` to its hostname returns 000 with the proxy reporting `connect_rejected` and *"gateway
+answered 403 to CONNECT"*. Both readings are correct. They are readings **taken on different
+machines**.
+
+Two consequences, and the second is the expensive one:
+
+- The MCP was never one of two routes to the hosted project. It was the **only** one. Every
+  "restore the local environment and then verify against the real project" conclusion in
+  this file's history was unachievable from here, and was written three times.
+- An MCP success says nothing about this container's network, and a shell failure says
+  nothing about whether the project is reachable at all. Neither is evidence about the
+  other. Establish where a tool executes before believing what its result implies about
+  where *you* are.
+
+The migrations outstanding against the hosted project are diagnosed and **not applied**:
+15 tables and 2 views there against 27 and 27 locally, one ledger row (`0001_initial_schema`,
+correctly in db-push's format). Nothing was applied, nothing was dropped, and the blocker is
+the egress policy rather than anything about the migrations.
+
 ## Unverified, in order of how much rests on it
 
 ### 0. ~~CI has never run a single check~~ — RESOLVED, and it was every push
@@ -152,7 +179,7 @@ literally true and the conclusion was wrong: the constraints were not missing, t
 were, and `enums.ts` was correct throughout — it passes all twenty-seven against a migrated
 database, and has done on every green CI run since `17e22cd`.
 
-This is the failure-indistinguishability that `pnpm doctor` exists to remove, in a script
+This is the failure-indistinguishability that `pnpm db:doctor` exists to remove, in a script
 that predates it. Two very different problems printed the same, and the suggested remedy
 sent you to edit a file that was already right.
 

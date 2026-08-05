@@ -456,7 +456,7 @@ const generateShot: StudioTool = {
 
     if (error) {
       return refuse('The shot row was refused by the database.', [
-        { code: 'shot_insert_failed', detail: error.message, remedy: 'Check pnpm doctor.' },
+        { code: 'shot_insert_failed', detail: error.message, remedy: 'Check pnpm db:doctor.' },
       ]);
     }
 

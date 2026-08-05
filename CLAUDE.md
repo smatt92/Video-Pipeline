@@ -536,7 +536,7 @@ and turns every harness back on. Writing tests you cannot execute, in a session 
 are also not reading CI, is how a green report and a red branch coexist for four runs.
 
 ```bash
-pnpm doctor                          # which failure is this? — run this first, always
+pnpm db:doctor                       # which failure is this? — run this first, always
 pnpm verify:ingest   "$DATABASE_URL" # 3 shapes → canonical, corrupt → error row
 pnpm verify:assemble "$DATABASE_URL" # 6 clips → one MP4, over a real S3 endpoint
 pnpm verify:studio   "$DATABASE_URL" # MCP server over real HTTP; generate_shot refuses
@@ -554,6 +554,50 @@ The general form: **a summary written in one tool's vocabulary cannot see the ot
 `$?` is the only signal every one of them agrees on. If a command's result matters, branch
 on its exit code; if you want the detail too, capture the output *and* the code, and let
 the code decide.
+
+**A command that runs something other than what you named turns every "I ran it and it
+passed" into a claim about nothing. The tell is zero output with a zero exit — a real run
+says something.** `doctor` is a pnpm builtin, and a builtin **shadows** a package script of
+the same name: `pnpm doctor` ran pnpm's own diagnostic, silently, for as long as that script
+existed. Every error hint in `src/`, every README step and every handover said "run `pnpm
+doctor`" and named a command that diagnosed nothing about this project.
+
+Two things make it worth a rule. It is **silent by construction** — the wrong thing succeeds,
+so there is no error to read and no failing step to find; and it is **invisible to every
+other guard here**, because the script is present, correct, wired, and exercised by nothing.
+`check:gates` proves a guard is wired; it cannot see that the command wiring it runs
+somebody else's program.
+
+Note what the first diagnosis got wrong, because it is the same instrument error as
+everywhere else in this file: the mechanism looked like pnpm swallowing the argument, and a
+probe script disproved that in one command. `pnpm doctor --help` prints `Usage: pnpm doctor`
+— and `doctor` is **absent from `pnpm help`'s listing**, so a parser built on that output
+would have missed it. Ask the tool about the specific name; do not read a summary.
+
+`check:script-names` now asks the installed pnpm, from an empty directory so no script can
+resolve, with a positive control so a broken probe cannot report a clean run. It cannot
+protect against a name a *future* pnpm claims — nothing inside the repo can. **The colon is
+what does that: no pnpm command contains one, so `db:doctor` is safe by construction in a
+way `doctor` never was.** Every script here has one; the seven that do not are the framework
+names (`dev`, `build`, `start`, `lint`, `typecheck`, `prebuild`, `check`) and they are
+checked on every push.
+
+Which namespace was a second decision and `check:` was the wrong one — a `check:` name is a
+guard, and `check:gates` would have required it to gate a push. `db:doctor` cannot: it exits
+2 for "this could not be checked", which is a useful answer to a person and a broken build
+to CI. It diagnoses; it does not gate.
+
+**The Supabase MCP server runs on Anthropic's infrastructure, not in this container.** So it
+was never one of two routes to the hosted project — it was the only one. The container's
+egress policy refuses `*.supabase.co` and the pooler on 5432/6543 alike, which is why
+`DATABASE_URL` times out from here while an MCP call against the same project succeeds.
+
+This is recorded because a week of contradictory conclusions came out of not knowing it.
+"Restore the local environment and verify against the real project" was written three times
+and is not achievable from here at all; "the MCP worked, so the network is fine" is a
+statement about a machine you are not on. When a tool succeeds and the shell fails against
+the same endpoint, **establish where each one executes before treating either as evidence
+about this container** — it is the instrument rule again, one layer further out than usual.
 
 ## Current phase
 

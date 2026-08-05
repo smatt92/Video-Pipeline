@@ -273,7 +273,7 @@ export async function executeRegenerate(
         {
           code: 'insert_failed',
           detail: error?.message ?? 'No row returned.',
-          remedy: 'Run pnpm doctor.',
+          remedy: 'Run pnpm db:doctor.',
         },
       ],
     };

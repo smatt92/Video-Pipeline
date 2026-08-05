@@ -201,7 +201,7 @@ a website the worker is not — throws on the first task that touches configurat
 for `env.X` under `src/trigger/` understates the requirement by five variables. Today's
 build demonstrated it out loud: one page touched one variable and the failure named all five.
 
-`pnpm check:trigger-env` prints the list to paste into the dashboard. `pnpm doctor` asks the
+`pnpm check:trigger-env` prints the list to paste into the dashboard. `pnpm db:doctor` asks the
 same list of whatever environment it can see.
 
 ---

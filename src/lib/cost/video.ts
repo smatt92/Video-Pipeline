@@ -117,7 +117,7 @@ export async function readVideoCosts(client?: Db): Promise<CostResult> {
       ok: false,
       error: message,
       hint: /does not exist|schema cache/i.test(message)
-        ? 'v_video_cost is missing, so migration 0026 has not been applied to this database. Run `pnpm doctor`.'
+        ? 'v_video_cost is missing, so migration 0026 has not been applied to this database. Run `pnpm db:doctor`.'
         : 'The read failed. This is not an empty ledger — an empty ledger returns rows: [] and ledgerEmpty: true.',
     };
   }

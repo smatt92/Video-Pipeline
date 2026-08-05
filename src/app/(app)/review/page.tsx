@@ -99,7 +99,7 @@ export default async function ReviewQueuePage() {
             </p>
             <p className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
               If this names a missing relation, migration 0018 has not been applied. Run{' '}
-              <code>pnpm doctor</code>.
+              <code>pnpm db:doctor</code>.
             </p>
           </div>
         ) : queue.rows.length === 0 ? (

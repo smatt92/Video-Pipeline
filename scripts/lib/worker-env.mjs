@@ -2,7 +2,7 @@
  * The worker's environment, derived from the code and read from the manifest.
  *
  * Two readers share this: `check:trigger-env` (which compares the two sides and fails on
- * drift) and `pnpm doctor` (which reports which of the required variables are absent
+ * drift) and `pnpm db:doctor` (which reports which of the required variables are absent
  * *here*). It lives in `scripts/lib/` for the same reason `catalog.mjs` does — a shared
  * source the harnesses can read without a compile step, since `pnpm check` runs this
  * before `pnpm typecheck` and has no compiled output to import.

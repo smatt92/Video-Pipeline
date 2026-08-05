@@ -72,7 +72,7 @@ export async function IntegrityAlert() {
       <span
         className="rounded-sm px-2 py-1 font-mono text-3xs"
         style={{ background: 'var(--surface-2)', color: 'var(--text-faint)' }}
-        title={`The integrity views could not be read: ${unreadable}. Usually means the migrations have not been applied to this database — run pnpm doctor.`}
+        title={`The integrity views could not be read: ${unreadable}. Usually means the migrations have not been applied to this database — run pnpm db:doctor.`}
         data-integrity="unreadable"
       >
         integrity check unavailable

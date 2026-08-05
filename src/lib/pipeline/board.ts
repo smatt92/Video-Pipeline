@@ -148,7 +148,7 @@ export async function readBoard(client?: Db): Promise<BoardResult> {
         error: error.message,
         hint:
           /does not exist|schema cache/i.test(error.message)
-            ? 'The concepts table is missing, which means the migrations have not been applied to this database. Run `pnpm doctor`.'
+            ? 'The concepts table is missing, which means the migrations have not been applied to this database. Run `pnpm db:doctor`.'
             : 'The query itself failed. This is not an empty database — something is wrong with the read.',
       };
     }

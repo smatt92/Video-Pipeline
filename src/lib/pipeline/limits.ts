@@ -120,7 +120,7 @@ export async function readLimits(client?: Db): Promise<LimitsResult> {
       ok: false,
       error: err.message,
       hint: /does not exist|schema cache/i.test(err.message)
-        ? 'v_driver_limits is missing, so migration 0031 has not been applied. Run `pnpm doctor`.'
+        ? 'v_driver_limits is missing, so migration 0031 has not been applied. Run `pnpm db:doctor`.'
         : 'The read failed. This is not an idle pipeline — an idle one returns rows with inFlight 0 and hasSubmitted false.',
     };
   }

@@ -109,7 +109,7 @@ export default async function StudioPage() {
             </p>
             <p className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
               If this names a missing relation, migration 0017 has not been applied. Run{' '}
-              <code>pnpm doctor</code>.
+              <code>pnpm db:doctor</code>.
             </p>
           </div>
         ) : list.sessions.length === 0 ? (

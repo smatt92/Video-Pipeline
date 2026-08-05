@@ -140,7 +140,7 @@ look subtly wrong.
 |---|---|---|
 | 1 | Test connection fails. Nothing else has run. | The `integration_checks` row: `passed=false` with the vendor's own message. A 401 is a wrong key; a 403 is the right key on a plan without the endpoint. |
 | 2 | Stage 6 refuses without calling anything: *"has never verified"*. | You enabled the integration and did not press **Test connection**. Enabling states intent; verifying states fact. `usability()` names which of the two you did. |
-| 3 | The app says a column does not exist; `psql` disagrees. | PostgREST's schema cache is stale after a migration. `pnpm doctor` says so directly. Nothing to do with ElevenLabs. |
+| 3 | The app says a column does not exist; `psql` disagrees. | PostgREST's schema cache is stale after a migration. `pnpm db:doctor` says so directly. Nothing to do with ElevenLabs. |
 | 4 | Stage 6 refuses on pricing. | No verified character rate. **Unlike the video rates, this one is published** — ElevenLabs lists per-character pricing, so you may enter it from the pricing page and mark it verified, exactly as the Anthropic rates in migration 0006 were. The "never trust documentation" rule in C is about credit rates nobody publishes. |
 
 **Expensive — bills, and produces something you cannot use.**
@@ -202,7 +202,7 @@ as a rate limit before you treat it as a bug.
 | 1 | Test connection fails. | `integration_checks`, with the vendor's message. 401 = wrong key or secret. 403 = the API is gated to a higher plan than yours, which is a billing problem and not a config one. |
 | 2 | Submit refuses immediately, before any call. | `WEBHOOK_CALLBACK_BASE_URL` is unset. `requireEnv` names the variable and the thing that wanted it. This refusal is the system working — see expensive #1 for what happens when it is set *wrongly* instead of not at all. |
 | 3 | Submit refuses on pricing. | No verified credit rate. Correct, and the only way through it is expensive #2. |
-| 4 | The app says a column does not exist; `psql` disagrees. | Stale PostgREST cache. `pnpm doctor`. |
+| 4 | The app says a column does not exist; `psql` disagrees. | Stale PostgREST cache. `pnpm db:doctor`. |
 
 **Expensive — bills, and produces nothing usable.**
 

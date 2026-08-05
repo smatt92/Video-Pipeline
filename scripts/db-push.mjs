@@ -28,7 +28,7 @@
  * What it does not do
  * ─────────────────────────────────────────────────────────────────────────────
  *
- * It cannot reach a database your network cannot reach. If `pnpm doctor` says the
+ * It cannot reach a database your network cannot reach. If `pnpm db:doctor` says the
  * connection times out or has no route, this script will fail in exactly the same way the
  * CLI did, and `pnpm db:bundle` — a file you paste into the browser — is the way through.
  *
@@ -89,7 +89,7 @@ if (!attempt.ok) {
   console.error('Could not connect.\n');
   for (const line of [cause, remedy]) for (const w of wrap(line, 74)) console.error(`  ${w}`);
   console.error(`\n  ${attempt.error.message}\n`);
-  console.error('Run `pnpm doctor` for the full picture, or `pnpm db:bundle` to go via the browser.\n');
+  console.error('Run `pnpm db:doctor` for the full picture, or `pnpm db:bundle` to go via the browser.\n');
   process.exit(1);
 }
 
@@ -211,7 +211,7 @@ try {
           'If you are certain the database already contains everything up to and including\n' +
           `${failure.migration.version}, record it without running it:\n\n` +
           `  pnpm db:push --baseline ${failure.migration.version}\n\n` +
-          'Confirm with `pnpm doctor` first. Baselining a migration that did not actually run\n' +
+          'Confirm with `pnpm db:doctor` first. Baselining a migration that did not actually run\n' +
           'leaves a database that claims to be somewhere it is not.\n',
       );
     }
@@ -227,7 +227,7 @@ try {
 
     if (applied.length > 0 && !dryRun) {
       console.log(`\n  ${applied.map((m) => m.version).join(', ')}\n`);
-      console.log('Next: `pnpm doctor` to confirm the rows the wizard needs are present.\n');
+      console.log('Next: `pnpm db:doctor` to confirm the rows the wizard needs are present.\n');
     } else if (applied.length === 0) {
       console.log('\nThe database is up to date with supabase/migrations/.\n');
     }

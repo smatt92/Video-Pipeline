@@ -312,7 +312,7 @@ export async function usability(db: Db, slug: string): Promise<Usability> {
     return {
       usable: false,
       deferred: false,
-      reason: `No integrations row for "${slug}" — migration 0014 creates one. Run \`pnpm doctor\`.`,
+      reason: `No integrations row for "${slug}" — migration 0014 creates one. Run \`pnpm db:doctor\`.`,
     };
   }
 

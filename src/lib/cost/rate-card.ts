@@ -152,7 +152,7 @@ export async function readRateCard(db: Db): Promise<RateCardResult> {
       ok: false,
       error: error.message,
       hint: /does not exist|schema cache/i.test(error.message)
-        ? 'The rate_card table is missing, which means the migrations have not been applied to this database. Run `pnpm doctor`.'
+        ? 'The rate_card table is missing, which means the migrations have not been applied to this database. Run `pnpm db:doctor`.'
         : 'The query itself failed. This is not an empty rate card — something is wrong with the read.',
     };
   }

@@ -39,7 +39,7 @@ if (!dbUrl) {
 const connection = await tryConnect(dbUrl);
 if (!connection.ok) {
   console.error(`could not connect: ${connection.error.message}\n`);
-  console.error('Run `pnpm doctor` — it classifies connection failures rather than echoing them.');
+  console.error('Run `pnpm db:doctor` — it classifies connection failures rather than echoing them.');
   process.exit(2);
 }
 const client = connection.client;

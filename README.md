@@ -41,7 +41,7 @@ See `docs/decisions/0005-type-generation-without-docker.md`.
 ## When something is wrong
 
 ```bash
-pnpm doctor
+pnpm db:doctor
 ```
 
 Runs the environment checks in dependency order and names the one that is actually
@@ -73,7 +73,7 @@ what it skipped.
 
 `db:bundle` is the path that always works: it imports nothing from `node_modules` and
 needs no open database port, only the browser, which reaches Supabase over 443 like any
-other site. If `pnpm doctor` says the connection times out or has no route, stop
+other site. If `pnpm db:doctor` says the connection times out or has no route, stop
 diagnosing the network and paste the file. The whole bundle is one transaction with a
 guard at the top, so pasting it twice raises a plain-English error and rolls back rather
 than half-applying.
@@ -85,7 +85,7 @@ re-running fails on `already exists`, and the fix is the opposite of the usual o
 pnpm db:push --baseline 0001,0002   # record as applied WITHOUT running
 ```
 
-`pnpm doctor` detects this case and says so. Confirm with it before baselining: a
+`pnpm db:doctor` detects this case and says so. Confirm with it before baselining: a
 baselined migration that never actually ran leaves a database claiming to be somewhere it
 is not.
 
@@ -93,7 +93,7 @@ is not.
 Connection string — host ends `.pooler.supabase.com`, port 5432. It is IPv4 and safe for
 schema changes. The direct `db.<ref>.supabase.co` host is IPv6-only on current projects,
 which is what breaks most laptops, and port 6543 is the transaction pooler, which is for
-application traffic rather than DDL. `pnpm doctor` warns about both.
+application traffic rather than DDL. `pnpm db:doctor` warns about both.
 
 ## Checks
 

@@ -349,7 +349,7 @@ headline metric rather than to the metric itself. `observedUsdInr` in `src/lib/g
 already returns `null` rather than a default for exactly this reason; the schema predates
 that decision and never caught up.
 
-The manifest now declares it `required: true` with that reasoning, so `pnpm doctor` and
+The manifest now declares it `required: true` with that reasoning, so `pnpm db:doctor` and
 `pnpm check:trigger-env` both name it. **That is a checklist, not a guarantee** — nothing
 stops a deploy without it.
 

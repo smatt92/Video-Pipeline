@@ -122,7 +122,7 @@ export async function materialiseScript(
       ok: false,
       code: 'concept_insert_failed',
       detail: conceptError?.message ?? 'No row returned.',
-      remedy: 'Run pnpm doctor.',
+      remedy: 'Run pnpm db:doctor.',
     };
   }
 
@@ -156,7 +156,7 @@ export async function materialiseScript(
       ok: false,
       code: 'script_insert_failed',
       detail: scriptError?.message ?? 'No row returned.',
-      remedy: 'Run pnpm doctor.',
+      remedy: 'Run pnpm db:doctor.',
     };
   }
 
