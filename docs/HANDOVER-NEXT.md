@@ -1,4 +1,4 @@
-# Handover — 2026-08-04, end of the unattended run
+# Handover — last updated 2026-08-05
 
 `HANDOVER.md` is the standing "what you do next". This file is narrower: what happened in
 one unattended session, what was left mid-air, and what I would do first on waking.
@@ -23,8 +23,8 @@ idempotent for that reason; run it before a suite rather than diagnosing "connec
 refused". `.env.local` is gitignored and will not survive a fresh container — recreate it
 with the `DATABASE_URL` above plus the bootstrap values from `.env.example`.
 
-**All nineteen harnesses run here.** That is the state to preserve: do not write a harness
-you have not executed.
+**All twenty harnesses run here** — nineteen plus the new `verify:render`. That is the state
+to preserve: do not write a harness you have not executed.
 
 ---
 
@@ -96,16 +96,16 @@ Two things the moves taught, both worth keeping:
 
 ---
 
-## 0a. Every pending decision is now closed — and three left buildable work
+## 0d. Earlier decisions, and the work they left behind
 
-`docs/DECISIONS-PENDING.md` has no open questions. Three of the closures left work behind,
-and it is the first thing to pick up:
+**DECISIONS-PENDING 9 is open** (whether to install chrome-headless-shell in CI). Everything
+below was closed earlier; two of the three left work behind and one is now built:
 
 | | What to build | Where it is specified |
 |---|---|---|
 | **3** | `credit_readings` + the per-window view + the calibration surface | DECISIONS-PENDING 3, in full. Migration + two views + a surface — spec is implementable as written |
 | **8** | The Request-metadata button on `/review/[renderId]` | DECISIONS-PENDING 8. `src/components/review/screen.tsx`, beside the pass decision |
-| ~~**8**~~ | ~~A reader for stage 1~~ — **BUILT.** `/trends` | And the claim behind it was partly wrong: see DECISIONS-PENDING 8. The table is `trend_signals`, `concepts/run.ts` reads it, the chain was never broken. What was true is that no screen showed it |
+| ~~8~~ | ~~A reader for stage 1~~ — **BUILT.** `/trends` | And the claim behind it was partly wrong: see DECISIONS-PENDING 8. The table is `trend_signals`, `concepts/run.ts` reads it, the chain was never broken. What was true is that no screen showed it |
 
 **The trends finding was overstated and is corrected in DECISIONS-PENDING 8.** I grepped
 `from('trends')`; the table is `trend_signals`, and `concepts/run.ts:132` reads it. Stage 1
