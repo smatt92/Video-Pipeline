@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { MetadataButton } from '@/components/review/metadata-button';
+import { readMetadataPrior } from '@/lib/metadata/prior';
 import { ReviewScreen } from '@/components/review/screen';
 import { serverClient } from '@/lib/db/server';
 import { readReview } from '@/lib/review/read';
@@ -121,6 +123,13 @@ export default async function ReviewPage({ params }: { params: Promise<{ renderI
         humanEditCount={humanEditCount}
         current={current}
       />
+
+      {/* Only on a pass. Stage 9 refuses to draft metadata for a render that has not passed
+          review — the DB gate is the whole point of the stage — so a button visible before
+          that is a button that errors for a reason the screen already knew. */}
+      {current?.decision === 'pass' && (
+        <MetadataButton renderId={render.id} prior={await readMetadataPrior(db)} />
+      )}
 
       {history.length > 1 && (
         <div className="mt-6">
