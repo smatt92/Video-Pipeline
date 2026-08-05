@@ -106,7 +106,12 @@ export const NAV: readonly NavGroup[] = [
         href: '/analytics',
         label: 'Analytics',
         hint: 'Hook retention, cost per 1k views',
-        status: blocked('4', 'Needs published videos to measure'),
+        // Ready, and empty — which are different states and the screen says which. It
+        // renders the denominator (live videos, measurements due, how many read) and says
+        // in words that every rate is undefined rather than zero until something publishes.
+        // Left `blocked` it would have been a stage nobody could reach the moment stage 10
+        // landed, and "needs published videos" is what the page itself now tells you.
+        status: ready(),
       },
       {
         href: '/publish',

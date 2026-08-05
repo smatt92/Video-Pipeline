@@ -378,7 +378,11 @@ console.log('\n7. Two renders of one script\n');
 // without anybody suspecting it first.
 console.log('\n8. A failed read does not render as a free pipeline\n');
 {
-  await q('drop view v_video_cost');
+  // `cascade` since 0034: `v_cost_per_1k_views` was rebuilt on this view, so a bare drop
+  // now fails on the dependency rather than exercising the failed-read path. Taking both
+  // down is the right shape for this section anyway — the question is what a screen does
+  // when the cost views are not there.
+  await q('drop view v_video_cost cascade');
   const r = await readVideoCosts(db);
   if (r.ok === false) ok('the read reports failure', r.error.slice(0, 60));
   else bad('the read reports failure', 'it returned rows');

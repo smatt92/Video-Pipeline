@@ -32,8 +32,19 @@ export interface LibraryPrompt {
   tags: string[];
   version: number;
   isActive: boolean;
-  /** Null until generations exist. Ordering falls back to version when it is. */
-  winRate: number | null;
+  /**
+   * Editorial survival: shots that reached a passed review ÷ shots compiled, 0–1.
+   *
+   * Was `winRate` until migration 0034. The rename is not cosmetic — see `rankBasis` in
+   * `compileShot` for what the old name was hiding once outcomes existed.
+   */
+  shipRate: number | null;
+  /**
+   * What the videos this recipe appeared in actually did: median 3s retention at 7d,
+   * rescaled to 0–1 to match `shipRate`. Null until a video carrying this recipe has been
+   * measured, which is months after the recipe first ships.
+   */
+  retentionScore: number | null;
   /** Exposure. Rises on every compile, good clip or not. */
   timesCompiled: number;
   /** Drives least-recently-used rotation within a rank tier. */
@@ -152,11 +163,16 @@ export function fillTemplate(
  *   Random cannot be explained. `compile_note` says which recipe was chosen and why; "the
  *   dice said so" is not a reason anyone can act on when a clip comes back wrong.
  *
- * Weighting by `win_rate` is not an alternative to this, it is the tier definition. Once
- * win rates exist, the tier is "recipes within `TIER_MARGIN` of the best", and LRU picks
- * inside it — so a measurably worse recipe never gets rotated in for the sake of variety,
- * and equally good ones share the load. Until then every unmeasured recipe is one tier and
- * rotation is pure LRU, which is exactly right for the state of the evidence.
+ * Weighting by a performance figure is not an alternative to this, it is the tier
+ * definition. Once figures exist, the tier is "recipes within `TIER_MARGIN` of the best",
+ * and LRU picks inside it — so a measurably worse recipe never gets rotated in for the sake
+ * of variety, and equally good ones share the load. Until then every unmeasured recipe is
+ * one tier and rotation is pure LRU, which is exactly right for the state of the evidence.
+ *
+ * *Which* figure is `rankBasis`, below, and it is chosen once for the whole eligible set
+ * rather than per recipe. Migration 0034 gave recipes a second kind of evidence — what the
+ * videos they appeared in actually retained — on a scale that means something different
+ * from the first.
  *
  * ── And never twice in a row within one script ───────────────────────────────
  *
@@ -180,6 +196,25 @@ export function fillTemplate(
  * that kind onto one camera for a difference inside the noise of a small sample.
  */
 const TIER_MARGIN = 0.05;
+
+/**
+ * How a recipe's rank was justified, for `compile_note`.
+ *
+ * Always says which of the two numbers it is. A note reading "72%" is unreadable a month
+ * later, because 72% of shots surviving review and a 72nd-percentile retention are
+ * different facts about different things, and the note is the only record of which one
+ * stage 4 acted on.
+ */
+function describeScore(p: LibraryPrompt, basis: 'retention' | 'ship'): string {
+  if (basis === 'retention') {
+    return p.retentionScore === null
+      ? 'retention unmeasured'
+      : `3s retention ${(p.retentionScore * 100).toFixed(0)}%`;
+  }
+  return p.shipRate === null
+    ? 'never shipped, so unranked'
+    : `ship rate ${(p.shipRate * 100).toFixed(0)}%`;
+}
 
 export function compileShot(
   shot: CompileInput,
@@ -251,22 +286,52 @@ export function compileShot(
 
   const eligible = byKind;
 
+  // ── Which evidence this decision is drawn on ───────────────────────────────
+  //
+  // Two numbers now say a recipe is good, and they are not the same claim. `shipRate` is
+  // editorial survival — a human passed the render this shot was in. `retentionScore` is
+  // what viewers did. Once outcomes exist they will disagree, and that is the point of
+  // measuring: a shot that survives review and loses the audience is exactly the case the
+  // loop is meant to find.
+  //
+  // So the basis is chosen for the WHOLE eligible set, never per recipe. Ranking a
+  // shipRate of 0.80 against a retentionScore of 0.35 compares unrelated quantities and
+  // picks the larger one, and the comparison looks perfectly ordinary in the sort. This is
+  // why migration 0034 refused to put a `selection_score` column on
+  // `v_recipe_performance` and left the decision here: a per-row view cannot see the set,
+  // so it cannot make this choice, and a column that looked authoritative would have made
+  // the cross-scale comparison invisible instead of impossible.
+  //
+  // Retention wins only when EVERY eligible recipe has it. One unmeasured recipe and the
+  // whole kind ranks on ship rate — which is the conservative direction: it delays acting
+  // on outcomes rather than acting on a mixture.
+  const rankBasis: 'retention' | 'ship' =
+    eligible.length > 0 && eligible.every((p) => p.retentionScore !== null) ? 'retention' : 'ship';
+
+  const scoreOf = (p: LibraryPrompt) =>
+    rankBasis === 'retention' ? p.retentionScore : p.shipRate;
+
   // Rank, then take the tier. Nulls rank last and form their own tier, so an unmeasured
   // recipe never displaces a measured one.
   const ranked = [...eligible].sort((a, b) => {
-    if (a.winRate !== b.winRate) {
-      if (a.winRate === null) return 1;
-      if (b.winRate === null) return -1;
-      return b.winRate - a.winRate;
+    const as = scoreOf(a);
+    const bs = scoreOf(b);
+    if (as !== bs) {
+      if (as === null) return 1;
+      if (bs === null) return -1;
+      return bs - as;
     }
     return b.version - a.version;
   });
 
-  const best = ranked[0].winRate;
+  const best = scoreOf(ranked[0]);
   const tier =
     best === null
-      ? ranked.filter((p) => p.winRate === null)
-      : ranked.filter((p) => p.winRate !== null && best - p.winRate <= TIER_MARGIN);
+      ? ranked.filter((p) => scoreOf(p) === null)
+      : ranked.filter((p) => {
+          const s = scoreOf(p);
+          return s !== null && best - s <= TIER_MARGIN;
+        });
 
   // Never the same camera twice running inside one script, if there is any alternative.
   const previous = scriptSoFar[scriptSoFar.length - 1];
@@ -317,7 +382,10 @@ export function compileShot(
     },
     note:
       `Compiled from "${prompt.name}" v${prompt.version} ` +
-      `(${prompt.winRate === null ? 'win rate unmeasured' : `win rate ${(prompt.winRate * 100).toFixed(0)}%`}, ` +
+      // Names the basis as well as the figure. "72%" alone reads as one quantity across
+      // every note in the table while silently being two, which is the collision migration
+      // 0034 renamed a column to end — it would be reintroduced here in prose.
+      `(${describeScore(prompt, rankBasis)}, ` +
       `used ${prompt.timesCompiled}x). ` +
       (tier.length > 1
         ? `Rotated: ${tier.length} recipes in the top tier, this one least recently used.`

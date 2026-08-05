@@ -210,6 +210,16 @@ jobs:
       - name: Stage 9 — metadata refuses without a passing review, and measures its prompt
         run: pnpm verify:metadata "$DATABASE_URL"
 
+      # ── Stage 11, the loop ARCHITECTURE §0.1 calls the moat ──────────────
+      # `metrics_snapshots` existed from 0001 with no reader and no writer, so the
+      # accumulated hook-performance data the product's whole argument rests on was a table
+      # nothing filled. The assertions that earn their place are the ones about absence: a
+      # blank retention field must stay null rather than becoming a 0 that claims nobody
+      # made it past three seconds, and a measured video whose hook never classified must be
+      # missing from every rollup row AND visible in the view that exists to say so.
+      - name: Stage 11 — a blank metric stays blank, and the rollup declares what it cannot see
+        run: pnpm verify:measure "$DATABASE_URL"
+
       - name: Stage 1 — trend intake deduplicates and reports what it could not reach
         run: pnpm verify:trends "$DATABASE_URL"
 

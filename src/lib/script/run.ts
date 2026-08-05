@@ -1,5 +1,6 @@
 import { priceLlmCall, writeLlmCost } from '../cost/llm';
 import type { Db } from '../db/server';
+import { HOOK_PATTERN_VERSION, classifyHook } from '../measure/hook-pattern';
 import { DRAFT_ENDPOINT, DRAFT_MODEL, DraftError, draftScript, type DraftResult } from './draft';
 import { structureHash } from './structure-hash';
 
@@ -69,6 +70,15 @@ export function scriptRowFor(p: {
     drafted_by: p.draft.model,
     draft_raw: p.draft.raw,
     structure_hash: p.structureHash,
+    // Classified here rather than by a later sweep, for the reason 0034 exists: a column
+    // nothing writes makes every view built on it return zero rows for ever, and the view
+    // looks healthy while doing it. Null when the classifier does not recognise the shape,
+    // never a residual bucket — see hook-pattern.ts.
+    hook_pattern: classifyHook(p.draft.script.hook),
+    // Stored even when the pattern is null: "v1 looked at this and found nothing" and "no
+    // classifier has ever run on this" are different facts, and only the version column
+    // can tell them apart once a v2 exists.
+    hook_pattern_version: HOOK_PATTERN_VERSION,
   };
 }
 

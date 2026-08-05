@@ -918,6 +918,40 @@ click through five steps.
 fair test of the software path a blocklisted or battery-throttled GPU would take, and it is
 not a test of a driver. Frame cost on real hardware is unmeasured.
 
+### 12. Stage 11 — measurement. Built and provable; the fetch half deliberately does not exist
+
+`verify:measure` drives the whole of it against a real Postgres, and CI runs it. What that
+covers is the part where wrongness is silent and permanent: a blank retention field staying
+null rather than becoming a `0` that claims nobody watched three seconds; a failed read
+landing as a row with a reason instead of as a missing row; a hook shape's median computed
+over the videos that had retention rather than over the ones that were measured; and a
+measured video whose hook never classified being absent from every rollup row **and** visible
+in the view that exists to say so.
+
+**NOT PROVEN, and it cannot be here: any of it against real platform numbers.** No video has
+been published, so `metrics_snapshots` has never held a row a person typed off a real
+dashboard. Rule 8 is not satisfied. The specific things a real run would reveal, in the order
+they are likely to bite:
+
+- Whether `retention_3s_pct` is what YouTube Studio actually shows. The API's
+  `audienceWatchRatio` is 0–1 and this column is 0–100 with a CHECK; the harness records that
+  a 0–1 ratio typed into the field is *in range* and therefore accepted, which is a known
+  limit rather than a defect the schema can close.
+- Whether the seven hook shapes are the seven that matter. The taxonomy is a guess made
+  before any evidence existed, and `hook_pattern_version` is the mechanism for changing it —
+  which has itself never been exercised, because there is only one version.
+- Whether `7d` is the right headline bucket.
+
+**There is deliberately no `src/trigger/11-measure.ts`, and that is the finding rather than
+an omission.** The "definition of done for a pipeline stage" says a stage has a Trigger task.
+This stage has nothing to call: Phase 1 publishes by hand, so there is no analytics
+credential, and a task would enumerate `v_measurement_due` and then stop. That is the
+complete-and-unreachable module this project has pulled out of the codebase five times, and
+building it because a checklist expects one would be the worst version of it — a file that
+reads as coverage of the fetch path while containing none. The entry point is
+`recordSnapshotAction`, reached from the Record button on `/analytics`. The task lands with
+stage 10's credential or not at all.
+
 ## Gates, and where each can run
 
 | Gate | Runnable in this environment? |

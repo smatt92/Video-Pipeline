@@ -359,6 +359,20 @@ export type Database = {
             foreignKeyName: "cost_ledger_script_id_fkey"
             columns: ["script_id"]
             isOneToOne: false
+            referencedRelation: "v_cost_per_1k_views"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_hook_unclassified"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
             referencedRelation: "v_pipeline_blockers"
             referencedColumns: ["script_id"]
           },
@@ -906,13 +920,18 @@ export type Database = {
           avg_view_pct: number | null
           captured_at: string
           comments: number | null
+          entered_by: string | null
           id: string
           likes: number | null
+          metric_source: string
           publication_id: string
           raw: Json
           retention_3s_pct: number | null
           saves: number | null
           shares: number | null
+          status: string
+          unavailable_reason: string | null
+          updated_at: string
           views: number | null
         }
         Insert: {
@@ -920,13 +939,18 @@ export type Database = {
           avg_view_pct?: number | null
           captured_at?: string
           comments?: number | null
+          entered_by?: string | null
           id?: string
           likes?: number | null
+          metric_source?: string
           publication_id: string
           raw?: Json
           retention_3s_pct?: number | null
           saves?: number | null
           shares?: number | null
+          status?: string
+          unavailable_reason?: string | null
+          updated_at?: string
           views?: number | null
         }
         Update: {
@@ -934,13 +958,18 @@ export type Database = {
           avg_view_pct?: number | null
           captured_at?: string
           comments?: number | null
+          entered_by?: string | null
           id?: string
           likes?: number | null
+          metric_source?: string
           publication_id?: string
           raw?: Json
           retention_3s_pct?: number | null
           saves?: number | null
           shares?: number | null
+          status?: string
+          unavailable_reason?: string | null
+          updated_at?: string
           views?: number | null
         }
         Relationships: [
@@ -956,6 +985,20 @@ export type Database = {
             columns: ["publication_id"]
             isOneToOne: false
             referencedRelation: "v_cost_per_1k_views"
+            referencedColumns: ["publication_id"]
+          },
+          {
+            foreignKeyName: "metrics_snapshots_publication_id_fkey"
+            columns: ["publication_id"]
+            isOneToOne: false
+            referencedRelation: "v_hook_unclassified"
+            referencedColumns: ["publication_id"]
+          },
+          {
+            foreignKeyName: "metrics_snapshots_publication_id_fkey"
+            columns: ["publication_id"]
+            isOneToOne: false
+            referencedRelation: "v_measurement_due"
             referencedColumns: ["publication_id"]
           },
         ]
@@ -1374,6 +1417,20 @@ export type Database = {
             foreignKeyName: "renders_script_id_fkey"
             columns: ["script_id"]
             isOneToOne: false
+            referencedRelation: "v_cost_per_1k_views"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "renders_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_hook_unclassified"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "renders_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
             referencedRelation: "v_pipeline_blockers"
             referencedColumns: ["script_id"]
           },
@@ -1467,6 +1524,8 @@ export type Database = {
           draft_raw: string | null
           drafted_by: string
           hook: string
+          hook_pattern: string | null
+          hook_pattern_version: string | null
           human_edit_count: number
           human_edit_diff: string | null
           id: string
@@ -1487,6 +1546,8 @@ export type Database = {
           draft_raw?: string | null
           drafted_by: string
           hook: string
+          hook_pattern?: string | null
+          hook_pattern_version?: string | null
           human_edit_count?: number
           human_edit_diff?: string | null
           id?: string
@@ -1507,6 +1568,8 @@ export type Database = {
           draft_raw?: string | null
           drafted_by?: string
           hook?: string
+          hook_pattern?: string | null
+          hook_pattern_version?: string | null
           human_edit_count?: number
           human_edit_diff?: string | null
           id?: string
@@ -1661,6 +1724,20 @@ export type Database = {
             foreignKeyName: "shots_script_id_fkey"
             columns: ["script_id"]
             isOneToOne: false
+            referencedRelation: "v_cost_per_1k_views"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "shots_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_hook_unclassified"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "shots_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
             referencedRelation: "v_pipeline_blockers"
             referencedColumns: ["script_id"]
           },
@@ -1757,6 +1834,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "scripts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "studio_sessions_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_cost_per_1k_views"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "studio_sessions_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_hook_unclassified"
+            referencedColumns: ["script_id"]
           },
           {
             foreignKeyName: "studio_sessions_script_id_fkey"
@@ -1900,6 +1991,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "scripts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vo_takes_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_cost_per_1k_views"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "vo_takes_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_hook_unclassified"
+            referencedColumns: ["script_id"]
           },
           {
             foreignKeyName: "vo_takes_script_id_fkey"
@@ -2053,6 +2158,20 @@ export type Database = {
             foreignKeyName: "cost_ledger_script_id_fkey"
             columns: ["subject_script_id"]
             isOneToOne: false
+            referencedRelation: "v_cost_per_1k_views"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_script_id_fkey"
+            columns: ["subject_script_id"]
+            isOneToOne: false
+            referencedRelation: "v_hook_unclassified"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_script_id_fkey"
+            columns: ["subject_script_id"]
+            isOneToOne: false
             referencedRelation: "v_pipeline_blockers"
             referencedColumns: ["script_id"]
           },
@@ -2116,12 +2235,34 @@ export type Database = {
       }
       v_cost_per_1k_views: {
         Row: {
-          cost_inr: number | null
-          cost_per_1k_views: number | null
+          age_bucket: string | null
+          channel_id: string | null
+          cost_basis: string | null
+          cost_per_1k_inr: number | null
+          denominator_state: string | null
+          estimated_inr: number | null
+          incurred_inr: number | null
+          measured_inr: number | null
+          metric_source: string | null
           publication_id: string | null
+          published_at: string | null
+          retention_3s_pct: number | null
+          script_id: string | null
+          snapshot_status: string | null
+          state: string | null
+          title: string | null
+          unpriced_incurred_rows: number | null
           views: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "publications_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       v_cost_unattributed: {
         Row: {
@@ -2265,6 +2406,99 @@ export type Database = {
         }
         Relationships: []
       }
+      v_hook_performance: {
+        Row: {
+          best_retention_3s_pct: number | null
+          hook_pattern: string | null
+          median_retention_3s_pct: number | null
+          median_views: number | null
+          videos_measured: number | null
+          videos_with_retention: number | null
+          worst_retention_3s_pct: number | null
+        }
+        Relationships: []
+      }
+      v_hook_unclassified: {
+        Row: {
+          channel_id: string | null
+          hook: string | null
+          hook_pattern_version: string | null
+          publication_id: string | null
+          published_at: string | null
+          script_id: string | null
+          title: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publications_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_measurement_coverage: {
+        Row: {
+          captured: number | null
+          captured_share: number | null
+          channel_id: string | null
+          due: number | null
+          outstanding: number | null
+          publications_due: number | null
+          publications_measured: number | null
+          unavailable: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publications_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_measurement_due: {
+        Row: {
+          age_bucket: string | null
+          captured_at: string | null
+          channel_id: string | null
+          coverage_state: string | null
+          due_at: string | null
+          publication_id: string | null
+          published_at: string | null
+          render_id: string | null
+          retention_3s_pct: number | null
+          snapshot_id: string | null
+          snapshot_status: string | null
+          title: string | null
+          views: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publications_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publications_render_id_fkey"
+            columns: ["render_id"]
+            isOneToOne: false
+            referencedRelation: "renders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publications_render_id_fkey"
+            columns: ["render_id"]
+            isOneToOne: false
+            referencedRelation: "v_render_cost"
+            referencedColumns: ["render_id"]
+          },
+        ]
+      }
       v_partner_rollup: {
         Row: {
           cost_inr: number | null
@@ -2358,14 +2592,18 @@ export type Database = {
       v_recipe_performance: {
         Row: {
           driver: string | null
+          has_shipped_evidence: boolean | null
           is_active: boolean | null
           last_compiled_at: string | null
+          median_retention_3s_pct: number | null
           model: string | null
           name: string | null
           prompt_id: string | null
+          ship_rate: number | null
           times_compiled: number | null
           times_shipped: number | null
-          win_rate: number | null
+          videos_measured: number | null
+          videos_with_retention: number | null
         }
         Relationships: []
       }
@@ -2394,6 +2632,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "scripts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "renders_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_cost_per_1k_views"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "renders_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_hook_unclassified"
+            referencedColumns: ["script_id"]
           },
           {
             foreignKeyName: "renders_script_id_fkey"
@@ -2613,6 +2865,20 @@ export type Database = {
             foreignKeyName: "studio_sessions_script_id_fkey"
             columns: ["script_id"]
             isOneToOne: false
+            referencedRelation: "v_cost_per_1k_views"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "studio_sessions_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_hook_unclassified"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "studio_sessions_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
             referencedRelation: "v_pipeline_blockers"
             referencedColumns: ["script_id"]
           },
@@ -2708,6 +2974,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "scripts"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shots_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_cost_per_1k_views"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "shots_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_hook_unclassified"
+            referencedColumns: ["script_id"]
           },
           {
             foreignKeyName: "shots_script_id_fkey"

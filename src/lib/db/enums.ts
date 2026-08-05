@@ -79,6 +79,42 @@ export const publicationStatus = z.enum([
 
 export const metricsAgeBucket = z.enum(['6h', '24h', '7d', '30d']);
 
+/**
+ * Whether a snapshot's numbers came back (migration 0034).
+ *
+ * `unavailable` is the row a failed or withheld read produces, carrying a reason and no
+ * metrics at all. It exists so that "nobody has looked yet" and "we looked and got
+ * nothing" are answerable apart — different states needing opposite responses, which a
+ * missing row cannot express.
+ */
+export const metricStatus = z.enum(['measured', 'unavailable']);
+
+/**
+ * How a metric was arrived at (migration 0034) — the same question `cost_ledger.cost_source`
+ * asks about money. `manual_entry` is a person reading the platform's dashboard and typing
+ * it, which is the only source Phase 1 has.
+ */
+export const metricSource = z.enum(['manual_entry', 'vendor_api']);
+
+/**
+ * The shape of a hook, which is the key hook performance is grouped on (migration 0034).
+ *
+ * Closed for the reason `shotKind` is: three spellings of one idea produce three buckets,
+ * and the rollup then reports a real number about a set nobody drew. Null is a legitimate
+ * value on the column and means unclassified — deliberately not a member here, because an
+ * `other` bucket collects everything the taxonomy failed on and is then averaged as though
+ * it described a shape. Mirrors `src/lib/measure/hook-pattern.ts`, which carries the rules.
+ */
+export const hookPattern = z.enum([
+  'question',
+  'contradiction',
+  'number_claim',
+  'warning',
+  'story_open',
+  'direct_address',
+  'demonstration',
+]);
+
 export const costEntryKind = z.enum(['estimate', 'reconcile', 'refund']);
 
 /**
@@ -220,6 +256,9 @@ export const ENUM_CONSTRAINT_MAP = {
   'reviews.decision': reviewDecision,
   'publications.status': publicationStatus,
   'metrics_snapshots.age_bucket': metricsAgeBucket,
+  'metrics_snapshots.status': metricStatus,
+  'metrics_snapshots.metric_source': metricSource,
+  'scripts.hook_pattern': hookPattern,
   'cost_ledger.entry_kind': costEntryKind,
   'cost_ledger.cost_source': costSource,
   'driver_health.state': driverHealthState,

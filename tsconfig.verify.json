@@ -57,6 +57,10 @@
     "src/lib/pipeline/limits.ts",
     "src/lib/pipeline/observability.ts",
     "src/lib/pipeline/path.ts",
+    // Stage 11, minus actions.ts — a Server Action module, same reason as studio and review.
+    "src/lib/measure/hook-pattern.ts",
+    "src/lib/measure/snapshot.ts",
+    "src/lib/measure/read.ts",
     "src/lib/generate/pilot.ts",
     "src/lib/cost/rate-card.ts",
     "src/lib/prompts/library.ts",

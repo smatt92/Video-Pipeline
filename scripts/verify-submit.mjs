@@ -868,6 +868,9 @@ console.log('\n10. The board can tell stalled from progressing\n');
 //
 // The loop ARCHITECTURE §0.1 calls the durable asset.
 //
+// (`win_rate` is `ship_rate` since 0034 — the outcome half took the name the word promises,
+// and this section is about the editorial half.)
+//
 // `prompts.win_rate`, `times_compiled`, `times_shipped` and `last_compiled_at` were only
 // ever selected — three readers, zero writers — while `compile.ts` weighted recipe
 // selection by `win_rate`. So production picked recipes using a permanently null number,
@@ -900,10 +903,21 @@ console.log('\n11. A recipe earns its place\n');
   // honest reading of that. Null is reserved for a recipe nothing has compiled at all.
   // Writing this assertion the other way round first was my error, not the view's: the two
   // states look alike and mean opposite things, which is exactly why the view separates them.
-  if (mine?.winRate === 0 && mine?.timesShipped === 0) {
+  if (mine?.shipRate === 0 && mine?.timesShipped === 0) {
     ok('  · tried three times and shipped none is 0', 'a real result, not missing data');
   } else {
-    bad('  · tried three times and shipped none is 0', `${mine?.winRate} / ${mine?.timesShipped}`);
+    bad('  · tried three times and shipped none is 0', `${mine?.shipRate} / ${mine?.timesShipped}`);
+  }
+
+  // And the outcome half is null, not 0, on the same recipe. Migration 0034 split
+  // `win_rate` into these two precisely because they disagree: this recipe has been tried
+  // and never shipped (0 — a result), and no video carrying it has ever been measured
+  // (null — no evidence). One column could not have said both.
+  if (mine?.medianRetention3sPct === null && mine?.videosMeasured === 0) {
+    ok('  · and its outcome is null, which is a different fact from 0', 'nothing measured');
+  } else {
+    bad('  · and its outcome is null, which is a different fact from 0',
+        `${mine?.medianRetention3sPct} / ${mine?.videosMeasured}`);
   }
 
   // A recipe created and never used. Every other recipe in this database has compiled
@@ -911,10 +925,10 @@ console.log('\n11. A recipe earns its place\n');
   const neverUsed = await makeRecipe();
   const withUnused = await listRecipes(db);
   const untouched = withUnused.find((r) => r.id === neverUsed);
-  if (untouched && untouched.winRate === null) {
+  if (untouched && untouched.shipRate === null) {
     ok('  · while a recipe nothing compiled is null', 'absence of evidence, not evidence of failure');
   } else {
-    bad('  · while a recipe nothing compiled is null', JSON.stringify(untouched?.winRate));
+    bad('  · while a recipe nothing compiled is null', JSON.stringify(untouched?.shipRate));
   }
 
   // Ship it: a render over that script, and a human passing it. Shipped is deliberately
@@ -938,10 +952,10 @@ console.log('\n11. A recipe earns its place\n');
   const after = await listRecipes(db);
   const shipped = after.find((r) => r.id === recipe);
 
-  if (shipped?.timesShipped === 3 && shipped?.winRate === 1) {
-    ok('a passed review makes every shot in it a win', '3 of 3, win rate 1');
+  if (shipped?.timesShipped === 3 && shipped?.shipRate === 1) {
+    ok('a passed review makes every shot in it a win', '3 of 3, ship rate 1');
   } else {
-    bad('a passed review makes every shot in it a win', `${shipped?.timesShipped}, ${shipped?.winRate}`);
+    bad('a passed review makes every shot in it a win', `${shipped?.timesShipped}, ${shipped?.shipRate}`);
   }
 
   // A reshoot must not count. This is the assertion that keeps the number editorial rather

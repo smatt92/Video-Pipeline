@@ -20,6 +20,19 @@ import type { ResolvedShot } from './schema';
  *   note saying what is missing, and stage 5 declines to submit them.
  */
 
+/**
+ * `numeric` crosses PostgREST as a string, and a recipe with no performance row yields
+ * `undefined` rather than a row of nulls. Both mean "there is no number here" and both
+ * must become `null`, not `0` and not `NaN`: `compileShot` ranks nulls into their own tier
+ * on purpose, and a `0` would claim the recipe was tried and failed.
+ *
+ * `Number()` is a decision, not a conversion, and it is safe here — a ratio and a
+ * percentage are both far inside what a double holds exactly.
+ */
+function numOrNull(v: string | number | null | undefined): number | null {
+  return v === null || v === undefined ? null : Number(v);
+}
+
 export interface ShotlistPayload {
   scriptId: string;
   targetSeconds: number;
@@ -181,15 +194,19 @@ export async function runShotlist(
   //
   // Performance comes from `v_recipe_performance` rather than from columns on `prompts`.
   // This is the read that made the defect matter: `compile.ts` weights the tier ordering by
-  // `winRate`, and the column it used was never written by anything, so every recipe scored
-  // null and the weighting was inert. See migration 0025.
+  // a performance figure, and the column it used was never written by anything, so every
+  // recipe scored null and the weighting was inert. See migration 0025.
+  //
+  // Two figures since 0034, not one. `ship_rate` is what `win_rate` used to be; the new
+  // `median_retention_3s_pct` is the outcome half, and `compileShot` decides which of them
+  // a given shot kind is ranked on — see the note there for why that cannot be a column.
   const [{ data: libraryRows }, { data: perfRows }] = await Promise.all([
     db
       .from('prompts')
       .select('id, name, driver, model, template, params, tags, version, is_active, accepts_character_ref'),
     db
       .from('v_recipe_performance')
-      .select('prompt_id, times_compiled, last_compiled_at, win_rate'),
+      .select('prompt_id, times_compiled, last_compiled_at, ship_rate, median_retention_3s_pct'),
   ]);
 
   const perf = new Map((perfRows ?? []).map((r) => [r.prompt_id, r]));
@@ -207,10 +224,14 @@ export async function runShotlist(
     tags: p.tags ?? [],
     version: p.version,
     isActive: p.is_active,
-    winRate:
-      perf.get(p.id)?.win_rate === null || perf.get(p.id)?.win_rate === undefined
-        ? null
-        : Number(perf.get(p.id)!.win_rate),
+    shipRate: numOrNull(perf.get(p.id)?.ship_rate),
+    // 0–100 in the view (the column is a percentage and its CHECK says so), 0–1 here so
+    // the two scores compare like for like inside compileShot. Divided at the boundary,
+    // in the mapper, never at the point of use.
+    retentionScore: (() => {
+      const pct = numOrNull(perf.get(p.id)?.median_retention_3s_pct);
+      return pct === null ? null : pct / 100;
+    })(),
     // bigint over the wire is a string — see the note in prompts/library.ts.
     timesCompiled: Number(perf.get(p.id)?.times_compiled ?? 0),
     lastCompiledAt: perf.get(p.id)?.last_compiled_at ?? null,

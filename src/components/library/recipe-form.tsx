@@ -240,8 +240,21 @@ export function RecipeRow({ recipe }: { recipe: Recipe }) {
         >
           {recipe.isActive ? 'active' : 'retired'}
         </span>
+        {/*
+          Two figures, labelled, never one. Until 0034 this printed "62% win" from a number
+          that meant "62% of its shots reached a passed review" — a claim about an editor,
+          shown under a word that reads as a claim about an audience. Retention is em-dashed
+          when unmeasured rather than shown as 0%: a recipe nobody has measured has not
+          retained nobody.
+        */}
         <span className="ml-auto font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
-          {recipe.winRate === null ? 'win rate unmeasured' : `${(recipe.winRate * 100).toFixed(0)}% win`}
+          {recipe.shipRate === null
+            ? 'never shipped'
+            : `${(recipe.shipRate * 100).toFixed(0)}% shipped`}
+          {' · '}
+          {recipe.medianRetention3sPct === null
+            ? '3s retention —'
+            : `3s retention ${recipe.medianRetention3sPct.toFixed(0)}% over ${recipe.videosMeasured} video${recipe.videosMeasured === 1 ? '' : 's'}`}
           {' · '}
           compiled {recipe.timesCompiled}× · shipped {recipe.timesShipped}×
         </span>

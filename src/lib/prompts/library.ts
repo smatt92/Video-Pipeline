@@ -74,7 +74,12 @@ export interface Recipe {
   retiredReason: string | null;
   discoveredIn: string | null;
   sampleOutputUrl: string | null;
-  winRate: number | null;
+  /** Editorial survival: shots that reached a passed review ÷ shots compiled. */
+  shipRate: number | null;
+  /** What the videos it appeared in retained at 3s, 7d, as a percentage. Null until one has been measured. */
+  medianRetention3sPct: number | null;
+  /** Videos carrying this recipe that have a 7d snapshot at all. */
+  videosMeasured: number;
   createdAt: string;
   /** How many shots have been compiled from it. Why it can never be hard-deleted. */
   shotsUsing: number;
@@ -165,7 +170,7 @@ export function validateRecipe(input: RecipeInput): { ok: true; params: Record<s
  *
  * A name that already exists gets a new version; the previous one is retired but kept.
  * Editing in place would be wrong twice over: `shots.compiled_params` snapshots what was
- * actually used, and `win_rate` is earned by a specific parameter set. Rewriting the row
+ * actually used, and a performance figure is earned by a specific parameter set. Rewriting the row
  * would leave both describing something that no longer exists.
  */
 export async function saveRecipe(db: Db, input: RecipeInput): Promise<SaveResult> {
@@ -268,7 +273,10 @@ export async function listRecipes(db: Db): Promise<Recipe[]> {
   // cannot drift the way an incremented counter would across a replayed stage 4.
   const { data: perf } = await db
     .from('v_recipe_performance')
-    .select('prompt_id, times_compiled, times_shipped, last_compiled_at, win_rate');
+    // One string literal, not a concatenation: supabase-js infers the row type from the
+    // literal, and `'a, ' + 'b'` collapses it to GenericStringError — every field then
+    // fails to typecheck for a reason that names none of this.
+    .select('prompt_id, times_compiled, times_shipped, last_compiled_at, ship_rate, median_retention_3s_pct, videos_measured');
 
   const performance = new Map(
     (perf ?? []).map((r) => [
@@ -280,7 +288,13 @@ export async function listRecipes(db: Db): Promise<Recipe[]> {
         timesCompiled: Number(r.times_compiled ?? 0),
         timesShipped: Number(r.times_shipped ?? 0),
         lastCompiledAt: r.last_compiled_at,
-        winRate: r.win_rate === null ? null : Number(r.win_rate),
+        // Two figures since 0034 and never merged into one. `win_rate` meant editorial
+        // survival while the word promised an outcome; the rename is what stops a screen
+        // printing a ship rate under a heading about performance.
+        shipRate: r.ship_rate === null ? null : Number(r.ship_rate),
+        medianRetention3sPct:
+          r.median_retention_3s_pct === null ? null : Number(r.median_retention_3s_pct),
+        videosMeasured: Number(r.videos_measured ?? 0),
       },
     ]),
   );
@@ -307,7 +321,9 @@ export async function listRecipes(db: Db): Promise<Recipe[]> {
     retiredReason: p.retired_reason,
     discoveredIn: p.discovered_in,
     sampleOutputUrl: p.sample_output_url,
-    winRate: performance.get(p.id)?.winRate ?? null,
+    shipRate: performance.get(p.id)?.shipRate ?? null,
+    medianRetention3sPct: performance.get(p.id)?.medianRetention3sPct ?? null,
+    videosMeasured: performance.get(p.id)?.videosMeasured ?? 0,
     createdAt: p.created_at,
     shotsUsing: counts.get(p.id) ?? 0,
     timesCompiled: performance.get(p.id)?.timesCompiled ?? 0,

@@ -47,6 +47,22 @@ const pairs = [...mapMatch[1].matchAll(/'([\w.]+)':\s*(\w+),/g)].map(([, col, na
 
 // Extract the quoted literals from each CHECK expression. pg_get_constraintdef renders
 // them as: CHECK ((status = ANY (ARRAY['a'::text, 'b'::text])))
+/**
+ * Every CHECK constraint over exactly one column.
+ *
+ * `array_length(con.conkey, 1) = 1` is the part that took a failure to get right, and it is
+ * a correction rather than an optimisation. The join over `unnest(conkey)` fans a
+ * multi-column constraint out to one row *per column it mentions*, all carrying the same
+ * definition — so migration 0034's `metrics_snapshots_unavailable_is_empty`, which names
+ * seven metric columns and contains the literal `'unavailable'::text`, arrived as seven
+ * separate "enums", one of them on `views`. The check then demanded a TypeScript enum for
+ * an integer column.
+ *
+ * The distinction it was missing: **an enum is a closed set of values for one column**, and
+ * a constraint spanning several columns is a relationship between them. Both are CHECKs and
+ * only the first is this file's subject. The `= ANY (ARRAY[…])` shape is asserted below for
+ * the same reason — a single-column `views >= 0` is a range, not a vocabulary.
+ */
 const sql = `
 select
   rel.relname || '.' || att.attname as column_ref,
@@ -56,7 +72,9 @@ join pg_class rel      on rel.oid = con.conrelid
 join pg_namespace nsp  on nsp.oid = rel.relnamespace
 join unnest(con.conkey) as k(attnum) on true
 join pg_attribute att  on att.attrelid = rel.oid and att.attnum = k.attnum
-where con.contype = 'c' and nsp.nspname = 'public';
+where con.contype = 'c'
+  and nsp.nspname = 'public'
+  and array_length(con.conkey, 1) = 1;
 `;
 
 /**
@@ -116,6 +134,10 @@ if (liveTables.size === 0) {
 
 const actual = new Map();
 for (const { column_ref, def } of rows) {
+  // The `= ANY (ARRAY[…])` shape, not merely "contains quoted text". A single-column CHECK
+  // can perfectly well name a string without enumerating a vocabulary, and treating one as
+  // an enum would demand a TypeScript type for something that has no closed set to have.
+  if (!/=\s*ANY\s*\(ARRAY\[/i.test(def)) continue;
   const literals = [...def.matchAll(/'([^']+)'::text/g)].map((x) => x[1]);
   if (literals.length) actual.set(column_ref, literals.sort());
 }
