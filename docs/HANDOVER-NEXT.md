@@ -28,7 +28,32 @@ every item is not bureaucracy.
 
 ---
 
-## 1. What shipped this session
+## 0b. Second half of the session — your two decisions, and what they turned up
+
+| Commit | What |
+|---|---|
+| `8570433` | `USD_INR_RATE`: default dropped, required at the ledger write via `src/lib/cost/fx.ts` |
+| `0ce27e2` | `@remotion/renderer` installed and pinned; `check:remotion` guards version lockstep |
+| `f67963a` | DECISIONS-PENDING 1 and 2 taken — `v_entry_state` kept-and-recorded, referral panel built |
+| `138284f` | The sweep: a caller that is itself uncalled is not a caller |
+
+**Two findings worth carrying, both from checking a claim before building on it.**
+
+`USD_INR_RATE`'s default was justified by a comment saying `profiles.usd_inr_rate`
+superseded it once onboarding ran. False — the wizard writes that column and nothing on the
+pricing path reads it. So there are two configured rates, one of which does nothing, and the
+operator setting it believes otherwise. **DECISIONS-PENDING 7**, left for you because which
+rate is authoritative changes what a money row means. Whichever wins, the loser must stop
+existing.
+
+The sweep found three functions named by documentation and called by nothing — and two of
+them say *in their own headers* that they were written to avoid exactly that. `isUsable` is
+deleted; the two false headers are corrected; **DECISIONS-PENDING 8** holds the two Server
+Actions that still want buttons.
+
+---
+
+## 1. What shipped in the first half
 
 Four commits, each green in CI at the time of pushing (74 was still running for the third;
 see §4).
@@ -95,8 +120,17 @@ same list of whatever environment it can see.
 2. **Decide DECISIONS-PENDING 5** (the FX rate). Every day it stays open is more ledger rows
    carrying a number nobody set.
 
-3. **Back to the sweep** — queue item 1. It has found something every round for fifteen
-   rounds. Two threads I noticed and did not pull:
+2b. **DECISIONS-PENDING 8** — build the two buttons. Smallest real item on the list, and it
+   is the only thing between stages 1 and 9 and being reachable by a person at all.
+
+3. **Back to the sweep** — queue item 1. Both threads below have now been pulled; the
+   uncalled-caller one is written up as a CLAUDE.md rule and produced three fixes. The
+   sweep method that worked was the **narrow intersection**: uncalled *and* named in prose,
+   which gave four candidates instead of seventy-eight. Two broader passes were too noisy to
+   trust — the first could not see `.mjs` harnesses as callers, the second could not see
+   framework conventions like `middleware`. Do not re-run the broad version expecting signal.
+
+   The original two threads, kept for the record:
 
    - **`requireEnv` had no callers at all**, while five comments in `src/lib/env.ts` and one
      line in `HANDOVER.md` named it as the mechanism that catches a missing variable at the
