@@ -77,11 +77,26 @@ export function MetadataButton({ renderId, prior }: { renderId: string; prior: M
         </p>
       )}
 
-      <p className="mt-2 text-2xs" style={{ color: 'var(--text-faint)' }}>
-        {prior.lastAt === null
-          ? 'No metadata draft has ever been charged on this workspace, so there is no prior to show — that is unknown, not free.'
-          : `Last drafted ${prior.lastAt.slice(0, 10)}. A Messages call is priced on tokens that do not exist until it returns, so this is a measurement of the last draft rather than a forecast of this one.`}
-      </p>
+      {/* Split so the figure lands before the explanation — the number is what is being
+          looked for, and a sentence of reasoning in front of it buries the thing the
+          operator opened the screen to see. */}
+      {prior.lastAt === null ? (
+        <p className="mt-2 text-2xs" style={{ color: 'var(--text-faint)' }}>
+          No metadata draft has ever been charged on this workspace, so there is no prior to
+          show — that is unknown, not free.
+        </p>
+      ) : (
+        <>
+          <p className="mt-2 text-2xs" style={{ color: 'var(--text-muted)' }}>
+            Last drafted {prior.lastAt.slice(0, 10)}
+            {prior.lastCostInr === null ? '.' : `, cost ₹${prior.lastCostInr.toFixed(2)}.`}
+          </p>
+          <p className="text-2xs" style={{ color: 'var(--text-faint)' }}>
+            This is what the last draft cost, not a forecast — an LLM call is priced on
+            tokens that don&rsquo;t exist until it returns.
+          </p>
+        </>
+      )}
     </div>
   );
 }

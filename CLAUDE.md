@@ -338,6 +338,21 @@ alert nobody routes, a log line in a file nobody opens: each is the original pro
 the costume of its own solution, and each is *harder* to notice than what it replaced,
 because its existence reads as coverage.
 
+**An absence result is only evidence if the search term was verified to exist.**
+`grep -rn "from('trends')" src/` returned nothing, and that nothing became a confident
+architectural conclusion — that stage 1 wrote rows no code read, that it was "disconnected at
+both ends" — which went into a commit message, a decisions file and a handover. The table is
+`trend_signals`. `concepts/run.ts` reads it and always had.
+
+A search that finds nothing has two explanations and they are indistinguishable from the
+output: the thing is absent, or the term is wrong. Only one of them is a finding. So before
+reporting an absence, **run a search that must succeed** — grep the identifier's definition,
+list the tables, find one known caller — and paste it beside the empty result. A positive
+control costs one command and is the difference between a measurement and a typo.
+
+This is the same failure as a guard that runs nowhere and a probe that reads the wrong
+surface: the instrument returned a clean answer about a question it was not asked.
+
 **Every refusal that lives in a Trigger task is untested, because no harness imports a
 task.** Fifteen harnesses drive `src/lib/` functions with a deps object; `grep -rn "trigger/0"
 scripts/` returns nothing. So the seven `throw`s in `src/trigger/` have no coverage of any
