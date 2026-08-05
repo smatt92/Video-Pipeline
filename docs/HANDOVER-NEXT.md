@@ -39,14 +39,16 @@ to preserve: do not write a harness you have not executed.
 | 5. Pilot path surface | **RE-VERIFIED, not assumed.** `verify:pilot` asserts `voice is drawn before videos — 4 < 5` and `the path shows waiting on you, not blocked`. Both pass. No change needed |
 | 6. Deploy readiness | Build-extension question **answered** (see below). The deploy itself still needs your account |
 
-### The one thing CI has to prove, and I could not
+### The render is a CI gate and CI proved it — run 106, green
 
-`verify:render` is now a CI gate — the exemption is retired — and the workflow installs
-`chrome-headless-shell` before it. **That install step is untested.** This container's egress
-allowlist refuses the download host, so I could not execute it. If a run is red at
-*"Install chrome-headless-shell"* or *"The final composition renders"*, that is the first
-place to look, and the harness itself is green locally (14/14) so the code is not the
-suspect.
+`verify:render` is a CI gate, the `check:gates` exemption is retired, and the workflow
+installs `chrome-headless-shell` and exports `REMOTION_BROWSER_EXECUTABLE` before it.
+
+That install step could not be executed here — this container's egress allowlist refuses the
+download host — so it went out untested and is exactly the kind of thing this project has
+been burned by. **Run 106 (`6cd01e8`) passed.** And a pass is real evidence rather than a
+silent skip: the harness *fails* when it cannot find a browser, by design, so green means a
+runner actually rendered an MP4 and measured it.
 
 ### Item 6, answered by reading rather than guessing
 
