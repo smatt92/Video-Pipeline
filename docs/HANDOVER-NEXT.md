@@ -32,38 +32,44 @@ to preserve: do not write a harness you have not executed.
 
 | Item | State |
 |---|---|
-| 1. Stage 7 full composition | **DONE and rendering.** A real MP4, measured against its plan |
+| 1. Stage 7 full composition | **DONE.** Renders a real MP4, measured against its plan. `verify:render`, 14 assertions |
 | 2. STATE.md accuracy pass | **DONE.** 486 assertions across twenty harnesses, all measured |
-| 3. The sweep | Ongoing. Last round caught `requireEnv` regressing |
-| 4. Screens that look identical after one video and a hundred | Not swept this round — `/trends` was built to that test, nothing else re-examined |
-| 5. Pilot-shot path surface | Believed complete (`path-strip.tsx`, `verify:pilot` §0/§5 assert voice-before-videos and waiting-on-you ≠ blocked). **Not re-verified this round** |
-| 6. Trigger.dev deploy readiness | Partly. Env manifest and binary check exist; the Remotion Chromium question is open — DECISIONS-PENDING 4 and 9 |
+| 3. The sweep | Ongoing |
+| 4. Screens failing the inverse test | **One round done.** The review queue fixed; the Studio session list is the known remaining one |
+| 5. Pilot path surface | **RE-VERIFIED, not assumed.** `verify:pilot` asserts `voice is drawn before videos — 4 < 5` and `the path shows waiting on you, not blocked`. Both pass. No change needed |
+| 6. Deploy readiness | Build-extension question **answered** (see below). The deploy itself still needs your account |
 
-### Item 1 is done, and here is what it actually proves
+### The one thing CI has to prove, and I could not
 
-`pnpm verify:render` — 14 assertions, green locally, **exempt from CI on a browser question**
-(DECISIONS-PENDING 9). It bundles Remotion, drives a real headless Chromium, renders two
-synthetic clips with captions and a hook, and re-measures the output with ffprobe.
+`verify:render` is now a CI gate — the exemption is retired — and the workflow installs
+`chrome-headless-shell` before it. **That install step is untested.** This container's egress
+allowlist refuses the download host, so I could not execute it. If a run is red at
+*"Install chrome-headless-shell"* or *"The final composition renders"*, that is the first
+place to look, and the harness itself is green locally (14/14) so the code is not the
+suspect.
 
-Three things worth not rediscovering:
+### Item 6, answered by reading rather than guessing
 
-- **Measure video-stream packets, not `format=duration`.** The first version failed a
-  *correct* render — 4.053s against a planned 4.000s — because the container's duration spans
-  the audio stream and AAC frames do not align with video frames. The video stream was
-  exactly 120 packets. Loosening the tolerance would have made a wrong measurement pass;
-  counting frames makes the assertion exact and removes the tolerance entirely.
-- **Clips must be http(s).** A bare path 404s against Remotion's own bundle server; a
-  `file://` URL is rejected by its asset downloader. Both fail inside `node_modules` with a
-  message naming neither cause. `render.ts` refuses both up front now.
-- **Remotion needs old-headless Chromium.** `chromium_headless_shell` in this container;
-  recent Chrome refuses. That is the whole of why the harness is not in CI.
+**No Trigger build extension installs a browser Remotion can use.** `puppeteer()` runs
+`apt-get install google-chrome-stable` — new-headless only, the exact binary Remotion refuses
+with *"Old Headless mode has been removed"*. An extension that installs a browser the
+renderer rejects is worse than none: bigger image, successful deploy, first render fails
+after clips are paid for.
 
-### Item 4 is the one I did not get to and would take next
+The worker needs `chrome-headless-shell` baked in, with `REMOTION_BROWSER_EXECUTABLE` pointing
+at it — matching what CI now does, so one binary is resolved one way in all three places.
+DECISIONS-PENDING 4b has the routes and the recommendation.
 
-The inverse test — *would this screen look identical after one video and after a hundred?* —
-has found more than any other in this project. `/trends` was built against it and `/costs`
-was retrofitted to it. **Nothing else has been re-examined**: the board, `/publish`,
-`/analytics`, `/concepts`, the Studio session list. That is a cheap, high-yield sweep.
+**Do not add `REMOTION_BROWSER_EXECUTABLE` to the worker-env manifest until the assemble task
+actually reads it.** `check:trigger-env` derives requirements from the import graph, so a
+declared-but-unreachable entry is precisely what it exists to catch.
+
+### Item 4, what is left
+
+The Studio session list shows a bare session count. Total spend across sessions and how many
+hit their cap are the numbers that would change when the lane is being used hard or
+misconfigured. `/costs`, `/trends` and the board already pass the test; `/publish`,
+`/analytics` and `/concepts` are `NotBuiltYet` stubs with nothing to sweep.
 
 ---
 
