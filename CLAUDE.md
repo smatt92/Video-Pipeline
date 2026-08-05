@@ -466,6 +466,23 @@ the encoder had a coin-flip's chance of editing the file that does nothing, then
 why their change had no effect. When you find the second module, delete one; do not
 document the difference. A superseded file is not history — git is history.
 
+**When CI is the only instrument, reading it is part of the item, not the report.** This was
+learned the expensive way: four consecutive runs went red while three more commits landed on
+top of them, each commit saying "CI is the check" and none of them reading it. A red run
+halts the queue — the next item does not start until the step list for the previous commit
+has been read.
+
+The reading is specific, not a glance at the badge. Get the failing **step name** and the
+**annotation**, because "all jobs have failed" names nothing and the postgres service log is
+full of errors from harnesses deliberately provoking refusals. On the run that produced this
+rule, the most alarming line in the log — a `scripts_pilot_decided_once` violation — was
+inside a step that *passed*.
+
+And prefer restoring the ability to verify over working around its absence. A local scratch
+cluster is three commands (`initdb` as a non-root user, `pg_ctl -o '-p 55432'`, `db:push`)
+and turns every harness back on. Writing tests you cannot execute, in a session where you
+are also not reading CI, is how a green report and a red branch coexist for four runs.
+
 ```bash
 pnpm doctor                          # which failure is this? — run this first, always
 pnpm verify:ingest   "$DATABASE_URL" # 3 shapes → canonical, corrupt → error row
