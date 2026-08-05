@@ -37,8 +37,9 @@ const positiveInt = (label: string) =>
  *
  * So: `BOOTSTRAP` is what the process genuinely cannot start without. Everything else is
  * optional here and resolved from the integration record at the point of use, with the
- * environment as a local-development fallback. `requireEnv()` below is how a caller that
- * really does need one asks for it and gets a legible failure.
+ * environment as a local-development fallback. A caller that genuinely cannot proceed
+ * without one refuses where it is used — `submitShots` and `src/lib/cost/fx.ts` are the two
+ * that do, each with a message naming the operation rather than the variable alone.
  */
 const coreEnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -60,10 +61,11 @@ const coreEnvSchema = z.object({
    * tunnel in local development. A callback aimed at localhost is never delivered and
    * every generation hangs until it times out.
    *
-   * Optional at boot, required at the moment a generation is submitted — see
-   * `requireEnv`. A deployment that never submits a generation (a preview being used to
-   * walk the onboarding wizard, for instance) has no use for it, and refusing to boot
-   * without it means the wizard that configures everything else cannot run.
+   * Optional at boot, required at the moment a generation is submitted — `submitShots`
+   * refuses on it by name, where a harness can drive the refusal. A deployment that never
+   * submits a generation (a preview being used to walk the onboarding wizard, for instance)
+   * has no use for it, and refusing to boot without it means the wizard that configures
+   * everything else cannot run.
    */
   WEBHOOK_CALLBACK_BASE_URL: z
     .url({ error: 'WEBHOOK_CALLBACK_BASE_URL must be an absolute, publicly reachable URL' })
@@ -113,7 +115,9 @@ const coreEnvSchema = z.object({
 
   // ── Trigger.dev ───────────────────────────────────────────────────────────
   // Optional at boot: the Next app enqueues but does not run tasks, and a preview being
-  // used to walk the onboarding wizard enqueues nothing. `requireEnv` covers the enqueue.
+  // used to walk the onboarding wizard enqueues nothing. Nothing guards the enqueue: the
+  // Trigger SDK fails on its own if the key is absent, which is legible enough and is the
+  // honest description rather than naming a mechanism that does not exist.
   TRIGGER_PROJECT_REF: nonEmpty('TRIGGER_PROJECT_REF').optional(),
   TRIGGER_SECRET_KEY: nonEmpty('TRIGGER_SECRET_KEY').optional(),
 
@@ -132,8 +136,8 @@ const coreEnvSchema = z.object({
    * tool in the workspace.
    *
    * Optional at boot for the same reason the rest of this section is: a deployment that
-   * never opens a Studio session does not need it. `requireEnv` catches it at the moment a
-   * session tries to start, and the route refuses every request while it is unset —
+   * never opens a Studio session does not need it. `studio/actions.ts` checks it at the
+   * moment a session tries to start and returns a message rather than throwing, and the route refuses every request while it is unset —
    * accepting unauthenticated tool calls because the key is missing would make the
    * deployment's security depend on nobody finding the URL.
    */
@@ -216,7 +220,7 @@ export function assertEnv(): Env {
   const value = parsed.data;
 
   // Only when it is set. Absent is legitimate now — nothing has submitted a generation
-  // yet, and `requireEnv` catches it at the point that does. Set-and-pointed-at-localhost
+  // yet, and `submitShots` refuses at the point that does. Set-and-pointed-at-localhost
   // is still worth refusing at boot, because that one looks configured.
   if (value.NODE_ENV === 'production' && value.WEBHOOK_CALLBACK_BASE_URL) {
     const callbackHost = new URL(value.WEBHOOK_CALLBACK_BASE_URL).hostname;
@@ -253,33 +257,6 @@ export const env = new Proxy({} as Env, {
     return Object.getOwnPropertyDescriptor(assertEnv(), prop);
   },
 });
-
-/**
- * Read a variable that is optional at boot but required right here.
- *
- * The counterpart to making most of the schema optional. A caller that genuinely cannot
- * proceed — submitting a generation without a callback URL, enqueuing without a Trigger
- * key — asks for it by name and gets a message naming the variable and the thing that
- * wanted it, rather than an `undefined` surfacing three layers down as a 401.
- *
- * Not for vendor credentials. Those come from the integration record via
- * `resolveCredential()`, which falls back to the environment on its own; calling this for
- * one would skip Vault and use a stale local value in preference to the configured one.
- */
-export function requireEnv<K extends keyof Env>(key: K, wantedBy: string): NonNullable<Env[K]> {
-  const value = assertEnv()[key];
-
-  if (value === undefined || value === null || value === '') {
-    throw new EnvironmentError(
-      `${String(key)} is not set, and ${wantedBy} cannot proceed without it.\n\n` +
-        'It is optional at boot on purpose — a deployment that never reaches this code ' +
-        'path has no use for it, and refusing to start would block the onboarding wizard ' +
-        'that configures everything else. It is not optional here.',
-    );
-  }
-
-  return value as NonNullable<Env[K]>;
-}
 
 /** Reset memoisation. Tests only. */
 export function resetEnvCache(): void {

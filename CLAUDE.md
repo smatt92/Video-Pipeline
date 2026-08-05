@@ -433,6 +433,7 @@ avoided this**:
 | `01-trends.ts` | *"Its caller is a button, not a cron. `runTrendsNowAction` invokes this … what mattered immediately is that this task had no caller at all, which is the category three other modules were just pulled out of"* | `runTrendsNowAction` has no caller. There is no button. The chain got one link longer and still ends in nothing |
 | `09-metadata.ts` | *"It has a caller from the day it exists … written this way deliberately: a sweep three rounds ago found four complete-and-unreachable modules, and the cheapest moment to avoid being the fifth is now"* | `requestMetadata` has no caller. It is the fifth |
 | `verify.ts` | `onboarding/actions.ts`: *"`isUsable()` still returns false and every pipeline task still refuses"* | `isUsable` had no callers; `usability` is what the tasks call. A second name for one concept, alive only in prose |
+| `env.ts` | five comments naming `requireEnv` as what catches a missing variable at the point of use | It had no callers. Given one, it lost it again a round later when that guard moved into `submitShots` — and the sweep caught the regression. **Deleted**: a helper whose only caller keeps migrating away is a helper the code does not want |
 
 The tell is that **the prose was the evidence**. Each was written by someone who had just
 been burned by an unreachable module, checked for a caller, found one, and stopped — which
