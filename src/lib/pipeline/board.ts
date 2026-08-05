@@ -67,6 +67,17 @@ export type BoardResult =
       ok: true;
       rows: BoardRow[];
       /**
+       * True when more concepts exist than this read returned.
+       *
+       * The board renders `rows.length` as a state count and sums their cost into a total,
+       * so a silent cap makes both a floor that reads as a total. Same defect found in the
+       * review queue and the Studio list within an hour of each other — a reader caps for
+       * safety, a page renders the length, and the cap becomes invisible exactly when the
+       * list gets interesting.
+       */
+      truncated: boolean;
+      limit: number;
+      /**
        * The first blocker that belongs to the workspace rather than to any script — no
        * verified video integration, or an empty prompt library. Null when neither holds.
        *
@@ -117,6 +128,9 @@ function deriveState(row: {
  * the reason this screen's state derivation is now checked at all: it had no harness,
  * because it built its own client at call time.
  */
+/** How many concepts the board shows. Truncation is reported, never silent. */
+const BOARD_LIMIT = 100;
+
 export async function readBoard(client?: Db): Promise<BoardResult> {
   try {
     const db = client ?? serverClient();
@@ -125,7 +139,8 @@ export async function readBoard(client?: Db): Promise<BoardResult> {
       .from('concepts')
       .select('id, title, status, created_at')
       .order('created_at', { ascending: false })
-      .limit(100);
+      // One more than the board shows, so truncation is detectable rather than silent.
+      .limit(BOARD_LIMIT + 1);
 
     if (error) {
       return {
@@ -143,10 +158,12 @@ export async function readBoard(client?: Db): Promise<BoardResult> {
       // no concepts it has nothing to report — and the empty state already says what would
       // put something here. A workspace gate matters once there is something it is
       // stopping.
-      return { ok: true, rows: [], workspaceBlocker: null };
+      return { ok: true, rows: [], workspaceBlocker: null, truncated: false, limit: BOARD_LIMIT };
     }
 
-    const ids = concepts.map((c) => c.id);
+    const truncated = concepts.length > BOARD_LIMIT;
+    const page = concepts.slice(0, BOARD_LIMIT);
+    const ids = page.map((c) => c.id);
 
     // Counted in three reads rather than per row. A hundred concepts would otherwise be
     // three hundred round trips, and the board is the first screen anybody opens.
@@ -251,7 +268,7 @@ export async function readBoard(client?: Db): Promise<BoardResult> {
       }
     }
 
-    const rows: BoardRow[] = concepts.map((c) => {
+    const rows: BoardRow[] = page.map((c) => {
       const t = tally.get(c.id) ?? { scripts: 0, shots: 0, generations: 0, failed: 0 };
       const money = cost.get(c.id);
       return {
@@ -271,7 +288,7 @@ export async function readBoard(client?: Db): Promise<BoardResult> {
     const workspaceBlocker =
       (blockers.data ?? []).find((b) => b.blocker_is_workspace_wide && b.blocker)?.blocker ?? null;
 
-    return { ok: true, rows, workspaceBlocker };
+    return { ok: true, rows, workspaceBlocker, truncated, limit: BOARD_LIMIT };
   } catch (err) {
     return {
       ok: false,

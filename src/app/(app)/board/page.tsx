@@ -287,6 +287,11 @@ async function Board() {
           >
             <span style={{ color: 'var(--text-primary)' }}>{formatInr(total)}</span>
             <span>across {priced.length}</span>
+            {result.truncated && (
+              <Hint content={`Only the most recent ${result.limit} concepts are read, so both the state counts and this total are floors rather than totals. A capped list that renders its own length reports the same number whatever is behind it.`}>
+                <span style={{ color: 'var(--state-review)' }}>· capped at {result.limit}</span>
+              </Hint>
+            )}
             {unpriced > 0 && (
               <Hint content="These have no priced call recorded, so their cost is genuinely unknown — not zero. A total that silently excludes rows is the kind of number that gets quoted.">
                 <span style={{ color: 'var(--text-faint)' }}>· {unpriced} unpriced</span>
