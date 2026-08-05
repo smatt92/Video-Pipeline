@@ -28,7 +28,29 @@ every item is not bureaucracy.
 
 ---
 
-## 0b. Second half of the session — your two decisions, and what they turned up
+## 0a. Every pending decision is now closed — and three left buildable work
+
+`docs/DECISIONS-PENDING.md` has no open questions. Three of the closures left work behind,
+and it is the first thing to pick up:
+
+| | What to build | Where it is specified |
+|---|---|---|
+| **3** | `credit_readings` + the per-window view + the calibration surface | DECISIONS-PENDING 3, in full. Migration + two views + a surface — spec is implementable as written |
+| **8** | The Request-metadata button on `/review/[renderId]` | DECISIONS-PENDING 8. `src/components/review/screen.tsx`, beside the pass decision |
+| **8** | **A reader for stage 1** — this is the real one | Nothing in `src/` reads the `trends` table. Stage 1 is complete, harness-proven, and disconnected at both ends |
+
+The trends finding is the largest thing on this page. It is not "a task without a button" —
+`grep -rn "from('trends')" src/` returns nothing at all, so an entire pipeline stage writes
+rows the product cannot see. Build the reader before the trigger.
+
+One thing on the metadata button that will otherwise get re-derived: **there is no honest
+pre-flight estimate for an LLM call** — `llm.ts` documents why — so it shows what the *last*
+metadata draft cost, from `cost_ledger`, labelled as the last one. Do not compute an estimate
+of this call; that is the fabricated-measurement trap in a new place.
+
+---
+
+## 0c. Second half of the session — your two decisions, and what they turned up
 
 | Commit | What |
 |---|---|
