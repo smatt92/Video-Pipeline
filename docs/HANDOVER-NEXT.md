@@ -1,4 +1,4 @@
-# Handover — last updated 2026-08-05
+# Handover — last updated 2026-08-05 (second session)
 
 `HANDOVER.md` is the standing "what you do next". This file is narrower: what happened in
 one unattended session, what was left mid-air, and what I would do first on waking.
@@ -23,8 +23,14 @@ idempotent for that reason; run it before a suite rather than diagnosing "connec
 refused". `.env.local` is gitignored and will not survive a fresh container — recreate it
 with the `DATABASE_URL` above plus the bootstrap values from `.env.example`.
 
-**All twenty harnesses run here** — nineteen plus the new `verify:render`. That is the state
-to preserve: do not write a harness you have not executed.
+**All twenty-one harnesses run here** — twenty plus the new `verify:measure`. That is the
+state to preserve: do not write a harness you have not executed.
+
+**And it is `pnpm db:doctor`, not `pnpm doctor`.** `doctor` is a pnpm builtin and a builtin
+shadows a package script of the same name, silently, with exit 0 — so every "ran the doctor,
+it passed" in this repo's history was a claim about pnpm's own diagnostic. `check:script-names`
+now asks the installed pnpm from an empty directory, with a positive control, and runs in CI.
+The colon is what makes a name safe permanently; no pnpm command contains one.
 
 ---
 
@@ -34,16 +40,41 @@ to preserve: do not write a harness you have not executed.
 |---|---|
 | Decisions 4b + the puppeteer rule | **DONE.** Worker image extension written; CLAUDE.md line added |
 | 1. Inverse test remainder | **DONE**, and it found a third instance — see below |
-| **2. Stage 11 — measure** | **NOT STARTED.** Largest remaining. Spec preserved below |
+| **2. Stage 11 — measure** | **DONE.** Migration 0034, `src/lib/measure/`, `/analytics`, `verify:measure` in CI. What it does NOT have, on purpose: a Trigger task — see below |
 | **3. Stage 10 — publish (YouTube half)** | **NOT STARTED.** Spec preserved below |
 | **4. Addendum 04 outlier score** | **NOT STARTED.** Spec preserved below |
 | 5. The sweep | Ongoing; one thread pulled this round |
 | 6. STATE.md accuracy pass | Not started. Counts are re-measurable now |
 
-I stopped rather than starting stage 11, because each of items 2–4 is a migration plus a
-task plus a surface plus a harness, and standing order 2 says a half-landed item is worse
-than a clean stop. **The specs below are the operator's own, kept verbatim in substance so
-nothing is lost between sessions.**
+Items 3 and 4 are each a migration plus a task plus a surface plus a harness, and standing
+order 2 says a half-landed item is worse than a clean stop. **The specs below are the
+operator's own, kept verbatim in substance so nothing is lost between sessions.**
+
+### What stage 11 landed, and the one thing it deliberately did not
+
+Every bullet of the spec below is built. Three notes for whoever picks up stage 10, because
+they constrain it:
+
+- **There is no `src/trigger/11-measure.ts` and that is deliberate.** Phase 1 publishes by
+  hand, so there is no analytics credential; a task would enumerate `v_measurement_due` and
+  then have nothing to call. That is the complete-and-unreachable module this project has
+  removed five times. **Stage 10 is what unblocks it**: the moment a YouTube credential is
+  verified, the task becomes writable, and `v_measurement_due` is already the list it should
+  iterate. See 0008 §12.
+- **`metric_source` already distinguishes a typed number from a fetched one.** A task must
+  write `vendor_api`; nothing else may.
+- **`retention_3s_pct` is 0–100 with a CHECK, and the API's `audienceWatchRatio` is 0–1.**
+  A fetcher must multiply. The harness records that a 0–1 ratio typed into the field is *in
+  range* and therefore accepted — a known limit the schema cannot close, and the most likely
+  thing to get wrong on the first real run.
+
+Two smaller things fell out of it and are worth knowing about:
+
+- `v_recipe_performance.win_rate` is now `ship_rate`, with `median_retention_3s_pct` beside
+  it. Anything reading `win_rate` is reading a column that no longer exists.
+- `check:enums` fanned a multi-column CHECK out to one "enum" per column it mentioned and
+  demanded a TypeScript enum for `metrics_snapshots.views`. Now filtered to single-column
+  constraints of the `= ANY (ARRAY[…])` shape.
 
 ### Item 2 — stage 11, measure. The loop ARCHITECTURE §0.1 calls the moat
 

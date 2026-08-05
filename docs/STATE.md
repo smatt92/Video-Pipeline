@@ -1,6 +1,6 @@
 # What exists, and what it has actually done
 
-**Written:** 2026-08-03 · **Accuracy passes:** 2026-08-04, 2026-08-05 · **Method:** surveyed from the
+**Written:** 2026-08-03 · **Accuracy passes:** 2026-08-04, 2026-08-05, 2026-08-05b · **Method:** surveyed from the
 repository and the databases, not transcribed from `0008`. Every count in the original was
 from a run performed while writing it.
 
@@ -28,9 +28,9 @@ which are merely wired — which is the reason it exists.
 One vendor has ever been called from this codebase: **Anthropic**, twice, on 2026-08-01,
 producing a script and a shotlist and four `cost_ledger` rows totalling **₹6.07**. Nothing
 else has spoken to a vendor. Everything else that works, works against synthetic inputs in
-a harness — which is a real and useful category, covering **486 assertions across twenty
-harnesses**, all measured on 2026-08-05 against a local Postgres that turned out to have
-been available all along. Stage 5 is wired and proven up to the vendor, and the three
+a harness — which is a real and useful category, covering **567 assertions across
+twenty-one harnesses**, all measured on 2026-08-05 against a local Postgres that turned out
+to have been available all along. Stage 5 is wired and proven up to the vendor, and the three
 unbuilt stages are built. The pipeline now chains from an approved concept to a submitted
 generation — see §8 for the one missing column that had been making that chain inert.
 
@@ -66,7 +66,8 @@ difference is always the vendor.
 
 | Harness | Assertions | What it drives | Where the synthesis is |
 |---|---|---|---|
-| `verify:submit` | **62** | Stage 5: every refusal before the spend, one submit per shot, the vendor error taxonomy, the approval transition, the blocker view, the moved callback guards, `resolveDriver` | A local server stands in for the vendor's HTTP surface |
+| **`verify:measure`** | **80** | **Stage 11: a blank metric staying null, a failed read landing as a row, the due list computed from the clock, a hook shape's median over the videos that had retention, a measured video the rollup cannot see, and cost per 1k with a stated reason for every absence** | Snapshots are typed by the harness rather than by a person, which is what the live path is too |
+| `verify:submit` | **63** | Stage 5: every refusal before the spend, one submit per shot, the vendor error taxonomy, the approval transition, the blocker view, the moved callback guards, `resolveDriver` | A local server stands in for the vendor's HTTP surface |
 | `verify:review` | **51** | Timeline, trims, reorder, caption seams, structure novelty, the publish gate | Clips are ffmpeg test patterns; word timings are authored |
 | `verify:costs` | **45** | Cost per video and its denominator; the ledger's arithmetic | Ledger rows are inserted |
 | `verify:studio` | **41** | The MCP server over real HTTP: initialize, tools/list, auth, forged and cross-session tokens, batch, the spend cap | No model on the other end |
@@ -87,14 +88,26 @@ difference is always the vendor.
 | `verify:referral` | **9** | Attribution written once and not overwritten; the roll-up carries nothing identifying | Ledger rows are inserted |
 | `verify:ingest` | **7** | 3 source shapes → the canonical intermediate; a corrupt file → an error row; the presigned-PUT guard both ways | Sources are ffmpeg-generated |
 
-**Total on 2026-08-05: 486 assertions across twenty harnesses, every one exiting 0 — and
-this is the first count in three days that was actually taken.**
+**Total on 2026-08-05: 567 assertions across twenty-one harnesses, every one exiting 0.**
 
 | | |
 |---|---|
-| Database-backed (14) | **392** — ingest 7, assemble 20, review 51, concepts 30, metadata 22, trends 12, submit 62, webhook 25, referral 9, costs 45, voice 16, limits 30, pilot 22, studio 41 |
+| Database-backed (15) | **473** — ingest 7, assemble 20, review 51, concepts 30, metadata 22, **measure 80**, trends 12, submit 63, webhook 25, referral 9, costs 45, voice 16, limits 30, pilot 22, studio 41 |
 | No database (5) | **80** — timings 16, entry 15, tour 16, scaling 11, tour-browser 22 |
-| Render (1) | **14** — `verify:render`, new, exempt from CI on a browser question |
+| Render (1) | **14** — `verify:render` |
+
+The database-backed row was re-measured on the second pass of 2026-08-05, after stage 11
+landed; the other six keep the figures taken earlier the same day, because nothing in that
+change touches them. Following this document's own rule: a number that was not re-measured
+keeps the date it was.
+
+`verify:measure` is the largest single harness here and the reason is worth stating, because
+"most assertions" is not by itself a virtue. Almost all of them are assertions about
+**absence** — that a blank field stays null, that a refusal stores nothing, that a video is
+missing from a rollup — and an absence needs asserting from two sides to mean anything. Its
+§6 is marked LOAD-BEARING in the file: the application's refusal and the database's CHECK are
+two implementations of one rule, and each is driven separately, because a harness that drove
+only one would leave the other claiming a protection it might not have.
 
 Four further guards are exempt with reasons: `verify:vault` and `verify:storage` need a live
 Supabase project, the two `verify:script*` variants spend money on a billed model call, and
@@ -184,14 +197,21 @@ below are re-derived from `ls src/trigger/` at the date above, not carried forwa
 | 5 Generate | yes | `05-generate`. Wired and harness-proven up to the vendor. See §3.1 |
 | 5b Ingest | yes | `05b-ingest`. Harness-proven; the webhook that enqueues it is too |
 | 6 Voice | yes | `06-voice`. Harness-proven; the audio vendor has never been called |
-| 7 Assemble | yes | `07-assemble`. Rough cut harness-proven end to end. The final render's *plan* exists (`src/lib/assemble/composition.ts`); the renderer is not installed — DECISIONS-PENDING 4 |
+| 7 Assemble | yes | `07-assemble`. Rough cut harness-proven end to end. The final render runs in a real Chromium and is measured against its plan (`verify:render`) |
 | 8 QA gate | n/a | A screen, not a task; harness-proven |
 | 9 Metadata | yes | `09-metadata`. Harness-proven, including the publish gate in both directions |
 | 10 Publish | **no** | Manual in Phase 1, by decision. Not a gap |
-| 11 Measure | **no** | Phase 4. Not a gap |
+| 11 Measure | **no**, and deliberately | **Built and harness-proven as of 0034** — `src/lib/measure/`, `/analytics`, `verify:measure` in CI — with no task ON PURPOSE. Phase 1 publishes by hand so there is no analytics credential; a task would enumerate `v_measurement_due` and have nothing to call, which is the complete-and-unreachable module this project has removed five times. Stage 10 unblocks it. 0008 §12 |
 
 So the true statement is no longer "stages with no Trigger task" but **"stages that have
-never spoken to their vendor"**, which is every row above except stage 3. The section keeps
+never spoken to their vendor"**, which is every row above except stage 3.
+
+**And the two remaining "no" rows are now different in kind, which this table used to hide.**
+Stage 10 has no task because it has not been built. Stage 11 has no task because building one
+would be a defect — the stage is complete and reachable, and the missing piece is a
+credential rather than a file. A column reading "no" for both is the absent-versus-zero rule
+applied to an inventory: two facts sharing a representation, one of them work outstanding and
+the other a decision. The section keeps
 its number because `0008` and `HANDOVER.md` both cite it.
 
 `04-prompt-compile` was "the quiet one: it exists, and no code path triggers it". That is
