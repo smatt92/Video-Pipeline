@@ -10,6 +10,7 @@ import { sessionSpendCap } from '../settings/guardrails';
 import { resolveCredentials } from '../integrations/credentials';
 import { runTurn, startSession, type ToolChannel } from './session';
 import { mintSessionToken } from './token';
+import { readUsdInrRate } from '../cost/fx';
 
 /**
  * The Studio lane's writes.
@@ -125,10 +126,26 @@ export async function sendTurnAction(
       token: mintSessionToken(sessionId, secret),
     };
 
+    // Refused the same way the missing token secret above is, rather than thrown: this
+    // file's idiom is that a configuration fault becomes a message on the screen that
+    // caused it. A turn writes cost rows, so an unset rate would put a rupee figure nobody
+    // configured onto them — and the turn is billed either way, which is why this has to
+    // stop the call rather than annotate the result.
+    const usdInrRate = readUsdInrRate();
+    if (usdInrRate === null) {
+      return {
+        status: 'error',
+        message:
+          'USD_INR_RATE is not set, so this turn could not be priced in rupees. Refusing to '
+          + 'run it rather than billing for a turn whose ledger row would carry a rate nobody '
+          + 'chose.',
+      };
+    }
+
     const outcome = await runTurn(sessionId, text, {
       db,
       apiKey,
-      usdInrRate: env.USD_INR_RATE,
+      usdInrRate,
       channel,
     });
 

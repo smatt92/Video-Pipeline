@@ -5,9 +5,9 @@ import { revalidatePath } from 'next/cache';
 import { checkEmail } from '../auth/allowed';
 import { routeClient } from '../auth/supabase';
 import { serverClient } from '../db/server';
-import { env } from '../env';
 import { estimateRegenerate, executeRegenerate, type RegenerateEstimate } from '../generate/regenerate';
 import { recordReview, writeOrder, writeTrim } from './write';
+import { readUsdInrRate, requireUsdInrRate } from '../cost/fx';
 
 /**
  * The review screen's Server Actions: auth, then `write.ts`, then revalidate.
@@ -105,7 +105,28 @@ export async function reorderShotsAction(
  */
 export async function estimateRegenerateAction(shotId: string): Promise<RegenerateEstimate> {
   await requireUser();
-  return estimateRegenerate(serverClient(), shotId, { usdInrRate: env.USD_INR_RATE });
+
+  // A blocker, not a throw. This is the dialog's whole content, and its job is to say
+  // whether the regenerate may happen — so an unset rate belongs in the list beside
+  // "integration disabled", where the operator reads it before pressing anything. A throw
+  // here would quote no price and name no cause.
+  const usdInrRate = readUsdInrRate();
+  if (usdInrRate === null) {
+    return {
+      ok: false,
+      blockers: [
+        {
+          code: 'no_usd_inr_rate',
+          detail:
+            'USD_INR_RATE is not set, so this regenerate cannot be priced in rupees and the '
+            + 'ledger row it would write would carry a rate nobody chose.',
+          remedy: 'Set USD_INR_RATE in the environment of whichever deployment runs the submit.',
+        },
+      ],
+    };
+  }
+
+  return estimateRegenerate(serverClient(), shotId, { usdInrRate });
 }
 
 export async function regenerateShotAction(
@@ -115,8 +136,12 @@ export async function regenerateShotAction(
   try {
     await requireUser();
 
+    // The one that actually spends. `requireUsdInrRate` rather than the nullable read,
+    // because there is nothing to degrade into here — the caller wants the charge made or
+    // refused, and the catch below turns the refusal into the same error surface every
+    // other configuration fault on this screen uses.
     const result = await executeRegenerate(serverClient(), shotId, {
-      usdInrRate: env.USD_INR_RATE,
+      usdInrRate: requireUsdInrRate('regenerating a shot'),
     });
 
     revalidatePath(`/review/${renderId}`);

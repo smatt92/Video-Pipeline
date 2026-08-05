@@ -2,7 +2,7 @@ import { logger, schemaTask } from '@trigger.dev/sdk';
 import { z } from 'zod';
 
 import { serverClient } from '@/lib/db/server';
-import { env } from '@/lib/env';
+import { requireUsdInrRate } from '@/lib/cost/fx';
 import { requireCredential } from '@/lib/integrations/credentials';
 import { runScriptDraft, type ScriptDraftResult } from '@/lib/script/run';
 
@@ -54,7 +54,7 @@ export const scriptTask = schemaTask({
     const result = await runScriptDraft(payload, {
       db,
       apiKey,
-      usdInrRate: env.USD_INR_RATE,
+      usdInrRate: requireUsdInrRate('writing the cost row for 03-script'),
       // Stable across attempts of the same run, which is the property the ledger's
       // idempotency key needs. An attempt id would charge a retry twice.
       runId: ctx.run.id,

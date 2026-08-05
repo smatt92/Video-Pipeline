@@ -131,11 +131,11 @@ const coreWorkerEnv: readonly WorkerEnvVar[] = [
     name: 'USD_INR_RATE',
     required: true,
     refusedBy:
-      'Nothing refuses, and that is the problem. It carries `.default(88.5)`, so a worker '
-      + 'without it snapshots a rate nobody set onto every cost_ledger row, and the rupee '
-      + 'figure on /costs is then a number this project invented and presented as '
-      + 'measured. Required here because "the call is free" and "we did not take this '
-      + 'measurement" must not share a representation.',
+      'Every path that writes a cost_ledger row, by name, through `requireUsdInrRate` in '
+      + 'src/lib/cost/fx.ts. It used to carry `.default(88.5)` and refuse nothing, so a '
+      + 'worker without it snapshotted a rate nobody chose onto every money row — this '
+      + 'entry was the checklist standing in for a guard. The guard now exists; the entry '
+      + 'stays because a checklist is still how it gets set before the first run.',
   },
   {
     name: 'DRIVER_TIMEOUT_MS',

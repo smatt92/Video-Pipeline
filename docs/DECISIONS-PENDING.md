@@ -125,7 +125,27 @@ is what will tell you so.
 
 ---
 
-## 5. `USD_INR_RATE` defaults to 88.5, and the default lands on money rows
+## 5. ~~`USD_INR_RATE` defaults to 88.5~~ — **DECIDED 2026-08-04, option A, implemented**
+
+> Drop the default, require it at the ledger write, not at boot. A worker that never
+> touches money shouldn't fail to start, and the rate matters at exactly one moment. Same
+> reasoning as `unit_cost_snapshot`.
+
+Done. `src/lib/cost/fx.ts` is the single accessor; the schema field is `.optional()` with no
+default; six trigger tasks and three UI paths go through it. Two shapes, because refusing
+and reporting are different jobs: `requireUsdInrRate` for anything that writes a ledger row,
+`readUsdInrRate` for the pre-flight dialog and the Studio turn, which name the missing rate
+as a blocker rather than throwing.
+
+**Finding while implementing it, per standing order 7.** The comment justifying the default
+said `profiles.usd_inr_rate` superseded it once onboarding ran. That was false — see entry 7
+below, which is the part that is still yours.
+
+The original entry is kept below for the reasoning.
+
+---
+
+## 5a. The original entry: `USD_INR_RATE` defaults to 88.5, and the default lands on money rows
 
 **Status:** found while deriving the worker's environment manifest. Verified in the source
 before writing this: `src/lib/env.ts:159` declares it `z.coerce.number().positive().default(88.5)`,
@@ -161,6 +181,46 @@ behaviour and the reason this entry exists.
 
 Not done unattended because it changes what a money row means, and because A makes an
 absent variable stop a running pipeline — a real operational trade, and yours.
+
+---
+
+## 7. The wizard writes a USD→INR rate that nothing reads — which of the two is authoritative?
+
+**Status:** found while implementing entry 5, and left alone because it changes what a money
+row means. Verified before writing this, both directions:
+
+- `src/lib/onboarding/actions.ts:187` writes `usd_inr_rate` to `profiles` from step 1 of the
+  wizard. The operator sets it, sees it saved, and reasonably believes it is in force.
+- `grep -rn usd_inr_rate src/` finds **no reader on the pricing path**. Every ledger row
+  takes its rate from `env.USD_INR_RATE`, threaded through six tasks. The only other reader
+  is `pilot.ts`, which reads the rate back off ledger rows to report what was observed.
+
+So there are two configured rates. One is set in a form and does nothing; the other is set in
+an environment variable and decides every rupee figure in the product. **The comment in
+`src/lib/env.ts` asserted the opposite** — that the profile value superseded the environment
+"the moment onboarding step 1 runs" — and that false claim was the entire justification for
+the default entry 5 has now removed.
+
+That is the third instance this week of a mechanism named by documentation and implemented
+nowhere, and the most expensive of the three, because the other two were merely inert. This
+one actively misled: the operator configuring a rate is doing something with no effect, and
+believing otherwise.
+
+**Options**
+
+| | |
+|---|---|
+| A. `profiles.usd_inr_rate` wins where set; env is the fallback | Matches what the wizard already promises and what the comment claimed. Means the rate is per-workspace, which is right if there is ever more than one. Needs the read plumbed into `fx.ts` — but `fx.ts` is currently synchronous and this makes it a query, which touches every call site. |
+| B. Env wins; drop the column and the wizard field | Honest and smallest. Loses the ability to change the rate without a redeploy, which is a real operational cost for a number that moves. |
+| C. Env wins; the wizard field becomes a display of it | The operator sees the rate in force and cannot edit it there. No lying, no new query. |
+
+**Recommendation: A**, but it is genuinely close, and it is yours because it decides which
+number a historical ledger row was priced at — the one property the ledger exists to make
+checkable. Whichever wins, **the losing one must stop existing**, because two configured
+rates is how this happened.
+
+One thing that is not optional whichever you pick: any row already written carries its own
+`usd_inr_rate`, so no past row changes meaning. This decides future rows only.
 
 ---
 

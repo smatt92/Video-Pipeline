@@ -153,13 +153,30 @@ const coreEnvSchema = z.object({
    * explainable. A live FX feed would make yesterday's cost-per-video change overnight,
    * which is worse than being slightly stale.
    */
-  // Defaulted rather than required. `profiles.usd_inr_rate` supersedes it the moment
-  // onboarding step 1 runs; this only has to hold until then, and refusing to boot over a
-  // number the wizard is about to set is the deadlock again in miniature.
+  /**
+   * Optional at boot, **required where a rupee figure is produced** — see
+   * `src/lib/cost/fx.ts`, which is the only thing that should read it.
+   *
+   * This carried `.default(88.5)` and a comment saying `profiles.usd_inr_rate` superseded
+   * it the moment onboarding ran. That comment was false. `profiles.usd_inr_rate` is
+   * written by the wizard and read by **nothing** on the pricing path; all six tasks passed
+   * `env.USD_INR_RATE` straight into `cost_ledger`. So a deployment that never set the
+   * variable did not fall back to a configured rate — it snapshotted 88.5, a number nobody
+   * chose, onto every money row, indistinguishable from a measured one.
+   *
+   * The default is gone. A worker that never touches money still boots; one that is about
+   * to write a ledger row refuses by name. Requiring it at boot instead would deadlock the
+   * wizard that configures everything else, which is the trade this whole schema is built
+   * around.
+   *
+   * That the wizard writes a rate nothing reads is a separate question — which of two
+   * configured rates is authoritative changes what a money row means, so it is queued
+   * rather than decided. See DECISIONS-PENDING.
+   */
   USD_INR_RATE: z.coerce
     .number({ error: 'USD_INR_RATE must be a number, e.g. 88.5' })
     .positive()
-    .default(88.5),
+    .optional(),
 
   // ── Driver reliability envelope ───────────────────────────────────────────
   DRIVER_TIMEOUT_MS: positiveInt('DRIVER_TIMEOUT_MS').default(60_000),

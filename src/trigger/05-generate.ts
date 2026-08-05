@@ -3,7 +3,8 @@ import { z } from 'zod';
 
 import { primaryForKind } from '@/lib/drivers/catalog';
 import { serverClient } from '@/lib/db/server';
-import { env, requireEnv } from '@/lib/env';
+import { requireEnv } from '@/lib/env';
+import { requireUsdInrRate } from '@/lib/cost/fx';
 import { expectedWebhookSecret } from '@/lib/drivers/video-status';
 import { requireCredential } from '@/lib/integrations/credentials';
 import { submitShots, type SubmitOutcome } from '@/lib/generate/submit';
@@ -129,7 +130,7 @@ export const generateTask = schemaTask({
       apiSecret,
       webhookBaseUrl,
       webhookSecret,
-      usdInrRate: env.USD_INR_RATE,
+      usdInrRate: requireUsdInrRate('writing the cost row for 05-generate'),
       concurrency,
       log: logger,
     });

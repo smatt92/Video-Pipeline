@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { serverClient } from '@/lib/db/server';
 import { DEFAULT_CONCURRENCY, primaryForKind } from '@/lib/drivers/catalog';
-import { env } from '@/lib/env';
+import { requireUsdInrRate } from '@/lib/cost/fx';
 import { requireCredential } from '@/lib/integrations/credentials';
 import { runVoice, type VoiceRunResult } from '@/lib/voice/run';
 
@@ -71,7 +71,7 @@ export const voiceTask = schemaTask({
     const result = await runVoice(payload, {
       db,
       apiKey,
-      usdInrRate: env.USD_INR_RATE,
+      usdInrRate: requireUsdInrRate('writing the cost row for 06-voice'),
       concurrency,
       runId: ctx.run.id,
       log: logger,

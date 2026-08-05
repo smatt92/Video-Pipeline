@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { serverClient } from '@/lib/db/server';
 import { env } from '@/lib/env';
+import { requireUsdInrRate } from '@/lib/cost/fx';
 import { requireCredential } from '@/lib/integrations/credentials';
 import { runShotlist, type ShotlistRunResult } from '@/lib/shots/run';
 
@@ -46,7 +47,7 @@ export const shotlistTask = schemaTask({
     const result = await runShotlist(payload, {
       db,
       apiKey,
-      usdInrRate: env.USD_INR_RATE,
+      usdInrRate: requireUsdInrRate('writing the cost row for 04-prompt-compile'),
       // Which driver's recipes to compile against. Absent means no video driver has been
       // selected yet, in which case nothing can resolve and every shot says so.
       videoDriver: env.VIDEO_DRIVER ?? 'unset',
