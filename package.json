@@ -27,7 +27,7 @@
     "check:duplicates": "node scripts/check-duplicates.mjs",
     "check:trigger-build": "node scripts/check-trigger-build.mjs",
     "check:scalable-sizes": "node scripts/check-scalable-sizes.mjs",
-    "check": "pnpm check:gates && pnpm check:vendors && pnpm check:public-env && pnpm check:trigger-build && pnpm check:trigger-env && pnpm check:scalable-sizes && pnpm check:guardrails && pnpm check:duplicates && pnpm typecheck && pnpm lint && pnpm test:timings && pnpm test:entry && pnpm test:tour",
+    "check": "pnpm check:gates && pnpm check:vendors && pnpm check:public-env && pnpm check:trigger-build && pnpm check:trigger-env && pnpm check:remotion && pnpm check:scalable-sizes && pnpm check:guardrails && pnpm check:duplicates && pnpm typecheck && pnpm lint && pnpm test:timings && pnpm test:entry && pnpm test:tour",
     "prebuild": "node scripts/check-public-env.mjs",
     "check:public-env": "node scripts/check-public-env.mjs",
     "check:drift": "node scripts/check-drift.mjs",
@@ -55,7 +55,8 @@
     "verify:pilot": "tsc -p tsconfig.verify.json && node scripts/verify-pilot.mjs",
     "verify:scaling": "node scripts/verify-scaling.mjs",
     "verify:tour": "node scripts/verify-tour.mjs",
-    "check:trigger-env": "node scripts/check-trigger-env.mjs"
+    "check:trigger-env": "node scripts/check-trigger-env.mjs",
+    "check:remotion": "node scripts/check-remotion-lockstep.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
@@ -65,6 +66,7 @@
     "@fal-ai/client": "^1.10.1",
     "@higgsfield/client": "^0.2.1",
     "@remotion/player": "^4.0.504",
+    "@remotion/renderer": "^4.0.504",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.111.0",
     "@trigger.dev/sdk": "^4.5.9",

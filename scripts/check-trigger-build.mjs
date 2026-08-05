@@ -29,6 +29,19 @@
  *           ffmpeg into the container — is only observable by deploying. Run
  *           `pnpm trigger:deploy:dry` for that; it builds locally and uploads nothing.
  *
+ * DOES NOT, and this is the sharper limit: **see a binary that a dependency spawns.** The
+ *           derivation below reads `src/`, so it finds what our code launches and is blind
+ *           to what a package launches on our behalf. `@remotion/renderer` is exactly that
+ *           case — it drives a headless Chromium it brings itself, from inside node_modules,
+ *           and no amount of grepping `src/` will ever mention it.
+ *
+ *           Stated rather than fixed, because the fix is not obvious and guessing at it is
+ *           worse than naming the gap: whether the worker image needs a build extension for
+ *           that Chromium, and which one, is a question a deploy answers and this file
+ *           cannot. It is recorded in DECISIONS-PENDING 4 as the open half of adding that
+ *           dependency. A check that quietly covered 90% of the binaries while reading as
+ *           though it covered all of them is the failure this project keeps finding.
+ *
  * Usage: node scripts/check-trigger-build.mjs
  */
 

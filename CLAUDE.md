@@ -6,9 +6,18 @@ Read `docs/ARCHITECTURE.md` before proposing anything structural. `docs/SCHEMA.s
 ## Stack
 
 Next.js 15 (App Router) on Vercel · Supabase Postgres · **Supabase Storage** (S3 protocol) ·
-**Trigger.dev v4** · Remotion + ffmpeg · **Remotion Player** (`@remotion/player`) / Vidstack /
+**Trigger.dev v4** · Remotion + ffmpeg · **`@remotion/renderer`** for the final render ·
+**Remotion Player** (`@remotion/player`) / Vidstack /
 **wavesurfer.js** on the review screen · Higgsfield (**`@higgsfield/client`**) · ElevenLabs · Anthropic SDK ·
 TypeScript strict · pnpm
+
+The three Remotion packages must sit on the **identical** version, not on compatible ranges.
+`pnpm check:remotion` enforces it from the installed tree rather than from the declared
+ranges, because a lockfile can satisfy every range and still disagree with itself — which is
+what happened the minute `@remotion/renderer` was added with no version and resolved one
+patch ahead of the other two. A mismatch typechecks, builds, and passes every other guard
+here, then fails when a render is attempted: on a worker, after the clips being assembled
+have been generated and paid for.
 
 Reconciled against the addenda and the decision records on 2026-08-03. Four entries here had
 drifted, and one of them fired the vendor rule against correct code: `wavesurfer.js` is named

@@ -89,7 +89,39 @@ same visibility for no schema change. Not C under any circumstances.
 
 ---
 
-## 4. `@remotion/renderer` — the dependency stage 7's final render needs
+## 4. ~~`@remotion/renderer`~~ — **APPROVED 2026-08-04, installed**
+
+> Approved. It's the actual MP4 and stage 7 can't finish without it. Add it to CLAUDE.md's
+> stack list at the same time.
+
+Installed and in the stack list. Two things came out of doing it:
+
+**Pinned to 4.0.504, not `latest`.** `pnpm add @remotion/renderer` with no version resolved
+4.0.506, one patch ahead of the `remotion` and `@remotion/player` already installed.
+Remotion requires its packages to be on the *identical* version, not on compatible ranges,
+and a mismatch typechecks, builds, and passes every other guard — then fails when a render
+is attempted, on a worker, after the clips have been paid for. `pnpm check:remotion` now
+enforces lockstep from the **installed tree** rather than the declared ranges, because a
+lockfile can satisfy every range and still disagree with itself. Proven to fail on drift by
+exit code.
+
+**Still open: whether the worker image needs anything for Chromium.** `@remotion/renderer`
+drives a headless Chromium it brings itself. `check:trigger-build` derives the image's
+binary requirements by reading `src/`, so it sees what *our* code spawns and is structurally
+blind to what a dependency spawns from inside `node_modules` — it will never mention this,
+and it now says so in its own header rather than reading as though it covered everything.
+
+`@trigger.dev/build/extensions` ships `puppeteer`, `playwright` and `lightpanda` extensions.
+Which of those (if any) is right for Remotion's Chromium is a question a deploy answers, and
+guessing at it would put a wrong extension in the config under a confident comment. **Left
+unanswered on purpose** — it is the one remaining item between here and a working render.
+
+The render task itself is not built. The composition *plan* (`src/lib/assemble/composition.ts`)
+and the renderer package now both exist; nothing yet joins them.
+
+---
+
+## 4a. The original entry: `@remotion/renderer` — the dependency stage 7's final render needs
 
 **Status:** blocking the second half of item 6. `remotion` and `@remotion/player` are
 installed and named in CLAUDE.md's stack; `@remotion/renderer` — the package that actually

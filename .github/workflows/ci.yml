@@ -77,6 +77,12 @@ jobs:
       - name: Worker env manifest matches what tasks reach
         run: pnpm check:trigger-env
 
+      # Remotion's packages must be on the identical version, not on compatible ranges. A
+      # mismatch typechecks, builds, and passes everything else here — then fails when a
+      # render is attempted, which is on a worker, after the clips have been paid for.
+      - name: Remotion packages are in version lockstep
+        run: pnpm check:remotion
+
       # ── Nothing may set a font size --ui-scale cannot move ───────────────
       - name: Font sizes are on the scale
         run: pnpm check:scalable-sizes
