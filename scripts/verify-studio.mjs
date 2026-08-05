@@ -171,6 +171,23 @@ const { rows: channelRows } = await client.query(
 );
 const channelId = channelRows[0].id;
 
+// ── The workspace's FX rate, which a session now needs to open ──────────────
+//
+// `startSession` refuses without it: a spend cap in rupees is unenforceable if a rupee
+// figure cannot be computed, and that check is deliberately at zero tokens rather than
+// after a billed turn. The rate moved out of the environment and into `profiles` — so this
+// is a fixture that has to seed a row rather than a variable it can set.
+//
+// A literal, not an environment write. The harness is testing the cap arithmetic, not where
+// the rate comes from, so it fixes the input where the test can see it — and a
+// `process.env.X ??=` here would be the scaffolding-restores-a-deleted-default failure that
+// this exact change was made to expose.
+await client.query(
+  `insert into profiles (id, email, usd_inr_rate)
+   values (gen_random_uuid(), 'studio-harness@invalid.test', 88.5)
+   on conflict (email) do update set usd_inr_rate = excluded.usd_inr_rate`,
+);
+
 // ═══════════════════════════════════════════════════════════════════════════
 // 1. Opening a session
 // ═══════════════════════════════════════════════════════════════════════════
