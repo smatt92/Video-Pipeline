@@ -5,7 +5,26 @@ and a recommendation. Nothing here is blocking — the queue moved on past all o
 
 ---
 
-## 1. `v_entry_state` — keep, delete, or wire
+## 1. ~~`v_entry_state` — keep, delete, or wire~~ — **TAKEN 2026-08-04, option B**
+
+Mine to take, so I took it: **keep, and record why**, exactly as recommended. No code change.
+
+The recorded reason, so it is not re-derived: the view exists to make it hard to read two
+independent booleans as one value, and one of the two — `setup_complete` — has no reader
+anywhere in `src/`. A guard for a mistake nobody is currently positioned to make. Deleting
+it now is the `v_shot_readiness` error in reverse, where removing a near-twin on suspicion
+took the wrong copy; keeping it costs nothing but a line here.
+
+**The condition for revisiting is written down rather than left to memory:** delete it the
+day `setup_complete` acquires a reader (the view is then redundant with a real call site) or
+the day the column is dropped (the view is then describing nothing). Either event, not the
+passage of time.
+
+The original entry is kept below.
+
+---
+
+## 1a. The original entry: `v_entry_state` — keep, delete, or wire
 
 **Status:** unread since it was created. Verified independently before writing this, twice:
 
@@ -36,7 +55,30 @@ failure built deliberately.
 
 ---
 
-## 2. `v_referral_attribution` — needs a surface, and the surface needs copy
+## 2. ~~`v_referral_attribution` — needs a surface~~ — **TAKEN 2026-08-04, option A, built**
+
+Option A was recommended precisely because it needs no framing judgement, so it was mine to
+take. `src/components/settings/referral-panel.tsx`, below the integration cards.
+
+What it does and does not do, since that is the whole of the decision:
+
+- **Two counts, no derived rate.** "3 connected · 2 verified", and a per-vendor table. A
+  percentage would be a number to quote at a vendor, and how you frame a number you quote at
+  somebody is yours. Two counts side by side cannot overstate; a rate can, and the way it
+  overstates is by dividing by the wrong denominator — the exact mistake the view exists to
+  make hard.
+- **No rows says "nothing to report", not "0".** No integration has ever been connected
+  through a referral link, which is a different fact from none of them converting.
+- **A failed read says so** rather than collapsing into the empty state, because "could not
+  ask" and "nothing to report" are different facts too.
+
+Converting this into B later is a copy change, not a build — which was the argument for A.
+
+The original entry is kept below.
+
+---
+
+## 2a. The original entry: `v_referral_attribution` — needs a surface, and the surface needs copy
 
 **Status:** unread. Genuinely distinct from `v_partner_rollup`, which *is* read —
 `v_partner_rollup` is volume and cost by month and driver; this is **signups attributable to

@@ -1,4 +1,5 @@
 import { IntegrationCard } from '@/components/settings/integration-card';
+import { ReferralPanel } from '@/components/settings/referral-panel';
 import { SectionHeader } from '@/components/settings/parts';
 import { allIntegrationViews, type StepIntegrationView } from '@/lib/onboarding/step-view';
 
@@ -77,6 +78,10 @@ export default async function IntegrationsPage() {
           today={today}
         />
       ))}
+
+      {/* Beside the links that mint the codes, which is the only place the numbers mean
+          anything. Two counts, no derived rate — see the panel for why. */}
+      <ReferralPanel />
     </>
   );
 }
