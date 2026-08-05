@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { serverClient } from '@/lib/db/server';
 import { DEFAULT_CONCURRENCY, primaryForKind } from '@/lib/drivers/catalog';
 import { requireUsdInrRate } from '@/lib/cost/fx';
-import { requireCredential } from '@/lib/integrations/credentials';
+import { resolveDriver } from '@/lib/integrations/resolve';
 import { runVoice, type VoiceRunResult } from '@/lib/voice/run';
 
 /**
@@ -45,26 +45,22 @@ export const voiceTask = schemaTask({
   run: async (payload, { ctx }): Promise<VoiceRunResult> => {
     const db = serverClient();
 
-    // By capability, not by name. Swapping the voice vendor is a catalogue row.
-    const audio = primaryForKind('audio');
-    if (!audio) throw new Error('No audio integration is marked primary in the catalogue.');
-
-    const apiKey = await requireCredential(db, audio.slug, audio.secretFields[0].key);
+    // Resolved in a library function so its refusals are drivable — see
+    // `src/lib/integrations/resolve.ts`. The `throw` is a rethrow of a named refusal with
+    // no decision of its own; nothing imports a task, so a decision written here would be
+    // untestable. By capability rather than by name: swapping the vendor is a catalogue row.
+    const driver = await resolveDriver(db, 'audio', 1);
+    if (!driver.ok) throw new Error(`${driver.code}: ${driver.detail}`);
+    const [apiKey] = driver.secrets;
 
     // Read, never assumed. Null means nothing established one and the conservative floor
     // applies — guessing high produces a constant failure rate blamed on the vendor.
-    const { data: integration } = await db
-      .from('integrations')
-      .select('concurrency_limit, concurrency_source')
-      .eq('slug', audio.slug)
-      .maybeSingle();
+    const concurrency = driver.concurrencyLimit ?? DEFAULT_CONCURRENCY;
 
-    const concurrency = integration?.concurrency_limit ?? DEFAULT_CONCURRENCY;
-
-    if (integration?.concurrency_source !== 'tier') {
+    if (driver.concurrencySource !== 'tier') {
       logger.info('concurrency is not a reading', {
         concurrency,
-        source: integration?.concurrency_source ?? 'unset',
+        source: driver.concurrencySource ?? 'unset',
       });
     }
 

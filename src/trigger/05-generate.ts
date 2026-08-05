@@ -1,12 +1,11 @@
 import { logger, schemaTask } from '@trigger.dev/sdk';
 import { z } from 'zod';
 
-import { primaryForKind } from '@/lib/drivers/catalog';
 import { serverClient } from '@/lib/db/server';
 import { env } from '@/lib/env';
 import { requireUsdInrRate } from '@/lib/cost/fx';
 import { expectedWebhookSecret } from '@/lib/drivers/video-status';
-import { requireCredential } from '@/lib/integrations/credentials';
+import { resolveDriver } from '@/lib/integrations/resolve';
 import { submitShots, type SubmitOutcome } from '@/lib/generate/submit';
 
 /**
@@ -70,16 +69,15 @@ export const generateTask = schemaTask({
   run: async (payload): Promise<SubmitOutcome> => {
     const db = serverClient();
 
-    const video = primaryForKind('video');
-    if (!video) {
-      throw new Error('No integration in the catalogue is marked primary for video.');
-    }
-
-    // Throws when absent, and that is the intended shape — see the note above. The message
-    // names the integration and the field, because "credential missing" without either is
-    // a message that sends someone to the wrong settings screen.
-    const apiKey = await requireCredential(db, video.slug, video.secretFields[0].key);
-    const apiSecret = await requireCredential(db, video.slug, video.secretFields[1].key);
+    // Resolved in a library function so its refusals are drivable — see
+    // `src/lib/integrations/resolve.ts`. The `throw` below is a rethrow of a named refusal
+    // and contains no decision of its own, which is the only shape of refusal that belongs
+    // in a task: nothing imports a task, so a decision written here is untestable.
+    // Two: the API key and its secret. The third catalogue field is the webhook shared
+    // secret, which comes through the driver layer below and is refused by submitShots.
+    const driver = await resolveDriver(db, 'video', 2);
+    if (!driver.ok) throw new Error(`${driver.code}: ${driver.detail}`);
+    const [apiKey, apiSecret] = driver.secrets;
 
     // Through the driver layer, not from `env` directly: the variable carries the vendor's
     // name and `pnpm check:vendors` refuses it here, correctly. The driver already had this
@@ -97,21 +95,15 @@ export const generateTask = schemaTask({
     const webhookSecret = expectedWebhookSecret() ?? '';
     const webhookBaseUrl = env.WEBHOOK_CALLBACK_BASE_URL ?? '';
 
-    // The account-wide ceiling, read rather than assumed. `concurrency_source` on the row
-    // records whether this is a reading or the fallback, so a screen can say which.
-    const { data: integration } = await db
-      .from('integrations')
-      .select('concurrency_limit, concurrency_source')
-      .eq('slug', video.slug)
-      .maybeSingle();
-
-    const concurrency = integration?.concurrency_limit ?? 1;
+    // The account-wide ceiling, read rather than assumed, and resolved alongside the
+    // credentials. Null means the integration row is absent — not that the ceiling is zero.
+    const concurrency = driver.concurrencyLimit ?? 1;
 
     logger.info('submitting', {
       scriptId: payload.scriptId,
-      driver: video.slug,
+      driver: driver.slug,
       concurrency,
-      concurrencySource: integration?.concurrency_source ?? 'absent',
+      concurrencySource: driver.concurrencySource ?? 'absent',
     });
 
     const outcome = await submitShots(payload.scriptId, {

@@ -1033,6 +1033,54 @@ console.log('\n11. A recipe earns its place\n');
   }
 }
 
+// ── §15. resolveDriver's refusals, now that they are in a library ───────────
+//
+// These lived in `05-generate.ts` and `06-voice.ts` as `throw`s — the same four lines
+// twice, inside two Trigger tasks, where no harness could reach them. They are now
+// `src/lib/integrations/resolve.ts` and drivable.
+//
+// The credential refusal is the one worth asserting: stage 5's whole safety argument is
+// that it refuses BEFORE it spends, and a missing credential discovered mid-fan-out is a
+// partial submit. Driven by clearing the credential rather than by a fixture that was
+// seeded past it.
+{
+  const { resolveDriver } = await import(`${BUILD}/integrations/resolve.js`);
+
+  // Happy path first, so the refusal below is known to be a change of state and not the
+  // only thing this function can do.
+  const good = await resolveDriver(db, 'video', 2);
+  if (good.ok && good.secrets.length === 2 && good.secrets.every((v) => typeof v === 'string' && v)) {
+    ok('resolveDriver returns both secrets', `${good.slug}, ${good.secrets.length} fields`);
+  } else {
+    bad('resolveDriver returns both secrets', JSON.stringify(good).slice(0, 140));
+  }
+
+  // `concurrencyLimit` is null when the row carries none — absent, not a ceiling of zero.
+  if (good.ok && (good.concurrencyLimit === null || typeof good.concurrencyLimit === 'number')) {
+    ok('resolveDriver reports concurrency as a number or null', String(good.concurrencyLimit));
+  } else {
+    bad('resolveDriver reports concurrency as a number or null', JSON.stringify(good).slice(0, 120));
+  }
+
+  // Now remove one secret and watch it refuse by name.
+  await client.query(`delete from integration_secrets where integration_slug = 'higgsfield'`)
+    .catch(async () => {
+      // The credential may live in the environment fallback rather than a table; clearing
+      // that is how this workspace stores it in the harness.
+      delete process.env.HIGGSFIELD_API_SECRET;
+    });
+  delete process.env.HIGGSFIELD_API_SECRET;
+
+  const missing = await resolveDriver(db, 'video', 2);
+  if (missing.ok === false && missing.code === 'no_credential') {
+    ok('resolveDriver refuses a missing credential', missing.code);
+  } else {
+    bad('resolveDriver refuses a missing credential', JSON.stringify(missing).slice(0, 140));
+  }
+
+  process.env.HIGGSFIELD_API_SECRET = 'stub-secret';
+}
+
 vendor.close();
 await scratch.release();
 
