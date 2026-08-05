@@ -18,9 +18,11 @@ const run = promisify(execFile);
  * expensive case is the one where clips have been generated and paid for.
  *
  * So `renderComposition` measures its own output with ffprobe and refuses to return a path
- * it cannot vouch for. The tolerance is one frame, because a container's duration is stored
- * per stream and rounds; anything larger is a real disagreement between the plan and the
- * picture.
+ * it cannot vouch for. It counts **video-stream packets** and compares them to
+ * `durationInFrames` exactly — no tolerance, because a plan specifies an integer number of
+ * frames and an integer comparison needs none. See the note at the measurement itself for
+ * the version that had a tolerance and why it was the wrong instrument rather than the wrong
+ * threshold.
  *
  * ── Why the imports are dynamic ──────────────────────────────────────────────
  *

@@ -15,21 +15,27 @@
  * plays and is wrong — the failure nothing downstream can detect.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * Why it is not in CI, and what would change that
+ * The browser, and why this now runs in CI
  * ─────────────────────────────────────────────────────────────────────────────
  *
- * Remotion drives Chromium in *old* headless mode, which recent Chrome builds removed. The
- * dev container has `chromium_headless_shell`, the standalone implementation of it; GitHub's
- * ubuntu image ships Chrome, which refuses with "Old Headless mode has been removed". So
- * wiring this to CI blind would turn it red on a browser question rather than a code one.
+ * Remotion drives Chromium in *old* headless mode, which recent Chrome removed. This
+ * container has `chromium_headless_shell`, the standalone implementation of it; a GitHub
+ * runner ships Chrome, which refuses with "Old Headless mode has been removed".
  *
- * Exempted in `check:gates` with that reason rather than skipped silently — and it **fails**
- * when no suitable browser is found rather than passing, because a render harness that
- * quietly passes on a machine with no browser is the guard-that-runs-nowhere failure wearing
- * a skip.
+ * So the browser is resolved in two steps. A local old-headless-capable binary if one exists
+ * — instant, no download, and the case in this container and in CI, where the workflow
+ * installs `chrome-headless-shell` and exports `REMOTION_BROWSER_EXECUTABLE`. Otherwise
+ * `ensureBrowser()`, Remotion's own version-matched installer, as a fallback.
  *
- * See DECISIONS-PENDING for the choice between installing a headless shell in CI and
- * accepting this as a local gate.
+ * The CI step is explicit rather than leaning on that fallback, for a reason worth stating:
+ * **the fallback could not be executed here.** This container's egress allowlist refuses
+ * `remotion.media`, so the download 403s. An explicit install step is visible in the step
+ * list, fails as itself rather than inside a harness, and does not depend on a code path
+ * nobody has run.
+ *
+ * **It fails rather than skips** if neither works. A render harness that quietly passes on a
+ * machine that never rendered anything is the guard-that-runs-nowhere failure wearing a skip,
+ * and this path is the one the whole product exists to produce.
  *
  * Usage: node scripts/verify-render.mjs
  */
@@ -66,19 +72,29 @@ function findRenderBrowser() {
   return candidates.find((p) => existsSync(p)) ?? null;
 }
 
-const browserExecutable = findRenderBrowser();
+let browserExecutable = findRenderBrowser();
+let browserSource = 'local';
+
 if (!browserExecutable) {
-  console.error(
-    '\nNo old-headless-capable browser found.\n\n' +
-      'Remotion drives Chromium in old headless mode, which recent Chrome removed. Install\n' +
-      'chrome-headless-shell, or set REMOTION_BROWSER_EXECUTABLE.\n\n' +
-      'Failing rather than skipping: a render harness that passes without rendering is worse\n' +
-      'than one that is honestly unavailable.\n',
-  );
-  process.exit(1);
+  // Remotion's own installer. Throwing here is the correct outcome — the catch re-raises
+  // with the reason, rather than turning a missing browser into a silent pass.
+  browserSource = 'downloaded by Remotion';
+  try {
+    const { ensureBrowser } = await import('@remotion/renderer');
+    await ensureBrowser();
+    browserExecutable = undefined; // Remotion uses the one it just placed.
+  } catch (err) {
+    console.error(
+      '\nNo old-headless-capable browser, and Remotion could not fetch one.\n\n' +
+        `  ${err instanceof Error ? err.message : String(err)}\n\n` +
+        'Failing rather than skipping: a render harness that passes without rendering is\n' +
+        'worse than one that is honestly unavailable.\n',
+    );
+    process.exit(1);
+  }
 }
 
-console.log(`\nFinal composition render\n\n  browser  ${browserExecutable}\n`);
+console.log(`\nFinal composition render\n\n  browser  ${browserExecutable ?? browserSource}\n`);
 
 const work = await mkdtemp(join(tmpdir(), 'kiln-verify-render-'));
 

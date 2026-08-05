@@ -338,6 +338,19 @@ alert nobody routes, a log line in a file nobody opens: each is the original pro
 the costume of its own solution, and each is *harder* to notice than what it replaced,
 because its existence reads as coverage.
 
+**When an assertion fails on output you believe is correct, suspect the instrument before
+the threshold.** `verify:render` compared `format=duration` against the plan and reported
+4.053s on a render that was exactly 4.000s. The obvious response is to widen the tolerance,
+and it would have been wrong permanently: the container's duration spans the audio stream,
+AAC frames do not align with video frames, and the reading was never going to agree with a
+frame count. Loosening it would have made a *wrong measurement* pass for ever, and the next
+real duration bug would have slipped through the gap that was widened to accommodate it.
+
+Counting video-stream packets instead removed the need for a tolerance at all — the plan
+specifies an integer number of frames, so the assertion is exact. **That is the tell: the
+right fix usually eliminates the fudge factor rather than tuning it.** A threshold you are
+adjusting to make a known-good case pass is a threshold measuring the wrong quantity.
+
 **An absence claim from a single failing command is a hypothesis, not a finding.** Twice in
 two days, and the second one cost more than the first:
 

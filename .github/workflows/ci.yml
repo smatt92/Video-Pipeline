@@ -291,6 +291,23 @@ jobs:
           HIGGSFIELD_API_SECRET: ci
           HIGGSFIELD_WEBHOOK_SECRET: ci-placeholder-secret-at-least-32-chars
 
+      # ── The one artifact the product exists to make ───────────────────────
+      # Remotion drives Chromium in OLD headless mode, which recent Chrome removed, so the
+      # runner's own Chrome refuses. chrome-headless-shell is the standalone implementation
+      # of exactly that mode. Installed explicitly rather than relying on Remotion's
+      # ensureBrowser() fallback, because that fallback has never been executed — the dev
+      # container's egress allowlist refuses remotion.media — and a step that fails as
+      # itself beats one that fails inside a harness.
+      - name: Install chrome-headless-shell
+        run: |
+          npx --yes @puppeteer/browsers install chrome-headless-shell@stable --path "$RUNNER_TEMP/hs"
+          echo "REMOTION_BROWSER_EXECUTABLE=$(find "$RUNNER_TEMP/hs" -name chrome-headless-shell -type f | head -1)" >> "$GITHUB_ENV"
+
+      # The render, measured against its plan. This path has shipped three duration bugs and
+      # every one produced a file that plays and is wrong.
+      - name: The final composition renders, and the file is the length the plan said
+        run: pnpm verify:render
+
       # ── The compiled stylesheet, measured in a real browser ──────────────
       # After the build on purpose: it reads .next/static/css, because clamp(), @theme and
       # the utility generation all happen at build time and the source tokens are the
