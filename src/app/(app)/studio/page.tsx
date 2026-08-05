@@ -4,7 +4,8 @@ import { Panel, SectionHeader } from '@/components/settings/parts';
 import { StartSessionForm } from '@/components/studio/forms';
 import { serverClient } from '@/lib/db/server';
 import { proposedSessionCap } from '@/lib/studio/actions';
-import { listSessions } from '@/lib/studio/read';
+import { Hint } from '@/components/shell/hint';
+import { listSessions, type SessionList } from '@/lib/studio/read';
 
 /**
  * The Studio lane.
@@ -23,6 +24,47 @@ import { listSessions } from '@/lib/studio/read';
 export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'Kiln — studio' };
+
+/**
+ * The count, and what the count cannot say.
+ *
+ * A bare "12" reads the same after twelve sessions and after a hundred and twelve. What
+ * changes when this lane is being used hard — or misconfigured — is what it has *spent* and
+ * how many sessions ran into their cap. A cap that stops sessions regularly is either too
+ * low or the loop is going in circles, and neither is visible from a count.
+ *
+ * Total spend is a sum of `cost_inr` from the spend view, so a session with no turns
+ * contributes a real zero rather than an unknown — money genuinely did not move.
+ */
+function SessionSummaryLine({ list }: { list: Extract<SessionList, { ok: true }> }) {
+  const totalInr = list.sessions.reduce((sum, s) => sum + s.costInr, 0);
+
+  // Capped means the cap stopped it, which the session records as its stop reason — not
+  // inferred by comparing cost to cap, because a session can stop exactly at its cap for
+  // other reasons and the row already says which.
+  const capped = list.sessions.filter((s) => /cap/i.test(s.stoppedReason ?? '')).length;
+
+  return (
+    <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+      {list.sessions.length}
+      {list.truncated && (
+        <Hint content={`Only the most recent ${list.limit} are shown, so this count is a floor rather than a total.`}>
+          <span style={{ color: 'var(--state-review)' }}>+</span>
+        </Hint>
+      )}
+      {list.sessions.length > 0 && (
+        <>
+          {' · '}₹{totalInr.toFixed(2)} spent
+          {capped > 0 && (
+            <Hint content="A cap that stops sessions regularly is either set too low or the loop is going in circles. Neither is visible from a session count.">
+              <span style={{ color: 'var(--state-review)' }}>{` · ${capped} hit the cap`}</span>
+            </Hint>
+          )}
+        </>
+      )}
+    </span>
+  );
+}
 
 export default async function StudioPage() {
   const [list, cap] = await Promise.all([listSessions(serverClient()), proposedSessionCap()]);
@@ -53,9 +95,7 @@ export default async function StudioPage() {
         >
           <span className="text-md font-medium">Sessions</span>
           {list.ok && (
-            <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
-              {list.sessions.length}
-            </span>
+            <SessionSummaryLine list={list} />
           )}
         </div>
 

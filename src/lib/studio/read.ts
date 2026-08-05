@@ -28,8 +28,11 @@ export interface SessionSummary {
   createdAt: string;
 }
 
+/** How many sessions the list shows. Truncation is reported, never silent. */
+const SESSION_LIMIT = 50;
+
 export type SessionList =
-  | { ok: true; sessions: SessionSummary[] }
+  | { ok: true; sessions: SessionSummary[]; truncated: boolean; limit: number }
   | { ok: false; detail: string };
 
 export async function listSessions(db: Db): Promise<SessionList> {
@@ -37,13 +40,19 @@ export async function listSessions(db: Db): Promise<SessionList> {
     .from('v_studio_session_spend')
     .select('*')
     .order('created_at', { ascending: false })
-    .limit(50);
+    // One more than the page shows, so a capped list is detectable. Fifty sessions and five
+    // hundred otherwise render the same "50", and the count is what a person reads first.
+    .limit(SESSION_LIMIT + 1);
 
   if (error) return { ok: false, detail: error.message };
 
+  const truncated = (data ?? []).length > SESSION_LIMIT;
+
   return {
     ok: true,
-    sessions: (data ?? []).map((r) => ({
+    truncated,
+    limit: SESSION_LIMIT,
+    sessions: (data ?? []).slice(0, SESSION_LIMIT).map((r) => ({
       id: String(r.session_id),
       title: r.title,
       status: String(r.status),
