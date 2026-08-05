@@ -107,7 +107,48 @@ converts B into a copy change later rather than a build.
 
 ---
 
-## 3. The reconcile figure, when a credit-balance delta becomes observable
+## 3. ~~The reconcile delta~~ — **DECIDED 2026-08-04: never apportion. SPEC, NOT BUILT.**
+
+> Do NOT distribute it across the generations in the window. That would be a derived
+> per-call figure written into the column that means "measured", which is the thing we've
+> spent two weeks removing.
+
+Decision recorded in full so it can be built exactly. **Not implemented this session** — it
+is a migration plus two views plus a surface, and I ran out of context to land it whole
+rather than half. Nothing is blocked on anything but the work.
+
+**The shape, in one sentence: the window is measured and the row is estimated, and neither
+pretends to be the other.**
+
+1. **`credit_readings`** — a balance observation with a timestamp, entered by the operator.
+   Same discipline as the rate card: a human writes down what they saw, and it is evidence
+   rather than inference. Columns at minimum `(driver, observed_at, balance, currency,
+   note)`. Forward-only; readings are never edited, because a corrected reading is a new
+   observation.
+
+2. **Between two consecutive readings**, a view reports for that window: **measured total
+   spend** (the balance delta), **estimated total** (the sum of `cost_ledger` for the same
+   window), and the **ratio** between them. Three numbers side by side, none derived into
+   the others.
+
+3. **That ratio is a rate-card calibration signal**, surfaced as *"your rate card is running
+   N% under observed spend"* — and **never silently applied**. It tells you the rate card is
+   wrong; correcting the rate card stays a deliberate act with its own record.
+
+4. **Per-generation cost stays `cost_source: 'estimate'`** until a vendor response actually
+   carries a credit figure. A window measurement does not promote the rows inside it.
+
+**Why apportioning is the trap:** dividing a real delta across N generations produces a
+number that is arithmetically defensible and epistemically false — it would sit in
+`cost_ledger` looking exactly like a figure a vendor reported, and nothing downstream could
+tell them apart. Every rule this project has accumulated about fabricated measurements says
+the same thing, and this is the largest opportunity to break all of them at once.
+
+The original entry, whose options are now superseded, is kept below.
+
+---
+
+## 3a. The original entry: the reconcile figure, when a credit-balance delta becomes observable
 
 **Status:** already decided in principle — *never write a measurement you did not take* — and
 implemented as `cost_source = 'rate_card'` with `/costs` labelling the average. This is the
@@ -298,7 +339,55 @@ One thing that is not optional whichever you pick: any row already written carri
 
 ---
 
-## 8. Two Server Actions with no button — where do the buttons go?
+## 8. ~~Two Server Actions with no button~~ — **PLACEMENT DECIDED 2026-08-04**
+
+Decided against your four rules. One has a home; the other does not, and that is the finding.
+
+### `runTrendsNowAction` — **no button, and the reason is worse than "no home"**
+
+Rule 2 says if nothing renders the thing it acts on, say so rather than inventing a home.
+Nothing renders it. `grep -rn "from('trends')" src/` returns **nothing at all** — no page, no
+component, no view, no query. There is no `/trends` route; the only occurrence of the word in
+a layout is the site description.
+
+So this is not a button without a screen. **Stage 1 writes rows that nothing in the product
+reads.** Adding a "Run now" control would give the operator a way to fire a task whose entire
+output is invisible — a spend with no surface, which is worse than the current silence
+because it looks like a feature.
+
+The finding, stated plainly: stage 1 is complete, harness-proven, and disconnected at both
+ends. It has no trigger and no reader. Building the reader is the work; the button is a
+consequence of it and should not precede it.
+
+### `requestMetadata` — **the review detail screen, `/review/[renderId]`**
+
+That is where a render is rendered, and metadata acts on a render. No other screen shows one.
+`src/components/review/screen.tsx` is the file; beside the pass/fail decision, since passing
+is the precondition the task itself enforces.
+
+**But rule 4 collides with something true, and I did not fabricate my way past it.** You said
+anything that spends shows the estimate before it fires. `src/lib/cost/llm.ts` documents why
+that is not obtainable here: *"A Messages call is synchronous and priced on tokens that do not
+exist until it returns: there is no honest estimate to write beforehand. The input token count
+is not knowable without a separate billed count_tokens call, and the output count is not
+knowable at all."*
+
+So a pre-flight rupee figure for this button would be a number I invented — the exact thing
+the last three decisions have been removing. What is honestly showable is a **measured prior**:
+what the last metadata draft actually cost, from `cost_ledger`, labelled as the last one rather
+than as this one. That satisfies the intent of the rule (the operator sees the consequence
+before pressing) without asserting a measurement nobody took.
+
+Rule 4's other half is unconditional and easy: it refuses on an unverified rate, which
+`readUsdInrRate` now returns as a named blocker.
+
+**Not built this session** — I ran low on context and a half-landed button on the publish-gate
+screen is not something to leave. The decision is made and the file is named; the build is
+mechanical. Copy for your review when it lands.
+
+---
+
+## 8a. The original entry: two Server Actions with no button
 
 **Status:** found by the sweep, and the code is corrected to stop lying about it. What is
 left is placement and copy, which is why it is here rather than done.
@@ -327,7 +416,30 @@ decision about how often to hit a public feed and is yours.
 
 ---
 
-## 6. Safe-area insets have never been checked against a real post
+## 6. ~~Safe-area insets~~ — **DEFERRED 2026-08-04, blocked on you, registered as such**
+
+Your framing adopted exactly: conservative published margins as a starting constant, marked
+unverified in the same register as everything else, with the exact verification named.
+
+State today, unchanged and correct:
+
+- `SAFE_AREAS` in `src/lib/assemble/composition.ts` carries `verified: false` on all three
+  formats, and every plan reports that as a problem.
+- `planComposition` **refuses** on `no_safe_area` rather than defaulting. Kept, as instructed.
+
+What this entry adds is the last clause: **blocked-on-you, not blocked-on-work.** There is no
+task queued behind this and nothing to build. The verification is named and it is fifteen
+seconds of your time:
+
+> Post one video. Screenshot it with the platform's own UI overlaid. Measure where the title,
+> handle and action rail actually land. Set the fractions and flip `verified`.
+
+Recorded here rather than left implicit because "deferred" and "nobody has got to it" look
+identical in a backlog, and only one of them is waiting on a person who knows it.
+
+---
+
+## 6a. The original entry: safe-area insets have never been checked against a real post
 
 `SAFE_AREAS` in `composition.ts` carries `verified: false` on every entry and every plan it
 produces reports that as a problem. The numbers are conservative guesses at where each
