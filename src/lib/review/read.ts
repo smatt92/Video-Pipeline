@@ -293,18 +293,29 @@ export interface QueueRow {
   decision: string | null;
 }
 
-export type QueueRead = { ok: true; rows: QueueRow[] } | { ok: false; detail: string };
+/** How many renders the queue shows. Truncation is reported, never silent. */
+const QUEUE_LIMIT = 50;
+
+export type QueueRead =
+  | { ok: true; rows: QueueRow[]; truncated: boolean; limit: number }
+  | { ok: false; detail: string };
 
 export async function readQueue(db: Db): Promise<QueueRead> {
   const { data, error } = await db
     .from('renders')
     .select('id, script_id, variant_label, kind, status, duration_s, created_at')
     .order('created_at', { ascending: false })
-    .limit(50);
+    // One more than the page shows, so truncation is *detectable* rather than silent. A
+    // list that caps at fifty and says nothing reports "50" identically whether there are
+    // fifty renders or five hundred — and the count is the thing a person reads first.
+    .limit(QUEUE_LIMIT + 1);
 
   if (error) return { ok: false, detail: error.message };
 
-  const scriptIds = [...new Set((data ?? []).map((r) => r.script_id))];
+  const truncated = (data ?? []).length > QUEUE_LIMIT;
+  const page = (data ?? []).slice(0, QUEUE_LIMIT);
+
+  const scriptIds = [...new Set(page.map((r) => r.script_id))];
   const { data: scripts } = scriptIds.length
     ? await db.from('scripts').select('id, concept_id').in('id', scriptIds)
     : { data: [] };
@@ -322,7 +333,9 @@ export async function readQueue(db: Db): Promise<QueueRead> {
 
   return {
     ok: true,
-    rows: (data ?? []).map((r) => ({
+    truncated,
+    limit: QUEUE_LIMIT,
+    rows: page.map((r) => ({
       renderId: r.id,
       conceptTitle: conceptTitle.get(scriptToConcept.get(r.script_id) ?? '') ?? 'Untitled',
       variantLabel: r.variant_label,

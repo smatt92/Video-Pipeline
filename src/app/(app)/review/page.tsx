@@ -2,7 +2,8 @@ import Link from 'next/link';
 
 import { Panel, SectionHeader } from '@/components/settings/parts';
 import { serverClient } from '@/lib/db/server';
-import { readQueue } from '@/lib/review/read';
+import { Hint } from '@/components/shell/hint';
+import { readQueue, type QueueRead } from '@/lib/review/read';
 
 /**
  * The review queue.
@@ -22,6 +23,53 @@ const DECISION_TONE: Record<string, string> = {
   kill: 'var(--state-blocked)',
 };
 
+/**
+ * The count, and what the count cannot say.
+ *
+ * A bare "12" looks identical whether the queue is flowing or has been stuck for a week —
+ * the inverse test this project applies to every screen, and this header failed it. Review
+ * is the one stage that is a *person*, so a queue that stops moving stops the pipeline and
+ * nothing else in the product would say so.
+ *
+ * So: how many are still waiting on a decision, and how long the oldest has waited. Those
+ * two numbers change when the queue stalls and the total does not.
+ */
+function QueueSummary({ queue }: { queue: Extract<QueueRead, { ok: true }> }) {
+  const waiting = queue.rows.filter((r) => r.decision === null);
+
+  // Oldest *undecided*, not oldest overall. A decided render sitting in the list for a month
+  // is history; an undecided one is somebody's turn that never came.
+  const oldest = waiting.reduce<string | null>(
+    (acc, r) => (acc === null || r.createdAt < acc ? r.createdAt : acc),
+    null,
+  );
+  const waitingDays =
+    oldest === null ? null : Math.floor((Date.now() - Date.parse(oldest)) / 86_400_000);
+
+  return (
+    <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+      {queue.rows.length}
+      {queue.truncated && (
+        <Hint content={`Only the most recent ${queue.limit} are shown. The count is a floor, not a total — a list that caps silently reports the same number whatever is behind it.`}>
+          <span style={{ color: 'var(--state-review)' }}>+</span>
+        </Hint>
+      )}
+      {waiting.length > 0 && (
+        <>
+          {' · '}
+          <span style={{ color: 'var(--state-review)' }}>{waiting.length} awaiting you</span>
+          {waitingDays !== null && waitingDays > 0 && (
+            <span>
+              {', oldest '}
+              {waitingDays} day{waitingDays === 1 ? '' : 's'}
+            </span>
+          )}
+        </>
+      )}
+    </span>
+  );
+}
+
 export default async function ReviewQueuePage() {
   const queue = await readQueue(serverClient());
 
@@ -38,11 +86,7 @@ export default async function ReviewQueuePage() {
           style={{ borderColor: 'var(--border-subtle)' }}
         >
           <span className="text-md font-medium">Renders</span>
-          {queue.ok && (
-            <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
-              {queue.rows.length}
-            </span>
-          )}
+          {queue.ok && <QueueSummary queue={queue} />}
         </div>
 
         {!queue.ok ? (
