@@ -77,6 +77,10 @@ const EXEMPT = [
     why: 'Spends money on a real Messages call. Gating every push on a billed vendor call is a bill, not a guard.',
   },
   {
+    script: 'verify:render',
+    why: 'Needs a browser that supports OLD headless mode, which Remotion drives and recent Chrome removed. The dev container has chrome-headless-shell; GitHub\'s ubuntu image ships Chrome, which refuses with "Old Headless mode has been removed" — so wiring this to CI turns it red on a browser question rather than a code one. The harness FAILS rather than skips when no such browser exists, so this exemption is about where it runs, not whether it runs. Installing chrome-headless-shell in CI would retire it: DECISIONS-PENDING.',
+  },
+  {
     script: 'verify:script:direct',
     why: 'The same billed call as verify:script, over a direct Postgres connection instead of PostgREST. Exists for an environment where Supabase is refused at the egress policy and the vendor is not.',
   },

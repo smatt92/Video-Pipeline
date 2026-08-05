@@ -5,6 +5,35 @@ and a recommendation. Nothing here is blocking — the queue moved on past all o
 
 ---
 
+## 9. `verify:render` is exempt from CI on a browser question — install a headless shell there?
+
+**Status:** built, green locally, 14 assertions including a real MP4 measured against its
+plan. Exempt from CI, and the exemption is about *where* it runs rather than whether.
+
+Remotion drives Chromium in **old headless mode**, which recent Chrome removed. The dev
+container has `chromium_headless_shell` — the standalone implementation of exactly that —
+and GitHub's ubuntu image ships Chrome, which refuses with *"Old Headless mode has been
+removed"*. Wiring the harness to CI as-is turns it red on a browser question rather than a
+code one.
+
+The harness **fails rather than skips** when no suitable browser is found, so it cannot
+quietly pass on a machine that never rendered anything.
+
+**Options**
+
+| | |
+|---|---|
+| A. Install `chrome-headless-shell` in CI | One step, and the render becomes a gate on every push — which is where a guard against "a file that plays and is wrong" belongs. Adds ~40s and a download to every run. |
+| B. Leave it a local gate | Zero CI cost. The render is then proven only on a machine somebody remembered to run it on, which is the category this project keeps finding problems in. |
+| C. Investigate Remotion's `chromeMode` | It can fetch its own Chrome-for-Testing. Downloads a browser at render time, which is worse in CI than installing one deliberately. |
+
+**Recommendation: A.** The whole argument for the render measuring itself is that this path
+has shipped three duration bugs, and a guard that runs only when remembered is the weaker
+half of that argument. Not done unattended because it adds a download step to every CI run,
+which is your call on the build's cost.
+
+---
+
 ## 1. ~~`v_entry_state` — keep, delete, or wire~~ — **TAKEN 2026-08-04, option B**
 
 Mine to take, so I took it: **keep, and record why**, exactly as recommended. No code change.

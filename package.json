@@ -56,7 +56,8 @@
     "verify:scaling": "node scripts/verify-scaling.mjs",
     "verify:tour": "node scripts/verify-tour.mjs",
     "check:trigger-env": "node scripts/check-trigger-env.mjs",
-    "check:remotion": "node scripts/check-remotion-lockstep.mjs"
+    "check:remotion": "node scripts/check-remotion-lockstep.mjs",
+    "verify:render": "tsc -p tsconfig.verify.json && node scripts/verify-render.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
