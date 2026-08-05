@@ -530,3 +530,63 @@ the insets are unmeasured, which is the honest state — and captions under the 
 look like a design choice rather than a bug, so nothing else would catch it.
 
 No options and no recommendation. It needs eyes on a handset, which is yours.
+
+---
+
+## 9. The seven hook shapes are a guess made before any evidence existed
+
+`scripts.hook_pattern` (migration 0034) is the key `v_hook_performance` groups on, and
+therefore the key the whole learning loop reports against. It has seven values:
+
+| Shape | What it means |
+|---|---|
+| `number_claim` | a figure carries the promise |
+| `contradiction` | states the received view, then denies it |
+| `warning` | a cost of not watching |
+| `demonstration` | shows the outcome first, explains after |
+| `story_open` | mid-scene, the resolution withheld |
+| `question` | opens by asking; the viewer answers in their head |
+| `direct_address` | names the viewer or their situation |
+
+They are assigned by a deterministic classifier (`src/lib/measure/hook-pattern.ts`), not a
+model call — reproducible, backfillable over the archive, and free, which are the three
+properties a rollup's grouping key needs. The order above is the precedence: a hook can
+satisfy several tests and the first match wins.
+
+**What needs your judgement is the taxonomy, not the mechanism.** I wrote it from what these
+shapes look like in general, with no data from this channel and no video published. Two
+specific things I would expect to be wrong:
+
+- **`question` and `direct_address` are the catch-alls.** Almost every short-form hook
+  addresses the viewer, so `direct_address` will collect anything that fell through, and its
+  bucket will be the largest and least meaningful. Whether that matters depends on whether
+  the others fire often enough.
+- **The precedence puts `number_claim` first.** "Why do 90% of these fail?" is a question
+  and a number claim; I ranked the figure above the question mark on the grounds that a
+  figure is what a viewer remembers and what a writer can deliberately reuse. That is
+  arguable and it is one line to change.
+
+**Recommendation: leave it and change it once there is data, not before.**
+`hook_pattern_version` exists exactly for this — reclassify the archive, and the two versions
+stay distinguishable so a rollup cannot silently mix groups that were drawn differently. The
+cost of guessing wrong now is one backfill; the cost of waiting is that the first few videos
+group under a taxonomy you would not have chosen, which the version column makes recoverable.
+
+What would change my mind: if you already know from your own channel which three or four
+shapes actually recur, seven is too many and the extra buckets will each hold one video.
+Tell me the shapes and I will replace the list.
+
+---
+
+## 10. `7d` is the headline bucket, and nothing has tested that
+
+`v_hook_performance`, `v_recipe_performance`'s outcome half, and the `/analytics` cost-per-1k
+table all read the `7d` snapshot. `6h` and `24h` are still moving; `30d` measures how a video
+was distributed rather than how its hook performed.
+
+**Recommendation: keep `7d` and revisit after ten videos.** It is one constant
+(`HEADLINE_BUCKET` in `src/lib/measure/read.ts`) and all four buckets are captured
+regardless, so changing it re-reads history rather than losing it. The reason it is worth
+flagging at all: if short-form on this channel does most of its distribution in the first
+48 hours, `7d` is measuring the tail and `24h` is the hook signal — and that is a fact about
+the platform and the niche, which is yours to know rather than mine.
