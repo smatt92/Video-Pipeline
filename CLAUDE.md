@@ -338,6 +338,29 @@ alert nobody routes, a log line in a file nobody opens: each is the original pro
 the costume of its own solution, and each is *harder* to notice than what it replaced,
 because its existence reads as coverage.
 
+**An absence claim from a single failing command is a hypothesis, not a finding.** Twice in
+two days, and the second one cost more than the first:
+
+| The command | The conclusion drawn | What was true |
+|---|---|---|
+| `initdb` exits 1 | "no local Postgres in this container" | It refuses to run **as root**. The server binary was at `/usr/lib/postgresql/16/bin/postgres` the whole time. Two days of harnesses written and shipped unexecuted, and a green report over a red branch |
+| `grep "from('trends')"` returns empty | "nothing reads this table; stage 1 is disconnected at both ends" | The table is `trend_signals`. A wrong architectural conclusion in three documents |
+
+The test is the one already written below for absence results, applied to *any* command that
+returns nothing or fails: **establish that the instrument could have seen the thing before
+believing it did not.** A tool that refuses is not a tool that is missing, and an error
+message is evidence about the invocation before it is evidence about the world. Read the
+error — `initdb` said "cannot be run as root" and named the fix in its own hint.
+
+**The loudest error in a failing run is often not the failing one.** Read the **step list**
+first, then the annotation, then the log — never the log first. The tail of a red CI run
+showed a `scripts_pilot_decided_once` constraint violation in alarming detail; it falls
+inside a step that **passed**, because that harness provokes the refusal deliberately and
+Postgres logs every error whether or not anyone caught it. The step that actually failed
+appeared nowhere in the visible log. A log tail is ordered by time and by volume, not by
+relevance, and the one line you need may have scrolled off while the noisiest one is still
+on screen.
+
 **An absence result is only evidence if the search term was verified to exist.**
 `grep -rn "from('trends')" src/` returned nothing, and that nothing became a confident
 architectural conclusion — that stage 1 wrote rows no code read, that it was "disconnected at
