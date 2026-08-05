@@ -28,50 +28,71 @@ to preserve: do not write a harness you have not executed.
 
 ---
 
-## 0a. Where the queue stands
+## 0a. Where the queue stands — THREE LARGE ITEMS NOT STARTED
 
 | Item | State |
 |---|---|
-| 1. Stage 7 full composition | **DONE.** Renders a real MP4, measured against its plan. `verify:render`, 14 assertions |
-| 2. STATE.md accuracy pass | **DONE.** 486 assertions across twenty harnesses, all measured |
-| 3. The sweep | Ongoing |
-| 4. Screens failing the inverse test | **One round done.** The review queue fixed; the Studio session list is the known remaining one |
-| 5. Pilot path surface | **RE-VERIFIED, not assumed.** `verify:pilot` asserts `voice is drawn before videos — 4 < 5` and `the path shows waiting on you, not blocked`. Both pass. No change needed |
-| 6. Deploy readiness | Build-extension question **answered** (see below). The deploy itself still needs your account |
+| Decisions 4b + the puppeteer rule | **DONE.** Worker image extension written; CLAUDE.md line added |
+| 1. Inverse test remainder | **DONE**, and it found a third instance — see below |
+| **2. Stage 11 — measure** | **NOT STARTED.** Largest remaining. Spec preserved below |
+| **3. Stage 10 — publish (YouTube half)** | **NOT STARTED.** Spec preserved below |
+| **4. Addendum 04 outlier score** | **NOT STARTED.** Spec preserved below |
+| 5. The sweep | Ongoing; one thread pulled this round |
+| 6. STATE.md accuracy pass | Not started. Counts are re-measurable now |
 
-### The render is a CI gate and CI proved it — run 106, green
+I stopped rather than starting stage 11, because each of items 2–4 is a migration plus a
+task plus a surface plus a harness, and standing order 2 says a half-landed item is worse
+than a clean stop. **The specs below are the operator's own, kept verbatim in substance so
+nothing is lost between sessions.**
 
-`verify:render` is a CI gate, the `check:gates` exemption is retired, and the workflow
-installs `chrome-headless-shell` and exports `REMOTION_BROWSER_EXECUTABLE` before it.
+### Item 2 — stage 11, measure. The loop ARCHITECTURE §0.1 calls the moat
 
-That install step could not be executed here — this container's egress allowlist refuses the
-download host — so it went out untested and is exactly the kind of thing this project has
-been burned by. **Run 106 (`6cd01e8`) passed.** And a pass is real evidence rather than a
-silent skip: the harness *fails* when it cannot find a browser, by design, so green means a
-runner actually rendered an MP4 and measured it.
+- `metrics_snapshots` ingest at 6h / 24h / 7d / 30d
+- **`retention_3s_pct` is the hook metric — everything else is secondary**
+- **Score hooks, not videos.** Roll up to prompt recipes and hook patterns
+- Backfill `prompts.win_rate` from real outcomes, replacing the derived-from-compiles
+  placeholder
+- `v_cost_per_1k_views` finally gets a reader
+- **Inverse test up front: the denominator is published videos.** A metrics screen that looks
+  the same after one video and a hundred is the trap, and this project has now found that
+  shape four times — the costs page, the trends list, the review queue, the Studio list — plus
+  three silent `.limit()` caps. Assume it is present until proven otherwise
+- Buildable against fixtures; no vendor needed
 
-### Item 6, answered by reading rather than guessing
+### Item 3 — stage 10, publish, YouTube only (Meta deferred)
 
-**No Trigger build extension installs a browser Remotion can use.** `puppeteer()` runs
-`apt-get install google-chrome-stable` — new-headless only, the exact binary Remotion refuses
-with *"Old Headless mode has been removed"*. An extension that installs a browser the
-renderer rejects is worse than none: bigger image, successful deploy, first render fails
-after clips are paid for.
+- Data API v3 **resumable upload from the worker**, never a Vercel route (rule 2)
+- `altered_content_disclosed` set on **every** upload
+- Quota accounting: 10,000 units/day, 1,600 per upload. **Declare it as data.** This is the
+  one windowed quota the codebase could actually observe, so the limits card can carry a real
+  countdown instead of the current fiction
+- `enforce_review_pass` is the gate. **No bypass** (rule 7)
+- Token refresh cron with expiry alerting
 
-The worker needs `chrome-headless-shell` baked in, with `REMOTION_BROWSER_EXECUTABLE` pointing
-at it — matching what CI now does, so one binary is resolved one way in all three places.
-DECISIONS-PENDING 4b has the routes and the recommendation.
+### Item 4 — Addendum 04's outlier score
 
-**Do not add `REMOTION_BROWSER_EXECUTABLE` to the worker-env manifest until the assemble task
-actually reads it.** `check:trigger-env` derives requirements from the import graph, so a
-declared-but-unreachable entry is precisely what it exists to catch.
+- `tracked_channels` + `competitor_videos`
+- `outlier_score = video_views / median(that channel's last 20)`
+- Pull uploads via the **uploads playlist (1 quota unit)**, never `search` (100)
+- `trend_signals` gains `source='outlier'` — free, the column has no CHECK
+- Rewrite the concept prompt to generate **combinations** from top outliers rather than
+  freeform ideas. Also anti-template: every combination produces a different argumentative
+  shape, which is what `structure_hash` wants to see
+- **Do NOT build `pacing_template` with any text column.** Structure is not copyrightable,
+  sentences are, and a text column crosses that line silently. **Add a CI check that fails if
+  one is ever added** — this is a guard to write *before* the table exists, which is the one
+  time a guard for a state no write path produces is correct, because the whole point is that
+  no write path should ever produce it
 
-### Item 4, what is left
+### What item 1 found: the silent cap is a shape
 
-The Studio session list shows a bare session count. Total spend across sessions and how many
-hit their cap are the numbers that would change when the lane is being used hard or
-misconfigured. `/costs`, `/trends` and the board already pass the test; `/publish`,
-`/analytics` and `/concepts` are `NotBuiltYet` stubs with nothing to sweep.
+Three readers capped a list and rendered `rows.length` — review queue, Studio list, and the
+board, which also summed the capped rows into a rupee total. None wrong in isolation. All
+now report `truncated`.
+
+**Two left, deliberately not done to avoid a half-swept change:** `path.ts:115` (`.limit(50)`)
+and `studio/read.ts:135` (`.limit(40)`). Both are display-adjacent. The window-shaped ones in
+`concepts/run.ts`, `metadata/run.ts` and `voice/` are deliberate and feed prompts, not counts.
 
 ---
 
