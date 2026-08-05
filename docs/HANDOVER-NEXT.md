@@ -5,26 +5,54 @@ one unattended session, what was left mid-air, and what I would do first on waki
 
 ---
 
-## 0. Read this first: the container lost its credentials
+## 0. Read this first — the container HAS a Postgres, and here is how to start it
 
-`.env.local` is **gone** from the working container. It was present earlier in this same
-session — `pnpm build` and five database-backed harnesses ran green off it — and by the end
-it was not. There is no Docker, no Postgres on 54322, and `DATABASE_URL` is unset, so:
+```
+./scripts/pg-scratch.sh up      # idempotent; run before any harness
+./scripts/pg-scratch.sh init    # first time, or after the data dir is lost
+export DATABASE_URL=postgresql://postgres@127.0.0.1:55432/kiln
+```
 
-| | |
+**The earlier claim that this container had no database was wrong**, and it cost two days of
+harnesses written and shipped unexecuted plus four red CI runs nobody read. `initdb` exits 1
+as root — "cannot be run as root", with the fix in its own hint — and I read that refusal as
+an absence. The server binary was at `/usr/lib/postgresql/16/bin/postgres` the whole time.
+
+The cluster **dies without logging a shutdown** when the container reclaims memory. `up` is
+idempotent for that reason; run it before a suite rather than diagnosing "connection
+refused". `.env.local` is gitignored and will not survive a fresh container — recreate it
+with the `DATABASE_URL` above plus the bootstrap values from `.env.example`.
+
+**All nineteen harnesses run here.** That is the state to preserve: do not write a harness
+you have not executed.
+
+---
+
+## 0a. Where the queue stands
+
+| Item | State |
 |---|---|
-| Runs here | `pnpm check` (fourteen static guards), `pnpm build` with placeholder values |
-| Does **not** run here | `verify:assemble`, `verify:review`, `verify:submit`, `verify:pilot`, `verify:ingest`, and every other DB-backed harness |
-| Still runs everything | CI, which has its own Postgres service |
+| 1. CI green | Done. Cause was `verify:studio` needing a `profiles` row after the FX rate moved there |
+| 2. The four remaining Trigger guards | **Done.** Seven task throws are now four, and all four are rethrows with no decision |
+| 3. Re-run the suite | **Done. 19/19 ran and passed** |
+| 4. The sweep | One round done — it caught `requireEnv` regressing. Ongoing |
+| 5. **Stage 7 full composition** | **NOT STARTED. This is the next item and the last large buildable thing** |
+| 6. STATE.md accuracy pass | Not started. Its assertion counts can finally be re-measured now the harnesses run |
 
-This is why the last two commits say "green on `pnpm check` and `pnpm build`, unverified by
-the harnesses". It is also why the STATE.md pass deliberately did not refresh its assertion
-counts. **Restore `.env.local` before the next session does anything that needs proving**,
-or accept that CI is the only instrument and read it by step list rather than by summary.
+### Item 5, with what is already in place
 
-The container has now lost state twice — once a git rollback to `dcd36fe`, once this. Both
-times the work survived only because it had been pushed. The standing order to push after
-every item is not bureaucracy.
+`@remotion/renderer` is installed and pinned at 4.0.504; `check:remotion` guards lockstep.
+`src/lib/assemble/composition.ts` already computes the *plan* — cue list from word timings
+via the shared `captionCues`, hook window, per-format safe box, frame count — and refuses on
+`no_duration`, `no_timings`, `no_safe_area`. `verify:assemble` §9 covers it.
+
+What is missing is the composition itself and the render call. It is exercisable against
+synthetic clips and VO fixtures with no vendor, which is why it is the right next item.
+
+Two things not to rediscover: the safe-area insets are `verified: false` on all three formats
+and must stay so until measured on a handset (DECISIONS-PENDING 6, blocked on the operator),
+and `check:trigger-build` is structurally blind to the Chromium `@remotion/renderer` brings —
+which build extension the worker image needs is the open question in DECISIONS-PENDING 4.
 
 ---
 
