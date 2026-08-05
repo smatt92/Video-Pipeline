@@ -5,10 +5,54 @@ and a recommendation. Nothing here is blocking — the queue moved on past all o
 
 ---
 
-## 9. `verify:render` is exempt from CI on a browser question — install a headless shell there?
+## 4b. Which build extension Remotion's Chromium wants — ANSWERED, and it is none of them
+
+**The open half of entry 4, now established rather than guessed.** Having actually launched
+a browser for `verify:render`, the question is answerable:
+
+**`puppeteer()` does not work.** Reading the extension's own source, it runs
+`apt-get install google-chrome-stable` and sets `PUPPETEER_EXECUTABLE_PATH`. That is
+new-headless-only Chrome, and Remotion drives *old* headless mode — the exact binary that
+fails with "Old Headless mode has been removed". An extension that installs a browser
+Remotion refuses is worse than no extension: the image gets bigger, the deploy succeeds, and
+the first render fails after clips have been paid for.
+
+`playwright()` and `lightpanda()` are the other two and neither is a Remotion story.
+
+**So the worker needs `chrome-headless-shell`, which no shipped extension installs.** Three
+routes:
+
+| | |
+|---|---|
+| A. Bake it into the image | An `aptGet`/custom step installing `chrome-headless-shell`, plus `REMOTION_BROWSER_EXECUTABLE` pointing at it. Deterministic, no runtime download, and the same mechanism CI now uses — which means one thing to get right rather than two. |
+| B. Let Remotion `ensureBrowser()` at runtime | No image work. Downloads from `remotion.media` on a cold worker, which needs egress to a host the network policy must allow, and pays the download on every cold start unless the layer caches. |
+| C. `aptGet(['chromium'])` | Debian's build. Whether that version still supports old headless is a question I cannot answer without a deploy, and "probably" is how the ffmpeg problem happened. |
+
+**Recommendation: A**, matching CI. It is the only one where the thing that works locally,
+the thing that works in CI, and the thing on the worker are the same binary resolved the same
+way.
+
+**One consequence to remember when it lands:** `REMOTION_BROWSER_EXECUTABLE` becomes a worker
+environment variable and belongs in `src/lib/trigger/worker-env.ts`. It is deliberately **not
+there yet** — `check:trigger-env` derives requirements from what the import graph reaches, and
+nothing reads that variable until the assemble task passes it through. Adding it now would be
+a declared-but-unreachable entry, which is the failure that check exists to catch.
+
+---
+
+## 9. ~~`verify:render` exempt from CI~~ — **DECIDED: install the shell. DONE.**
+
+> Install the headless shell in CI. verify:render proves the only artifact the product
+> exists to make, and an exempt render path is ungated in the one project where ungated
+> checks have cost the most.
+
+Done: the workflow installs `chrome-headless-shell`, exports `REMOTION_BROWSER_EXECUTABLE`,
+and runs `pnpm verify:render`. The `check:gates` exemption is retired. **The install step
+itself is untested** — this container's egress allowlist refuses the download host, so CI is
+what proves it. Original entry below.
 
 **Status:** built, green locally, 14 assertions including a real MP4 measured against its
-plan. Exempt from CI, and the exemption is about *where* it runs rather than whether.
+plan.
 
 Remotion drives Chromium in **old headless mode**, which recent Chrome removed. The dev
 container has `chromium_headless_shell` — the standalone implementation of exactly that —
