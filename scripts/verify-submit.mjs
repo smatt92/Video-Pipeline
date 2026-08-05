@@ -980,6 +980,59 @@ console.log('\n11. A recipe earns its place\n');
   }
 }
 
+// ── §14. The callback guards, now that they are reachable ──────────────────
+//
+// These two refusals lived in `src/trigger/05-generate.ts` as `throw`s until they were
+// moved here. They were not merely unexercised — they were **unreachable**: no harness in
+// this repo imports a Trigger task, and this file drives `submitShots` with both values
+// hardcoded in DEPS, so the guards sat one layer above anything a test could touch.
+//
+// LOAD-BEARING. Both messages say a submit without them "runs, it bills, and nothing ever
+// confirms it", so the thing being asserted is that no vendor call happens. Asserting the
+// refusal code alone would pass if the function refused *after* submitting — so the request
+// count is what makes this evidence, and it is counted from the vendor stub rather than
+// from anything `submitShots` reports about itself.
+{
+  const recipe = await makeRecipe();
+  const { scriptId } = await seedScript([{ promptId: recipe }, { promptId: recipe }]);
+
+  for (const [field, code] of [
+    ['webhookBaseUrl', 'no_webhook_base_url'],
+    ['webhookSecret', 'no_webhook_secret'],
+  ]) {
+    const before = seen.length;
+    const out = await submitShots(scriptId, { ...DEPS, [field]: '' });
+
+    if (out.ok === false && out.code === code) {
+      ok(`submit refuses with no ${field}`, out.code);
+    } else {
+      bad(`submit refuses with no ${field}`, `got ${JSON.stringify(out).slice(0, 120)}`);
+    }
+
+    // The half that matters. A guard whose accepting branch still spends is the failure
+    // mode this project found twice in one round, and only the refusal half is cheap to
+    // assert — so assert the consequence, not the code.
+    if (seen.length === before) {
+      ok(`no ${field} means no vendor call`, `${before} requests before and after`);
+    } else {
+      bad(
+        `no ${field} means no vendor call`,
+        `${seen.length - before} request(s) made by a submit that refused`,
+      );
+    }
+  }
+
+  // Whitespace is not a value. `'   '` passing where `''` refuses would be a guard that
+  // reads as protection and admits the thing it names.
+  const before = seen.length;
+  const blank = await submitShots(scriptId, { ...DEPS, webhookBaseUrl: '   ' });
+  if (blank.ok === false && blank.code === 'no_webhook_base_url' && seen.length === before) {
+    ok('a whitespace callback URL refuses too', blank.code);
+  } else {
+    bad('a whitespace callback URL refuses too', `got ${JSON.stringify(blank).slice(0, 120)}`);
+  }
+}
+
 vendor.close();
 await scratch.release();
 

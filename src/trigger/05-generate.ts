@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { primaryForKind } from '@/lib/drivers/catalog';
 import { serverClient } from '@/lib/db/server';
-import { requireEnv } from '@/lib/env';
+import { env } from '@/lib/env';
 import { requireUsdInrRate } from '@/lib/cost/fx';
 import { expectedWebhookSecret } from '@/lib/drivers/video-status';
 import { requireCredential } from '@/lib/integrations/credentials';
@@ -84,28 +84,18 @@ export const generateTask = schemaTask({
     // Through the driver layer, not from `env` directly: the variable carries the vendor's
     // name and `pnpm check:vendors` refuses it here, correctly. The driver already had this
     // accessor for the receiving side of the same secret.
-    const webhookSecret = expectedWebhookSecret();
-
-    // Same class as the missing secret below: a submit whose completion has nowhere to
-    // arrive. Separate check so the message names which half is absent.
     //
-    // Through `requireEnv` rather than a hand-rolled `if (!env.X) throw`, which is what
-    // this was. The variable is optional at boot on purpose and `src/lib/env.ts` says so
-    // in five places, each promising that `requireEnv` catches it at the point of use —
-    // and `requireEnv` had no callers anywhere in the repo. The behaviour was right and
-    // the mechanism the documentation named was inert, so deleting this line would have
-    // left every one of those comments still claiming coverage.
-    const webhookBaseUrl = requireEnv('WEBHOOK_CALLBACK_BASE_URL', 'submitting a generation');
-
-    if (!webhookSecret) {
-      // Refusing here rather than submitting is the whole of rule 4's safety. A submit with
-      // no callback secret produces a job whose completion has nowhere to arrive: it runs,
-      // it bills, and nothing ever confirms it.
-      throw new Error(
-        'The webhook shared secret is unset, so a completion would have nowhere to arrive. ' +
-          'Refusing to submit rather than paying for a generation nothing can confirm.',
-      );
-    }
+    // ── Resolved here, decided in submitShots ────────────────────────────────
+    //
+    // Both of these used to be `throw`s in this file, and both were unreachable from every
+    // harness in the repo — nothing imports a Trigger task, so a guard written here is a
+    // guard no test can drive. They now live in `submitShots`, which refuses on either with
+    // a named code that `verify:submit` exercises by passing an empty string.
+    //
+    // What is left here is resolution: read the environment, hand the values down. That is
+    // the task's job. Deciding whether they are sufficient is the function's.
+    const webhookSecret = expectedWebhookSecret() ?? '';
+    const webhookBaseUrl = env.WEBHOOK_CALLBACK_BASE_URL ?? '';
 
     // The account-wide ceiling, read rather than assumed. `concurrency_source` on the row
     // records whether this is a reading or the fallback, so a screen can say which.

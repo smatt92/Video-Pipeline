@@ -28,7 +28,35 @@ every item is not bureaucracy.
 
 ---
 
-## 0. THE OPEN FINDING: no harness imports a Trigger task
+## 0. The Trigger layer's test reach — PARTLY CLOSED, and the classification matters
+
+**The choice: move the guards down.** Not a harness that imports tasks. The seven `throw`s
+are not one category, and classifying them was most of the work:
+
+| | Refusal | Verdict |
+|---|---|---|
+| `05-generate:104` | no webhook secret | **Moved into `submitShots`.** A decision about a *value* |
+| `05-generate` requireEnv | no callback base URL | **Moved into `submitShots`.** Same |
+| `05b-ingest:63`, `07-assemble:52` | presigned PUT returned non-OK | **Should move** — and they are the *same helper duplicated in two tasks*, so this is also a two-modules-for-one-concept fix. Belongs in the storage layer. NOT DONE |
+| `05-generate:75`, `06-voice:50` | no primary integration for kind | **Should move**, but the task needs the resolved driver to fetch credentials first, so moving it means moving credential resolution too. `submitShots` already duplicates the 05 one. NOT DONE |
+| `05b-ingest:101`, `07-assemble:84` | rethrow of a lib result's code/detail | **Legitimately task-level.** They contain no decision — they convert an already-tested lib refusal into a run failure. Nothing to move |
+
+So: 2 of 7 moved and now drivable, 4 should move and are specified above, 1 pair is correct
+where it is. **The reason a harness-imports-tasks pattern was the wrong answer** is that it
+would have built machinery to reach guards that were in the wrong place — your instruction,
+and it held up under the classification: every guard worth reaching turned out to be a
+decision about a value, which belongs where the value is used.
+
+`verify:submit` §14 drives both moved refusals by passing an empty string, and asserts **no
+vendor request was made** rather than just the refusal code — the accepting-branch half,
+counted from the vendor stub rather than from anything `submitShots` says about itself.
+
+**Unrun locally.** §14 is new code in a harness this container cannot execute. CI is the
+check; if it is red, that section is the first place to look.
+
+---
+
+## 0z. The original finding: no harness imports a Trigger task
 
 Seven `throw`s live in `src/trigger/` and **none of them is exercised by anything**.
 `grep -rn "trigger/0" scripts/` returns nothing: all fifteen harnesses drive `src/lib/`

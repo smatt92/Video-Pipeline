@@ -93,6 +93,41 @@ export async function submitShots(
   const video = primaryForKind('video');
   if (!video) throw new Error('No video integration is marked primary in the catalogue.');
 
+  // ── The callback guards, moved down from the task ──────────────────────────
+  //
+  // These two lived in `05-generate.ts` as `throw`s, and their messages say exactly what is
+  // at stake: a submit whose completion has nowhere to arrive "runs, it bills, and nothing
+  // ever confirms it." They were also **unreachable from any harness** — no harness imports
+  // a Trigger task, and `verify:submit` drives this function with both values hardcoded in
+  // its deps, so the guards sat one layer above anything a test could touch.
+  //
+  // A refusal about a *value* belongs where the value is used, not where it was fetched.
+  // The task's job is to resolve configuration and hand it down; deciding whether the
+  // configuration is sufficient is this function's, and here it is drivable by passing an
+  // empty string. Returned as a refusal rather than thrown, matching every other refusal in
+  // this function: a retry cannot change it and the caller reports it.
+  if (!deps.webhookBaseUrl.trim()) {
+    return {
+      ok: false,
+      code: 'no_webhook_base_url',
+      detail:
+        'No callback base URL, so the vendor would have no address to call back. Refusing '
+        + 'to submit rather than paying for a generation nothing can confirm. Set '
+        + 'WEBHOOK_CALLBACK_BASE_URL on whichever deployment runs this task.',
+    };
+  }
+
+  if (!deps.webhookSecret.trim()) {
+    return {
+      ok: false,
+      code: 'no_webhook_secret',
+      detail:
+        'No callback shared secret, so a completion would arrive unauthenticated and be '
+        + 'rejected. Refusing to submit rather than paying for a generation nothing can '
+        + 'confirm.',
+    };
+  }
+
   // ── An unverified integration cannot be selected by any pipeline task ──────
   //
   // This gate was missing, and stage 5 is the path that spends the most: one call submits
