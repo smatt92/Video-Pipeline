@@ -4,6 +4,7 @@ import { priceLlmCall, writeLlmCost } from '../cost/llm';
 import type { Db } from '../db/server';
 import type { Json } from '../db/types';
 import { STUDIO_TOOLS, toolDescriptors } from './tools';
+import { readUsdInrRate } from '../cost/fx';
 
 /**
  * The Studio agent loop.
@@ -145,12 +146,31 @@ export async function startSession(
   // project's own rule is that an unverified rate produces no rupee figure anywhere. So
   // the pricing is checked here, at zero tokens, rather than discovered after a turn that
   // has already been billed and cannot be attributed.
+  //
+  // `usdInrRate: 1` is a probe value, not a rate. This call asks only "does the rate card
+  // price this model", and the rupee figure it returns is discarded — a 1 makes the
+  // arithmetic a no-op so nothing here can be mistaken for a cost. It never reaches a
+  // ledger row. Said explicitly because a hardcoded FX rate is exactly the shape this
+  // project spent a week removing, and the next person to grep for one will stop here.
   const priced = await priceLlmCall(db, {
     model: MODEL,
     endpoint: ENDPOINT,
     usage: { inputTokens: 1, outputTokens: 1 },
     usdInrRate: 1,
   });
+
+  // The FX rate, checked at the same moment and for the same reason the rate card is.
+  // Without this the check above is one step short: the rate card prices fine, the session
+  // opens, and every turn then refuses at `readUsdInrRate` — which is precisely the
+  // "discovered after the fact" the paragraph above exists to prevent, moved one layer.
+  const fx = await readUsdInrRate(db);
+  if (!fx.ok) {
+    return {
+      ok: false,
+      code: 'unpriceable',
+      detail: `A spend cap cannot be enforced against spend that cannot be priced: ${fx.reason} ${fx.remedy}`,
+    };
+  }
 
   if (!priced.priced) {
     return {

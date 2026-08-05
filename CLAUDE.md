@@ -338,6 +338,26 @@ alert nobody routes, a log line in a file nobody opens: each is the original pro
 the costume of its own solution, and each is *harder* to notice than what it replaced,
 because its existence reads as coverage.
 
+**A harness setting a value with `??=` can silently restore the world a change was meant to
+remove.** Four did. Removing `USD_INR_RATE` from the schema should have broken every harness
+that depended on it; instead `process.env.USD_INR_RATE ??= '88.5'` at the top of four of them
+put the deleted default back, in the one process where the deletion was supposed to be
+observable. They passed, and proved that the code works when the thing you just removed is
+still there.
+
+This is the same family as an assertion whose subject the harness wrote, but the mechanism is
+different and worth naming separately: not *seeding a row you then assert about* but
+**scaffolding restoring a deleted default**. The tell is different too. Seeding is visible at
+the assertion; this is fifty lines away in a setup block nobody reads, and `??=` in particular
+reads as defensive politeness — "only if it isn't already set" — when what it does is
+guarantee the value exists no matter what the code under test now believes.
+
+So: when you delete a default, a variable, or a fallback, **grep the harnesses for it before
+you believe they pass**. A harness that still names a thing you removed is either restoring it
+or asserting against it, and both are worse than a red build. And prefer a literal in the
+harness to an environment write: `const usdInrRate = 88.5` fixes the input where the test can
+see it, and cannot leak into a code path that was supposed to have stopped reading it.
+
 **A caller that is itself uncalled is not a caller.** "Does this have a caller?" is the
 question this project asks to avoid building the complete-and-unreachable module, and it is
 not safe to ask one link deep. Reachability is transitive and terminates only at something
