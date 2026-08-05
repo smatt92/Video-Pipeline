@@ -34,17 +34,22 @@ The colon is what makes a name safe permanently; no pnpm command contains one.
 
 ---
 
-## 0a. Where the queue stands — THREE LARGE ITEMS NOT STARTED
+## 0a. Where the queue stands — TWO LARGE ITEMS NOT STARTED
 
 | Item | State |
 |---|---|
 | Decisions 4b + the puppeteer rule | **DONE.** Worker image extension written; CLAUDE.md line added |
 | 1. Inverse test remainder | **DONE**, and it found a third instance — see below |
+| 0. The pnpm shadowing defect | **DONE.** `doctor` → `db:doctor`; `check:script-names` in `pnpm check` and CI |
 | **2. Stage 11 — measure** | **DONE.** Migration 0034, `src/lib/measure/`, `/analytics`, `verify:measure` in CI. What it does NOT have, on purpose: a Trigger task — see below |
 | **3. Stage 10 — publish (YouTube half)** | **NOT STARTED.** Spec preserved below |
 | **4. Addendum 04 outlier score** | **NOT STARTED.** Spec preserved below |
-| 5. The sweep | Ongoing; one thread pulled this round |
-| 6. STATE.md accuracy pass | Not started. Counts are re-measurable now |
+| 5. The sweep | Ongoing; two threads pulled this round — `check:enums` and the `win_rate` collision |
+| 6. STATE.md accuracy pass | **DONE.** §2 counts re-measured (473 across fifteen DB harnesses), §3.3 corrected on stages 7 and 11 |
+
+**Start with item 3.** It is the one that unblocks the most: stage 11's Trigger task, the
+outlier score's quota accounting (both need a YouTube credential), and the first real number
+in `metrics_snapshots`. Nothing else in the queue is waiting on anything.
 
 Items 3 and 4 are each a migration plus a task plus a surface plus a harness, and standing
 order 2 says a half-landed item is worse than a clean stop. **The specs below are the
