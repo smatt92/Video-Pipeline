@@ -1,5 +1,4 @@
 import { createReadStream } from 'node:fs';
-import type { Readable } from 'node:stream';
 
 import { logger, schemaTask } from '@trigger.dev/sdk';
 import { z } from 'zod';
@@ -7,8 +6,6 @@ import { z } from 'zod';
 import { serverClient } from '@/lib/db/server';
 import { runIngest } from '@/lib/ingest/run';
 import { putterFor } from '@/lib/storage/put';
-import { storage } from '@/lib/storage';
-import { localPathFor, writeStreamLocal } from '@/lib/storage/local';
 
 /**
  * Stage 5b — ingest a confirmed generation.

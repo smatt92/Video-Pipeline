@@ -83,6 +83,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@remotion/bundler": "4.0.504",
     "@supabase/postgres-meta": "0.96.6",
     "@tailwindcss/postcss": "^4",
     "@trigger.dev/build": "^4.5.9",
