@@ -37,6 +37,14 @@ export const NAV: readonly NavGroup[] = [
     label: 'Pipeline',
     items: [
       {
+        // First in the group because it is first in the pipeline, and because "is intake
+        // working?" is the question that precedes every other one on this list.
+        href: '/trends',
+        label: 'Trends',
+        hint: 'Stage 1 intake — what was captured, from where, how recently',
+        status: ready(),
+      },
+      {
         href: '/board',
         label: 'Board',
         hint: 'Every video by state',

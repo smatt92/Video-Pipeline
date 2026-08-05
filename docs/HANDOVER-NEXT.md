@@ -37,11 +37,12 @@ and it is the first thing to pick up:
 |---|---|---|
 | **3** | `credit_readings` + the per-window view + the calibration surface | DECISIONS-PENDING 3, in full. Migration + two views + a surface — spec is implementable as written |
 | **8** | The Request-metadata button on `/review/[renderId]` | DECISIONS-PENDING 8. `src/components/review/screen.tsx`, beside the pass decision |
-| **8** | **A reader for stage 1** — this is the real one | Nothing in `src/` reads the `trends` table. Stage 1 is complete, harness-proven, and disconnected at both ends |
+| ~~**8**~~ | ~~A reader for stage 1~~ — **BUILT.** `/trends` | And the claim behind it was partly wrong: see DECISIONS-PENDING 8. The table is `trend_signals`, `concepts/run.ts` reads it, the chain was never broken. What was true is that no screen showed it |
 
-The trends finding is the largest thing on this page. It is not "a task without a button" —
-`grep -rn "from('trends')" src/` returns nothing at all, so an entire pipeline stage writes
-rows the product cannot see. Build the reader before the trigger.
+**The trends finding was overstated and is corrected in DECISIONS-PENDING 8.** I grepped
+`from('trends')`; the table is `trend_signals`, and `concepts/run.ts:132` reads it. Stage 1
+was never disconnected from stage 2. What was true — no screen had ever shown it — is fixed:
+`/trends` now exists.
 
 One thing on the metadata button that will otherwise get re-derived: **there is no honest
 pre-flight estimate for an LLM call** — `llm.ts` documents why — so it shows what the *last*

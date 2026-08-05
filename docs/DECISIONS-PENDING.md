@@ -343,21 +343,27 @@ One thing that is not optional whichever you pick: any row already written carri
 
 Decided against your four rules. One has a home; the other does not, and that is the finding.
 
-### `runTrendsNowAction` — **no button, and the reason is worse than "no home"**
+### `runTrendsNowAction` — **no button. CORRECTED 2026-08-04: my reason was partly wrong.**
 
-Rule 2 says if nothing renders the thing it acts on, say so rather than inventing a home.
-Nothing renders it. `grep -rn "from('trends')" src/` returns **nothing at all** — no page, no
-component, no view, no query. There is no `/trends` route; the only occurrence of the word in
-a layout is the site description.
+**The correction first.** I wrote that "nothing in `src/` reads the trends table" and that
+stage 1 was "disconnected at both ends". That was produced by `grep -rn "from('trends')"`,
+and **the table is `trend_signals`**. `concepts/run.ts:132` reads it. Stage 1 feeds stage 2;
+the chain was never broken, and the claim was overstated in a commit message, this file, and
+the handover.
 
-So this is not a button without a screen. **Stage 1 writes rows that nothing in the product
-reads.** Adding a "Run now" control would give the operator a way to fire a task whose entire
-output is invisible — a spend with no surface, which is worse than the current silence
-because it looks like a feature.
+A grep on a guessed table name is not a survey. The lesson is the same one that produced the
+independent-routes rule: I checked one spelling and reported an absence.
 
-The finding, stated plainly: stage 1 is complete, harness-proven, and disconnected at both
-ends. It has no trigger and no reader. Building the reader is the work; the button is a
-consequence of it and should not precede it.
+**What is true, and still justifies the work:** no *screen* has ever shown it. Intake ran and
+the only evidence was that stage 2 later produced concepts — which conflates *never captured*,
+*captured nothing lately*, and *this source has gone quiet*, three states that send a person
+to three different places.
+
+So the reader was built (`/trends`, `src/lib/trends/read.ts`) and the button still is not.
+Stage 1 hits somebody else's public feed, and how often to do that is a decision nobody has
+made — §4 of ARCHITECTURE says cron four times daily. A button would make the unmade decision
+look made, and the screen now answers the question the button was going to be pressed to
+answer.
 
 ### `requestMetadata` — **the review detail screen, `/review/[renderId]`**
 
