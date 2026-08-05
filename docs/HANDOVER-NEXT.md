@@ -32,27 +32,38 @@ you have not executed.
 
 | Item | State |
 |---|---|
-| 1. CI green | Done. Cause was `verify:studio` needing a `profiles` row after the FX rate moved there |
-| 2. The four remaining Trigger guards | **Done.** Seven task throws are now four, and all four are rethrows with no decision |
-| 3. Re-run the suite | **Done. 19/19 ran and passed** |
-| 4. The sweep | One round done — it caught `requireEnv` regressing. Ongoing |
-| 5. **Stage 7 full composition** | **NOT STARTED. This is the next item and the last large buildable thing** |
-| 6. STATE.md accuracy pass | Not started. Its assertion counts can finally be re-measured now the harnesses run |
+| 1. Stage 7 full composition | **DONE and rendering.** A real MP4, measured against its plan |
+| 2. STATE.md accuracy pass | **DONE.** 486 assertions across twenty harnesses, all measured |
+| 3. The sweep | Ongoing. Last round caught `requireEnv` regressing |
+| 4. Screens that look identical after one video and a hundred | Not swept this round — `/trends` was built to that test, nothing else re-examined |
+| 5. Pilot-shot path surface | Believed complete (`path-strip.tsx`, `verify:pilot` §0/§5 assert voice-before-videos and waiting-on-you ≠ blocked). **Not re-verified this round** |
+| 6. Trigger.dev deploy readiness | Partly. Env manifest and binary check exist; the Remotion Chromium question is open — DECISIONS-PENDING 4 and 9 |
 
-### Item 5, with what is already in place
+### Item 1 is done, and here is what it actually proves
 
-`@remotion/renderer` is installed and pinned at 4.0.504; `check:remotion` guards lockstep.
-`src/lib/assemble/composition.ts` already computes the *plan* — cue list from word timings
-via the shared `captionCues`, hook window, per-format safe box, frame count — and refuses on
-`no_duration`, `no_timings`, `no_safe_area`. `verify:assemble` §9 covers it.
+`pnpm verify:render` — 14 assertions, green locally, **exempt from CI on a browser question**
+(DECISIONS-PENDING 9). It bundles Remotion, drives a real headless Chromium, renders two
+synthetic clips with captions and a hook, and re-measures the output with ffprobe.
 
-What is missing is the composition itself and the render call. It is exercisable against
-synthetic clips and VO fixtures with no vendor, which is why it is the right next item.
+Three things worth not rediscovering:
 
-Two things not to rediscover: the safe-area insets are `verified: false` on all three formats
-and must stay so until measured on a handset (DECISIONS-PENDING 6, blocked on the operator),
-and `check:trigger-build` is structurally blind to the Chromium `@remotion/renderer` brings —
-which build extension the worker image needs is the open question in DECISIONS-PENDING 4.
+- **Measure video-stream packets, not `format=duration`.** The first version failed a
+  *correct* render — 4.053s against a planned 4.000s — because the container's duration spans
+  the audio stream and AAC frames do not align with video frames. The video stream was
+  exactly 120 packets. Loosening the tolerance would have made a wrong measurement pass;
+  counting frames makes the assertion exact and removes the tolerance entirely.
+- **Clips must be http(s).** A bare path 404s against Remotion's own bundle server; a
+  `file://` URL is rejected by its asset downloader. Both fail inside `node_modules` with a
+  message naming neither cause. `render.ts` refuses both up front now.
+- **Remotion needs old-headless Chromium.** `chromium_headless_shell` in this container;
+  recent Chrome refuses. That is the whole of why the harness is not in CI.
+
+### Item 4 is the one I did not get to and would take next
+
+The inverse test — *would this screen look identical after one video and after a hundred?* —
+has found more than any other in this project. `/trends` was built against it and `/costs`
+was retrofitted to it. **Nothing else has been re-examined**: the board, `/publish`,
+`/analytics`, `/concepts`, the Studio session list. That is a cheap, high-yield sweep.
 
 ---
 
