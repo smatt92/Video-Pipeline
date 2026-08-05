@@ -1,58 +1,109 @@
-import { env, requireEnv } from '../env';
+import type { Db } from '../db/server';
 
 /**
- * The USD→INR rate, at the one moment it matters.
+ * The USD→INR rate, read from the workspace, at the one moment it matters.
  *
- * ── Why this is not a default ────────────────────────────────────────────────
+ * ── There is exactly one rate, and it is `profiles.usd_inr_rate` ─────────────
  *
- * `USD_INR_RATE` used to carry `.default(88.5)` in the schema. Nothing refused without it,
- * which sounds like resilience and is the opposite: six tasks passed `env.USD_INR_RATE`
- * straight into `cost_ledger`, so a deployment that never set the variable snapshotted a
- * rate **nobody chose** onto every money row, and `/costs` then presented a rupee figure
- * this project invented as though it were the rate in force when the money moved.
+ * This used to read `USD_INR_RATE` from the environment. That variable no longer exists —
+ * not deprecated, removed — because two configured rates is how the defect below happened
+ * and a loser that keeps existing is a loser that gets used.
  *
- * Nothing downstream could tell that figure from a real one. That is the difficulty: a
- * missing measurement rendered as a plausible number is silently believed, summed, and
- * acted on. It is the same defect as `?? 0` on a duration, sitting in the input to the
- * metric rule 5 calls the project's headline.
+ * The rate is an **operational value, not a deployment constant**. The wizard's own copy
+ * says it is snapshotted onto each cost row so that changing it later does not rewrite
+ * history, which is a description of something the operator sets and changes — and changing
+ * it must not require a redeploy, which the environment variable always did. Migration 0005
+ * said the same thing in the column comment from the day the column existed: *"after that
+ * this is the truth"*. Only the code disagreed.
  *
- * ── Why required here and not at boot ────────────────────────────────────────
+ * It disagreed for months. `profiles.usd_inr_rate` was written by onboarding step 1 and read
+ * by **nothing** on the pricing path; every ledger row took its rate from the environment,
+ * which defaulted to 88.5. So an operator who set the rate in the form had configured
+ * nothing, and a deployment that set no variable priced every row at a number nobody chose.
+ * Both halves of that are now gone.
  *
- * A worker that never touches money should not fail to start, and the onboarding wizard
- * that configures everything else must be able to run on a deployment that has configured
- * nothing. That is the whole reason `src/lib/env.ts` made most of the schema optional —
- * requiring this at boot would re-create the chicken-and-egg deadlock that file documents
- * at length.
+ * ── Absent is a refusal with a name, never a fallback ────────────────────────
  *
- * So the rate is optional at boot and required at the point a rupee figure is produced,
- * which is exactly the contract `requireEnv` exists for. Same reasoning as
- * `unit_cost_snapshot`: the figure is protected where the figure is made.
+ * No profile row, or a null rate, means the rupee figure is **unknown**. Not zero, not 88.5,
+ * not the last one we saw. The same rule the rate card follows: an unverified rate produces
+ * no rupee figure anywhere rather than a plausible one. A fallback here would reintroduce
+ * exactly the defect being removed, one layer down and harder to see.
  *
- * ── Two functions, because refusing and reporting are different jobs ─────────
+ * ── Two disagreeing profiles is also a refusal ───────────────────────────────
  *
- * A path that is about to write a ledger row must refuse. A path that is about to *show*
- * an estimate must be able to say "I cannot tell you", because a screen that throws tells
- * the operator less than a screen that names what is unconfigured. Both are honest; only
- * a fabricated number is not.
+ * Phase 1 has one operator, so in practice there is one row. If there are ever two carrying
+ * different rates, this refuses rather than picking — silently choosing one would make every
+ * rupee figure in the product depend on row order.
  */
 
+export type FxRate =
+  | { ok: true; rate: number }
+  | { ok: false; reason: string; remedy: string };
+
 /**
- * The rate, or null when it is not configured.
+ * The rate, or a named refusal.
  *
- * For display and pre-flight paths that must degrade into naming the problem. `null` here
- * means **absent**, never zero — a zero rate would price every call at ₹0.00 and render as
- * a real cost of nothing.
+ * For display and pre-flight paths, which must be able to say "I cannot tell you" rather
+ * than throw — a screen that names what is unconfigured tells the operator more than one
+ * that errors.
  */
-export function readUsdInrRate(): number | null {
-  return env.USD_INR_RATE ?? null;
+export async function readUsdInrRate(db: Db): Promise<FxRate> {
+  const { data, error } = await db
+    .from('profiles')
+    .select('usd_inr_rate')
+    .not('usd_inr_rate', 'is', null);
+
+  if (error) {
+    return {
+      ok: false,
+      reason: `Could not read the workspace's USD→INR rate: ${error.message}`,
+      remedy: 'This is a database fault rather than a configuration one — check the connection.',
+    };
+  }
+
+  // `numeric` crosses the wire as a string, because Postgres will not silently lose
+  // precision on your behalf. `Number()` here is a decision rather than a conversion: an FX
+  // rate is a small decimal well inside what a double holds exactly, so the loss is
+  // accepted knowingly. A bigint id in this position would have to stay a string.
+  const rates = [...new Set((data ?? []).map((r) => Number(r.usd_inr_rate)))].filter(
+    (n) => Number.isFinite(n) && n > 0,
+  );
+
+  if (rates.length === 0) {
+    return {
+      ok: false,
+      reason:
+        'No USD→INR rate is set for this workspace, so nothing can be priced in rupees. '
+        + 'This is unknown, not zero — a default here would put a rate nobody chose onto '
+        + 'every money row, indistinguishable from one somebody did.',
+      remedy: 'Settings → Workspace, or onboarding step 1, sets the rate.',
+    };
+  }
+
+  if (rates.length > 1) {
+    return {
+      ok: false,
+      reason:
+        `${rates.length} profiles carry different USD→INR rates (${rates.join(', ')}), so `
+        + 'there is no single answer to what a rupee figure means here.',
+      remedy: 'Make them agree in Settings → Workspace. Refusing beats picking by row order.',
+    };
+  }
+
+  return { ok: true, rate: rates[0] };
 }
 
 /**
- * The rate, or a refusal naming what wanted it.
+ * The rate, or a thrown refusal naming what wanted it.
  *
- * For every path that writes a `cost_ledger` row. `wantedBy` becomes part of the message,
- * so the failure names the operation rather than the variable alone.
+ * For every path that writes a `cost_ledger` row. `wantedBy` becomes part of the message, so
+ * the failure names the operation rather than the setting alone.
  */
-export function requireUsdInrRate(wantedBy: string): number {
-  return requireEnv('USD_INR_RATE', wantedBy);
+export async function requireUsdInrRate(db: Db, wantedBy: string): Promise<number> {
+  const result = await readUsdInrRate(db);
+  if (result.ok) return result.rate;
+
+  throw new Error(
+    `${result.reason}\n\n${wantedBy} cannot proceed without it. ${result.remedy}`,
+  );
 }

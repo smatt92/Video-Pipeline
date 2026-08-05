@@ -133,7 +133,9 @@ const draft = await draftScript({ channel, title, angle, targetSeconds: 30 }, { 
 const elapsed = Date.now() - started;
 
 const hash = structureHash(draft.script);
-const usdInrRate = Number(process.env.USD_INR_RATE ?? 94);
+// A literal. The rate is profiles.usd_inr_rate in production; this harness tests the
+// arithmetic downstream of it, so it fixes the input rather than reading one.
+const usdInrRate = 94;
 
 // ── 4. The rows, built by the production functions ───────────────────────────
 const row = scriptRowFor({ conceptId, version: 1, draft, structureHash: hash });

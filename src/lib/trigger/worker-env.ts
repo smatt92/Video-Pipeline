@@ -19,9 +19,9 @@ import { storageWorkerEnv } from '../storage/worker-env';
  *
  * ── The non-obvious half ─────────────────────────────────────────────────────
  *
- * Five of the entries below are things **no task reads**. They are here because `env` is a
+ * Three of the entries below are things **no task reads**. They are here because `env` is a
  * Proxy whose every access calls `assertEnv()`, and `assertEnv()` runs
- * `envSchema.safeParse(process.env)` over the *whole* schema. So one `env.USD_INR_RATE` in
+ * `envSchema.safeParse(process.env)` over the *whole* schema. So one `env.VIDEO_DRIVER` in
  * a task drags in every non-optional field, and a worker with no `ALLOWED_EMAIL` — a
  * variable about signing in to a website the worker is not — throws on the first task that
  * touches configuration at all.
@@ -128,22 +128,13 @@ const coreWorkerEnv: readonly WorkerEnvVar[] = [
       + 'thing the driver interface exists to prevent.',
   },
   {
-    name: 'USD_INR_RATE',
-    required: true,
-    refusedBy:
-      'Every path that writes a cost_ledger row, by name, through `requireUsdInrRate` in '
-      + 'src/lib/cost/fx.ts. It used to carry `.default(88.5)` and refuse nothing, so a '
-      + 'worker without it snapshotted a rate nobody chose onto every money row — this '
-      + 'entry was the checklist standing in for a guard. The guard now exists; the entry '
-      + 'stays because a checklist is still how it gets set before the first run.',
-  },
-  {
     name: 'DRIVER_TIMEOUT_MS',
     required: false,
     refusedBy:
       'Defaults to 60s. A default is honest for a timeout — it is a policy this project '
-      + 'chose, not a measurement of the world, which is what separates it from the rate '
-      + 'above.',
+      + 'chose, not a measurement of the world. A default is dishonest only where the value '
+      + 'is a measurement — which is why the FX rate is not in this list at all: it is not an '
+      + 'environment variable any more, it is profiles.usd_inr_rate.',
   },
 
   ...storageWorkerEnv,

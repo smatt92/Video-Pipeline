@@ -148,36 +148,18 @@ const coreEnvSchema = z.object({
   VIDEO_DRIVER: nonEmpty('VIDEO_DRIVER').optional(),
 
   // ── Cost ──────────────────────────────────────────────────────────────────
+  //
+  // Nothing. `USD_INR_RATE` used to live here and is gone — not deprecated, removed.
+  // The rate is `profiles.usd_inr_rate`, an operational value the operator sets and
+  // changes without a redeploy, which is what the wizard's own copy always described and
+  // what migration 0005's column comment said from the day the column existed. Two
+  // configured rates is how one of them ended up doing nothing while the operator believed
+  // otherwise, so the loser does not get to survive as a fallback. See src/lib/cost/fx.ts.
   /**
    * USD→INR, snapshotted onto every ledger row so historical rupee figures stay
    * explainable. A live FX feed would make yesterday's cost-per-video change overnight,
    * which is worse than being slightly stale.
    */
-  /**
-   * Optional at boot, **required where a rupee figure is produced** — see
-   * `src/lib/cost/fx.ts`, which is the only thing that should read it.
-   *
-   * This carried `.default(88.5)` and a comment saying `profiles.usd_inr_rate` superseded
-   * it the moment onboarding ran. That comment was false. `profiles.usd_inr_rate` is
-   * written by the wizard and read by **nothing** on the pricing path; all six tasks passed
-   * `env.USD_INR_RATE` straight into `cost_ledger`. So a deployment that never set the
-   * variable did not fall back to a configured rate — it snapshotted 88.5, a number nobody
-   * chose, onto every money row, indistinguishable from a measured one.
-   *
-   * The default is gone. A worker that never touches money still boots; one that is about
-   * to write a ledger row refuses by name. Requiring it at boot instead would deadlock the
-   * wizard that configures everything else, which is the trade this whole schema is built
-   * around.
-   *
-   * That the wizard writes a rate nothing reads is a separate question — which of two
-   * configured rates is authoritative changes what a money row means, so it is queued
-   * rather than decided. See DECISIONS-PENDING.
-   */
-  USD_INR_RATE: z.coerce
-    .number({ error: 'USD_INR_RATE must be a number, e.g. 88.5' })
-    .positive()
-    .optional(),
-
   // ── Driver reliability envelope ───────────────────────────────────────────
   DRIVER_TIMEOUT_MS: positiveInt('DRIVER_TIMEOUT_MS').default(60_000),
   DRIVER_MAX_ATTEMPTS: positiveInt('DRIVER_MAX_ATTEMPTS').default(3),

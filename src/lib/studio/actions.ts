@@ -131,21 +131,15 @@ export async function sendTurnAction(
     // caused it. A turn writes cost rows, so an unset rate would put a rupee figure nobody
     // configured onto them — and the turn is billed either way, which is why this has to
     // stop the call rather than annotate the result.
-    const usdInrRate = readUsdInrRate();
-    if (usdInrRate === null) {
-      return {
-        status: 'error',
-        message:
-          'USD_INR_RATE is not set, so this turn could not be priced in rupees. Refusing to '
-          + 'run it rather than billing for a turn whose ledger row would carry a rate nobody '
-          + 'chose.',
-      };
+    const fx = await readUsdInrRate(db);
+    if (!fx.ok) {
+      return { status: 'error', message: `${fx.reason} ${fx.remedy}` };
     }
 
     const outcome = await runTurn(sessionId, text, {
       db,
       apiKey,
-      usdInrRate,
+      usdInrRate: fx.rate,
       channel,
     });
 

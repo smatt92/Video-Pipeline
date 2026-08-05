@@ -158,7 +158,7 @@ function refresh() {
  * Writes the profiles row — which is also the row every later step's progress lands on,
  * so nothing else can run before it.
  *
- * The FX rate is the interesting field. Once written it supersedes `USD_INR_RATE` for every
+ * The FX rate is the interesting field. It is the only USD→INR rate there is, for every
  * rupee figure in the product, and `cost_ledger.usd_inr_rate` snapshots whichever was in
  * force at write time so historical figures stay explainable when it changes.
  */

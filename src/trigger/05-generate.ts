@@ -130,7 +130,7 @@ export const generateTask = schemaTask({
       apiSecret,
       webhookBaseUrl,
       webhookSecret,
-      usdInrRate: requireUsdInrRate('writing the cost row for 05-generate'),
+      usdInrRate: await requireUsdInrRate(db, 'writing the cost row for 05-generate'),
       concurrency,
       log: logger,
     });

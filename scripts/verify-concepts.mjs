@@ -86,7 +86,6 @@ const model = createServer(async (req, res) => {
 await new Promise((r) => model.listen(0, '127.0.0.1', r));
 const modelUrl = `http://127.0.0.1:${model.address().port}`;
 
-process.env.USD_INR_RATE ??= '88.5';
 process.env.APP_URL ??= 'https://harness.invalid';
 process.env.WEBHOOK_CALLBACK_BASE_URL ??= 'https://harness.invalid';
 process.env.ALLOWED_EMAIL ??= 'harness@invalid.test';

@@ -16,7 +16,8 @@
  * Needs, in .env.local or the environment:
  *   ANTHROPIC_API_KEY
  *   NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
- *   USD_INR_RATE                              (optional, defaults to 88.5)
+ *   (the FX rate is profiles.usd_inr_rate, not an env var — this harness passes a
+ *    literal, which is what a harness should do with a value it is not testing)
  *
  * Expect it to cost a fraction of a rupee. It prints the exact figure, from the ledger row
  * rather than from its own arithmetic.
@@ -53,7 +54,10 @@ const need = (name) => {
 const apiKey = need('ANTHROPIC_API_KEY');
 const supabaseUrl = need('NEXT_PUBLIC_SUPABASE_URL');
 const serviceKey = need('SUPABASE_SERVICE_ROLE_KEY');
-const usdInrRate = Number(process.env.USD_INR_RATE ?? 88.5);
+// A literal, deliberately. The rate is `profiles.usd_inr_rate` in production; what this
+// harness is testing is the arithmetic downstream of it, so it fixes the input rather than
+// reading one — seed the inputs, assert the outputs.
+const usdInrRate = 88.5;
 
 const db = createClient(supabaseUrl, serviceKey, {
   auth: { persistSession: false, autoRefreshToken: false },

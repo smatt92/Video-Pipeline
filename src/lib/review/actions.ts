@@ -110,23 +110,13 @@ export async function estimateRegenerateAction(shotId: string): Promise<Regenera
   // whether the regenerate may happen — so an unset rate belongs in the list beside
   // "integration disabled", where the operator reads it before pressing anything. A throw
   // here would quote no price and name no cause.
-  const usdInrRate = readUsdInrRate();
-  if (usdInrRate === null) {
-    return {
-      ok: false,
-      blockers: [
-        {
-          code: 'no_usd_inr_rate',
-          detail:
-            'USD_INR_RATE is not set, so this regenerate cannot be priced in rupees and the '
-            + 'ledger row it would write would carry a rate nobody chose.',
-          remedy: 'Set USD_INR_RATE in the environment of whichever deployment runs the submit.',
-        },
-      ],
-    };
+  const db = serverClient();
+  const fx = await readUsdInrRate(db);
+  if (!fx.ok) {
+    return { ok: false, blockers: [{ code: 'no_usd_inr_rate', detail: fx.reason, remedy: fx.remedy }] };
   }
 
-  return estimateRegenerate(serverClient(), shotId, { usdInrRate });
+  return estimateRegenerate(db, shotId, { usdInrRate: fx.rate });
 }
 
 export async function regenerateShotAction(
@@ -140,8 +130,9 @@ export async function regenerateShotAction(
     // because there is nothing to degrade into here — the caller wants the charge made or
     // refused, and the catch below turns the refusal into the same error surface every
     // other configuration fault on this screen uses.
-    const result = await executeRegenerate(serverClient(), shotId, {
-      usdInrRate: requireUsdInrRate('regenerating a shot'),
+    const db = serverClient();
+    const result = await executeRegenerate(db, shotId, {
+      usdInrRate: await requireUsdInrRate(db, 'regenerating a shot'),
     });
 
     revalidatePath(`/review/${renderId}`);

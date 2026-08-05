@@ -48,7 +48,7 @@ export const metadataTask = schemaTask({
     const result = await runMetadata(payload, {
       db,
       apiKey,
-      usdInrRate: requireUsdInrRate('writing the cost row for 09-metadata'),
+      usdInrRate: await requireUsdInrRate(db, 'writing the cost row for 09-metadata'),
       runId: ctx.run.id,
       log: logger,
     });

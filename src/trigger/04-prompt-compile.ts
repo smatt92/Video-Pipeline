@@ -47,7 +47,7 @@ export const shotlistTask = schemaTask({
     const result = await runShotlist(payload, {
       db,
       apiKey,
-      usdInrRate: requireUsdInrRate('writing the cost row for 04-prompt-compile'),
+      usdInrRate: await requireUsdInrRate(db, 'writing the cost row for 04-prompt-compile'),
       // Which driver's recipes to compile against. Absent means no video driver has been
       // selected yet, in which case nothing can resolve and every shot says so.
       videoDriver: env.VIDEO_DRIVER ?? 'unset',

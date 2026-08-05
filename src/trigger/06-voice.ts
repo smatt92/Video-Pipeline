@@ -71,7 +71,7 @@ export const voiceTask = schemaTask({
     const result = await runVoice(payload, {
       db,
       apiKey,
-      usdInrRate: requireUsdInrRate('writing the cost row for 06-voice'),
+      usdInrRate: await requireUsdInrRate(db, 'writing the cost row for 06-voice'),
       concurrency,
       runId: ctx.run.id,
       log: logger,

@@ -55,7 +55,7 @@ export const conceptTask = schemaTask({
     const result = await runConcepts(payload, {
       db,
       apiKey,
-      usdInrRate: requireUsdInrRate('writing the cost row for 02-concept'),
+      usdInrRate: await requireUsdInrRate(db, 'writing the cost row for 02-concept'),
       // Stable across attempts of the same run, which is what the ledger's idempotency key
       // needs. An attempt id would charge a retry twice.
       runId: ctx.run.id,

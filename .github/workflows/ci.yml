@@ -287,7 +287,6 @@ jobs:
           TRIGGER_SECRET_KEY: tr_ci
           ANTHROPIC_API_KEY: ci
           VIDEO_DRIVER: none
-          USD_INR_RATE: '88.5'
           HIGGSFIELD_API_KEY: ci
           HIGGSFIELD_API_SECRET: ci
           HIGGSFIELD_WEBHOOK_SECRET: ci-placeholder-secret-at-least-32-chars

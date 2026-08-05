@@ -56,7 +56,6 @@ process.env.ALLOWED_EMAIL ??= 'harness@invalid.test';
 process.env.NEXT_PUBLIC_SUPABASE_URL ??= 'https://harness.invalid';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= 'harness';
 process.env.SUPABASE_SERVICE_ROLE_KEY ??= 'harness';
-process.env.USD_INR_RATE ??= '88.5';
 
 const BUILD = new URL('../.verify-build/src/lib', import.meta.url).pathname;
 const { runTrends } = require(`${BUILD}/trends/run.js`);

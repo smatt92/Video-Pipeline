@@ -87,7 +87,6 @@ process.env.HIGGSFIELD_API_BASE_URL = `http://127.0.0.1:${vendorPort}`;
 process.env.HIGGSFIELD_WEBHOOK_SECRET = SECRET;
 process.env.HIGGSFIELD_API_KEY ??= 'stub-key';
 process.env.HIGGSFIELD_API_SECRET ??= 'stub-secret';
-process.env.USD_INR_RATE ??= '88.5';
 
 // The rest of the environment `src/lib/env.ts` insists on. None of it is reached — the
 // database comes in as an argument and no Supabase client is constructed — but the module

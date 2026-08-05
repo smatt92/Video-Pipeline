@@ -70,7 +70,6 @@ process.env.HIGGSFIELD_API_BASE_URL = vendorUrl;
 process.env.HIGGSFIELD_API_KEY ??= 'stub-key';
 process.env.HIGGSFIELD_API_SECRET ??= 'stub-secret';
 process.env.HIGGSFIELD_WEBHOOK_SECRET ??= 'a-shared-secret-of-at-least-32-characters';
-process.env.USD_INR_RATE ??= '88.5';
 process.env.APP_URL ??= 'https://harness.invalid';
 process.env.WEBHOOK_CALLBACK_BASE_URL ??= 'https://harness.invalid';
 process.env.ALLOWED_EMAIL ??= 'harness@invalid.test';

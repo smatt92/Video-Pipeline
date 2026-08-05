@@ -86,7 +86,7 @@ plane that works and a pipeline that fails on its first real run.
 | `STORAGE_DRIVER=supabase-storage` | **never `local-fs`** in production |
 | `SUPABASE_S3_ACCESS_KEY_ID`, `SUPABASE_S3_SECRET_ACCESS_KEY`, `SUPABASE_STORAGE_BUCKET`, `SUPABASE_S3_REGION` | ingest and assemble |
 | `ANTHROPIC_API_KEY` | stages 3 and 4 |
-| `USD_INR_RATE` | every cost row |
+| ~~`USD_INR_RATE`~~ | **removed.** The rate is `profiles.usd_inr_rate`, set in onboarding step 1 — an operational value, changeable without a redeploy. See `src/lib/cost/fx.ts` |
 | `WEBHOOK_CALLBACK_BASE_URL` | stage 5, and it must be the **production** domain |
 
 **How you know it worked:** trigger `07-assemble` from the dashboard against a script id
