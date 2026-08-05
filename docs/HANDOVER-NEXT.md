@@ -28,6 +28,32 @@ every item is not bureaucracy.
 
 ---
 
+## 0. THE OPEN FINDING: no harness imports a Trigger task
+
+Seven `throw`s live in `src/trigger/` and **none of them is exercised by anything**.
+`grep -rn "trigger/0" scripts/` returns nothing: all fifteen harnesses drive `src/lib/`
+functions with a deps object, so a task's own guards are not merely unexercised — they are
+unreachable from the harness that appears to cover the stage.
+
+The two in `05-generate.ts` are the ones that matter. Their messages say a submit without a
+callback URL or a webhook secret "runs, it bills, and nothing ever confirms it", and
+`verify:submit` — 42 assertions, green — drives `submitShots` directly with `webhookBaseUrl`
+hardcoded in its deps. The guard sits one layer above what the harness can touch.
+
+**This is the first thing to fix and it is not small.** Two routes, and they compose:
+
+1. **Move what can move.** A refusal about a *value* belongs in the lib function, where a
+   harness can drive it. The task should resolve configuration and hand it down.
+2. **For what genuinely belongs to the task** — refusals about the environment the task runs
+   in — the harness has to import the task and drive `run`. Nothing does this today, so it is
+   a new pattern rather than an addition to an existing one.
+
+Related and cheaper: no harness anywhere deletes an environment variable to exercise a
+refusal. Every one sets its scaffolding with `??=` at the top, which guarantees the value
+exists for the whole file. See the CLAUDE.md rules on both.
+
+---
+
 ## 0a. Every pending decision is now closed — and three left buildable work
 
 `docs/DECISIONS-PENDING.md` has no open questions. Three of the closures left work behind,

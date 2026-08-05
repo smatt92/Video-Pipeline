@@ -338,6 +338,28 @@ alert nobody routes, a log line in a file nobody opens: each is the original pro
 the costume of its own solution, and each is *harder* to notice than what it replaced,
 because its existence reads as coverage.
 
+**Every refusal that lives in a Trigger task is untested, because no harness imports a
+task.** Fifteen harnesses drive `src/lib/` functions with a deps object; `grep -rn "trigger/0"
+scripts/` returns nothing. So the seven `throw`s in `src/trigger/` have no coverage of any
+kind — including the two in `05-generate.ts` whose own messages say that a submit without
+them "runs, it bills, and nothing ever confirms it."
+
+The gap is invisible because `verify:submit` is thorough and green. It drives `submitShots`
+directly with `webhookBaseUrl` hardcoded in its deps object, so the task's `requireEnv` guard
+above it is not merely unexercised — it is **unreachable from the harness**, and no amount of
+adding assertions there would reach it.
+
+Two rules follow. **Put a refusal in the lib function, not in the task**, wherever it can go
+there: the task should resolve configuration and hand it down, and the function should decide.
+And when a refusal genuinely belongs to the task — because it is about the environment the
+task runs in — say so where it is written, because the alternative is a guard that reads as
+protected and is not.
+
+This compounds with the rule below: scaffolding that guarantees a value exists means the
+refusal branch never runs even where a harness could reach it. `verify:submit` sets
+`WEBHOOK_CALLBACK_BASE_URL ??=` at the top and no harness anywhere deletes an environment
+variable to exercise a refusal.
+
 **A harness setting a value with `??=` can silently restore the world a change was meant to
 remove.** Four did. Removing `USD_INR_RATE` from the schema should have broken every harness
 that depended on it; instead `process.env.USD_INR_RATE ??= '88.5'` at the top of four of them
