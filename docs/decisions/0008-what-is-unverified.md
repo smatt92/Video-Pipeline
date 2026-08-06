@@ -1005,6 +1005,44 @@ reads as coverage of the fetch path while containing none. The entry point is
 `recordSnapshotAction`, reached from the Record button on `/analytics`. The task lands with
 stage 10's credential or not at all.
 
+### 13. Stage 10 — publishing. Built, gated, harness-proven; nothing has ever been uploaded
+
+`verify:publish` drives the whole path against a real Postgres and a real HTTP server, and
+CI runs it. What it covers is everything that can be wrong without a credential: the
+database gate, the quota arithmetic, the disclosure field, the idempotency claim, the
+resume offset, and the distinction between a dead refresh token and a network blip.
+
+Two sections do the load-bearing work and are marked in the file. **§3** drives the status
+transition in raw SQL, past the application entirely — every other readiness assertion here
+reads `v_publish_queue`, which is also what `publishVideo` reads, so without §3 the suite
+would be one source agreeing with itself. **§6** asserts the quota units are still spent
+when the upload fails, which is the arithmetic a retry loop depends on.
+
+**NOT PROVEN, and it needs your credentials rather than more code:**
+
+- **No video has been uploaded.** Rule 8 is unsatisfied for everything past
+  `resolveCredentials`. The vendor in the harness is a local HTTP server: real status codes,
+  real `Location` headers, real 403 bodies — but ours.
+- **The resumable *resume* path has never run.** `sendUpload` sends in one shot and handles
+  a 308 by recording where to continue; nothing has yet continued. `parseResumeOffset` is
+  unit-tested and the loop around it is not, because provoking a real interruption needs a
+  real transfer.
+- **`10b-token-health` has never fired.** It is a `schedules.task`, and no deploy has
+  happened. Six hours is sized against Google's seven-day Testing-mode expiry.
+- **The 10,000-unit ceiling is Google's published figure.** `quota_source` says `documented`
+  and the code flips it to `observed` on a 403 — that flip is exercised in the harness
+  against our own stub, which is evidence about the code and not about the ceiling.
+- **`videos.insert` costs 1,600 units** per the same published source. If that is wrong,
+  every remaining figure is wrong by a multiple, and the first real upload is what will say.
+
+One thing IS established from an authoritative source rather than recalled: the disclosure
+field is `status.containsSyntheticMedia`, *"Indicates if the video contains altered or
+synthetic media"*, read from the API's own discovery document at
+`https://www.googleapis.com/discovery/v1/apis/youtube/v3/rest` (revision 20260805), fetched
+from this container — `*.googleapis.com` is on the environment's Trusted allowlist. Getting
+that name wrong would produce uploads that succeed, look correct, and are undisclosed, with
+no error anywhere.
+
 ## Gates, and where each can run
 
 | Gate | Runnable in this environment? |

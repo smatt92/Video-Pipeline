@@ -42,14 +42,36 @@ The colon is what makes a name safe permanently; no pnpm command contains one.
 | 1. Inverse test remainder | **DONE**, and it found a third instance — see below |
 | 0. The pnpm shadowing defect | **DONE.** `doctor` → `db:doctor`; `check:script-names` in `pnpm check` and CI |
 | **2. Stage 11 — measure** | **DONE.** Migration 0034, `src/lib/measure/`, `/analytics`, `verify:measure` in CI. What it does NOT have, on purpose: a Trigger task — see below |
-| **3. Stage 10 — publish (YouTube half)** | **NOT STARTED.** Spec preserved below |
+| **3. Stage 10 — publish (YouTube half)** | **DONE.** Migration 0035, `src/lib/publish/`, `/publish`, `10-publish` + `10b-token-health`, `verify:publish` in CI. Nothing uploaded — see below |
 | **4. Addendum 04 outlier score** | **NOT STARTED.** Spec preserved below |
 | 5. The sweep | Ongoing; two threads pulled this round — `check:enums` and the `win_rate` collision |
 | 6. STATE.md accuracy pass | **DONE.** §2 counts re-measured (473 across fifteen DB harnesses), §3.3 corrected on stages 7 and 11 |
 
-**Start with item 3.** It is the one that unblocks the most: stage 11's Trigger task, the
-outlier score's quota accounting (both need a YouTube credential), and the first real number
-in `metrics_snapshots`. Nothing else in the queue is waiting on anything.
+**Start with the outlier score.** Stage 10 landed, so nothing in the queue is blocked on
+code any more — only on credentials.
+
+### What stage 10 landed, and the three things to know before extending it
+
+- **`api_quota_usage` is the counting mechanism and it is generic.** One row per call, with
+  the vendor's own endpoint name and its unit cost, written *before* the call. The outlier
+  score's `playlistItems.list` calls must write rows the same way — `spend(db, 'youtube',
+  'playlistItems.list')` already exists and already knows the price. `search.list` is in the
+  price table at 100 units and is deliberately unused; naming it with its cost is what stops
+  it being reached for.
+- **`QUOTA_UNITS` in `src/lib/publish/youtube.ts` is the price list**, and it is NOT from the
+  discovery document — Google publishes prices in a separate calculator. That is why
+  `integrations.quota_source` says `documented`. The discovery doc IS reachable from the
+  container (`*.googleapis.com` is on the Trusted allowlist), so field names and scopes
+  should be read from it rather than recalled — that is how `containsSyntheticMedia` was
+  established.
+- **Stage 11's Trigger task is now writable and still needs a different API.** YouTube
+  *Analytics* (`youtubeAnalytics.reports.query`) is not Data API v3; it has its own scopes
+  and its own quota. `v_measurement_due` is already the list such a task should iterate, and
+  a fetcher must write `metric_source = 'vendor_api'` and multiply `audienceWatchRatio` by
+  100 for the 0–100 column.
+
+**Nothing has been uploaded and no credential exists.** Everything past `resolveCredentials`
+is unverified — 0008 §13.
 
 Items 3 and 4 are each a migration plus a task plus a surface plus a harness, and standing
 order 2 says a half-landed item is worse than a clean stop. **The specs below are the
