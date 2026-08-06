@@ -5,32 +5,47 @@ one unattended session, what was left mid-air, and what I would do first on waki
 
 ---
 
-## 0. The network policy has NOT taken — probed 2026-08-06, with controls
+## 0. The network policy has NOT taken — and it is the ENVIRONMENT, not the container
 
 ```
-api.supabase.com  ·  *.supabase.co  ·  api.elevenlabs.io
-platform.higgsfield.ai  ·  api.trigger.dev  ·  remotion.media      all connect_rejected
-positive control:  api.github.com 200 · pypi.org 200 · docs.claude.com 301
+api.supabase.com · *.supabase.co · api.elevenlabs.io
+platform.higgsfield.ai · api.trigger.dev · remotion.media    connect_rejected
+positive control:  api.github.com 200 · pypi.org 200 · *.googleapis.com 200
 negative control:  not-allowlisted.example.com  connect_rejected
 ```
 
-**`CCR_SPAWN_TIMESTAMP_MS` was identical across two consecutive "new" sessions**
-(`1785988302722`). A new conversation is not a new container, and a container carries the
-policy it started with — that is the likely reason an edited environment had no effect.
-Check the spawn timestamp before concluding anything about the policy.
+Re-probed 2026-08-06 on a **fresh** container and unchanged. The decisive variable:
 
-**Two instrument traps, both hit in this repo already:**
+```
+CLAUDE_CODE_REMOTE_ENVIRONMENT_TYPE=cloud_default
+```
 
-- A **stale proxy port**. `HTTPS_PROXY` changes when the container restarts. A probe loop
+Sessions here run in the **Default** environment, whose network access is **Trusted** — and
+the observed allowlist matches Trusted exactly. So an edited allowlist has no effect unless
+the session is started with that environment *selected* in the picker at `claude.ai/code`
+(the cloud icon above the message box; there is no settings page for it). A new container of
+the same environment changes nothing, which is what kept happening.
+
+**A correction, because the wrong version of this went into a handover and a reply.** I
+wrote that `CCR_SPAWN_TIMESTAMP_MS` was byte-identical across sessions and concluded the
+container was never replaced. The first half was true at that moment; the conclusion was
+not. The variable tracks PID 1's start — checked against `/proc/1`, three seconds apart —
+and it **does** change when a genuinely new container spawns. Two consecutive sessions
+happened to share one. Check it against `/proc/1` rather than against memory.
+
+**Three instrument traps, all hit in this repo:**
+
+- **A stale proxy port.** `HTTPS_PROXY` changes when the container restarts. A probe loop
   with a hardcoded port returns 000 for every host and looks exactly like a total denial.
   Read `$HTTPS_PROXY` in the same command that probes.
 - **`curl -w '%{http_code}'` reports the CONNECT status on a failed tunnel.**
   `api.elevenlabs.io` returned `403` and read as *allowed by policy, refused by the vendor*.
-  It was the proxy's own 403 to CONNECT. `curl -i` says `CONNECT tunnel failed, response
-  403`, and `$HTTPS_PROXY/__agentproxy/status` lists the host under `recentRelayFailures`.
-  **Believe the relay log, not the status code.**
+  It was the proxy's own refusal. `curl -i` says `CONNECT tunnel failed, response 403`, and
+  `$HTTPS_PROXY/__agentproxy/status` lists the host under `recentRelayFailures`. **Believe
+  the relay log.**
+- **A spawn timestamp read once is a snapshot, not a lifecycle.** See the correction above.
 
-`*.googleapis.com` IS reachable (discovery doc 200), which is why Addendum 04 could proceed.
+`*.googleapis.com` IS reachable, which is why Addendum 04 could proceed.
 
 ---
 
