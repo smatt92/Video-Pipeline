@@ -5,6 +5,35 @@ one unattended session, what was left mid-air, and what I would do first on waki
 
 ---
 
+## 0. The network policy has NOT taken — probed 2026-08-06, with controls
+
+```
+api.supabase.com  ·  *.supabase.co  ·  api.elevenlabs.io
+platform.higgsfield.ai  ·  api.trigger.dev  ·  remotion.media      all connect_rejected
+positive control:  api.github.com 200 · pypi.org 200 · docs.claude.com 301
+negative control:  not-allowlisted.example.com  connect_rejected
+```
+
+**`CCR_SPAWN_TIMESTAMP_MS` was identical across two consecutive "new" sessions**
+(`1785988302722`). A new conversation is not a new container, and a container carries the
+policy it started with — that is the likely reason an edited environment had no effect.
+Check the spawn timestamp before concluding anything about the policy.
+
+**Two instrument traps, both hit in this repo already:**
+
+- A **stale proxy port**. `HTTPS_PROXY` changes when the container restarts. A probe loop
+  with a hardcoded port returns 000 for every host and looks exactly like a total denial.
+  Read `$HTTPS_PROXY` in the same command that probes.
+- **`curl -w '%{http_code}'` reports the CONNECT status on a failed tunnel.**
+  `api.elevenlabs.io` returned `403` and read as *allowed by policy, refused by the vendor*.
+  It was the proxy's own 403 to CONNECT. `curl -i` says `CONNECT tunnel failed, response
+  403`, and `$HTTPS_PROXY/__agentproxy/status` lists the host under `recentRelayFailures`.
+  **Believe the relay log, not the status code.**
+
+`*.googleapis.com` IS reachable (discovery doc 200), which is why Addendum 04 could proceed.
+
+---
+
 ## 0. Read this first — the container HAS a Postgres, and here is how to start it
 
 ```
@@ -43,12 +72,36 @@ The colon is what makes a name safe permanently; no pnpm command contains one.
 | 0. The pnpm shadowing defect | **DONE.** `doctor` → `db:doctor`; `check:script-names` in `pnpm check` and CI |
 | **2. Stage 11 — measure** | **DONE.** Migration 0034, `src/lib/measure/`, `/analytics`, `verify:measure` in CI. What it does NOT have, on purpose: a Trigger task — see below |
 | **3. Stage 10 — publish (YouTube half)** | **DONE.** Migration 0035, `src/lib/publish/`, `/publish`, `10-publish` + `10b-token-health`, `verify:publish` in CI. Nothing uploaded — see below |
-| **4. Addendum 04 outlier score** | **NOT STARTED.** Spec preserved below |
+| **4. Addendum 04 outlier score** | **PART DONE.** Schema, arithmetic, guard and harness landed (0036). The poller and the concept-prompt rewrite are NOT done — see below |
 | 5. The sweep | Ongoing; two threads pulled this round — `check:enums` and the `win_rate` collision |
 | 6. STATE.md accuracy pass | **DONE.** §2 counts re-measured (473 across fifteen DB harnesses), §3.3 corrected on stages 7 and 11 |
 
-**Start with the outlier score.** Stage 10 landed, so nothing in the queue is blocked on
-code any more — only on credentials.
+**Start with the two halves of Addendum 04 that did not land.** Nothing in the queue is
+blocked on code — only on credentials and on a container that has the new policy.
+
+### Addendum 04 — what landed, and the two pieces left
+
+Landed in 0036: `tracked_channels`, `competitor_videos`, `pacing_template`,
+`v_outlier_leaders`, `v_tracked_channel_health`, `src/lib/trends/outlier.ts`,
+`check:pacing-columns`, `verify:outlier`. All in CI.
+
+**Not done, in the order I would do them:**
+
+1. **The concept prompt rewrite.** `combinations()` exists and is tested — it pairs across
+   the ranking (first×last, second×second-last) rather than adjacently, because ranking puts
+   similar topics next to each other and adjacent pairs produce the near-duplicates the
+   technique exists to avoid. What is missing is a new versioned prompt in
+   `src/lib/prompts/` that takes those pairs and the change in `src/lib/concepts/run.ts` to
+   feed it. `verify:concepts` will need its expectations restated rather than loosened.
+2. **The poller.** A Trigger task that reads each active channel's uploads playlist, upserts
+   `competitor_videos`, recomputes baselines and writes `trend_signals` rows with
+   `source='outlier'`. Every call must go through `spend(db, 'youtube', 'playlistItems.list')`
+   — the quota mechanism from stage 10 already knows both prices, and `search.list` is in
+   that table at 100 units precisely so nobody reaches for it.
+
+`pacing_template` has no writer at all and that is deliberate for now: extracting structure
+from a competitor's video needs the video, and nothing fetches one. The guard is the thing
+that had to exist first.
 
 ### What stage 10 landed, and the three things to know before extending it
 
