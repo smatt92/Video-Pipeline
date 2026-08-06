@@ -207,7 +207,7 @@ async function Board() {
         */}
         {limits.ok && (
           <div className="mt-6">
-            <LimitsStrip limits={limits.limits} credits={limits.credits} noPurchases={limits.noPurchases} />
+            <LimitsStrip limits={limits.limits} quotas={limits.quotas} credits={limits.credits} noPurchases={limits.noPurchases} />
           </div>
         )}
 
@@ -309,7 +309,7 @@ async function Board() {
       */}
       {limits.ok ? (
         <div className={`${MAX_W} px-5 py-4`}>
-          <LimitsStrip limits={limits.limits} credits={limits.credits} noPurchases={limits.noPurchases} />
+          <LimitsStrip limits={limits.limits} quotas={limits.quotas} credits={limits.credits} noPurchases={limits.noPurchases} />
         </div>
       ) : (
         <div className={`${MAX_W} px-5 py-4`}>

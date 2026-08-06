@@ -27,7 +27,7 @@ const dbUrl = process.argv[2] ?? process.env.DATABASE_URL;
 if (!dbUrl) { console.error('usage: node scripts/verify-limits.mjs <db-url>'); process.exit(2); }
 
 const BUILD = new URL('../.verify-build/src/lib', import.meta.url).pathname;
-const { readLimits, soonestExpiry, QUOTAS } = require(`${BUILD}/pipeline/limits.js`);
+const { readLimits, soonestExpiry } = require(`${BUILD}/pipeline/limits.js`);
 const { readObservability, WITHHELD } = require(`${BUILD}/pipeline/observability.js`);
 const { supabaseShim } = await import('./lib/supabase-shim.mjs');
 const { scratchDatabase } = await import('./lib/scratch.mjs');
@@ -81,8 +81,30 @@ console.log('0. Nothing has been submitted to any driver\n');
 
   eq('  · and its source says the number would be a fallback', s.limits[0].ceilingSource, 'default');
 
-  // No countdown anywhere. A concurrency ceiling is not a window.
-  eq('no windowed quota is claimed', QUOTAS.length, 0);
+  // ── This assertion BROKE when stage 10 landed, and that is the good case ──
+  //
+  // It read `eq('no windowed quota is claimed', QUOTAS.length, 0)` against a constant that
+  // was empty because Phase 1 made no quota-bearing API call. Migration 0035 made one, the
+  // constant was replaced by a read of `v_api_quota`, and this line failed on an undefined
+  // export rather than surviving the change that invalidated it.
+  //
+  // Restated deliberately rather than deleted, and restated to be *tighter*: the claim is
+  // no longer "nothing is counted" but "exactly one thing is counted, its usage is
+  // observed, and its ceiling is still only documented". Each of those can now go wrong
+  // independently, and the last one is the one that matters — a screen that showed the
+  // remaining figure without the source would be quoting a vendor's published number as a
+  // measurement.
+  eq('exactly one integration declares a windowed quota', s.quotas.length, 1);
+  eq('  · with nothing consumed yet', s.quotas[0].unitsUsed, 0);
+  eq('  · a full window remaining', s.quotas[0].unitsRemaining, s.quotas[0].ceiling);
+  eq('  · and a ceiling still labelled as the vendor\'s claim', s.quotas[0].ceilingSource, 'documented');
+  // The window is the vendor's day, not ours. A reset time in the past would mean the
+  // timezone arithmetic collapsed to UTC without saying so.
+  if (new Date(s.quotas[0].windowResetsAt) > new Date()) {
+    ok('  · and a reset that is still ahead', s.quotas[0].windowResetsAt);
+  } else {
+    bad('  · and a reset that is still ahead', s.quotas[0].windowResetsAt);
+  }
 
   eq('no purchases yet', s.noPurchases, true);
   if (soonestExpiry(s.credits) === null) {

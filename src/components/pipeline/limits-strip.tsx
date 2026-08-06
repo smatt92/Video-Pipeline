@@ -1,5 +1,5 @@
 import { Hint } from '@/components/shell/hint';
-import type { CreditPosition, DriverLimit } from '@/lib/pipeline/limits';
+import type { CreditPosition, DriverLimit, QuotaLimit } from '@/lib/pipeline/limits';
 
 /**
  * Limits and the credit clock, on the board.
@@ -28,10 +28,12 @@ const box = {
 
 export function LimitsStrip({
   limits,
+  quotas,
   credits,
   noPurchases,
 }: {
   limits: DriverLimit[];
+  quotas: QuotaLimit[];
   credits: CreditPosition[];
   noPurchases: boolean;
 }) {
@@ -39,7 +41,60 @@ export function LimitsStrip({
     <section className="grid gap-3 lg:grid-cols-2">
       <LimitsCard limits={limits} />
       <CreditsCard credits={credits} noPurchases={noPurchases} />
+      {/*
+        Rendered only when something declares a quota — absent, not "0 of 0". Every other
+        limit on this strip is a ceiling with no observable numerator, and this is the
+        first one with a real one: we make the calls and each price is published, so the
+        usage figure is counted rather than assumed. The ceiling still is not, and the card
+        says which is which rather than presenting one number.
+      */}
+      {quotas.length > 0 && <QuotaCard quotas={quotas} />}
     </section>
+  );
+}
+
+function QuotaCard({ quotas }: { quotas: QuotaLimit[] }) {
+  return (
+    <div className="rounded-md border" style={box}>
+      <div className="border-b px-4 py-2" style={{ borderColor: 'var(--border-subtle)' }}>
+        <span className="text-2xs uppercase" style={{ color: 'var(--text-faint)' }}>
+          Daily quota
+        </span>
+      </div>
+      <div className="px-4 py-3">
+        {quotas.map((q) => {
+          const uploadsLeft = Math.floor(q.unitsRemaining / 1600);
+          return (
+            <div key={q.slug} className="text-xs">
+              <div>
+                <span className="font-medium">{q.slug}</span>{' '}
+                <span className="font-mono">
+                  {q.unitsUsed.toLocaleString('en-IN')} / {q.ceiling.toLocaleString('en-IN')}
+                </span>{' '}
+                <span style={{ color: 'var(--text-faint)' }}>used</span>
+              </div>
+              <div className="mt-1" style={{ color: 'var(--text-muted)' }}>
+                {/* Two epistemic states in one sentence, because collapsing them is how a
+                    documented ceiling starts being quoted as a measurement. */}
+                Usage counted from our own calls ({q.callsMade}); ceiling is{' '}
+                {q.ceilingSource}. Resets{' '}
+                {new Date(q.windowResetsAt).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+                {' — '}
+                {uploadsLeft} upload{uploadsLeft === 1 ? '' : 's'} fit in what remains.
+              </div>
+              {q.unitsWasted > 0 && (
+                <div className="mt-1" style={{ color: 'var(--state-warn)' }}>
+                  {q.unitsWasted.toLocaleString('en-IN')} units spent on calls that failed.
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

@@ -16,7 +16,12 @@
 
 set -uo pipefail
 
-VENDORS='higgsfield\|elevenlabs'
+# `googleapis` joins the list with stage 10. Deliberately the API hostname rather than the
+# bare word "youtube": `channels.platform` is a domain enum whose values are 'youtube' and
+# 'instagram', and which platform a video is published to is an editorial decision with its
+# own aspect ratio and disclosure obligations — not a swappable driver. What must stay
+# behind the boundary is the API surface, and that is what this name catches.
+VENDORS='higgsfield\|elevenlabs\|googleapis'
 status=0
 
 # ── Check 1: the rule exactly as written in CLAUDE.md ────────────────────────

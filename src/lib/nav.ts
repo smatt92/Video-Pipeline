@@ -116,8 +116,11 @@ export const NAV: readonly NavGroup[] = [
       {
         href: '/publish',
         label: 'Publish',
-        hint: 'Queue, schedule, rate-limit budget',
-        status: blocked('3', 'Blocked on Meta app review — 2–4 weeks, started week 1'),
+        hint: 'Queue, schedule, quota budget',
+        // Ready for the YouTube half. Meta is still blocked on app review and always was —
+        // leaving the whole route disabled for it hid a lane that works, which is the same
+        // mistake as one status for two different facts.
+        status: ready(),
       },
     ],
   },

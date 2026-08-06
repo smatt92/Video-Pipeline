@@ -47,6 +47,7 @@
     "verify:concepts": "tsc -p tsconfig.verify.json && node scripts/verify-concepts.mjs",
     "verify:metadata": "tsc -p tsconfig.verify.json && node scripts/verify-metadata.mjs",
     "verify:measure": "tsc -p tsconfig.verify.json && node scripts/verify-measure.mjs",
+    "verify:publish": "tsc -p tsconfig.verify.json && node scripts/verify-publish.mjs",
     "verify:trends": "tsc -p tsconfig.verify.json && node scripts/verify-trends.mjs",
     "verify:submit": "tsc -p tsconfig.verify.json && node scripts/verify-submit.mjs",
     "verify:webhook": "tsc -p tsconfig.verify.json && node scripts/verify-webhook.mjs",

@@ -58,6 +58,12 @@
     "src/lib/pipeline/observability.ts",
     "src/lib/pipeline/path.ts",
     // Stage 11, minus actions.ts — a Server Action module, same reason as studio and review.
+    // Stage 10, minus actions.ts — a Server Action module, same reason as studio and review.
+    "src/lib/publish/youtube.ts",
+    "src/lib/publish/quota.ts",
+    "src/lib/publish/run.ts",
+    "src/lib/publish/read.ts",
+    "src/lib/publish/token-health.ts",
     "src/lib/measure/hook-pattern.ts",
     "src/lib/measure/snapshot.ts",
     "src/lib/measure/read.ts",

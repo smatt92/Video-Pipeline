@@ -40,18 +40,36 @@ import { serverClient, type Db } from '../db/server';
  */
 
 /**
- * Windowed quotas whose ceiling is a published constant rather than an account reading.
+ * Windowed quotas — the first limit on this card with a real numerator.
  *
- * Empty, and the emptiness is the point. YouTube's daily quota is 10,000 units and an
- * upload costs 1,600 — a real ceiling worth showing — but phase 1 publishes by hand
- * (download the file, paste the metadata), so this codebase makes no API call against it
- * and consumption is *structurally* unobservable rather than merely untracked. A row
- * reading "0 / 10,000 used today" would claim a measurement of something never done.
+ * This used to be an empty constant with a comment saying it would be filled in "on the
+ * day `src/lib/publish/` calls the API". Migration 0035 is that day, and the shape it
+ * arrived in is not the shape that was reserved for it — which is worth stating, because
+ * the reserved shape would have been wrong.
  *
- * It goes in here, with its unit costs, on the day `src/lib/publish/` calls the API.
+ * A `readonly [{slug, label, window, ceiling}]` constant would have declared four vendors'
+ * published ceilings and had nothing to divide them by. What makes this quota showable is
+ * not that the ceiling is known — every ceiling in `observability.ts` is known — but that
+ * **consumption is observed**: we make each call, each price is published, and
+ * `api_quota_usage` has a row for every one. So the numerator comes from the database and
+ * there is no constant here at all.
+ *
+ * `quotaSource` travels with it and must be rendered. The consumption is observed; the
+ * ceiling is the vendor's documented claim until a refusal makes it otherwise, and a
+ * remaining figure built on an assumed ceiling is honest only while it says which half is
+ * which.
  */
-export const QUOTAS: readonly { slug: string; label: string; window: string; ceiling: number }[] =
-  [];
+export interface QuotaLimit {
+  slug: string;
+  ceiling: number;
+  /** 'documented' until a 403 makes it observable. Never omit this from a surface. */
+  ceilingSource: string;
+  unitsUsed: number;
+  unitsWasted: number;
+  unitsRemaining: number;
+  callsMade: number;
+  windowResetsAt: string;
+}
 
 export type LimitKind = 'concurrency' | 'quota';
 
@@ -98,6 +116,8 @@ export type LimitsResult =
   | {
       ok: true;
       limits: DriverLimit[];
+      /** Empty when no integration declares one — not "zero remaining". */
+      quotas: QuotaLimit[];
       credits: CreditPosition[];
       /** True when no purchase row exists at all — different from having spent everything. */
       noPurchases: boolean;
@@ -109,12 +129,13 @@ const num = (v: unknown): number | null => (v === null || v === undefined ? null
 export async function readLimits(client?: Db): Promise<LimitsResult> {
   const db = client ?? serverClient();
 
-  const [limitRows, creditRows] = await Promise.all([
+  const [limitRows, creditRows, quotaRows] = await Promise.all([
     db.from('v_driver_limits').select('*'),
     db.from('v_credit_position').select('*').in('kind', ['video', 'audio']),
+    db.from('v_api_quota').select('*'),
   ]);
 
-  const err = limitRows.error ?? creditRows.error;
+  const err = limitRows.error ?? creditRows.error ?? quotaRows.error;
   if (err) {
     return {
       ok: false,
@@ -157,9 +178,21 @@ export async function readLimits(client?: Db): Promise<LimitsResult> {
     }),
   );
 
+  const quotas: QuotaLimit[] = (quotaRows.data ?? []).map((r: Record<string, unknown>) => ({
+    slug: String(r.slug),
+    ceiling: Number(r.daily_quota_units),
+    ceilingSource: String(r.quota_source),
+    unitsUsed: Number(r.units_used ?? 0),
+    unitsWasted: Number(r.units_wasted ?? 0),
+    unitsRemaining: Number(r.units_remaining ?? 0),
+    callsMade: Number(r.calls_made ?? 0),
+    windowResetsAt: String(r.window_resets_at),
+  }));
+
   return {
     ok: true,
     limits,
+    quotas,
     credits,
     noPurchases: credits.every((c) => c.purchases === 0),
   };

@@ -210,6 +210,17 @@ jobs:
       - name: Stage 9 — metadata refuses without a passing review, and measures its prompt
         run: pnpm verify:metadata "$DATABASE_URL"
 
+      # ── Stage 10, and the one quota this codebase can honestly count ─────
+      # Two assertions carry the rest. §3 drives the status transition in raw SQL, past the
+      # application entirely, so `enforce_review_pass` is proven to be the gate rather than
+      # the check in front of it — every other readiness assertion here reads the same view
+      # the code reads, which is one source agreeing with itself. And §6 proves the units
+      # are spent on a FAILED upload: the vendor charges the attempt, so a ledger that
+      # refunded would report a comfortable remaining figure on the day a retry loop
+      # emptied the window.
+      - name: Stage 10 — the DB gate holds, and a failed upload still costs its quota
+        run: pnpm verify:publish "$DATABASE_URL"
+
       # ── Stage 11, the loop ARCHITECTURE §0.1 calls the moat ──────────────
       # `metrics_snapshots` existed from 0001 with no reader and no writer, so the
       # accumulated hook-performance data the product's whole argument rests on was a table

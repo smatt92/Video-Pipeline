@@ -90,6 +90,17 @@ export const metricsAgeBucket = z.enum(['6h', '24h', '7d', '30d']);
 export const metricStatus = z.enum(['measured', 'unavailable']);
 
 /**
+ * Where a vendor quota's CEILING came from (migration 0035) — never where the consumption
+ * came from, which is always observed because we make the calls and write the rows.
+ *
+ * `documented` is the vendor's published figure, which nobody here has watched hold.
+ * `observed` means a refusal told us the real number, and the day that happens is the only
+ * day this can be anything else. Every surface showing a remaining figure must show this
+ * beside it.
+ */
+export const quotaSource = z.enum(['documented', 'observed']);
+
+/**
  * How a metric was arrived at (migration 0034) — the same question `cost_ledger.cost_source`
  * asks about money. `manual_entry` is a person reading the platform's dashboard and typing
  * it, which is the only source Phase 1 has.
@@ -257,6 +268,7 @@ export const ENUM_CONSTRAINT_MAP = {
   'publications.status': publicationStatus,
   'metrics_snapshots.age_bucket': metricsAgeBucket,
   'metrics_snapshots.status': metricStatus,
+  'integrations.quota_source': quotaSource,
   'metrics_snapshots.metric_source': metricSource,
   'scripts.hook_pattern': hookPattern,
   'cost_ledger.entry_kind': costEntryKind,

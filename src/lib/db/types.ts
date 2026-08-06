@@ -9,6 +9,103 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      api_quota_usage: {
+        Row: {
+          detail: string | null
+          endpoint: string
+          id: string
+          integration_id: string
+          occurred_at: string
+          publication_id: string | null
+          succeeded: boolean | null
+          units: number
+        }
+        Insert: {
+          detail?: string | null
+          endpoint: string
+          id?: string
+          integration_id: string
+          occurred_at?: string
+          publication_id?: string | null
+          succeeded?: boolean | null
+          units: number
+        }
+        Update: {
+          detail?: string | null
+          endpoint?: string
+          id?: string
+          integration_id?: string
+          occurred_at?: string
+          publication_id?: string | null
+          succeeded?: boolean | null
+          units?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_quota_usage_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "integrations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "api_quota_usage_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "v_api_quota"
+            referencedColumns: ["integration_id"]
+          },
+          {
+            foreignKeyName: "api_quota_usage_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "v_credit_position"
+            referencedColumns: ["integration_id"]
+          },
+          {
+            foreignKeyName: "api_quota_usage_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "v_driver_limits"
+            referencedColumns: ["integration_id"]
+          },
+          {
+            foreignKeyName: "api_quota_usage_publication_id_fkey"
+            columns: ["publication_id"]
+            isOneToOne: false
+            referencedRelation: "publications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "api_quota_usage_publication_id_fkey"
+            columns: ["publication_id"]
+            isOneToOne: false
+            referencedRelation: "v_cost_per_1k_views"
+            referencedColumns: ["publication_id"]
+          },
+          {
+            foreignKeyName: "api_quota_usage_publication_id_fkey"
+            columns: ["publication_id"]
+            isOneToOne: false
+            referencedRelation: "v_hook_unclassified"
+            referencedColumns: ["publication_id"]
+          },
+          {
+            foreignKeyName: "api_quota_usage_publication_id_fkey"
+            columns: ["publication_id"]
+            isOneToOne: false
+            referencedRelation: "v_measurement_due"
+            referencedColumns: ["publication_id"]
+          },
+          {
+            foreignKeyName: "api_quota_usage_publication_id_fkey"
+            columns: ["publication_id"]
+            isOneToOne: false
+            referencedRelation: "v_publish_queue"
+            referencedColumns: ["publication_id"]
+          },
+        ]
+      }
       assets: {
         Row: {
           bytes: number | null
@@ -101,7 +198,9 @@ export type Database = {
           niche: string
           platform: string
           token_expires_at: string | null
-          vault_secret_id: string | null
+          token_last_refreshed_at: string | null
+          token_refresh_error: string | null
+          token_refresh_failures: number
           voice_language: string
         }
         Insert: {
@@ -115,7 +214,9 @@ export type Database = {
           niche: string
           platform: string
           token_expires_at?: string | null
-          vault_secret_id?: string | null
+          token_last_refreshed_at?: string | null
+          token_refresh_error?: string | null
+          token_refresh_failures?: number
           voice_language?: string
         }
         Update: {
@@ -129,7 +230,9 @@ export type Database = {
           niche?: string
           platform?: string
           token_expires_at?: string | null
-          vault_secret_id?: string | null
+          token_last_refreshed_at?: string | null
+          token_refresh_error?: string | null
+          token_refresh_failures?: number
           voice_language?: string
         }
         Relationships: []
@@ -466,6 +569,13 @@ export type Database = {
             foreignKeyName: "credit_purchases_integration_id_fkey"
             columns: ["integration_id"]
             isOneToOne: false
+            referencedRelation: "v_api_quota"
+            referencedColumns: ["integration_id"]
+          },
+          {
+            foreignKeyName: "credit_purchases_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
             referencedRelation: "v_credit_position"
             referencedColumns: ["integration_id"]
           },
@@ -692,6 +802,13 @@ export type Database = {
             foreignKeyName: "integration_checks_integration_id_fkey"
             columns: ["integration_id"]
             isOneToOne: false
+            referencedRelation: "v_api_quota"
+            referencedColumns: ["integration_id"]
+          },
+          {
+            foreignKeyName: "integration_checks_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
             referencedRelation: "v_credit_position"
             referencedColumns: ["integration_id"]
           },
@@ -733,6 +850,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "integrations"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integration_events_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "v_api_quota"
+            referencedColumns: ["integration_id"]
           },
           {
             foreignKeyName: "integration_events_integration_id_fkey"
@@ -790,6 +914,13 @@ export type Database = {
             foreignKeyName: "integration_secrets_integration_id_fkey"
             columns: ["integration_id"]
             isOneToOne: false
+            referencedRelation: "v_api_quota"
+            referencedColumns: ["integration_id"]
+          },
+          {
+            foreignKeyName: "integration_secrets_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
             referencedRelation: "v_credit_position"
             referencedColumns: ["integration_id"]
           },
@@ -808,6 +939,7 @@ export type Database = {
           concurrency_source: string
           config: Json
           created_at: string
+          daily_quota_units: number | null
           id: string
           is_enabled: boolean
           kind: string
@@ -815,6 +947,8 @@ export type Database = {
           last_error: string | null
           last_verified_at: string | null
           profile_id: string | null
+          quota_source: string
+          quota_window_tz: string
           referral_code: string | null
           referral_source: string | null
           referred_at: string | null
@@ -825,6 +959,7 @@ export type Database = {
           concurrency_source?: string
           config?: Json
           created_at?: string
+          daily_quota_units?: number | null
           id?: string
           is_enabled?: boolean
           kind: string
@@ -832,6 +967,8 @@ export type Database = {
           last_error?: string | null
           last_verified_at?: string | null
           profile_id?: string | null
+          quota_source?: string
+          quota_window_tz?: string
           referral_code?: string | null
           referral_source?: string | null
           referred_at?: string | null
@@ -842,6 +979,7 @@ export type Database = {
           concurrency_source?: string
           config?: Json
           created_at?: string
+          daily_quota_units?: number | null
           id?: string
           is_enabled?: boolean
           kind?: string
@@ -849,6 +987,8 @@ export type Database = {
           last_error?: string | null
           last_verified_at?: string | null
           profile_id?: string | null
+          quota_source?: string
+          quota_window_tz?: string
           referral_code?: string | null
           referral_source?: string | null
           referred_at?: string | null
@@ -999,6 +1139,13 @@ export type Database = {
             columns: ["publication_id"]
             isOneToOne: false
             referencedRelation: "v_measurement_due"
+            referencedColumns: ["publication_id"]
+          },
+          {
+            foreignKeyName: "metrics_snapshots_publication_id_fkey"
+            columns: ["publication_id"]
+            isOneToOne: false
+            referencedRelation: "v_publish_queue"
             referencedColumns: ["publication_id"]
           },
         ]
@@ -1220,6 +1367,7 @@ export type Database = {
           external_post_id: string | null
           external_url: string | null
           id: string
+          idempotency_key: string | null
           published_at: string | null
           render_id: string
           review_id: string
@@ -1228,6 +1376,11 @@ export type Database = {
           tags: string[] | null
           thumbnail_asset_id: string | null
           title: string
+          upload_attempts: number
+          upload_bytes_sent: number | null
+          upload_session_url: string | null
+          upload_started_at: string | null
+          upload_total_bytes: number | null
         }
         Insert: {
           altered_content_disclosed?: boolean
@@ -1238,6 +1391,7 @@ export type Database = {
           external_post_id?: string | null
           external_url?: string | null
           id?: string
+          idempotency_key?: string | null
           published_at?: string | null
           render_id: string
           review_id: string
@@ -1246,6 +1400,11 @@ export type Database = {
           tags?: string[] | null
           thumbnail_asset_id?: string | null
           title: string
+          upload_attempts?: number
+          upload_bytes_sent?: number | null
+          upload_session_url?: string | null
+          upload_started_at?: string | null
+          upload_total_bytes?: number | null
         }
         Update: {
           altered_content_disclosed?: boolean
@@ -1256,6 +1415,7 @@ export type Database = {
           external_post_id?: string | null
           external_url?: string | null
           id?: string
+          idempotency_key?: string | null
           published_at?: string | null
           render_id?: string
           review_id?: string
@@ -1264,6 +1424,11 @@ export type Database = {
           tags?: string[] | null
           thumbnail_asset_id?: string | null
           title?: string
+          upload_attempts?: number
+          upload_bytes_sent?: number | null
+          upload_session_url?: string | null
+          upload_started_at?: string | null
+          upload_total_bytes?: number | null
         }
         Relationships: [
           {
@@ -2045,6 +2210,22 @@ export type Database = {
       }
     }
     Views: {
+      v_api_quota: {
+        Row: {
+          calls_made: number | null
+          daily_quota_units: number | null
+          integration_id: string | null
+          quota_source: string | null
+          resets_in: string | null
+          slug: string | null
+          units_remaining: number | null
+          units_used: number | null
+          units_wasted: number | null
+          window_resets_at: string | null
+          window_started_at: string | null
+        }
+        Relationships: []
+      }
       v_concept_cost: {
         Row: {
           batch_inr: number | null
@@ -2567,6 +2748,47 @@ export type Database = {
           vendor_version_id?: string | null
         }
         Relationships: []
+      }
+      v_publish_queue: {
+        Row: {
+          altered_content_disclosed: boolean | null
+          blocker: string | null
+          channel_id: string | null
+          error_detail: string | null
+          publication_id: string | null
+          render_id: string | null
+          render_status: string | null
+          review_decision: string | null
+          scheduled_for: string | null
+          status: string | null
+          title: string | null
+          upload_attempts: number | null
+          upload_bytes_sent: number | null
+          upload_total_bytes: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publications_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publications_render_id_fkey"
+            columns: ["render_id"]
+            isOneToOne: false
+            referencedRelation: "renders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publications_render_id_fkey"
+            columns: ["render_id"]
+            isOneToOne: false
+            referencedRelation: "v_render_cost"
+            referencedColumns: ["render_id"]
+          },
+        ]
       }
       v_recipe_coverage: {
         Row: {

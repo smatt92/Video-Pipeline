@@ -23,9 +23,16 @@ import '../globals.css';
  * Geist from the `geist` npm package rather than `next/font/google`.
  *
  * The Google loader fetches the font files at build time, which makes every build depend
- * on reaching fonts.googleapis.com. The package ships the files, so the build needs
+ * on reaching an external font CDN. The package ships the files, so the build needs
  * nothing but npm — and the deployment has one less thing that can fail at 3am for
  * reasons unrelated to the code.
+ *
+ * (The hostname used to be written out here and `check:vendors` flagged it when stage 10
+ * added the API domain to its list. A different Google surface entirely, and the guard was
+ * still right to fire: it cannot tell a comment from a call, and narrowing it so that it
+ * could would narrow it past a commented-out call too. Note that the first version of THIS
+ * note named the domain while explaining why not to, and was flagged in turn — which is
+ * the guard behaving correctly twice, not a false positive.)
  *
  * Geist rather than Inter because Inter now reads as "didn't think about it".
  */

@@ -590,3 +590,37 @@ regardless, so changing it re-reads history rather than losing it. The reason it
 flagging at all: if short-form on this channel does most of its distribution in the first
 48 hours, `7d` is measuring the tail and `24h` is the hook signal — and that is a fact about
 the platform and the niche, which is yours to know rather than mine.
+
+---
+
+## 11. `youtube` is not on the vendor-isolation list, and `googleapis` is
+
+Stage 10 added `googleapis` to `check:vendors`, so the API surface cannot be reached from
+outside `src/lib/publish/`. The bare word **`youtube` is deliberately not on that list**, and
+that is a judgement rather than an oversight.
+
+Rule 1 exists so that swapping a vendor is one edit in the driver layer. That works for the
+four kinds it was written for: which model generates a clip, which model speaks, where bytes
+live, which LLM drafts. It does not describe a publishing destination. `channels.platform` is
+`'youtube' | 'instagram'`, and which platform a video goes to is an editorial decision with
+its own aspect ratio, its own disclosure obligations and its own audience — not a
+configuration value. Adding `youtube` to the guard would flag five files that use it
+correctly as a domain enum, and the fix in each would be to rename the concept rather than to
+move a call.
+
+So the boundary is drawn at the **API surface** instead: `googleapis` is banned outside the
+publish layer, which catches every call, every hostname and every scope string. The catalogue
+entry now carries a `channel` kind with a note saying the same thing.
+
+**Recommendation: leave it.** What would change my mind is a second publishing destination
+arriving and the two turning out to be genuinely interchangeable — at which point the right
+move is a `PublishDriver` interface and `youtube` joins the list. Instagram will not be that,
+because Meta's disclosure and aspect-ratio rules differ, which is the evidence for the
+current split rather than against it.
+
+One consequence worth knowing: the guard fired three times during this stage, every time on
+a **comment that named the forbidden thing while explaining it** — once on a note about
+Google Fonts, once on my own note explaining that fire, and once in `verify:publish` on a
+sentence saying no `skipReview` flag exists. Each time the comment was reworded rather than
+the guard narrowed, following the precedent CLAUDE.md already records. A guard that ignored
+comments would equally ignore a commented-out call.

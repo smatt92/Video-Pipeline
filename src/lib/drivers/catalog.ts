@@ -20,7 +20,17 @@
  * holds the state (configured, verified, last_4) while this holds the shape.
  */
 
-export type IntegrationKindSlug = 'llm' | 'video' | 'audio' | 'storage';
+export type IntegrationKindSlug = 'llm' | 'video' | 'audio' | 'storage' | 'channel';
+
+/**
+ * `channel` is the publishing destination, and it differs from the other four in a way
+ * worth naming: it is not swappable. Which video generator fills the `video` role is a
+ * config value, and rule 1 exists so that swapping it is one edit here. Which *platform* a
+ * video is published to is an editorial decision with its own aspect ratio, its own
+ * disclosure obligations and its own audience — `channels.platform` is a domain enum for
+ * that reason, not a driver slug. What the driver layer owns is the API surface, and that
+ * is what stays behind this boundary.
+ */
 
 export interface SecretFieldDescriptor {
   readonly key: string;
@@ -186,6 +196,44 @@ export const INTEGRATION_CATALOG: readonly IntegrationDescriptor[] = [
       { model: 'eleven_v3', endpoint: '/v1/text-to-speech/with-timestamps', unit: 'character' },
       { model: 'eleven_flash_v2_5', endpoint: '/v1/text-to-speech/with-timestamps', unit: 'character' },
     ],
+  },
+  {
+    // The publishing destination. Disabled and unverified until the wizard fills it in,
+    // like every other catalogue row.
+    //
+    // Three secret fields rather than one, and the third is not a secret anybody types
+    // twice: `YOUTUBE_REFRESH_TOKEN` is obtained once through an OAuth consent flow and is
+    // then the credential. There is deliberately no field for an access token — it is
+    // derived per call and never stored, because a stored copy would be a second home for
+    // a thing that changes hourly.
+    slug: 'youtube',
+    label: 'YouTube',
+    kind: 'channel',
+    // Publishing needs the render, and the render lives in the bucket.
+    dependsOn: 'supabase-storage',
+    primary: true,
+    secretFields: [
+      { key: 'YOUTUBE_CLIENT_ID', label: 'OAuth client ID' },
+      { key: 'YOUTUBE_CLIENT_SECRET', label: 'OAuth client secret' },
+      {
+        key: 'YOUTUBE_REFRESH_TOKEN',
+        label: 'Refresh token',
+        help:
+          'From a one-time consent flow with the youtube.upload scope. While the consent '
+          + 'screen is in Testing this expires after seven days and Google does not say so '
+          + 'anywhere — publish the app to stop that. 10b-token-health finds out by trying.',
+      },
+    ],
+    checks: [CREDENTIALS],
+    capabilities: { creditBalance: false, planTierConcurrency: false },
+    notes: [
+      'Quota is counted rather than guessed: every call this code makes writes an '
+        + 'api_quota_usage row, so the daily countdown has a real numerator. The 10,000-unit '
+        + 'ceiling is Google\'s documented figure and is labelled as such until a refusal '
+        + 'makes it observable.',
+      'An upload costs 1,600 units, so six failed attempts is a day.',
+    ],
+    rates: [],
   },
   {
     slug: 'fal',
