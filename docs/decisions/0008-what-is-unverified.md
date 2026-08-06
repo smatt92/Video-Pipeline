@@ -43,6 +43,59 @@ The migrations outstanding against the hosted project are diagnosed and **not ap
 correctly in db-push's format). Nothing was applied, nothing was dropped, and the blocker is
 the egress policy rather than anything about the migrations.
 
+### The third route, which exists and which nothing has used
+
+**`POST https://api.supabase.com/v1/projects/{ref}/database/query` runs arbitrary SQL over
+HTTPS on 443.** That is the mechanism behind the Supabase MCP's ability to reach a project
+this container's `psql` cannot, and it removes the port limitation that made the pooler
+unreachable — 5432 and 6543 are blocked at the network layer independently of any domain
+allowlist, and 443 is not.
+
+Confirmed from `apps/docs/spec/api_v1_openapi.json` in `supabase/supabase`, which is not a
+summary: the Makefile beside it generates the file with
+`curl -sS https://api.supabase.com/api/v1-json`, so it is the running service's own
+description of itself.
+
+| | |
+|---|---|
+| `operationId` | `v1-run-a-query` |
+| Summary | `[Beta] Run sql query` |
+| Body | `{ query: string (minLength 1), parameters?: any[], read_only?: boolean }`, `query` required |
+| Auth | `Authorization: Bearer <token>`; a personal access token, prefix `sbp_`, from the dashboard's account tokens page |
+| Documented failures | 401, 403, **429 rate limit exceeded**, 500 |
+
+**It accepts DDL, and the evidence is structural rather than a sentence in a doc.** Its
+permission set includes `database_write`; `read_only` is an optional request field rather
+than a fixed property; and there is a *separate* endpoint,
+`/v1/projects/{ref}/database/query/read-only`, which runs "as supabase_read_only_user" and
+carries only `database_read`. A read-only variant existing beside it is what proves the main
+one is not read-only — that is a stronger argument than any prose, because the two
+endpoints would be identical if it were.
+
+**Two things are NOT established and must not be assumed when this is built:**
+
+- **Whether one request may contain multiple statements, and whether it is wrapped in a
+  transaction.** Nothing in the spec or anywhere in `supabase/supabase` says. This is the
+  load-bearing unknown for applying a migration: our files are multi-statement and must
+  apply atomically, and a per-statement endpoint would mean splitting forward-only DDL,
+  which is exactly the operation that can leave a schema half-changed. Establish it with a
+  harmless probe (`select 1; select 2;` and a deliberate failure after a `create table`)
+  before sending a real migration.
+- **That any of this works from here.** As of 2026-08-06 the endpoint is unreachable from
+  this container: `api.supabase.com` answers `connect_rejected` / "gateway answered 403 to
+  CONNECT", the same as every other non-allowlisted host. Verified with a positive control
+  in the same run — `api.github.com` 200, `pypi.org` 200, `docs.claude.com` 301 — so the
+  probe can tell an allowed host from a denied one, and the denials are policy rather than
+  a dead instrument.
+
+Note for whoever tries to research this next: **`WebFetch` is subject to the same egress
+policy.** It returns 403 for `supabase.com`, `postgresql.org` and `example.com` alike, and
+those requests do not appear in the proxy's `recentRelayFailures`, which makes the denial
+look like the remote site's own bot protection. `example.com` does not bot-block; that is
+how the difference was established. The route that works is the **git proxy**, which the
+docs state is independent of the network access level: clone the public repo and read the
+spec from disk.
+
 ## Unverified, in order of how much rests on it
 
 ### 0. ~~CI has never run a single check~~ — RESOLVED, and it was every push
