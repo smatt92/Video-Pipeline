@@ -39,7 +39,11 @@ const {
   computeBaseline, outlierScore, combinations, isRecent,
   MIN_VIDEOS_FOR_BASELINE,
 } = require(`${BUILD}/trends/outlier.js`);
+const { pollChannel } = require(`${BUILD}/trends/poll-competitors.js`);
+const { readQuota } = require(`${BUILD}/publish/quota.js`);
+const { supabaseShim } = await import('./lib/supabase-shim.mjs');
 const { scratchDatabase } = await import('./lib/scratch.mjs');
+const { createServer } = await import('node:http');
 
 let failures = 0;
 const ok = (l, d = '') => console.log(`  PASS  ${l}${d ? ` — ${d}` : ''}`);
@@ -50,6 +54,7 @@ const isNull = (l, v) => (v === null ? ok(l, 'null') : bad(l, `expected null, go
 
 const scratch = await scratchDatabase(dbUrl, 'outlier');
 const client = scratch.client;
+const db = supabaseShim(client);
 const q = (sql, params = []) => client.query(sql, params);
 
 const tens = (v) => Array.from({ length: 12 }, () => v);
@@ -235,6 +240,135 @@ console.log('\n5. pacing_template holds no sentences, and the guard fires\n');
   eq('  · while a CHECK-constrained vocabulary passes',
      run(`node scripts/check-pacing-columns.mjs "${scratch.url}"`), 0);
   await q(`alter table pacing_template drop column tone`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+console.log('\n6. The poller — two calls, both counted, and what it refuses to write\n');
+{
+  // The vendor over real HTTP. Scripted per test rather than clever, for the reason
+  // verify:publish gives: a stub that decides for itself is a second implementation of the
+  // vendor, and then the harness is testing that.
+  const vendor = { mode: 'ok', calls: [] };
+  const server = createServer((req, res) => {
+    const url = req.url ?? '';
+    vendor.calls.push(url.split('?')[0]);
+
+    if (vendor.mode === 'quota_exceeded') {
+      res.writeHead(403, { 'content-type': 'application/json' });
+      return res.end(JSON.stringify({ error: { code: 403, errors: [{ reason: 'quotaExceeded' }] } }));
+    }
+
+    if (url.includes('/playlistItems')) {
+      const items = vendor.uploads.map((u) => ({
+        contentDetails: { videoId: u.id, videoPublishedAt: u.publishedAt },
+        snippet: { title: u.title },
+      }));
+      res.writeHead(200, { 'content-type': 'application/json' });
+      return res.end(JSON.stringify({ items }));
+    }
+    if (url.includes('/videos')) {
+      const items = vendor.uploads
+        .filter((u) => u.views !== undefined)
+        // viewCount as a STRING, which is what the discovery document says it is
+        // (type string, format uint64). A stub returning a number would let a Number()
+        // bug through that production would hit on the first real call.
+        .map((u) => ({ id: u.id, statistics: { viewCount: String(u.views) } }));
+      res.writeHead(200, { 'content-type': 'application/json' });
+      return res.end(JSON.stringify({ items }));
+    }
+    res.writeHead(404); res.end();
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const port = server.address().port;
+  const stubFetch = (input, init) =>
+    fetch(String(input).replace('https://youtube.googleapis.com/youtube/v3', `http://127.0.0.1:${port}`), init);
+
+  const now = () => new Date();
+  const recent = (days) => new Date(Date.now() - days * 864e5).toISOString();
+
+  // Twelve videos: eleven around 1,000 and one at 66,000. Median lands at 1,000, so the
+  // big one scores 66 and the rest score ~1.
+  vendor.uploads = [
+    ...Array.from({ length: 11 }, (_, i) => ({
+      id: `v${i}`, title: `Ordinary ${i}`, publishedAt: recent(10 + i), views: 1000,
+    })),
+    { id: 'vbig', title: 'The breakout', publishedAt: recent(5), views: 66000 },
+  ];
+
+  const chanId = randomUUID();
+  await q(`insert into tracked_channels (id, external_channel_id, title, niche, uploads_playlist_id)
+           values ($1,'UC_poll','Polled','test','UU_poll')`, [chanId]);
+
+  const before = await readQuota(db, 'youtube');
+  const out = await pollChannel(
+    { id: chanId, uploadsPlaylistId: 'UU_poll', title: 'Polled' },
+    { db, apiKey: 'k', fetchImpl: stubFetch, now },
+  );
+
+  eq('the poll succeeded', out.ok, true);
+  eq('twelve videos seen', out.videosSeen, 12);
+  eq('all twelve scored', out.videosScored, 12);
+
+  // Two units, and both through the shared ledger rather than a counter of its own.
+  const after = await readQuota(db, 'youtube');
+  eq('exactly two quota units were spent', after.window.unitsUsed - before.window.unitsUsed, 2);
+  eq('  · and the cheap endpoints were the ones used',
+     vendor.calls.filter((c) => c.includes('search')).length, 0);
+  eq('  · playlistItems, not search', vendor.calls.some((c) => c.includes('playlistItems')), true);
+
+  const { rows: big } = await q(
+    `select outlier_score, scored_against_views, views from competitor_videos where external_video_id='vbig'`);
+  eq('the breakout scored against the median', Number(big[0].outlier_score), 66);
+  // The snapshot, without which the multiple is uninterpretable a month later.
+  eq('  · with the baseline it was scored against recorded', Number(big[0].scored_against_views), 1000);
+  // The string→number boundary. viewCount arrives as text; a bug here would show up as a
+  // NaN score or a string comparison, and both would pass a `> 0` assertion.
+  eq('  · and the string viewCount became a real number', Number(big[0].views), 66000);
+
+  // Only the breakout is a signal. Eleven videos scoring 1.0 are not findings, and writing
+  // them would make trend_signals a mirror of competitor_videos with a different key.
+  const { rows: sig } = await q(`select term, velocity, source from trend_signals where source='outlier'`);
+  eq('one trend signal, not twelve', sig.length, 1);
+  eq('  · for the video that actually beat its channel', sig[0].term, 'The breakout');
+  eq('  · carrying the score as its velocity', Number(sig[0].velocity), 66);
+  eq('and the source needs no CHECK to be usable', sig[0].source, 'outlier');
+
+  // ── A channel with no playlist id: refused, and nothing spent ──────────────
+  const thin = randomUUID();
+  await q(`insert into tracked_channels (id, external_channel_id, title, niche)
+           values ($1,'UC_nopl','No playlist','test')`, [thin]);
+  const spentBefore = (await readQuota(db, 'youtube')).window.unitsUsed;
+  const refused = await pollChannel(
+    { id: thin, uploadsPlaylistId: null, title: 'No playlist' },
+    { db, apiKey: 'k', fetchImpl: stubFetch, now },
+  );
+  eq('a channel with no uploads playlist is refused', refused.ok, false);
+  eq('  · naming the reason', refused.code, 'no_uploads_playlist');
+  // Refusing before the call is the point — resolving the playlist here would work and
+  // would be the moment somebody later swaps in a 100-unit search.
+  eq('  · and spends nothing', (await readQuota(db, 'youtube')).window.unitsUsed, spentBefore);
+  const { rows: failRow } = await q(`select poll_failures, last_error from tracked_channels where id=$1`, [thin]);
+  eq('  · while still recording that it failed', Number(failRow[0].poll_failures), 1);
+
+  // ── A quota refusal makes the documented ceiling observable ────────────────
+  vendor.mode = 'quota_exceeded';
+  const denied = await pollChannel(
+    { id: chanId, uploadsPlaylistId: 'UU_poll', title: 'Polled' },
+    { db, apiKey: 'k', fetchImpl: stubFetch, now },
+  );
+  eq('a 403 quotaExceeded fails the poll', denied.ok, false);
+  const { rows: src } = await q(`select quota_source from integrations where slug='youtube'`);
+  // Shared with the publish path on purpose: one refusal tells you the ACCOUNT's ceiling,
+  // so recording it per-caller would leave the publish screen still saying 'documented'.
+  eq('  · and the ceiling becomes observed for every caller', src[0].quota_source, 'observed');
+  // The unit is still spent — the vendor charged the attempt.
+  eq('  · with the unit still counted as spent', denied.unitsSpent, 1);
+  const { rows: wasted } = await q(
+    `select count(*)::int as n from api_quota_usage where succeeded is false`);
+  if (Number(wasted[0].n) > 0) ok('  · and recorded as wasted rather than refunded', wasted[0].n);
+  else bad('  · and recorded as wasted rather than refunded', '0');
+
+  server.close();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

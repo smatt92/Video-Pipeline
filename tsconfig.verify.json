@@ -73,6 +73,7 @@
     "src/lib/metadata/run.ts",
     "src/lib/trends/run.ts",
     "src/lib/trends/outlier.ts",
+    "src/lib/trends/poll-competitors.ts",
     "src/lib/trends/sources.ts",
     "src/lib/metadata/schema.ts",
     "src/lib/concepts/schema.ts",
