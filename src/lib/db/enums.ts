@@ -101,6 +101,25 @@ export const metricStatus = z.enum(['measured', 'unavailable']);
 export const quotaSource = z.enum(['documented', 'observed']);
 
 /**
+ * `pacing_template`'s two closed vocabularies (migration 0036).
+ *
+ * They are enums rather than free text for a reason that is not tidiness. That table holds
+ * structure extracted from videos this project did not make, and Addendum 04 §6 draws the
+ * line at words: structure is not copyrightable and sentences are. A closed vocabulary is a
+ * shape; a string is a sentence waiting to happen. `check:pacing-columns` enforces exactly
+ * that — a text column on that table passes only when a CHECK confines it to a set, which
+ * is what these two are.
+ */
+export const ctaPosition = z.enum(['none', 'early', 'mid', 'end']);
+export const scriptArc = z.enum([
+  'problem_solution',
+  'list',
+  'story',
+  'demonstration',
+  'contrarian',
+]);
+
+/**
  * How a metric was arrived at (migration 0034) — the same question `cost_ledger.cost_source`
  * asks about money. `manual_entry` is a person reading the platform's dashboard and typing
  * it, which is the only source Phase 1 has.
@@ -269,6 +288,8 @@ export const ENUM_CONSTRAINT_MAP = {
   'metrics_snapshots.age_bucket': metricsAgeBucket,
   'metrics_snapshots.status': metricStatus,
   'integrations.quota_source': quotaSource,
+  'pacing_template.cta_position': ctaPosition,
+  'pacing_template.arc': scriptArc,
   'metrics_snapshots.metric_source': metricSource,
   'scripts.hook_pattern': hookPattern,
   'cost_ledger.entry_kind': costEntryKind,

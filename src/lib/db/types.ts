@@ -267,6 +267,70 @@ export type Database = {
         }
         Relationships: []
       }
+      competitor_videos: {
+        Row: {
+          computed_at: string | null
+          external_video_id: string
+          first_seen_at: string
+          id: string
+          last_seen_at: string
+          outlier_score: number | null
+          published_at: string
+          scored_against_views: number | null
+          title: string
+          tracked_channel_id: string
+          views: number | null
+        }
+        Insert: {
+          computed_at?: string | null
+          external_video_id: string
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          outlier_score?: number | null
+          published_at: string
+          scored_against_views?: number | null
+          title: string
+          tracked_channel_id: string
+          views?: number | null
+        }
+        Update: {
+          computed_at?: string | null
+          external_video_id?: string
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          outlier_score?: number | null
+          published_at?: string
+          scored_against_views?: number | null
+          title?: string
+          tracked_channel_id?: string
+          views?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competitor_videos_tracked_channel_id_fkey"
+            columns: ["tracked_channel_id"]
+            isOneToOne: false
+            referencedRelation: "tracked_channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competitor_videos_tracked_channel_id_fkey"
+            columns: ["tracked_channel_id"]
+            isOneToOne: false
+            referencedRelation: "v_outlier_leaders"
+            referencedColumns: ["tracked_channel_id"]
+          },
+          {
+            foreignKeyName: "competitor_videos_tracked_channel_id_fkey"
+            columns: ["tracked_channel_id"]
+            isOneToOne: false
+            referencedRelation: "v_tracked_channel_health"
+            referencedColumns: ["tracked_channel_id"]
+          },
+        ]
+      }
       concepts: {
         Row: {
           angle: string
@@ -1147,6 +1211,69 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_publish_queue"
             referencedColumns: ["publication_id"]
+          },
+        ]
+      }
+      pacing_template: {
+        Row: {
+          arc: string | null
+          beats: number
+          claim_to_example_ratio: number | null
+          competitor_video_id: string
+          cta_position: string | null
+          extractor_version: string
+          first_release_seconds: number | null
+          hook_seconds: number
+          id: string
+          mean_shot_seconds: number | null
+          measured_at: string
+          shot_changes: number | null
+          total_seconds: number
+        }
+        Insert: {
+          arc?: string | null
+          beats: number
+          claim_to_example_ratio?: number | null
+          competitor_video_id: string
+          cta_position?: string | null
+          extractor_version: string
+          first_release_seconds?: number | null
+          hook_seconds: number
+          id?: string
+          mean_shot_seconds?: number | null
+          measured_at?: string
+          shot_changes?: number | null
+          total_seconds: number
+        }
+        Update: {
+          arc?: string | null
+          beats?: number
+          claim_to_example_ratio?: number | null
+          competitor_video_id?: string
+          cta_position?: string | null
+          extractor_version?: string
+          first_release_seconds?: number | null
+          hook_seconds?: number
+          id?: string
+          mean_shot_seconds?: number | null
+          measured_at?: string
+          shot_changes?: number | null
+          total_seconds?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pacing_template_competitor_video_id_fkey"
+            columns: ["competitor_video_id"]
+            isOneToOne: false
+            referencedRelation: "competitor_videos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pacing_template_competitor_video_id_fkey"
+            columns: ["competitor_video_id"]
+            isOneToOne: false
+            referencedRelation: "v_outlier_leaders"
+            referencedColumns: ["competitor_video_id"]
           },
         ]
       }
@@ -2051,6 +2178,54 @@ export type Database = {
           },
         ]
       }
+      tracked_channels: {
+        Row: {
+          added_at: string
+          baseline_computed_at: string | null
+          baseline_median_views: number | null
+          baseline_video_count: number
+          external_channel_id: string
+          id: string
+          is_active: boolean
+          last_error: string | null
+          last_polled_at: string | null
+          niche: string
+          poll_failures: number
+          title: string
+          uploads_playlist_id: string | null
+        }
+        Insert: {
+          added_at?: string
+          baseline_computed_at?: string | null
+          baseline_median_views?: number | null
+          baseline_video_count?: number
+          external_channel_id: string
+          id?: string
+          is_active?: boolean
+          last_error?: string | null
+          last_polled_at?: string | null
+          niche: string
+          poll_failures?: number
+          title: string
+          uploads_playlist_id?: string | null
+        }
+        Update: {
+          added_at?: string
+          baseline_computed_at?: string | null
+          baseline_median_views?: number | null
+          baseline_video_count?: number
+          external_channel_id?: string
+          id?: string
+          is_active?: boolean
+          last_error?: string | null
+          last_polled_at?: string | null
+          niche?: string
+          poll_failures?: number
+          title?: string
+          uploads_playlist_id?: string | null
+        }
+        Relationships: []
+      }
       trend_signals: {
         Row: {
           captured_at: string
@@ -2680,6 +2855,23 @@ export type Database = {
           },
         ]
       }
+      v_outlier_leaders: {
+        Row: {
+          age: string | null
+          channel_title: string | null
+          competitor_video_id: string | null
+          computed_at: string | null
+          external_video_id: string | null
+          niche: string | null
+          outlier_score: number | null
+          published_at: string | null
+          scored_against_views: number | null
+          title: string | null
+          tracked_channel_id: string | null
+          views: number | null
+        }
+        Relationships: []
+      }
       v_partner_rollup: {
         Row: {
           cost_inr: number | null
@@ -3133,6 +3325,54 @@ export type Database = {
             referencedColumns: ["script_id"]
           },
         ]
+      }
+      v_tracked_channel_health: {
+        Row: {
+          baseline_computed_at: string | null
+          baseline_median_views: number | null
+          baseline_video_count: number | null
+          blocker: string | null
+          is_active: boolean | null
+          last_error: string | null
+          last_polled_at: string | null
+          niche: string | null
+          poll_failures: number | null
+          title: string | null
+          tracked_channel_id: string | null
+          videos_known: number | null
+          videos_scored: number | null
+        }
+        Insert: {
+          baseline_computed_at?: string | null
+          baseline_median_views?: number | null
+          baseline_video_count?: number | null
+          blocker?: never
+          is_active?: boolean | null
+          last_error?: string | null
+          last_polled_at?: string | null
+          niche?: string | null
+          poll_failures?: number | null
+          title?: string | null
+          tracked_channel_id?: string | null
+          videos_known?: never
+          videos_scored?: never
+        }
+        Update: {
+          baseline_computed_at?: string | null
+          baseline_median_views?: number | null
+          baseline_video_count?: number | null
+          blocker?: never
+          is_active?: boolean | null
+          last_error?: string | null
+          last_polled_at?: string | null
+          niche?: string | null
+          poll_failures?: number | null
+          title?: string | null
+          tracked_channel_id?: string | null
+          videos_known?: never
+          videos_scored?: never
+        }
+        Relationships: []
       }
       v_unconfirmed_terminal_generations: {
         Row: {

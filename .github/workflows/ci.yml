@@ -210,6 +210,22 @@ jobs:
       - name: Stage 9 — metadata refuses without a passing review, and measures its prompt
         run: pnpm verify:metadata "$DATABASE_URL"
 
+      # ── A table that must never learn to hold a sentence ─────────────────
+      # Addendum 04 §6: pacing_template holds structure extracted from videos we did not
+      # make. Structure is not copyrightable and sentences are, and a text column here
+      # crosses that line silently — the row looks like every other row. This is the one
+      # guard in the repo that deliberately protects a state no write path produces: the
+      # point is not that it is reachable but that none ever should be, and a guard is the
+      # only form that sentence survives in.
+      - name: pacing_template holds no column that could hold prose
+        run: pnpm check:pacing-columns "$DATABASE_URL"
+
+      # The arithmetic, and the view that reports what the leaderboard excludes. Also
+      # drives the pacing guard's REFUSING branch — the accepting branch alone would pass
+      # on an empty schema whatever the refusal did.
+      - name: Outlier scores, and a baseline that is null rather than zero
+        run: pnpm verify:outlier "$DATABASE_URL"
+
       # ── Stage 10, and the one quota this codebase can honestly count ─────
       # Two assertions carry the rest. §3 drives the status transition in raw SQL, past the
       # application entirely, so `enforce_review_pass` is proven to be the gate rather than
