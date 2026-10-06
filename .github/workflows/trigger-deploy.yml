@@ -1,0 +1,69 @@
+name: Deploy worker (Trigger.dev)
+
+# Manual only. The worker is where generation, voice, assembly and render run, and a deploy
+# replaces what is live — so it is a button, never a side effect of a push.
+#
+# Secrets (GitHub → Settings → Secrets and variables → Actions):
+#   TRIGGER_ACCESS_TOKEN  Trigger.dev → Account → Personal access tokens (tr_pat_…)
+#   VERCEL_ACCESS_TOKEN   vercel.com/account/settings/tokens, scope sahilmatt-6245s-projects
+#   TRIGGER_PROJECT_REF   Trigger.dev → Project settings (proj_…)
+#
+# The worker's own environment is copied from Vercel production at deploy by
+# syncVercelEnvVars, wrapped so a missing token or a Sensitive variable refuses by name
+# (docs/decisions/0017-env-from-vercel.md). The dry run builds first, which runs that
+# pre-build check without uploading anything; the real deploy only follows a clean dry run.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run_only:
+        description: 'Build and check only, upload nothing'
+        type: boolean
+        default: false
+
+concurrency:
+  group: trigger-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TRIGGER_ACCESS_TOKEN: ${{ secrets.TRIGGER_ACCESS_TOKEN }}
+      VERCEL_ACCESS_TOKEN: ${{ secrets.VERCEL_ACCESS_TOKEN }}
+      TRIGGER_PROJECT_REF: ${{ secrets.TRIGGER_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # A missing secret must fail here by name, not three steps later as a CLI login prompt
+      # that never answers in CI.
+      - name: Required secrets are present
+        run: |
+          missing=""
+          for v in TRIGGER_ACCESS_TOKEN VERCEL_ACCESS_TOKEN TRIGGER_PROJECT_REF; do
+            if [ -z "${!v}" ]; then missing="$missing $v"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing"
+            exit 1
+          fi
+
+      - name: Every worker variable exists in Vercel production (names only)
+        run: pnpm check:trigger-env
+
+      - name: Dry run (build + pre-build check, no upload)
+        run: pnpm trigger:deploy:dry
+
+      - name: Deploy
+        if: ${{ !inputs.dry_run_only }}
+        run: pnpm trigger:deploy
