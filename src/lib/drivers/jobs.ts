@@ -1,7 +1,9 @@
 import { z } from 'zod';
 
 import { httpJson, type HttpFail } from './http';
+import { CREDIT_USD, readCreditBalance, readTask, RUNWAY_KEY_FIELD } from './runway';
 import type { DriverErrorCode } from './types';
+import { submitPerformance, submitVideo } from './video-runway';
 import { fetchJobStatus, resultUrl } from './video-status';
 import { submitGeneration } from './video-submit';
 
@@ -14,14 +16,13 @@ import { submitGeneration } from './video-submit';
  * be written inside this directory. Core code asks for a *route* and receives an opaque
  * provider slug it stores and hands back.
  *
- * ── Webhook for the primary, polling for the rest ────────────────────────────
+ * ── Polling, and the one webhook that is now dormant ──────────────────────────
  *
- * Rule 4 prefers webhooks. The primary character-beat vendor has one and keeps using the
- * existing `/api/webhooks/...` route, so a job routed there is completed by the callback
- * and never polled. The other three expose long-running operations or task ids without a
- * callback we can rely on (one has webhooks; one polling path is easier to reason about
- * than two, and it is not on the critical path), so `23-gen-poll` polls them — at an
- * interval, through the per-provider concurrency the queue already enforces.
+ * Rule 4 prefers webhooks. Since 0015 every route's primary is Runway, which offers none
+ * (0013), so `21-gen-dispatch` polls its tasks — once a minute, through the per-provider
+ * concurrency the queue already enforces. That is the recorded exception to rule 4 for this
+ * vendor. The previous character-beat vendor keeps its webhook path for when failover is
+ * switched on; a job routed there is completed by the callback and never polled.
  *
  * ── Nothing here is verified against a live account ──────────────────────────
  *
@@ -31,21 +32,47 @@ import { submitGeneration } from './video-submit';
  */
 
 export type RenderRoute = 'overlay' | 'character_beat' | 'acted_beat' | 'money_shot';
+type GeneratedRoute = Exclude<RenderRoute, 'overlay'>;
 
-/** Which provider serves a route, and what to fall over to. Overlay is rendered in-house. */
-export const ROUTE_PROVIDERS: Record<
-  Exclude<RenderRoute, 'overlay'>,
-  { primary: string; failover: string | null; webhook: boolean }
-> = {
-  character_beat: { primary: 'higgsfield', failover: 'fal', webhook: true },
-  acted_beat: { primary: 'runway', failover: null, webhook: false },
-  money_shot: { primary: 'gemini', failover: null, webhook: false },
+/**
+ * Which provider serves a route, and what it may fall over to (decision 0015).
+ *
+ * Runway first for every generated route: one vendor, one credit pool. The previous primaries
+ * stay as **dormant failover** — still in the code, still typechecked and harnessed, and
+ * routed to only when `GENERATION_FAILOVER=on`. With the flag off (the default, and the
+ * state production runs in) a missing HIGGSFIELD_* or FAL_KEY blocks nothing, because no
+ * route ever names them.
+ */
+export const ROUTE_PROVIDERS: Record<GeneratedRoute, { primary: string; failover: readonly string[] }> = {
+  character_beat: { primary: 'runway', failover: ['higgsfield', 'fal'] },
+  acted_beat: { primary: 'runway', failover: [] },
+  money_shot: { primary: 'runway', failover: ['gemini'] },
 };
 
-/** Primary first, then failover. Core code matches recipes by these opaque slugs. */
-export function providersForRoute(route: Exclude<RenderRoute, 'overlay'>): string[] {
+export const FailoverSchema = z.enum(['off', 'on']);
+
+/**
+ * Whether failover providers are routed to. Read from the raw environment rather than the
+ * validated `env` proxy, because reading the proxy validates every variable the app has and
+ * this predicate runs in the pure-function harnesses too. A value other than off/on throws:
+ * "true" silently meaning off is the shape of bug this repo keeps finding.
+ */
+export function failoverEnabled(raw: string | undefined = process.env.GENERATION_FAILOVER): boolean {
+  const parsed = FailoverSchema.safeParse(raw ?? 'off');
+  if (!parsed.success) throw new Error(`GENERATION_FAILOVER must be "off" or "on", got "${raw}".`);
+  return parsed.data === 'on';
+}
+
+/**
+ * THE routing predicate. Primary first, then failover when enabled. The estimator
+ * (`recipeForRoute` → `estimateEpisode` / `fitToCap`) and the submitter (`enqueueGeneration`
+ * writes `gen_jobs.provider` from the same recipe) both resolve through this one function,
+ * so the provider a shot is priced against is the provider it is submitted to.
+ */
+export function providersForRoute(route: GeneratedRoute, opts: { failover?: boolean } = {}): string[] {
   const r = ROUTE_PROVIDERS[route];
-  return r.failover ? [r.primary, r.failover] : [r.primary];
+  const failover = opts.failover ?? failoverEnabled();
+  return failover ? [r.primary, ...r.failover] : [r.primary];
 }
 
 /** Integration slug whose credentials a provider needs, in catalogue field order. */
@@ -59,6 +86,13 @@ export const PROVIDER_INTEGRATION: Record<string, string> = {
 export function providerUsesWebhook(provider: string): boolean {
   return provider === 'higgsfield';
 }
+
+/**
+ * A params key holding a character's locked reference frame as stored (`storage:<key>` or an
+ * https URL). The dispatcher resolves it to a short-lived URL right before submit and never
+ * persists the resolved URL — a presigned link in `gen_jobs.params` would outlive its use.
+ */
+export const REFERENCE_FRAME_PARAM = 'reference_frame';
 
 export interface JobSubmitInput {
   provider: string;
@@ -77,8 +111,28 @@ export type JobSubmitResult =
 
 export type JobPollResult =
   | { state: 'running'; vendorState: string }
-  | { state: 'succeeded'; outputUrl: string; downloadHeaders: Record<string, string> }
-  | { state: 'failed'; code: DriverErrorCode; detail: string; retryAfterS: number | null };
+  | {
+      state: 'succeeded';
+      outputUrl: string;
+      downloadHeaders: Record<string, string>;
+      /** What the vendor says it charged, when it says. Null / absent is "not told", never 0. */
+      charged?: Charged | null;
+    }
+  | { state: 'failed'; code: DriverErrorCode; detail: string; retryAfterS: number | null; charged?: Charged | null };
+
+/**
+ * A vendor-reported charge, already in USD so core code never learns the vendor's unit price.
+ * Becomes a `cost_ledger` reconcile row with `cost_source = 'measured'` (0032: "the vendor
+ * told us").
+ */
+export interface Charged {
+  quantity: number;
+  unit: string;
+  usd: number;
+}
+
+const chargedOf = (credits: number | null | undefined): Charged | null =>
+  credits === null || credits === undefined ? null : { quantity: credits, unit: 'credit', usd: credits * CREDIT_USD };
 
 const fail = (f: HttpFail) => ({
   ok: false as const,
@@ -88,8 +142,6 @@ const fail = (f: HttpFail) => ({
 });
 
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta';
-const RUNWAY_BASE = 'https://api.dev.runwayml.com/v1';
-const RUNWAY_VERSION = '2024-11-06';
 const FAL_QUEUE = 'https://queue.fal.run';
 
 // ── Response shapes (documented, unobserved) ───────────────────────────────────
@@ -110,14 +162,6 @@ const GeminiOperation = z.object({
         .optional(),
     })
     .optional(),
-});
-
-const RunwayTask = z.object({
-  id: z.string().min(1),
-  status: z.string().optional(),
-  output: z.array(z.string()).optional(),
-  failure: z.string().optional(),
-  failureCode: z.string().optional(),
 });
 
 const FalQueued = z.object({
@@ -207,27 +251,13 @@ export async function submitJob(input: JobSubmitInput): Promise<JobSubmitResult>
     }
 
     case 'runway': {
-      const res = await httpJson(`${RUNWAY_BASE}/character_performance`, {
-        method: 'POST',
-        headers: {
-          authorization: `Bearer ${input.credentials.RUNWAY_API_KEY ?? ''}`,
-          'x-runway-version': RUNWAY_VERSION,
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: input.model,
-          character: { type: 'image', uri: p.character_image_url },
-          reference: { type: 'video', uri: p.reference_video_url },
-          ratio: p.ratio ?? '720:1280',
-          bodyControl: p.body_control ?? true,
-          expressionIntensity: p.expression_intensity ?? 3,
-        }),
-        fetchImpl: f,
-      });
-      if (!res.ok) return fail(res);
-      const task = RunwayTask.safeParse(res.json);
-      if (!task.success) return parseFail('Act-Two task', task.error);
-      return { ok: true, requestId: task.data.id, pollRef: {} };
+      // One client for the vendor (runway.ts). Act-Two keeps its own body; everything else is
+      // image/text-to-video, built and constrained in video-runway.ts.
+      const call = { apiKey: input.credentials[RUNWAY_KEY_FIELD] ?? '', fetchImpl: f };
+      const r = input.model === 'act_two' ? await submitPerformance(input.model, p, call) : await submitVideo(input.model, p, call);
+      return r.ok
+        ? { ok: true, requestId: r.taskId, pollRef: r.estimatedCredits === null ? {} : { estimated_credits: String(r.estimatedCredits) } }
+        : r;
     }
 
     case 'fal': {
@@ -328,30 +358,14 @@ export async function pollJob(input: {
     }
 
     case 'runway': {
-      const res = await httpJson(`${RUNWAY_BASE}/tasks/${encodeURIComponent(input.requestId)}`, {
-        headers: {
-          authorization: `Bearer ${input.credentials.RUNWAY_API_KEY ?? ''}`,
-          'x-runway-version': RUNWAY_VERSION,
-        },
-        fetchImpl: f,
-      });
-      if (!res.ok) return { state: 'failed', code: res.code, detail: res.detail, retryAfterS: res.retryAfterS };
-      const task = RunwayTask.safeParse(res.json);
-      if (!task.success) return { state: 'failed', ...parseFail('Act-Two task', task.error), retryAfterS: null };
-      const s = (task.data.status ?? '').toUpperCase();
-      if (s === 'SUCCEEDED' && task.data.output?.[0]) {
-        return { state: 'succeeded', outputUrl: task.data.output[0], downloadHeaders: {} };
+      const t = await readTask({ apiKey: input.credentials[RUNWAY_KEY_FIELD] ?? '', taskId: input.requestId, fetchImpl: f });
+      if (t.state === 'succeeded') {
+        return { state: 'succeeded', outputUrl: t.outputUrl, downloadHeaders: {}, charged: chargedOf(t.chargedCredits) };
       }
-      if (s === 'FAILED' || s === 'CANCELLED') {
-        return {
-          state: 'failed',
-          code: /SAFETY|MODERATION/i.test(task.data.failureCode ?? '') ? 'content_rejected' : 'upstream',
-          detail: task.data.failure ?? s,
-          retryAfterS: null,
-        };
+      if (t.state === 'failed') {
+        return { state: 'failed', code: t.code, detail: t.detail, retryAfterS: t.retryAfterS, charged: chargedOf(t.chargedCredits) };
       }
-      // THROTTLED is the vendor's own queue, not a failure: it is still ours to wait on.
-      return { state: 'running', vendorState: s || 'UNKNOWN' };
+      return t;
     }
 
     case 'fal': {
@@ -380,7 +394,8 @@ export async function pollJob(input: {
 
 /**
  * Cheapest authenticated call per vendor, for Settings → Integrations. Gemini lists
- * models, Runway reads the organisation, fal has no free read so it is reported unprobed.
+ * models, Runway reads the organisation (and its credit balance), fal has no free read so it
+ * is reported unprobed.
  */
 export async function probeJobVendor(
   slug: string,
@@ -396,12 +411,8 @@ export async function probeJobVendor(
     return r.ok ? { passed: true, detail: 'Model list read.' } : { passed: false, detail: r.detail };
   }
   if (slug === 'runway') {
-    const r = await httpJson(`${RUNWAY_BASE}/organization`, {
-      headers: { authorization: `Bearer ${values.RUNWAY_API_KEY ?? ''}`, 'x-runway-version': RUNWAY_VERSION },
-      fetchImpl,
-      timeoutMs: 15_000,
-    });
-    return r.ok ? { passed: true, detail: 'Organisation read.' } : { passed: false, detail: r.detail };
+    const r = await readCreditBalance(values[RUNWAY_KEY_FIELD] ?? '', fetchImpl);
+    return r.ok ? { passed: true, detail: `Organisation read; ${r.credits} API credits.` } : { passed: false, detail: r.detail };
   }
   return null;
 }

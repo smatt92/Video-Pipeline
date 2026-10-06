@@ -144,8 +144,12 @@ export const INTEGRATION_CATALOG: readonly IntegrationDescriptor[] = [
     rates: [],
   },
   {
+    // Primary for the *legacy* concept → script lane only (05-generate, webhook-only, its
+    // harnesses are verify:submit / verify:webhook). The Bureau episode run routes through
+    // ROUTE_PROVIDERS in jobs.ts, where this vendor is dormant failover behind
+    // GENERATION_FAILOVER=off — decision 0015. Optional: a missing key blocks nothing.
     slug: 'higgsfield',
-    label: 'Higgsfield',
+    label: 'Higgsfield (dormant failover)',
     kind: 'video',
     primary: true,
     dependsOn: 'supabase-storage',
@@ -169,6 +173,7 @@ export const INTEGRATION_CATALOG: readonly IntegrationDescriptor[] = [
     checks: [CREDENTIALS],
     capabilities: { creditBalance: false, creditExpiryTracking: true, planTierConcurrency: false },
     notes: [
+      'Optional since 0015: dormant failover for character beats, routed only with GENERATION_FAILOVER=on.',
       'API access is gated to higher-tier plans.',
       'Character references can be consumed but not created on the v2 surface — mint the identity in the vendor dashboard.',
       'Undocumented rate limits that fail silently. Every call is treated as unreliable.',
@@ -255,7 +260,7 @@ export const INTEGRATION_CATALOG: readonly IntegrationDescriptor[] = [
     checks: [CREDENTIALS],
     capabilities: { creditBalance: false, planTierConcurrency: false },
     notes: [
-      'Failover for character beats when the primary video vendor refuses or its breaker is open.',
+      'Optional since 0015: dormant failover for character beats, routed only with GENERATION_FAILOVER=on.',
       'Queue API: submit, then poll the status URL. Webhooks exist but are not used — one polling path for every non-primary vendor.',
     ],
     rates: [
@@ -263,38 +268,62 @@ export const INTEGRATION_CATALOG: readonly IntegrationDescriptor[] = [
     ],
   },
   {
-    // Money shots (ocean, space, fireworks) and the embeddings the variation check reads.
-    // Not primary: the primary video slot belongs to the character-beat vendor, and
-    // `primaryForKind('video')` must keep answering with it.
+    // Embeddings for the variation check — the only job left for this vendor (0015). Free
+    // tier. Veo money shots moved to the Runway API; the Veo path stays as dormant failover
+    // for money shots behind GENERATION_FAILOVER=on, so it keeps its driver code but no rate.
     slug: 'gemini',
-    label: 'Gemini (Veo + embeddings)',
+    label: 'Gemini (embeddings)',
     kind: 'video',
     dependsOn: 'supabase-storage',
-    secretFields: [{ key: 'GEMINI_API_KEY', label: 'API key' }],
+    secretFields: [
+      {
+        key: 'GEMINI_API_KEY',
+        label: 'API key',
+        help: 'A free-tier key from Google AI Studio is enough: it is used for script and title embeddings only.',
+      },
+    ],
     checks: [CREDENTIALS],
     capabilities: { creditBalance: false, planTierConcurrency: false },
     notes: [
-      'No webhook: long-running operations are polled by 23-gen-poll, at most one money shot per Short.',
-      'Embeddings feed variation_check. Without a key the similarity axis reports "not computed", never "passed".',
+      'Required: variation_check refuses, by name, while embeddings are unavailable — it never passes and never scores 0.',
+      'Free tier rate-limits with 429; the driver backs off and retries before reporting the vendor unavailable.',
     ],
-    rates: [
-      { model: 'veo-3.1-lite-generate-preview', endpoint: ':predictLongRunning', unit: 'second' },
-      { model: 'veo-3.1-fast-generate-preview', endpoint: ':predictLongRunning', unit: 'second' },
-      { model: 'gemini-embedding-001', endpoint: ':embedContent', unit: 'call' },
-    ],
+    // Exactly the row 0040 seeds — confirmRateCard matches (driver, model, endpoint, unit).
+    rates: [{ model: 'gemini-embedding-001', endpoint: '/v1beta/models:batchEmbedContents', unit: 'input_token' }],
   },
   {
-    // Optional. Act-Two carries a performance from a reference clip onto a character frame.
-    // Absent key → acted beats are re-routed to overlays at planning time, said in the plan.
+    // All generation since 0015: character beats (gen4_turbo), money shots (veo3.1_fast),
+    // reference frames (gen4_image), voice, dubs, sound effects and Act-Two. One API key, one
+    // credit pool — the Runway API's, which is separate from Runway app credits.
     slug: 'runway',
-    label: 'Runway (Act-Two)',
+    label: 'Runway',
     kind: 'video',
     dependsOn: 'supabase-storage',
-    secretFields: [{ key: 'RUNWAY_API_KEY', label: 'API key' }],
+    secretFields: [
+      {
+        key: 'RUNWAY_API_KEY',
+        label: 'API key',
+        help: 'From dev.runwayml.com → API Keys. API credits are a separate pool from Runway app credits: buying app credits does not fund this key.',
+      },
+    ],
     checks: [CREDENTIALS],
     capabilities: { creditBalance: false, planTierConcurrency: false },
-    notes: ['Optional. Polled task API.'],
-    rates: [{ model: 'act_two', endpoint: '/v1/character_performance', unit: 'second' }],
+    notes: [
+      'No task webhooks: every task is polled with backoff (0013).',
+      'A terminal task reports its final cost in credits; that lands as a measured reconcile row.',
+      'Durations differ per model: gen4_turbo 2–10 s, veo3.1_fast 4/6/8 s. 9:16 is 720:1280.',
+    ],
+    // Exactly the rows 0040 and 0043 seed. Act-Two is absent on purpose: it has no published
+    // per-second figure, and listing it would hold the rate-card step closed for a route
+    // nothing plans until a recipe proves its credits per second.
+    rates: [
+      { model: 'gen4_turbo', endpoint: null, unit: 'second' },
+      { model: 'veo3.1_fast', endpoint: null, unit: 'second' },
+      { model: 'gen4_image', endpoint: '/v1/text_to_image', unit: 'image_720p' },
+      { model: 'gen4_image', endpoint: '/v1/text_to_image', unit: 'image_1080p' },
+      { model: 'gen4_image_turbo', endpoint: '/v1/text_to_image', unit: 'image' },
+      { model: 'eleven_v3', endpoint: '/v1/text_to_speech', unit: 'character' },
+    ],
   },
   {
     // Reels mirror. Publishing stays behind channel_policy.instagram_publish_enabled = false
@@ -393,6 +422,24 @@ export const SEED_RATES = INTEGRATION_CATALOG.flatMap((i) =>
 export function primaryForKind(kind: IntegrationKindSlug): IntegrationDescriptor | null {
   return INTEGRATION_CATALOG.find((i) => i.kind === kind && i.primary) ?? null;
 }
+
+/**
+ * What each onboarding role is filled by, for the wizard (decision 0015).
+ *
+ * Separate from `primary` because the two lanes now disagree and both are true: the legacy
+ * concept → script lane still asks `primaryForKind('video')` for its webhook-only vendor,
+ * while the Bureau run — the thing the wizard is setting up — generates, speaks and dubs on
+ * one Runway key and embeds on a free Gemini key. A wizard that asked for the legacy lane's
+ * vendor would make a dormant failover a precondition for using the app.
+ */
+export type OnboardingRole = 'storage' | 'llm' | 'generation' | 'voice' | 'embeddings';
+export const ROLE_INTEGRATION: Readonly<Record<OnboardingRole, string>> = {
+  storage: 'supabase-storage',
+  llm: 'anthropic',
+  generation: 'runway',
+  voice: 'runway',
+  embeddings: 'gemini',
+};
 
 export function descriptorFor(slug: string): IntegrationDescriptor | null {
   return INTEGRATION_CATALOG.find((i) => i.slug === slug) ?? null;

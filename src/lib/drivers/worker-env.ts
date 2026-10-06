@@ -21,6 +21,16 @@ import type { WorkerEnvVar } from '../trigger/worker-env';
  */
 export const driverWorkerEnv: readonly WorkerEnvVar[] = [
   {
+    name: 'GENERATION_FAILOVER',
+    required: false,
+    refusedBy:
+      'Nothing — unset means "off", which is the intended production state (decision 0015): '
+      + 'every generated route goes to the one generation vendor and the dormant failover '
+      + 'vendors are never routed to, so their missing keys block nothing. Set "on" only to '
+      + 'route to them deliberately. Any other value throws at the first routing decision '
+      + 'rather than being read as off.',
+  },
+  {
     name: 'HIGGSFIELD_WEBHOOK_SECRET',
     required: false,
     refusedBy:

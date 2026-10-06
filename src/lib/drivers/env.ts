@@ -28,7 +28,9 @@ const nonEmpty = (label: string) =>
  * reaching the wizard.
  */
 export const driverEnvSchema = z.object({
-  // ── Higgsfield ────────────────────────────────────────────────────────────
+  // ── Higgsfield — dormant failover since 0015, optional ────────────────────
+  // Routed to by the Bureau only with GENERATION_FAILOVER=on; still the vendor of the
+  // legacy concept → script lane (05-generate), which refuses without these by name.
   // The v2 API authenticates with `Authorization: Key <KEY_ID>:<KEY_SECRET>`. The SDK
   // will also read HF_CREDENTIALS from the process env on its own; we deliberately do
   // not rely on that, so that a missing credential is caught by the startup check
@@ -63,17 +65,26 @@ export const driverEnvSchema = z.object({
   ELEVENLABS_API_KEY: nonEmpty('ELEVENLABS_API_KEY').optional(),
 
   // ── fal.ai ────────────────────────────────────────────────────────────────
-  // The second driver. Its job is to keep the interface honest; it is not on the
-  // critical path, so it may be absent in environments that only exercise the primary.
+  // Dormant failover since 0015, routed to only with GENERATION_FAILOVER=on. Optional, and
+  // its absence blocks nothing.
   FAL_KEY: nonEmpty('FAL_KEY').optional(),
 
-  // Veo money shots + embeddings for the variation check.
+  // ── The two keys the Bureau needs (decision 0015) ─────────────────────────
+  // REQUIRED to run the pipeline — onboarding steps 4/5 (generation + voice) and 11
+  // (embeddings) do not complete without them, and every stage that needs one refuses by
+  // name without it. Optional in THIS schema for the reason at the top of the file: it is
+  // validated at boot on Vercel, and a credential only the wizard can supply cannot also be
+  // a precondition for reaching the wizard (the 500-on-every-route incident).
+  //
+  // Embeddings only, free tier. Without it variation_check refuses every brief, by name.
   GEMINI_API_KEY: nonEmpty('GEMINI_API_KEY').optional(),
-  // Voice, dubs, sound effects and Act-Two (plan v2.2, decision 0013). Optional *here*
-  // because this schema is validated at boot on Vercel, which never speaks; the voice stage
-  // and the dub task refuse without it, by name, on the worker where they run. Absent also
-  // means acted beats are planned as overlays.
+  // All generation: character beats, money shots, reference frames, voice, dubs, SFX,
+  // Act-Two. Runway API credits, a separate pool from Runway app credits.
   RUNWAY_API_KEY: nonEmpty('RUNWAY_API_KEY').optional(),
+  // "off" (default) or "on". Off: every generated route goes to the generation vendor only.
+  // On: the dormant vendors above follow it as failover. Read by `failoverEnabled()` in
+  // jobs.ts, which parses this same enum.
+  GENERATION_FAILOVER: z.enum(['off', 'on']).default('off'),
   // Notifications (briefs pending, cuts ready, cap at 80%, policy and QC alerts).
   SLACK_WEBHOOK_URL: z.url().optional(),
   // Reels mirror; publishing stays disabled by channel_policy until app review clears.
