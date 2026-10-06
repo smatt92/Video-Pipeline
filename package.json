@@ -61,6 +61,7 @@
     "verify:pilot": "tsc -p tsconfig.verify.json && node scripts/verify-pilot.mjs",
     "verify:scaling": "node scripts/verify-scaling.mjs",
     "verify:tour": "node scripts/verify-tour.mjs",
+    "verify:public": "node scripts/verify-public.mjs",
     "check:trigger-env": "node scripts/check-trigger-env.mjs",
     "check:remotion": "node scripts/check-remotion-lockstep.mjs",
     "verify:render": "tsc -p tsconfig.verify.json && node scripts/verify-render.mjs",

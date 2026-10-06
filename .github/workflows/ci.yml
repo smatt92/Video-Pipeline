@@ -401,6 +401,14 @@ jobs:
       - name: Bureau episode end to end through the connector, and the alignment refusal
         run: pnpm verify:episode "$DATABASE_URL"
 
+      # ── What a stranger can reach ────────────────────────────────────────
+      # On the production server, signed out: the three legal pages Google's consent screen
+      # and the YouTube audit link to render; every other page (enumerated from src/app, not
+      # listed) redirects to /login; the OAuth consent screen is gated and keeps its query;
+      # discovery and the /api/mcp 401 answer through the real route handlers.
+      - name: Public pages render signed out, and everything else still redirects
+        run: pnpm verify:public
+
       # ── The compiled stylesheet, measured in a real browser ──────────────
       # After the build on purpose: it reads .next/static/css, because clamp(), @theme and
       # the utility generation all happen at build time and the source tokens are the
