@@ -228,10 +228,10 @@ try {
     'voice refuses an unverified integration by name, with its key present in the environment', refusedVoice.ok ? 'it ran' : `${refusedVoice.code}: ${refusedVoice.detail.slice(0, 90)}`);
   check(synthCalls.length === 0 && Number((await client.query(`select count(*) n from cost_ledger where script_id = $1 and stage = '06-voice'`, [script1.scriptId])).rows[0].n) === 0,
     'nothing synthesised and no ledger row');
-  // Verified, then failed since: refused again — the banner counts this as unverified too.
-  await client.query(`update integrations set last_verified_at = now() - interval '1 hour', last_checked_at = now(), last_error = 'HTTP 401' where slug = 'runway'`);
-  const staleVoice = await P.voiceStep(db, ep, { usdInrRate: 88, apiKeyFor: realKeyFor, synth: () => { throw new Error('must not synthesise'); }, align: (i) => alignLine(i), putBytes, presign, routeFor });
-  check(!staleVoice.ok && /failed its latest check/.test(staleVoice.detail), 'and one that verified once and failed its latest check', staleVoice.ok ? 'it ran' : staleVoice.detail.slice(0, 90));
+  // Tested and failed, never verified: refused, with the test's error in the reason.
+  await client.query(`update integrations set last_verified_at = null, last_checked_at = now(), last_error = 'HTTP 401' where slug = 'runway'`);
+  const failedVoice = await P.voiceStep(db, ep, { usdInrRate: 88, apiKeyFor: realKeyFor, synth: () => { throw new Error('must not synthesise'); }, align: (i) => alignLine(i), putBytes, presign, routeFor });
+  check(!failedVoice.ok && /never verified/.test(failedVoice.detail) && /HTTP 401/.test(failedVoice.detail), 'and one whose test failed, naming the failure', failedVoice.ok ? 'it ran' : failedVoice.detail.slice(0, 90));
   await client.query(`update integrations set last_verified_at = now(), last_checked_at = now() - interval '1 second', last_error = null where slug = 'runway'`);
   // The accept path, through the same real function: verified, so the key reaches the synth.
   const voice = await P.voiceStep(db, ep, { usdInrRate: 88, apiKeyFor: realKeyFor, synth: (i) => { synthCalls.push(i.apiKey); return synthFrom((t) => t)(i); }, align: (i) => alignLine(i), putBytes, presign, routeFor });

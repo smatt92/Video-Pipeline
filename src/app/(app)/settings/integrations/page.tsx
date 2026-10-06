@@ -2,6 +2,7 @@ import { IntegrationCard } from '@/components/settings/integration-card';
 import { ReferralPanel } from '@/components/settings/referral-panel';
 import { SectionHeader } from '@/components/settings/parts';
 import { environmentFields } from '@/lib/integrations/credentials';
+import { hasVerified } from '@/lib/integrations/state';
 import { allIntegrationViews, type StepIntegrationView } from '@/lib/onboarding/step-view';
 
 /**
@@ -47,7 +48,9 @@ export default async function IntegrationsPage() {
   // generated `expires_at` across a timezone boundary and mark a live tranche lapsed.
   const today = new Date().toISOString().slice(0, 10);
 
-  const unverified = views.filter((v) => v.state !== 'verified');
+  // The banner's claim and the stages' refusal share one predicate (integrations/state.ts).
+  const unverified = views.filter((v) => !hasVerified({ last_verified_at: v.lastVerifiedAt }));
+  const failedSince = views.filter((v) => hasVerified({ last_verified_at: v.lastVerifiedAt }) && v.state === 'failed');
 
   return (
     <>
@@ -75,11 +78,20 @@ export default async function IntegrationsPage() {
             color: 'var(--text-muted)',
           }}
         >
-          {unverified.length} of {views.length} integrations {unverified.length === 1 ? 'is' : 'are'}{' '}
-          unverified. Generation, dispatch, voice, dubs and embeddings refuse an integration until its
-          latest Save and test has passed — a key in Vault or in the environment is not enough on its own.
-          {/* The same predicate decides both this count and those refusals: integrationState
-              in src/lib/integrations/state.ts. */}
+          {unverified.length} of {views.length} integrations {unverified.length === 1 ? 'has' : 'have'} never
+          verified. Generation, dispatch, voice, dubs and embeddings refuse {unverified.length === 1 ? 'it' : 'those'}{' '}
+          until Save and test passes once — a key in Vault or in the environment is not enough on its own.
+        </div>
+      )}
+
+      {failedSince.length > 0 && (
+        <div
+          className="mb-5 rounded-sm border px-3 py-2 text-xs leading-relaxed"
+          style={{ borderColor: 'var(--border-strong)', background: 'var(--surface-inset)', color: 'var(--text-muted)' }}
+        >
+          {failedSince.map((v) => v.label).join(', ')} verified before and failed {failedSince.length === 1 ? 'its' : 'their'}{' '}
+          latest test. Tasks still use {failedSince.length === 1 ? 'it' : 'them'} — a failed re-test is as likely a
+          network blip as a dead key — so run Save and test again, and rotate the key if it fails twice.
         </div>
       )}
 
