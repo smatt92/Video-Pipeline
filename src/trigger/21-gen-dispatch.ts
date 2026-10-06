@@ -9,7 +9,7 @@ import { serverClient } from '@/lib/db/server';
 import { PROVIDER_INTEGRATION, pollJob, submitJob } from '@/lib/drivers/jobs';
 import { expectedWebhookSecret } from '@/lib/drivers/video-status';
 import { env } from '@/lib/env';
-import { resolveCredentials } from '@/lib/integrations/credentials';
+import { verifiedCredentials, type VerifiedCredentials } from '@/lib/integrations/verify';
 import { runIngest } from '@/lib/ingest/run';
 import { storage } from '@/lib/storage';
 import { putterFor } from '@/lib/storage/put';
@@ -41,18 +41,21 @@ export const genDispatchTask = schedules.task({
     const usdInrRate = await requireUsdInrRate(db, 'writing generation cost rows');
     const put = putterFor().put;
     const driver = storage();
-    const credentialCache = new Map<string, Record<string, string> | null>();
+    const credentialCache = new Map<string, VerifiedCredentials>();
     const deps = {
       db,
       worker: ctx.run.id,
       usdInrRate,
       webhook: env.WEBHOOK_CALLBACK_BASE_URL ? { baseUrl: env.WEBHOOK_CALLBACK_BASE_URL, secret: expectedWebhookSecret() ?? '' } : undefined,
       async credentialsFor(provider: string) {
-        if (!credentialCache.has(provider)) {
-          const c = await resolveCredentials(db, PROVIDER_INTEGRATION[provider] ?? provider).catch(() => null);
-          credentialCache.set(provider, c && c.missing.length === 0 ? c.values : null);
+        // The refusal itself is verifiedCredentials's, in the lib, where verify:integration-gate
+        // drives it; this only caches it for the run.
+        let c = credentialCache.get(provider);
+        if (!c) {
+          c = await verifiedCredentials(db, PROVIDER_INTEGRATION[provider] ?? provider);
+          credentialCache.set(provider, c);
         }
-        return credentialCache.get(provider) ?? null;
+        return c;
       },
       // Reference frames in our bucket, resolved per call; 15 min is long enough for the vendor
       // to fetch the frame at submit and short enough that a leaked link is useless.

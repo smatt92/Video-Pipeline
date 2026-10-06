@@ -138,3 +138,12 @@ export async function requireCredential(
 
   return value;
 }
+
+/**
+ * Which of a descriptor's fields this deployment's environment holds — names only, for the
+ * Settings screen to say "in the environment" instead of "not configured" (decision 0017).
+ * Never the value, and never its last four: the environment is not this app's to display.
+ */
+export function environmentFields(fields: readonly { key: string; envAliases?: readonly string[] }[]): string[] {
+  return fields.filter((f) => [f.key, ...(f.envAliases ?? [])].some((k) => fromEnv(k) !== null)).map((f) => f.key);
+}

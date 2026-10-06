@@ -15,6 +15,7 @@ import type { AlignResult } from '../voice/align';
 import { shiftBy, type WordTiming } from '../voice/timings';
 import { characterBySlug } from './bible';
 import type { ScriptLine } from './script-lines';
+import type { CredentialRefusal } from '../integrations/verify';
 
 const run = promisify(execFile);
 
@@ -43,7 +44,9 @@ const run = promisify(execFile);
 export interface VoiceDeps {
   db: Db;
   usdInrRate: number;
-  apiKeyFor(provider: VoiceProvider): Promise<string | null>;
+  /** The provider's key if its integration has verified, else the refusal by name.
+   *  Production: `verifiedCredential` (integrations/verify.ts). */
+  apiKeyFor(provider: VoiceProvider): Promise<{ ok: true; value: string } | CredentialRefusal>;
   synth(input: { route: Extract<VoiceRoute, { ok: true }>; text: string; apiKey: string; outPath: string }): Promise<LineAudio>;
   align(input: { audioPath: string; text: string }): Promise<AlignResult>;
   putBytes(key: string, body: Readable): Promise<number>;
@@ -91,8 +94,8 @@ export async function runEpisodeVoice(scriptId: string, deps: VoiceDeps): Promis
   for (const r of routes.values()) {
     if (keys.has(r.provider)) continue;
     const k = await deps.apiKeyFor(r.provider);
-    if (!k) return { ok: false, code: 'no_credential', detail: `No API key for the ${r.integration} integration; the voice stage cannot speak.` };
-    keys.set(r.provider, k);
+    if (!k.ok) return { ok: false, code: k.code, detail: `The voice stage cannot speak: ${k.reason}` };
+    keys.set(r.provider, k.value);
   }
 
   // ── Price before speaking ──────────────────────────────────────────────────

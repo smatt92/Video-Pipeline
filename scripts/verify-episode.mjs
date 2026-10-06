@@ -53,6 +53,7 @@ const { BUREAU_CHANNEL_ID } = require(`${B}/bureau/bible.js`);
 const P = require(`${B}/bureau/episode-steps.js`);
 const LF = require(`${B}/bureau/longform.js`);
 const { runDubJob } = require(`${B}/bureau/dubs.js`);
+const { verifiedCredential } = require(`${B}/integrations/verify.js`);
 const { dispatchProvider, advanceSubmitted, settleEpisodes } = require(`${B}/bureau/dispatch.js`);
 const { signalQc } = require(`${B}/bureau/qc.js`);
 const { renderBureau } = require(`${B}/bureau/layer-render.js`);
@@ -215,7 +216,26 @@ try {
   check(shots[0].vo_char_start === 0 && shots[3].vo_char_end === sRow[0].vo_text.length, 'the shots cover the spoken text end to end');
 
   // ═══ 4. Voice ═══
-  const voice = await P.voiceStep(db, ep, { usdInrRate: 88, apiKeyFor: async () => 'test-key', synth: synthFrom((t) => t), align: (i) => alignLine(i), putBytes, presign, routeFor });
+  // The voice stage asks the shared predicate (integrations/state.ts), not "does a key exist".
+  // A key IS in the environment here, written explicitly (never ??=) and removed after, so the
+  // refusal below can only come from verification.
+  process.env.RUNWAY_API_KEY = 'test-key';
+  const realKeyFor = (provider) => verifiedCredential(db, provider, 'RUNWAY_API_KEY');
+  await client.query(`update integrations set last_verified_at = null, last_checked_at = null where slug = 'runway'`);
+  const synthCalls = [];
+  const refusedVoice = await P.voiceStep(db, ep, { usdInrRate: 88, apiKeyFor: realKeyFor, synth: (i) => { synthCalls.push(i); throw new Error('must not synthesise'); }, align: (i) => alignLine(i), putBytes, presign, routeFor });
+  check(!refusedVoice.ok && refusedVoice.code === 'integration_unverified' && /runway integration has never verified/.test(refusedVoice.detail),
+    'voice refuses an unverified integration by name, with its key present in the environment', refusedVoice.ok ? 'it ran' : `${refusedVoice.code}: ${refusedVoice.detail.slice(0, 90)}`);
+  check(synthCalls.length === 0 && Number((await client.query(`select count(*) n from cost_ledger where script_id = $1 and stage = '06-voice'`, [script1.scriptId])).rows[0].n) === 0,
+    'nothing synthesised and no ledger row');
+  // Verified, then failed since: refused again — the banner counts this as unverified too.
+  await client.query(`update integrations set last_verified_at = now() - interval '1 hour', last_checked_at = now(), last_error = 'HTTP 401' where slug = 'runway'`);
+  const staleVoice = await P.voiceStep(db, ep, { usdInrRate: 88, apiKeyFor: realKeyFor, synth: () => { throw new Error('must not synthesise'); }, align: (i) => alignLine(i), putBytes, presign, routeFor });
+  check(!staleVoice.ok && /failed its latest check/.test(staleVoice.detail), 'and one that verified once and failed its latest check', staleVoice.ok ? 'it ran' : staleVoice.detail.slice(0, 90));
+  await client.query(`update integrations set last_verified_at = now(), last_checked_at = now() - interval '1 second', last_error = null where slug = 'runway'`);
+  // The accept path, through the same real function: verified, so the key reaches the synth.
+  const voice = await P.voiceStep(db, ep, { usdInrRate: 88, apiKeyFor: realKeyFor, synth: (i) => { synthCalls.push(i.apiKey); return synthFrom((t) => t)(i); }, align: (i) => alignLine(i), putBytes, presign, routeFor });
+  check(synthCalls.length > 0 && synthCalls.every((k) => k === 'test-key'), 'verified → the environment key reaches the synthesiser', `${synthCalls.length} lines`);
   check(voice.ok, 'every line spoken and aligned', voice.ok ? `${voice.lines} lines, ${voice.totalS}s` : `${voice.code}: ${voice.detail}`);
   const lines = sRow[0].beats.lines;
   const chars = lines.reduce((n, l) => n + l.text.length, 0);
@@ -245,7 +265,7 @@ try {
   const submitted = [];
   const deps = {
     db, worker: 'verify', usdInrRate: 88,
-    credentialsFor: async () => ({ RUNWAY_API_KEY: 'x' }),
+    credentialsFor: async () => ({ ok: true, values: { RUNWAY_API_KEY: 'x' } }),
     presign: async (key) => (key === 'characters/pip/ref-1.png' ? vendorUrl.replace('clip.mp4', 'pip.png') : Promise.reject(new Error(`unexpected key ${key}`))),
     submit: async (i) => { submitted.push(i); return { ok: true, requestId: 'req_1', pollRef: {} }; },
     // The vendor's terminal task reports its final charge; 15 credits is a stand-in figure.
@@ -327,9 +347,24 @@ try {
   const [dubRow] = (await client.query(`select id from dub_jobs where episode_id = $1 and language = 'hi'`, [ep])).rows;
   dubFile = join(work, 'track.m4a');
   const dubSubmits = [];
+  // Unverified: refused by name before anything moves; the job stays queued and says why.
+  await client.query(`update integrations set last_verified_at = null where slug = 'runway'`);
+  const refusedDub = await runDubJob(dubRow.id, {
+    db, usdInrRate: 88, presign, putBytes, download,
+    rateKey: { driver: 'runway', model: 'eleven_voice_dubbing', endpoint: '/v1/voice_dubbing', unit: 'credit' },
+    apiKey: () => verifiedCredential(db, 'runway', 'RUNWAY_API_KEY'),
+    submit: async (i) => { dubSubmits.push(i); return { ok: true, taskId: 'never', estimatedCredits: 1 }; },
+    wait: async () => ({ state: 'failed', code: 'x', detail: 'x' }),
+  });
+  const [dqRow] = (await client.query('select status, error from dub_jobs where id = $1', [dubRow.id])).rows;
+  check(!refusedDub.ok && refusedDub.code === 'integration_unverified' && dubSubmits.length === 0,
+    'dubs refuse an unverified integration by name, before submitting', refusedDub.ok ? 'it ran' : refusedDub.code);
+  check(dqRow.status === 'queued' && /^integration_unverified: /.test(dqRow.error ?? ''), 'the job stays queued, carrying the reason', `${dqRow.status} / ${dqRow.error?.slice(0, 60)}`);
+  await client.query(`update integrations set last_verified_at = now() where slug = 'runway'`);
   const dub = await runDubJob(dubRow.id, {
     db, usdInrRate: 88, presign, putBytes, download,
     rateKey: { driver: 'runway', model: 'eleven_voice_dubbing', endpoint: '/v1/voice_dubbing', unit: 'credit' },
+    apiKey: () => verifiedCredential(db, 'runway', 'RUNWAY_API_KEY'),
     submit: async (i) => { dubSubmits.push(i); return { ok: true, taskId: 'dub_1', estimatedCredits: 120 }; },
     wait: async () => ({ state: 'succeeded', outputUrl: vendorUrl.replace('clip.mp4', 'dub.m4a') }),
     translate: async (lines) => lines.map((l) => `[hi] ${l}`),
@@ -339,6 +374,7 @@ try {
   check(dubCost && Number(dubCost.quantity) === 120 && Math.abs(Number(dubCost.cost_inr) - 120 * 0.01 * 88) < 1e-9, 'its cost is the vendor’s credit estimate × $0.01 × ₹88, written at submit', JSON.stringify(dubCost));
   const [dj] = (await client.query('select status, audio_asset_id, srt_asset_id from dub_jobs where id = $1', [dubRow.id])).rows;
   check(dj.status === 'ready' && dj.audio_asset_id && dj.srt_asset_id, 'the dub is ready with an audio track and line-timed captions');
+  check(dubSubmits[0]?.apiKey === 'test-key', 'verified → the dub is submitted with the environment key');
   const withDub = await call('publish_bundles', {}, approver.plaintext);
   const dubOut = withDub.result?.bundles?.find((x) => x.episode_id === ep)?.dubs?.[0];
   check(dubOut?.language === 'hi' && /rate unverified/.test(dubOut?.cost_label ?? '') && dubOut?.audio_url, 'the bundle carries the Hindi track, labelled "rate unverified"');
@@ -366,7 +402,7 @@ try {
   const [lfScript] = (await client.query('select script_id from episodes where id = $1', [lfEp.id])).rows;
   const lfShots = (await client.query('select idx, source_render_id, render_route from shots where script_id = $1 order by idx', [lfScript.script_id])).rows;
   check(lfPlan.shots === 3 && lfShots[1].source_render_id !== null && lfShots[0].source_render_id === null, 'scene, replay of S001, scene — in running order');
-  const lfVoice = await P.voiceStep(db, lfEp.id, { usdInrRate: 88, apiKeyFor: async () => 'k', synth: synthFrom((t) => t), align: (i) => alignLine(i), putBytes, presign, routeFor });
+  const lfVoice = await P.voiceStep(db, lfEp.id, { usdInrRate: 88, apiKeyFor: async () => ({ ok: true, value: 'k' }), synth: synthFrom((t) => t), align: (i) => alignLine(i), putBytes, presign, routeFor });
   check(lfVoice.ok, 'only the new scenes are voiced', lfVoice.ok ? `${lfVoice.lines} lines` : lfVoice.detail);
   const lf = await LF.assembleLongForm(db, lfEp.id, {
     usdInrRate: 88, presign, putBytes, download,
@@ -391,7 +427,7 @@ try {
   // harness re-seeds Pip's reference — the bible is the source of truth in production.
   await client.query(`update characters set external_ref_id = 'storage:characters/pip/ref-1.png', driver = 'runway', reference_urls = '{}' where channel_id = $1 and slug = 'pip'`, [BUREAU_CHANNEL_ID]);
   await P.planShots(db, ep2, { usdInrRate: 88, actedBeatAvailable: false });
-  const wrongVoice = await P.voiceStep(db, ep2, { usdInrRate: 88, apiKeyFor: async () => 'k', synth: synthFrom(() => 'Calendars drift because a year is not a whole number of days at all.'), align: (i) => alignLine(i), putBytes, presign, routeFor });
+  const wrongVoice = await P.voiceStep(db, ep2, { usdInrRate: 88, apiKeyFor: async () => ({ ok: true, value: 'k' }), synth: synthFrom(() => 'Calendars drift because a year is not a whole number of days at all.'), align: (i) => alignLine(i), putBytes, presign, routeFor });
   check(!wrongVoice.ok && wrongVoice.code === 'alignment_failed', 'the stage refuses: alignment not confident', wrongVoice.ok ? 'it passed' : wrongVoice.detail.slice(0, 120));
   const { rows: ep2row } = await client.query('select script_id from episodes where id = $1', [ep2]);
   const { rows: ep2shots } = await client.query(`select count(*) filter (where duration_source = 'derived_from_vo') d from shots where script_id = $1`, [ep2row[0].script_id]);
@@ -407,6 +443,7 @@ try {
 } catch (err) {
   check(false, 'harness threw', err.stack);
 } finally {
+  delete process.env.RUNWAY_API_KEY;
   mcp.close();
   vendor.close();
   await new Promise((r) => s3.close(r));

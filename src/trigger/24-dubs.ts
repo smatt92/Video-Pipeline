@@ -9,6 +9,7 @@ import { requireUsdInrRate } from '@/lib/cost/fx';
 import { serverClient } from '@/lib/db/server';
 import { DUB_CREDENTIAL, DUB_RATE_KEY, submitDubbing, waitForVoiceTask } from '@/lib/drivers/voice-synth';
 import { requireCredential } from '@/lib/integrations/credentials';
+import { verifiedCredential } from '@/lib/integrations/verify';
 import { storage } from '@/lib/storage';
 import { putterFor } from '@/lib/storage/put';
 
@@ -29,7 +30,6 @@ export const dubsTask = schedules.task({
     const { data: pol } = await db.from('channel_policy').select('kill_switch').eq('channel_id', BUREAU_CHANNEL_ID).single();
     if (pol?.kill_switch) return { ran: 0, skipped: 'kill_switch' };
 
-    const apiKey = await requireCredential(db, DUB_CREDENTIAL.integration, DUB_CREDENTIAL.field);
     const anthropic = await requireCredential(db, 'anthropic', 'ANTHROPIC_API_KEY').catch(() => null);
     const usdInrRate = await requireUsdInrRate(db, 'writing dub cost rows');
     const driver = storage();
@@ -46,8 +46,10 @@ export const dubsTask = schedules.task({
           if (!res.ok) throw new Error(`download ${res.status}`);
           await writeFile(out, Buffer.from(await res.arrayBuffer()));
         },
-        submit: (i) => submitDubbing({ apiKey, ...i }),
-        wait: (taskId) => waitForVoiceTask({ apiKey, taskId, maxWaitMs: 20 * 60_000 }),
+        // Verified, not merely present: runDubJob refuses by name before anything moves.
+        apiKey: () => verifiedCredential(db, DUB_CREDENTIAL.integration, DUB_CREDENTIAL.field),
+        submit: (i) => submitDubbing(i),
+        wait: (taskId, apiKey) => waitForVoiceTask({ apiKey, taskId, maxWaitMs: 20 * 60_000 }),
         translate: anthropic ? (lines, language) => translateLines(lines, language, { db, apiKey: anthropic, usdInrRate, channelId: BUREAU_CHANNEL_ID }) : undefined,
         renderCaptions: async (props, durationInFrames, outputPath) => {
           const r = await renderBureau({ props, width: 1080, height: 1920, fps: 30, durationInFrames, outputPath, browserExecutable: process.env.REMOTION_BROWSER_EXECUTABLE });

@@ -14,6 +14,7 @@ import type { CaptionCue } from '../review/timeline';
 import type { BureauVideoProps } from '../../remotion/bureau/bureau-video';
 import type { ScriptLine } from './script-lines';
 import { toSrt } from './episode-steps';
+import type { CredentialRefusal } from '../integrations/verify';
 
 /**
  * One dub job: the episode's VO stem → the vendor's dubbing → a language audio track, a
@@ -39,8 +40,13 @@ export interface DubDeps {
   presign(key: string): Promise<string>;
   putBytes(key: string, body: Readable): Promise<number>;
   download(url: string, out: string): Promise<void>;
-  submit(input: { audioUrl: string; language: 'hi' | 'es' | 'pt-BR'; speakers: number }): Promise<{ ok: true; taskId: string; estimatedCredits: number | null } | { ok: false; code: string; detail: string }>;
-  wait(taskId: string): Promise<{ state: 'succeeded'; outputUrl: string } | { state: 'failed'; code: string; detail: string } | { state: 'running'; vendorState: string }>;
+  /**
+   * The dubbing key if its integration has verified, else the refusal by name. Production:
+   * `verifiedCredential` (integrations/verify.ts), the Settings banner's predicate.
+   */
+  apiKey(): Promise<{ ok: true; value: string } | CredentialRefusal>;
+  submit(input: { apiKey: string; audioUrl: string; language: 'hi' | 'es' | 'pt-BR'; speakers: number }): Promise<{ ok: true; taskId: string; estimatedCredits: number | null } | { ok: false; code: string; detail: string }>;
+  wait(taskId: string, apiKey: string): Promise<{ state: 'succeeded'; outputUrl: string } | { state: 'failed'; code: string; detail: string } | { state: 'running'; vendorState: string }>;
   translate?(lines: string[], language: string): Promise<string[]>;
   renderCaptions?(props: BureauVideoProps, durationInFrames: number, outputPath: string): Promise<{ ok: boolean; detail?: string }>;
   rateKey: { driver: string; model: string; endpoint: string; unit: string };
@@ -58,11 +64,20 @@ export async function runDubJob(jobId: string, deps: DubDeps): Promise<{ ok: tru
   const lines = (script!.beats as unknown as { lines: ScriptLine[] }).lines;
   const lang = job.language as 'hi' | 'es' | 'pt-BR';
 
-  await db.from('dub_jobs').update({ status: 'voicing', updated_at: new Date().toISOString() }).eq('id', jobId);
+  // Before anything moves. An unverified integration is not this job's failure: the job stays
+  // queued, carries the reason in `error` so the row says why it is not moving, and runs on
+  // the first tick after "Save and test" passes.
+  const key = await deps.apiKey();
+  if (!key.ok) {
+    await db.from('dub_jobs').update({ error: `${key.code}: ${key.reason}`.slice(0, 500), updated_at: new Date().toISOString() }).eq('id', jobId);
+    return { ok: false, code: key.code, detail: key.reason };
+  }
+
+  await db.from('dub_jobs').update({ status: 'voicing', error: null, updated_at: new Date().toISOString() }).eq('id', jobId);
   let taskId = job.request_id;
   if (!taskId) {
     const rate = await currentRate(db, deps.rateKey);
-    const sub = await deps.submit({ audioUrl: await deps.presign(vo!.storage_key), language: lang, speakers: new Set(lines.map((l) => l.speaker)).size });
+    const sub = await deps.submit({ apiKey: key.value, audioUrl: await deps.presign(vo!.storage_key), language: lang, speakers: new Set(lines.map((l) => l.speaker)).size });
     if (!sub.ok) return fail(db, jobId, sub.code, sub.detail);
     taskId = sub.taskId;
     const credits = sub.estimatedCredits;
@@ -88,7 +103,7 @@ export async function runDubJob(jobId: string, deps: DubDeps): Promise<{ ok: tru
       .eq('id', jobId);
   }
 
-  const done = await deps.wait(taskId);
+  const done = await deps.wait(taskId, key.value);
   if (done.state !== 'succeeded') return fail(db, jobId, done.state === 'failed' ? done.code : 'timeout', done.state === 'failed' ? done.detail : 'still running');
 
   const work = await mkdtemp(join(tmpdir(), 'kiln-dub-'));

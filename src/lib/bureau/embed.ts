@@ -3,14 +3,14 @@ import { randomUUID } from 'node:crypto';
 import { currentRate } from '../cost/rate-card';
 import type { Db } from '../db/server';
 import { EMBEDDING_INTEGRATION, EMBEDDING_KEY_FIELD, EMBEDDING_MODEL, embedTexts } from '../drivers/embeddings';
-import { resolveCredentials } from '../integrations/credentials';
+import { verifiedCredential } from '../integrations/verify';
 
 /**
  * Embeddings for the variation check, with the ledger row written before the call.
  *
  * The vendor returns no usage, so the quantity is ceil(characters / 4) tokens — an estimate
  * of the quantity on top of a rate-card price, and the row says `rate_card` like every
- * estimate. A missing key or an unverified rate is an `ok: false` with the reason; the
+ * estimate. A missing or unverified key, or an unverified rate, is an `ok: false` with the reason; the
  * variation check refuses, naming the reason, rather than passing (0015).
  */
 
@@ -23,9 +23,11 @@ export function ledgeredEmbedder(db: Db, channelId: string, usdInrRate: number |
     if (texts.length === 0) return { ok: true, model: EMBEDDING_MODEL, vectors: [] };
     if (usdInrRate === null) return { ok: false, detail: 'No USD→INR rate is set, so the call cannot be priced.' };
 
-    const creds = await resolveCredentials(db, EMBEDDING_INTEGRATION).catch(() => null);
-    const key = creds?.values[EMBEDDING_KEY_FIELD];
-    if (!key) return { ok: false, detail: 'No embeddings key configured (Settings → Integrations).' };
+    // Verified, not merely present — the Settings banner's predicate (state.ts). An unverified
+    // key is refused here, and the variation check refuses naming this reason (0015).
+    const k = await verifiedCredential(db, EMBEDDING_INTEGRATION, EMBEDDING_KEY_FIELD);
+    if (!k.ok) return { ok: false, detail: `Embeddings unavailable: ${k.reason}` };
+    const key = k.value;
 
     const rate = await currentRate(db, { driver: EMBEDDING_INTEGRATION, model: EMBEDDING_MODEL, endpoint: ENDPOINT, unit: 'input_token' });
     if (!rate.found) return { ok: false, detail: rate.detail };

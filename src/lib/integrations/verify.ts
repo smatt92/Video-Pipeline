@@ -7,6 +7,7 @@ import type { Json } from '../db/types';
 import { integrationForStep } from '../onboarding/step-integration';
 import { createSupabaseStorageDriver } from '../storage/supabase';
 import { resolveCredentials } from './credentials';
+import { integrationState } from './state';
 
 /**
  * "Run check" — a real vendor call, and everything it writes.
@@ -274,11 +275,14 @@ export interface Usability {
 export async function usability(db: Db, slug: string): Promise<Usability> {
   const { data } = await db
     .from('integrations')
-    .select('is_enabled, last_verified_at, last_error')
+    .select('is_enabled, last_checked_at, last_verified_at, last_error')
     .eq('slug', slug)
     .maybeSingle();
 
-  if (data?.is_enabled && data.last_verified_at) {
+  // The same predicate the Settings banner counts with (state.ts). Verified means the
+  // *latest* check passed, not that one ever did.
+  const state = data ? integrationState(data) : 'never_run';
+  if (data?.is_enabled && state === 'verified') {
     return { usable: true, reason: '', deferred: false };
   }
 
@@ -316,13 +320,25 @@ export async function usability(db: Db, slug: string): Promise<Usability> {
     };
   }
 
-  if (!data.last_verified_at) {
+  if (state === 'never_run') {
     return {
       usable: false,
       deferred: false,
       reason:
-        `The ${slug} integration has never verified. Enabling is a statement of intent; ` +
-        'verifying is a statement of fact, and only the second one lets a task spend money.' +
+        `The ${slug} integration has never verified. A key in Vault or in the environment is ` +
+        'not enough: Settings → Integrations → "Save and test" (empty fields test the ' +
+        'environment key) is what lets a task spend money.',
+    };
+  }
+
+  if (state === 'failed') {
+    return {
+      usable: false,
+      deferred: false,
+      reason:
+        `The ${slug} integration failed its latest check` +
+        (data.last_checked_at ? ` (${new Date(data.last_checked_at).toISOString().slice(0, 16)}Z)` : '') +
+        ' and has not verified since. Settings → Integrations → "Save and test".' +
         (data.last_error ? ` Last error: ${data.last_error}` : ''),
     };
   }
@@ -332,4 +348,55 @@ export async function usability(db: Db, slug: string): Promise<Usability> {
     deferred: false,
     reason: `The ${slug} integration verified but is disabled.`,
   };
+}
+
+export type CredentialRefusal = { ok: false; code: 'integration_unverified' | 'no_credential'; reason: string };
+export type VerifiedCredentials = { ok: true; values: Record<string, string> } | CredentialRefusal;
+
+/**
+ * The credentials of an integration a task may spend through, or the reason it may not.
+ *
+ * The one door the Bureau stages go through for a key — dispatch, voice, dubs and embeddings
+ * (J's "Found on the way" #4). They used to ask `resolveCredentials` directly, which answers
+ * "does a key exist", while the Settings banner said they refused an unverified integration.
+ * Verification first, by `usability()`, then the key: a key that exists and has never been
+ * tested, or failed its last test, is refused by name.
+ */
+export async function verifiedCredentials(db: Db, slug: string): Promise<VerifiedCredentials> {
+  const use = await usability(db, slug);
+  if (!use.usable) return { ok: false, code: 'integration_unverified', reason: use.reason };
+  let resolved: Awaited<ReturnType<typeof resolveCredentials>>;
+  try {
+    resolved = await resolveCredentials(db, slug);
+  } catch (err) {
+    // A Vault read that errors (resolveCredentials surfaces it rather than falling through to
+    // the environment) is a refusal with its reason, not an exception that ends the caller's
+    // loop over every other provider.
+    return { ok: false, code: 'no_credential', reason: err instanceof Error ? err.message : String(err) };
+  }
+  if (resolved.missing.length > 0) {
+    return {
+      ok: false,
+      code: 'no_credential',
+      reason:
+        `The ${slug} integration verified, and ${resolved.missing.join(', ')} is no longer in ` +
+        'Vault or the environment. Set it again and re-run "Save and test".',
+    };
+  }
+  return { ok: true, values: resolved.values };
+}
+
+/** One field of `verifiedCredentials`, for a stage that needs a single key. */
+export async function verifiedCredential(
+  db: Db,
+  slug: string,
+  field: string,
+): Promise<{ ok: true; value: string } | CredentialRefusal> {
+  const c = await verifiedCredentials(db, slug);
+  if (!c.ok) return c;
+  const value = c.values[field];
+  if (!value) {
+    return { ok: false, code: 'no_credential', reason: `The ${slug} integration declares no ${field}.` };
+  }
+  return { ok: true, value };
 }

@@ -6,6 +6,7 @@ import { providerUsesWebhook, REFERENCE_FRAME_PARAM } from '../drivers/jobs';
 import { STORAGE_REF_PREFIX } from './bible';
 import { fits, headroom, nextIstMidnight } from './caps';
 import type { IngestResult } from '../ingest/run';
+import type { VerifiedCredentials } from '../integrations/verify';
 
 /**
  * The generation queue's worker side: claim → submit → (webhook | poll) → ingest → settle.
@@ -37,7 +38,12 @@ export interface DispatchDeps {
   db: Db;
   worker: string;
   usdInrRate: number;
-  credentialsFor(provider: string): Promise<Record<string, string> | null>;
+  /**
+   * The provider's credentials if its integration has verified, else the refusal by name.
+   * Production: `verifiedCredentials` (integrations/verify.ts) — the predicate the Settings
+   * banner counts with. Harnesses pass `{ ok: true, values }`.
+   */
+  credentialsFor(provider: string): Promise<VerifiedCredentials>;
   submit(input: { provider: string; model: string; endpoint: string | null; params: Record<string, unknown>; credentials: Record<string, string>; webhook?: { baseUrl: string; secret: string } }): Promise<JobSubmitResult>;
   poll(input: { provider: string; requestId: string; pollRef: Record<string, string>; credentials: Record<string, string> }): Promise<JobPollResult>;
   ingest(input: { generationId: string; assetUrl: string; headers: Record<string, string> }): Promise<IngestResult>;
@@ -61,8 +67,14 @@ export async function dispatchProvider(provider: string, max: number, deps: Disp
   const { db } = deps;
   const log = deps.log ?? { info() {}, error() {} };
   const now = deps.now ?? (() => new Date());
-  const creds = await deps.credentialsFor(provider);
-  if (!creds) return { claimed: 0, submitted: 0, refused: 'no credentials' };
+  // Before the claim: an unverified integration leaves every job queued and untouched, and
+  // says why. Nothing is claimed, so nothing burns an attempt or a cent.
+  const answer = await deps.credentialsFor(provider);
+  if (!answer.ok) {
+    log.error('provider refused', { provider, code: answer.code, reason: answer.reason });
+    return { claimed: 0, submitted: 0, refused: `${answer.code}: ${answer.reason}` };
+  }
+  const creds = answer.values;
 
   const { data: claimed, error } = await db.rpc('claim_gen_jobs', { p_provider: provider, p_worker: deps.worker, p_max: max });
   if (error) throw new Error(`claim failed: ${error.message}`);
@@ -219,7 +231,11 @@ export async function advanceSubmitted(provider: string, deps: DispatchDeps) {
     .eq('provider', provider)
     .eq('status', 'submitted');
   let done = 0;
-  const creds = jobs?.length && !providerUsesWebhook(provider) ? await deps.credentialsFor(provider) : null;
+  // Polling a task already paid for is not spending, but it still needs a usable key; an
+  // integration that stopped verifying leaves submitted jobs waiting rather than polling
+  // with a key the last check rejected.
+  const answer = jobs?.length && !providerUsesWebhook(provider) ? await deps.credentialsFor(provider) : null;
+  const creds = answer?.ok ? answer.values : null;
   for (const job of jobs ?? []) {
     if (providerUsesWebhook(provider)) {
       const { data: gen } = await db.from('generations').select('status, error_code, error_detail').eq('id', job.generation_id!).single();

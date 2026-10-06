@@ -1,0 +1,165 @@
+#!/usr/bin/env node
+/**
+ * The Bureau stages refuse an integration that has not verified — the same predicate the
+ * Settings banner counts with (J's "Found on the way" #4; src/lib/integrations/state.ts).
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * PROVES
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ *   §1  The predicate's truth table, and that `usability()` — the refusal — answers usable
+ *       exactly when the banner's predicate says verified, for every state, read back from
+ *       rows this harness wrote as INPUTS (timestamps), never from a value it asserts on.
+ *   §2  `verifiedCredentials` refuses by name with the key PRESENT in the environment
+ *       (written explicitly, deleted at the end — never `??=`), so the refusal can only be
+ *       verification; and accepts, returning that key, once verified.
+ *   §3  Dispatch, the consumer: `dispatchProvider` given the production `credentialsFor`
+ *       refuses with the reason and never calls submit; verified, it does not refuse.
+ *   §4  Embeddings, the consumer: `ledgeredEmbedder` refuses an unverified integration
+ *       before the ledger row; verified, the key reaches the vendor call (a stub fetch).
+ *
+ *   Voice and dubs are driven the same way inside verify:episode, where their worlds exist.
+ *
+ * DOES NOT PROVE: the Trigger tasks pass these functions in production (they do, one line
+ * each — `21-gen-dispatch`, `20-episode`, `24-dubs`, and `effects.ts` for embeddings — but
+ * no harness imports a task; see CLAUDE.md on refusals that live in tasks).
+ *
+ * Usage: node scripts/verify-integration-gate.mjs <db-url>
+ */
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const serverOnly = require.resolve('server-only');
+require.cache[serverOnly] = { id: serverOnly, filename: serverOnly, loaded: true, exports: {}, paths: [], children: [] };
+
+const dbUrl = process.argv[2] ?? process.env.DATABASE_URL;
+if (!dbUrl) {
+  console.error('usage: node scripts/verify-integration-gate.mjs <db-url>');
+  process.exit(2);
+}
+const B = new URL('../.verify-build/src/lib', import.meta.url).pathname;
+const { integrationState } = require(`${B}/integrations/state.js`);
+const { usability, verifiedCredentials } = require(`${B}/integrations/verify.js`);
+const { dispatchProvider } = require(`${B}/bureau/dispatch.js`);
+const { ledgeredEmbedder } = require(`${B}/bureau/embed.js`);
+const { BUREAU_CHANNEL_ID } = require(`${B}/bureau/bible.js`);
+const { supabaseShim } = await import('./lib/supabase-shim.mjs');
+const { scratchDatabase } = await import('./lib/scratch.mjs');
+
+let failures = 0;
+const check = (cond, label, detail = '') => {
+  if (cond) console.log(`  PASS  ${label}${detail ? ` — ${detail}` : ''}`);
+  else {
+    console.error(`  FAIL  ${label}${detail ? ` — ${detail}` : ''}`);
+    failures++;
+  }
+};
+
+const scratch = await scratchDatabase(dbUrl, 'intgate');
+const client = scratch.client;
+const db = supabaseShim(client);
+const setTimes = (slug, checked, verified, error = null) =>
+  client.query(
+    `update integrations set is_enabled = true, last_checked_at = ${checked}, last_verified_at = ${verified}, last_error = $2 where slug = $1`,
+    [slug, error],
+  );
+const realFetch = globalThis.fetch;
+
+console.log('\nStages refuse an unverified integration — the banner\'s predicate\n');
+try {
+  // ═══ 1 ═══
+  console.log('1. One predicate, the banner\'s and the refusal\'s\n');
+  const t0 = '2026-10-01T00:00:00Z';
+  const t1 = '2026-10-02T00:00:00Z';
+  check(integrationState({ last_checked_at: null, last_verified_at: null }) === 'never_run', 'never checked → never_run');
+  check(integrationState({ last_checked_at: t1, last_verified_at: null }) === 'failed', 'checked, never verified → failed');
+  check(integrationState({ last_checked_at: t1, last_verified_at: t0 }) === 'failed', 'verified, then failed a later check → failed');
+  check(integrationState({ last_checked_at: t0, last_verified_at: t1 }) === 'verified', 'latest check verified → verified');
+  check(integrationState({ last_checked_at: null, last_verified_at: t0 }) === 'verified', 'verified with no checked time (pre-0007 rows) → verified');
+  check(integrationState({ last_checked_at: new Date(t0), last_verified_at: t1 }) === 'verified', 'a Date and a string compare as instants');
+
+  const cases = [
+    ['null', 'null'],
+    ["now()", 'null'],
+    ["now()", "now() - interval '1 hour'"],
+    ["now() - interval '1 second'", 'now()'],
+    ['null', 'now()'],
+  ];
+  for (const [checked, verified] of cases) {
+    await setTimes('runway', checked, verified);
+    const row = (await client.query(`select last_checked_at, last_verified_at from integrations where slug = 'runway'`)).rows[0];
+    const state = integrationState(row);
+    const use = await usability(db, 'runway');
+    check(use.usable === (state === 'verified'), `checked=${checked}, verified=${verified}: banner says ${state}, stage says ${use.usable ? 'usable' : 'refused'}`);
+  }
+
+  // ═══ 2 ═══
+  console.log('\n2. verifiedCredentials — key present, verification decides\n');
+  process.env.RUNWAY_API_KEY = 'rk-from-env';
+  process.env.GEMINI_API_KEY = 'gk-from-env';
+  await setTimes('runway', 'null', 'null');
+  let c = await verifiedCredentials(db, 'runway');
+  check(!c.ok && c.code === 'integration_unverified' && /runway integration has never verified/.test(c.reason) && /Save and test/.test(c.reason),
+    'never verified, key in the environment → refused by name, naming the click', c.ok ? 'accepted' : c.reason.slice(0, 80));
+  await setTimes('runway', 'now()', "now() - interval '1 hour'", 'HTTP 401: bad key');
+  c = await verifiedCredentials(db, 'runway');
+  check(!c.ok && /failed its latest check/.test(c.reason) && /HTTP 401: bad key/.test(c.reason), 'failed since → refused, with the last error', c.ok ? 'accepted' : c.reason.slice(0, 80));
+  await setTimes('runway', "now() - interval '1 second'", 'now()');
+  c = await verifiedCredentials(db, 'runway');
+  check(c.ok && c.values.RUNWAY_API_KEY === 'rk-from-env', 'verified → the environment key', c.ok ? 'ok' : c.reason);
+  delete process.env.RUNWAY_API_KEY;
+  c = await verifiedCredentials(db, 'runway');
+  check(!c.ok && c.code === 'no_credential' && /RUNWAY_API_KEY/.test(c.reason), 'verified, key since removed → no_credential, by field name');
+  process.env.RUNWAY_API_KEY = 'rk-from-env';
+
+  // ═══ 3 ═══
+  console.log('\n3. Dispatch refuses before the claim\n');
+  const submits = [];
+  const deps = (log) => ({
+    db, worker: 'gate', usdInrRate: 88,
+    credentialsFor: (p) => verifiedCredentials(db, p),
+    submit: async (i) => { submits.push(i); return { ok: false, code: 'x', detail: 'x' }; },
+    poll: async () => ({ state: 'running', vendorState: 'x' }),
+    ingest: async () => ({ ok: false, code: 'x', detail: 'x' }),
+    log,
+  });
+  await setTimes('runway', 'null', 'null');
+  const errors = [];
+  const refused = await dispatchProvider('runway', 5, deps({ info() {}, error: (m, d) => errors.push(d) }));
+  check(/^integration_unverified: The runway integration has never verified/.test(refused.refused ?? '') && refused.claimed === 0,
+    'unverified → refused with the reason, nothing claimed', refused.refused?.slice(0, 80));
+  check(submits.length === 0 && errors[0]?.code === 'integration_unverified', 'submit never called; the refusal is logged by code');
+  await setTimes('runway', "now() - interval '1 second'", 'now()');
+  const accepted = await dispatchProvider('runway', 5, deps({ info() {}, error() {} }));
+  check(accepted.refused === undefined, 'verified → dispatch proceeds to the claim', JSON.stringify(accepted));
+
+  // ═══ 4 ═══
+  console.log('\n4. Embeddings refuse before the ledger row\n');
+  const ledger = async () => Number((await client.query(`select count(*) n from cost_ledger where stage = '20-embed'`)).rows[0].n);
+  await setTimes('gemini', 'null', 'null');
+  const fetched = [];
+  globalThis.fetch = async (url, init) => {
+    fetched.push({ url: String(url), headers: init?.headers });
+    return new Response(JSON.stringify({ embeddings: [{ values: new Array(768).fill(0.01) }] }), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  const before = await ledger();
+  const embed = ledgeredEmbedder(db, BUREAU_CHANNEL_ID, 88);
+  const e1 = await embed(['a premise']);
+  check(!e1.ok && /gemini integration has never verified/.test(e1.detail), 'unverified → refused by name', e1.ok ? 'embedded' : e1.detail.slice(0, 80));
+  check((await ledger()) === before && fetched.length === 0, 'no ledger row, no vendor call');
+  await setTimes('gemini', "now() - interval '1 second'", 'now()');
+  await embed(['a premise']);
+  const sentKey = fetched.some((f) => f.url.includes('gk-from-env') || JSON.stringify(f.headers ?? {}).includes('gk-from-env'));
+  check(fetched.length > 0 && sentKey, 'verified → the environment key reaches the vendor call', `${fetched.length} call(s)`);
+  check((await ledger()) === before + 1, 'and its ledger row was written first');
+} catch (err) {
+  check(false, 'harness threw', err.stack ?? err.message);
+} finally {
+  globalThis.fetch = realFetch;
+  delete process.env.RUNWAY_API_KEY;
+  delete process.env.GEMINI_API_KEY;
+  await scratch.release();
+}
+
+console.log(failures === 0 ? '\nIntegration gate: all checks passed.\n' : `\nIntegration gate: ${failures} check(s) FAILED.\n`);
+process.exit(failures === 0 ? 0 : 1);

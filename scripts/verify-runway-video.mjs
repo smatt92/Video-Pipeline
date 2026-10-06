@@ -178,7 +178,7 @@ try {
   const presigned = [];
   const deps = {
     db, worker: 'verify-runway', usdInrRate: 88,
-    credentialsFor: async () => ({ RUNWAY_API_KEY: 'stub-key' }),
+    credentialsFor: async () => ({ ok: true, values: { RUNWAY_API_KEY: 'stub-key' } }),
     presign: async (key) => { presigned.push(key); return frameUri; },
     submit: (i) => submitJob({ ...i, fetchImpl: routed }),
     poll: (i) => pollJob({ ...i, fetchImpl: routed }),
@@ -235,7 +235,7 @@ try {
       const realUri = REAL_FRAME ? `data:image/png;base64,${(await readFile(REAL_FRAME)).toString('base64')}` : frameUri;
       if (realUri.length > 5 * 1024 * 1024 * 1.37) throw new Error(`${REAL_FRAME} is over the vendor's 5 MB image limit`);
       console.log(`  INFO  frame: ${REAL_FRAME ?? 'the placeholder navy card'}`);
-      const realDeps = { ...deps, presign: async () => realUri, credentialsFor: async () => ({ RUNWAY_API_KEY: apiKey }), submit: submitJob, poll: pollJob };
+      const realDeps = { ...deps, presign: async () => realUri, credentialsFor: async () => ({ ok: true, values: { RUNWAY_API_KEY: apiKey } }), submit: submitJob, poll: pollJob };
       const r1 = await dispatchProvider('runway', 1, realDeps);
       const s1 = await jobRow(j2.jobId);
       check(r1.submitted === 1 && s1.status === 'submitted' && !!s1.request_id, 'the vendor accepted the task; the job is submitted', JSON.stringify({ ...s1, error: (await client.query('select last_error from gen_jobs where id = $1', [j2.jobId])).rows[0].last_error }));

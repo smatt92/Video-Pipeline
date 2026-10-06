@@ -1,6 +1,7 @@
 import { IntegrationCard } from '@/components/settings/integration-card';
 import { ReferralPanel } from '@/components/settings/referral-panel';
 import { SectionHeader } from '@/components/settings/parts';
+import { environmentFields } from '@/lib/integrations/credentials';
 import { allIntegrationViews, type StepIntegrationView } from '@/lib/onboarding/step-view';
 
 /**
@@ -52,8 +53,18 @@ export default async function IntegrationsPage() {
     <>
       <SectionHeader
         title="Integrations"
-        hint="Credentials live in Vault. Fields are write-only — a secret is never returned to the browser, only its last four characters."
+        hint="A key lives in one of two places: Vault (typed into a field here) or this deployment's environment (Vercel → Settings → Environment Variables). Vault wins when both hold one. Fields are write-only — a secret is never returned to the browser, only its last four characters."
       />
+
+      <div
+        className="mb-5 rounded-sm border px-3 py-2 text-xs leading-relaxed"
+        style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-muted)' }}
+      >
+        Keys kept in Vercel&apos;s environment do not need typing here. Leave the fields empty and press{' '}
+        <span className="font-medium">Save and test</span>: with nothing typed it tests the environment key. A
+        key being present is still not enough — an integration is used only once its latest test has passed, so
+        each one needs that click once, and again whenever its key changes.
+      </div>
 
       {unverified.length > 0 && (
         <div
@@ -65,8 +76,10 @@ export default async function IntegrationsPage() {
           }}
         >
           {unverified.length} of {views.length} integrations {unverified.length === 1 ? 'is' : 'are'}{' '}
-          unverified. A pipeline task refuses to select one that has never passed a real
-          call — enabling is a statement of intent, verifying is a statement of fact.
+          unverified. Generation, dispatch, voice, dubs and embeddings refuse an integration until its
+          latest Save and test has passed — a key in Vault or in the environment is not enough on its own.
+          {/* The same predicate decides both this count and those refusals: integrationState
+              in src/lib/integrations/state.ts. */}
         </div>
       )}
 
@@ -76,6 +89,7 @@ export default async function IntegrationsPage() {
           view={v}
           blockedBy={blockingDependency(v, views)}
           today={today}
+          envFields={environmentFields(v.descriptor.secretFields)}
         />
       ))}
 

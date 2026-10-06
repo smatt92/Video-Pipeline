@@ -3,25 +3,18 @@ import 'server-only';
 import { serverClient } from '../db/server';
 import { INTEGRATION_CATALOG, type IntegrationDescriptor } from '../drivers/catalog';
 import { describeSecrets, type SecretDescriptor } from '../integrations/vault';
+import { integrationState, type CheckState } from '../integrations/state';
 import { integrationForStep } from './step-integration';
 
 /**
  * Everything a wizard step needs to render, read once on the server.
  *
- * The three states are derived here rather than in the component, because the derivation is
- * the part worth getting right and a component that computes it inline will disagree with
- * the next component that does.
- *
- *   never_run   nothing has been attempted
- *   failed      attempted, and not verified since
- *   verified    attempted and accepted
- *
- * `last_verified_at >= last_checked_at` rather than "verified is not null": an integration
- * that worked in March and failed this morning is *failed*, and a check that only asked
- * whether it had ever worked would show a green tick over a broken credential.
+ * The three states come from `integrationState` (src/lib/integrations/state.ts), the same
+ * predicate the pipeline refuses on — so the banner's "a pipeline task refuses" is a claim
+ * about the code that actually refuses.
  */
 
-export type CheckState = 'never_run' | 'failed' | 'verified';
+export type { CheckState } from '../integrations/state';
 
 export interface StepIntegrationView {
   slug: string;
@@ -58,15 +51,6 @@ export interface CreditPosition {
     amountUsd: number | null;
     note: string | null;
   }[];
-}
-
-function stateOf(row: {
-  last_checked_at: string | null;
-  last_verified_at: string | null;
-}): CheckState {
-  if (!row.last_checked_at) return 'never_run';
-  if (!row.last_verified_at) return 'failed';
-  return row.last_verified_at >= row.last_checked_at ? 'verified' : 'failed';
 }
 
 export async function integrationView(slug: string): Promise<StepIntegrationView | null> {
@@ -117,7 +101,7 @@ export async function integrationView(slug: string): Promise<StepIntegrationView
     slug,
     label: descriptor.label,
     descriptor,
-    state: stateOf(integration),
+    state: integrationState(integration),
     lastCheckedAt: integration.last_checked_at,
     lastVerifiedAt: integration.last_verified_at,
     lastError: integration.last_error,

@@ -75,9 +75,12 @@ export function IntegrationCard({
   view,
   blockedBy,
   today,
+  envFields,
 }: {
   view: StepIntegrationView;
   blockedBy: string | null;
+  /** Fields this deployment's environment holds — names only, never values (decision 0017). */
+  envFields: readonly string[];
   /** Server-rendered date, so "lapsed" cannot disagree between server and client. */
   today: string;
 }) {
@@ -134,6 +137,7 @@ export function IntegrationCard({
 
         {d.secretFields.map((f) => {
           const configured = view.secrets.find((s) => s.fieldKey === f.key);
+          const inEnv = envFields.includes(f.key);
           return (
             <Row key={f.key} label={f.label} help={f.help}>
               <div className="flex items-center gap-3">
@@ -143,7 +147,9 @@ export function IntegrationCard({
                   placeholder={
                     configured
                       ? "configured — blank leaves it"
-                      : "not configured"
+                      : inEnv
+                        ? "in the environment — blank tests it"
+                        : "not configured"
                   }
                   autoComplete="off"
                   spellCheck={false}
@@ -153,7 +159,15 @@ export function IntegrationCard({
                     color: "var(--text-primary)",
                   }}
                 />
-                {configured ? <Mono>…{configured.last4}</Mono> : <NotSet />}
+                {configured ? (
+                  <Mono>…{configured.last4}</Mono>
+                ) : inEnv ? (
+                  <Hint content="Set in this deployment's environment (Vercel). Save and test with this field empty tests it.">
+                    <Mono>environment</Mono>
+                  </Hint>
+                ) : (
+                  <NotSet />
+                )}
               </div>
             </Row>
           );

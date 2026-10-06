@@ -29,7 +29,7 @@ import { PROVIDER_INTEGRATION, ROUTE_PROVIDERS } from '@/lib/drivers/jobs';
 import { serverClient } from '@/lib/db/server';
 import { VOICE_CREDENTIAL_FIELDS, synthLine } from '@/lib/drivers/voice-synth';
 import { requireCredential } from '@/lib/integrations/credentials';
-import { usability } from '@/lib/integrations/verify';
+import { usability, verifiedCredential } from '@/lib/integrations/verify';
 import { storage } from '@/lib/storage';
 import { putterFor } from '@/lib/storage/put';
 import { alignLine } from '@/lib/voice/align';
@@ -95,7 +95,8 @@ export const episodeTask = schemaTask({
       // 3. Voice — before any video, because it sets the durations
       const voice = await voiceStep(db, episodeId, {
         usdInrRate,
-        apiKeyFor: async (provider) => requireCredential(db, provider, VOICE_CREDENTIAL_FIELDS[provider]).catch(() => null),
+        // Verified, not merely present (the Settings banner's predicate); voiceStep refuses by name.
+        apiKeyFor: (provider) => verifiedCredential(db, provider, VOICE_CREDENTIAL_FIELDS[provider]),
         synth: (i) => synthLine(i),
         align: (i) => alignLine(i),
         putBytes: put,

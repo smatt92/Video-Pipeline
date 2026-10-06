@@ -354,6 +354,13 @@ jobs:
       - name: MCP OAuth — code + PKCE, refresh rotation, revocation, scope
         run: pnpm verify:oauth "$DATABASE_URL"
 
+      # The Settings banner says a task refuses an unverified integration; dispatch, voice,
+      # dubs and embeddings used to check only that a key existed. One predicate now, and this
+      # drives the refusal and the accept path through each consumer (voice and dubs inside
+      # verify:episode).
+      - name: Stages refuse an unverified integration — the banner's predicate
+        run: pnpm verify:integration-gate "$DATABASE_URL"
+
       - name: Character beats on the generation vendor — ledger, status, stored frame count
         run: pnpm verify:runway-video "$DATABASE_URL"
 

@@ -153,7 +153,7 @@ try {
   await q(`insert into cost_ledger (channel_id, driver, entry_kind, unit, quantity, cost_usd, cost_inr, usd_inr_rate) values ($1, 'x', 'estimate', 'x', 1, 0.5, 44, 88)`, [BUREAU_CHANNEL_ID]);
   await q(`insert into gen_jobs (episode_id, render_route, provider, model, params, duration_s, estimate_inr, idempotency_key) values ($1, 'character_beat', 'fal', 'm', '{}', 4, 10, 'cap-test')`, [ep.id]);
   const subs = [];
-  const d = await dispatchProvider('fal', 5, { db, worker: 'v', usdInrRate: 88, credentialsFor: async () => ({ FAL_KEY: 'x' }), submit: async (i) => { subs.push(i); return { ok: true, requestId: 'r', pollRef: {} }; }, poll: async () => ({ state: 'running', vendorState: 'x' }), ingest: async () => ({ ok: false, code: 'x', detail: 'x' }), now: () => new Date('2026-10-22T10:00:00Z') });
+  const d = await dispatchProvider('fal', 5, { db, worker: 'v', usdInrRate: 88, credentialsFor: async () => ({ ok: true, values: { FAL_KEY: 'x' } }), submit: async (i) => { subs.push(i); return { ok: true, requestId: 'r', pollRef: {} }; }, poll: async () => ({ state: 'running', vendorState: 'x' }), ingest: async () => ({ ok: false, code: 'x', detail: 'x' }), now: () => new Date('2026-10-22T10:00:00Z') });
   const [job] = await q(`select status, attempts, last_error_code, next_attempt_at from gen_jobs where idempotency_key = 'cap-test'`);
   check(d.deferred === 1 && subs.length === 0, 'a ₹10 job with ₹6 of daily headroom is not submitted', JSON.stringify(d));
   check(job.status === 'throttled' && job.attempts === 0 && job.last_error_code === 'cap', 'it waits as throttled, its attempt returned', JSON.stringify(job));

@@ -77,6 +77,7 @@
     "verify:bureau-publish": "tsc -p tsconfig.verify.json && node scripts/verify-bureau-publish.mjs",
     "verify:onboarding": "tsc -p tsconfig.verify.json && node scripts/verify-onboarding.mjs",
     "verify:oauth": "tsc -p tsconfig.verify.json && node scripts/verify-oauth.mjs",
+    "verify:integration-gate": "tsc -p tsconfig.verify.json && node scripts/verify-integration-gate.mjs",
     "verify:runway-video": "tsc -p tsconfig.verify.json && node --env-file-if-exists=.env.local scripts/verify-runway-video.mjs"
   },
   "dependencies": {
