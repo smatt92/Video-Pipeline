@@ -35,7 +35,7 @@ import type { BuildExtension } from '@trigger.dev/build/extensions';
  */
 
 /** Pinned. `@stable` would silently move the browser under a renderer that expects one. */
-const SHELL_VERSION = '145.0.7332.0';
+const SHELL_VERSION = '154.0.8037.92';
 
 export function headlessShell(): BuildExtension {
   return {
