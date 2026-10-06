@@ -104,6 +104,10 @@ export const BUREAU_TOOLS: BureauTool[] = [
       const results = await createBriefs(a.briefs, { db: c.db, token: c.token, embed, judge });
       const created = results.filter((r) => r.ok).length;
       if (created) await c.effects.notify?.(c.token.channelId, 'briefs_pending', `${created} brief${created === 1 ? '' : 's'} waiting for approval.`);
+      const policyFlags = results.filter((r) => r.ok && r.flag_reasons.some((f) => f.startsWith('policy:')));
+      if (policyFlags.length) {
+        await c.effects.notify?.(c.token.channelId, 'policy_flag', `${policyFlags.length} brief(s) flagged by policy_lint: ${policyFlags.map((r) => (r.ok ? r.flag_reasons.filter((f) => f.startsWith('policy:')).join(',') : '')).join(' | ')}`);
+      }
       return { ok: true, created, failed: results.length - created, results };
     },
   }),
@@ -215,7 +219,7 @@ export const BUREAU_TOOLS: BureauTool[] = [
     description: 'Bundles for manual scheduling in YouTube Studio (the upload API is not audited): MP4 download URL (1 h), title, description, tags, madeForKids=false, containsSyntheticMedia, slot time.',
     scope: 'approver',
     args: Empty,
-    run: async (c) => ({ ok: true, bundles: await readyBundles(c.db, c.token.channelId, { withUrls: true, presign: c.effects.presign }) }),
+    run: async (c) => ({ ok: true, bundles: await readyBundles(c.db, c.token.channelId, { presign: c.effects.presign }) }),
   }),
   tool({
     name: 'mark_scheduled',

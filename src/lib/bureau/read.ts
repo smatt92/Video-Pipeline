@@ -91,7 +91,7 @@ export async function episodeStatus(db: Db, channelId: string, id: string) {
 export async function readyBundles(
   db: Db,
   channelId: string,
-  opts: { withUrls: boolean; presign?: (key: string, downloadAs: string) => Promise<string> } = { withUrls: true },
+  opts: { presign?: (key: string, downloadAs: string) => Promise<string> } = {},
 ) {
   const { data, error } = await db
     .from('v_ready_bundles')
@@ -101,7 +101,6 @@ export async function readyBundles(
     .limit(50);
   if (error) throw new Error(error.message);
   const rows = data ?? [];
-  if (!opts.withUrls) return rows;
   const presign = opts.presign ?? (async (key: string, downloadAs: string) => (await storage().presignGet({ key, expiresIn: 3600, downloadAs })).url);
   return Promise.all(
     rows.map(async (r) => {

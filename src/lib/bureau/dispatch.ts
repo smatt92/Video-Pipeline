@@ -3,6 +3,7 @@ import type { Db } from '../db/server';
 import type { Json } from '../db/types';
 import type { JobPollResult, JobSubmitResult } from '../drivers/jobs';
 import { providerUsesWebhook } from '../drivers/jobs';
+import { fits, headroom, nextIstMidnight } from './caps';
 import type { IngestResult } from '../ingest/run';
 
 /**
@@ -51,7 +52,26 @@ export async function dispatchProvider(provider: string, max: number, deps: Disp
   const { data: claimed, error } = await db.rpc('claim_gen_jobs', { p_provider: provider, p_worker: deps.worker, p_max: max });
   if (error) throw new Error(`claim failed: ${error.message}`);
   let submitted = 0;
+  let deferred = 0;
   for (const job of claimed ?? []) {
+    // ── The caps, per job, before any money moves ──────────────────────────
+    // Re-read each time: the previous job's estimate is in the ledger now.
+    const { data: epRow } = job.episode_id ? await db.from('episodes').select('channel_id, kind').eq('id', job.episode_id).maybeSingle() : { data: null };
+    if (epRow) {
+      const h = await headroom(db, epRow.channel_id, epRow.kind as 'short' | 'long_form');
+      const cost = job.estimate_inr === null ? Number.POSITIVE_INFINITY : Number(job.estimate_inr);
+      if (!fits(h, cost)) {
+        // Back to the queue until the daily cap resets, and the claim's attempt is returned:
+        // a cap is not the job failing, and must not exhaust its retries.
+        await db
+          .from('gen_jobs')
+          .update({ status: 'throttled', attempts: Math.max(0, job.attempts - 1), next_attempt_at: nextIstMidnight(now()), last_error: `over the spend cap (daily headroom ${h.dailyInr === null ? 'unknown' : `₹${h.dailyInr.toFixed(0)}`}, monthly ${h.monthlyInr === null ? 'unknown' : `₹${h.monthlyInr.toFixed(0)}`})`, last_error_code: 'cap', updated_at: now().toISOString() })
+          .eq('id', job.id);
+        deferred++;
+        continue;
+      }
+    }
+
     // ── The money, before the call ───────────────────────────────────────────
     let generationId = job.generation_id;
     if (!generationId) {
@@ -114,7 +134,7 @@ export async function dispatchProvider(provider: string, max: number, deps: Disp
       if (!retryable) await db.from('generations').update({ status: 'failed', error_code: r.code, error_detail: r.detail.slice(0, 1000) }).eq('id', generationId);
     }
   }
-  return { claimed: (claimed ?? []).length, submitted };
+  return { claimed: (claimed ?? []).length, submitted, deferred };
 }
 
 async function fail(db: Db, jobId: string, code: string, detail: string, at: Date) {

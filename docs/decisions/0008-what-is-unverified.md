@@ -1043,6 +1043,48 @@ from this container — `*.googleapis.com` is on the environment's Trusted allow
 that name wrong would produce uploads that succeed, look correct, and are undisclosed, with
 no error anywhere.
 
+### 14. Bureau of Reality (2026-10-06) — RUN locally end to end; nothing has touched a vendor or the hosted project
+
+**What ran, here, against real things** (every harness below executed in this container on a
+scratch Postgres 16 with every migration 0001–0042 applied, and is wired into CI):
+
+| Harness | What it proves | Result |
+|---|---|---|
+| `verify:bureau` | MCP over HTTP: kb_ token auth (unknown/revoked → 401), agent sees 13 of 21 tools, all 8 decision tools refused for an agent with `scope_denied` and **nothing written**, the decision SQL functions themselves refusing an agent token (LOAD-BEARING), authorship_log exact text + append-only, cut gate wakes the run, kill switch refusing at `claim_gen_jobs` and at the publish trigger, daily publish cap, resources | 66 PASS |
+| `verify:episode` | The definition of done: agent drafts → approver approves "B" → script → shots → voice (espeak "vendor", **real forced alignment**) → queue (claim, ledger at submit, no double submit) → ingest (real ffmpeg) → QC → **real Remotion render of all three layers** (chrome-headless-shell) → cut_approve → publish_bundles (MP4 downloads) → mark_scheduled → spend ₹20.76 < ₹150; a Hindi dub; a long-form render; and the alignment refusal at the consumer (LOAD-BEARING) | all PASS, CI green |
+| `verify:bureau-publish` | flags off → bundle only; audited → scheduled + upload started through both DB gates; Reels mirror; kill switch refusing the mirror; metric buckets, `unavailable` rows, scheduled → live; comments with mentions; Studio CSV; daily cap deferral at the dispatcher | all PASS |
+| `test:align` | aligner vs audio with known word boundaries: 6 ms mean / 13 ms worst start error; the wrong sentence refused (ratio 0.93–0.95); five-word lines both ways | PASS |
+| `test:bureau` | policy_lint categories, source classes, 4-of-7 axes, ISO-week caps, similarity incomplete ≠ pass, cap fitting, long-form segment rules, router tiers | PASS |
+
+**What has NOT run, and what running it needs:**
+
+- **The hosted database.** VidGen is at 0001 + 0002. `apply_migration` for 0003 timed out
+  again (the MCP asks for interactive confirmation on any statement containing DROP, and a
+  scheduled session has nobody to click it). Nothing was applied. Paste
+  `docs/bureau/hosted-migrations-0003-0042.sql` into the SQL editor (one transaction, refuses
+  a second paste), or run apply_migration for 0003 in an attended chat and approve. Then
+  `pnpm db:doctor` and `list_migrations`.
+- **Runway** (voice, dubbing, SFX, Act-Two). Host outside the egress allowlist. Shapes are
+  from the SDK's OpenAPI typings (decision 0013), Zod-parsed. First real call:
+  `pnpm voice:audition --characters pip --presets Maya,Arjun --max-usd 0.10`.
+- **The aligner on Runway audio.** Calibrated only on espeak-vs-espeak. The confidence
+  threshold (forward ≤ 70% of time-reversed) may need retuning on eleven_v3 speech; the first
+  real episode's `vo_takes` and `episodes.status_detail` will say.
+- **Gemini Veo, fal, Higgsfield Kling via the queue.** Never submitted. No recipe for any
+  route exists in the library, and no per-second rate is verified, so today every generated
+  shot is planned as an overlay with the reason recorded (`episodes.qc.plan.swaps`) — the
+  episode still renders. Add a recipe per route (Studio lane / Higgsfield MCP exploration,
+  `discovered_in = 'claude-code-mcp'`) and a verified rate to turn them on.
+- **The Trigger tasks themselves** (19–24). Never deployed. `20-episode` is a thin sequence of
+  the harnessed lib functions plus `wait.createToken`/`forToken`; the waits and the
+  `tasks.trigger` from Vercel need `TRIGGER_SECRET_KEY` on Vercel and a deploy.
+- **The connector from claude.ai to `/api/mcp`.** Needs the deployment (public hostname).
+- **YouTube Analytics / commentThreads / IG insights.** Shapes from public references; the
+  refresh token must carry `yt-analytics.readonly`.
+- **Vision QC** (judge tier with frames). Stubbed in the harness; never called the model.
+- **Embeddings** for variation similarity: no key → every brief's variation is `incomplete`,
+  which the approver sees; it is never reported as a pass.
+
 ## Gates, and where each can run
 
 | Gate | Runnable in this environment? |

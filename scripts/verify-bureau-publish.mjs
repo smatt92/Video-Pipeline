@@ -32,6 +32,8 @@ const { afterBundle } = require(`${B}/bureau/after-bundle.js`);
 const { pullBureauMetrics, dueBuckets } = require(`${B}/bureau/metrics-pull.js`);
 const { importStudioCsv, parseStudioCsv } = require(`${B}/bureau/studio-csv.js`);
 const { youtubeVideoId } = require(`${B}/publish/yt-analytics.js`);
+const { dispatchProvider } = require(`${B}/bureau/dispatch.js`);
+const { capAlerts, headroom } = require(`${B}/bureau/caps.js`);
 const { BUREAU_CHANNEL_ID } = require(`${B}/bureau/bible.js`);
 const { supabaseShim } = await import('./lib/supabase-shim.mjs');
 const { scratchDatabase } = await import('./lib/scratch.mjs');
@@ -144,6 +146,19 @@ try {
   check(imp.updated === 1 && Number(latest.viewed_vs_swiped_pct) === 74.2, 'viewed-vs-swiped lands on the latest measured snapshot');
   check(imp.unmatched.join() === 'ZZZZZZZZZZZ', 'a video that is not ours is reported, not written');
   check(parseStudioCsv('Video,Views\nA,1').problems.length === 1, 'a CSV without the percentage column is refused by name');
+
+  // §6
+  console.log('\n6. Daily cap, asserted at the dispatcher\n');
+  await q(`update channel_policy set daily_cap_inr = 50 where channel_id = $1`, [BUREAU_CHANNEL_ID]);
+  await q(`insert into cost_ledger (channel_id, driver, entry_kind, unit, quantity, cost_usd, cost_inr, usd_inr_rate) values ($1, 'x', 'estimate', 'x', 1, 0.5, 44, 88)`, [BUREAU_CHANNEL_ID]);
+  await q(`insert into gen_jobs (episode_id, render_route, provider, model, params, duration_s, estimate_inr, idempotency_key) values ($1, 'character_beat', 'fal', 'm', '{}', 4, 10, 'cap-test')`, [ep.id]);
+  const subs = [];
+  const d = await dispatchProvider('fal', 5, { db, worker: 'v', usdInrRate: 88, credentialsFor: async () => ({ FAL_KEY: 'x' }), submit: async (i) => { subs.push(i); return { ok: true, requestId: 'r', pollRef: {} }; }, poll: async () => ({ state: 'running', vendorState: 'x' }), ingest: async () => ({ ok: false, code: 'x', detail: 'x' }), now: () => new Date('2026-10-22T10:00:00Z') });
+  const [job] = await q(`select status, attempts, last_error_code, next_attempt_at from gen_jobs where idempotency_key = 'cap-test'`);
+  check(d.deferred === 1 && subs.length === 0, 'a ₹10 job with ₹6 of daily headroom is not submitted', JSON.stringify(d));
+  check(job.status === 'throttled' && job.attempts === 0 && job.last_error_code === 'cap', 'it waits as throttled, its attempt returned', JSON.stringify(job));
+  const h = await headroom(db, BUREAU_CHANNEL_ID);
+  check(capAlerts(h, new Date()).some((a) => a.key.startsWith('cap80:day:')), 'and the 80% daily alert fires', JSON.stringify(capAlerts(h, new Date())));
 } catch (err) {
   check(false, 'harness threw', err.stack);
 } finally {

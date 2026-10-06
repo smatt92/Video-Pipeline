@@ -34,6 +34,20 @@ const blocked = (phase: string, reason: string): NavStatus => ({
 
 export const NAV: readonly NavGroup[] = [
   {
+    // Bureau of Reality — the control room. First because it is where the daily decisions are.
+    label: 'Bureau',
+    items: [
+      { href: '/bureau/approvals', label: 'Approvals', hint: 'Pending briefs: pick a punchline, approve or reject', status: ready() },
+      { href: '/bureau/cuts', label: 'Cuts', hint: 'Finished cuts: 9:16 player, shot strip, re-roll, approve', status: ready() },
+      { href: '/bureau/ready', label: 'Ready to schedule', hint: 'Publish bundles and dubs for Studio', status: ready() },
+      { href: '/bureau/board', label: 'Episodes', hint: 'Every episode by state', status: ready() },
+      { href: '/bureau/monitor', label: 'Generation', hint: 'Queues, failures, spend vs caps, kill switch', status: ready() },
+      { href: '/bureau/calendar', label: 'Calendar', hint: 'Slots, seasonal tags, bank, produce-by', status: ready() },
+      { href: '/bureau/metrics', label: 'Metrics', hint: 'KPIs against the gates, mentions, top performers', status: ready() },
+      { href: '/bureau/authorship', label: 'Authorship log', hint: 'Every decision, verbatim', status: ready() },
+    ],
+  },
+  {
     label: 'Pipeline',
     items: [
       {

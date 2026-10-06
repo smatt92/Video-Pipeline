@@ -175,8 +175,7 @@ UI, auth, CRUD, enqueue, webhook receivers. Never touches media bytes.
 | `SUPABASE_S3_SECRET_ACCESS_KEY` | All | |
 | `SUPABASE_S3_REGION` | All | |
 | `TRIGGER_PROJECT_REF` | All | Enqueue only |
-| `TRIGGER_SECRET_KEY` | All | Enqueue only |
-| `USD_INR_RATE` | All | Bootstrap default; `profiles.usd_inr_rate` wins once set |
+| `TRIGGER_SECRET_KEY` | All | Enqueue only — and required for an approval to start `20-episode` or wake its cut wait |
 | `ANTHROPIC_API_KEY` | Production | Only if a route calls the LLM directly |
 | `VIDEO_DRIVER` | All | Webhook route resolves the driver by slug |
 | `HIGGSFIELD_WEBHOOK_SECRET` | Production | Needed to verify inbound webhooks |
@@ -201,11 +200,20 @@ Orchestration, ffmpeg, Remotion, every vendor call. Deployed separately with
 | `HIGGSFIELD_API_KEY`, `HIGGSFIELD_API_SECRET` | All | This is where generations are submitted |
 | `HIGGSFIELD_WEBHOOK_SECRET` | All | Sent with each submit |
 | `HIGGSFIELD_API_BASE_URL`, `FAL_KEY` | Optional | |
-| `USD_INR_RATE` | All | Ledger rows are written here |
+| `REMOTION_BROWSER_EXECUTABLE` | Optional | Override for the headless-shell path; the build installs one |
 | `DRIVER_TIMEOUT_MS` and the circuit-breaker vars | Optional | Defaults in `src/lib/env.ts` |
 
-`ALLOWED_EMAIL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are **not** needed on Trigger.dev —
-there is no browser and no sign-in.
+`ALLOWED_EMAIL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are in the worker manifest because the
+env schema is shared (`pnpm check:trigger-env` lists the exact set) — set them to the same
+values as Vercel.
+
+`USD_INR_RATE` is no longer read anywhere: the rate lives on `profiles.usd_inr_rate`. Delete
+it from both targets.
+
+Vendor keys for the Bureau lane — the voice vendor (TTS, dubbing, SFX), the embedding model
+and the YouTube/Instagram credentials — are entered in **Settings → Integrations** and stored
+in Vault; an environment variable of the field's name is only a fallback. Nothing new is
+required in either environment for them.
 
 ### Two rules that are easy to get wrong
 

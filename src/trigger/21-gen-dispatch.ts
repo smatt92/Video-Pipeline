@@ -1,5 +1,8 @@
 import { logger, schedules, wait } from '@trigger.dev/sdk';
 
+import { notify } from '@/lib/bureau/alerts';
+import { BUREAU_CHANNEL_ID } from '@/lib/bureau/bible';
+import { capAlerts, headroom } from '@/lib/bureau/caps';
 import { advanceSubmitted, dispatchProvider, settleEpisodes } from '@/lib/bureau/dispatch';
 import { requireUsdInrRate } from '@/lib/cost/fx';
 import { serverClient } from '@/lib/db/server';
@@ -64,6 +67,10 @@ export const genDispatchTask = schedules.task({
       const d = await dispatchProvider(p.provider, p.max_concurrency, deps);
       const a = await advanceSubmitted(p.provider, deps);
       summary[p.provider] = { ...d, ...a };
+    }
+    // The 80% alerts, once per day / month each.
+    for (const a of capAlerts(await headroom(db, BUREAU_CHANNEL_ID), new Date())) {
+      await notify(db, BUREAU_CHANNEL_ID, 'cap_80', a.text, { dedupeKey: a.key });
     }
     const settled = await settleEpisodes(db, async (token, output) => {
       await wait.completeToken(token, output);
