@@ -52,6 +52,8 @@ export const QUOTA_UNITS = {
   'channels.list': 1,
   'playlistItems.list': 1,
   'search.list': 100,
+  // Bureau comment mining (Sprint 6): one page of top-level threads per call.
+  'commentThreads.list': 1,
 } as const;
 
 export type QuotaEndpoint = keyof typeof QUOTA_UNITS;

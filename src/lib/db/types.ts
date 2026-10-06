@@ -2347,6 +2347,7 @@ export type Database = {
           captured_at: string
           comments: number | null
           engaged_views: number | null
+          engaged_views_source: string | null
           entered_by: string | null
           id: string
           likes: number | null
@@ -2369,6 +2370,7 @@ export type Database = {
           captured_at?: string
           comments?: number | null
           engaged_views?: number | null
+          engaged_views_source?: string | null
           entered_by?: string | null
           id?: string
           likes?: number | null
@@ -2391,6 +2393,7 @@ export type Database = {
           captured_at?: string
           comments?: number | null
           engaged_views?: number | null
+          engaged_views_source?: string | null
           entered_by?: string | null
           id?: string
           likes?: number | null
@@ -3895,6 +3898,23 @@ export type Database = {
             foreignKeyName: "channel_policy_channel_id_fkey"
             columns: ["channel_id"]
             isOneToOne: true
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_character_mentions: {
+        Row: {
+          channel_id: string | null
+          day: string | null
+          mentions: number | null
+          slug: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comments_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
             referencedRelation: "channels"
             referencedColumns: ["id"]
           },

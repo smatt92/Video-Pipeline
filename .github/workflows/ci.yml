@@ -330,6 +330,9 @@ jobs:
       - name: Bureau MCP control plane, scopes and authorship
         run: pnpm verify:bureau "$DATABASE_URL"
 
+      - name: Bureau publishing behind its flags, metrics and comments read back
+        run: pnpm verify:bureau-publish "$DATABASE_URL"
+
       - name: Build
         run: pnpm build
         env:

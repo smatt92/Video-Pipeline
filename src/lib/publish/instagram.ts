@@ -123,3 +123,22 @@ export async function probeInstagram(igUserId: string | undefined, token: string
   });
   return r.ok ? { passed: true, detail: 'Account read.' } : { passed: false, detail: r.detail };
 }
+
+// ── Insights (Sprint 6) ─────────────────────────────────────────────────────
+// Reel metrics have been renamed by the vendor more than once (plays → views); every metric
+// the response omits is null, never 0. Never called from this environment.
+const Insights = z.object({
+  data: z.array(z.object({ name: z.string(), values: z.array(z.object({ value: z.number() })).optional(), total_value: z.object({ value: z.number() }).optional() })),
+});
+
+export async function reelInsights(c: IgCreds, mediaId: string): Promise<IgResult<Record<string, number | null>>> {
+  const metrics = ['views', 'reach', 'likes', 'comments', 'shares', 'saved', 'ig_reels_avg_watch_time'];
+  const url = `${GRAPH_BASE}/${encodeURIComponent(mediaId)}/insights?metric=${metrics.join(',')}`;
+  const r = await httpJson(url, { headers: { authorization: `Bearer ${c.accessToken}` }, fetchImpl: c.fetchImpl });
+  if (!r.ok) return { ok: false, code: r.code, detail: r.detail };
+  const p = Insights.safeParse(r.json);
+  if (!p.success) return { ok: false, code: 'upstream', detail: 'Unreadable insights.' };
+  const out: Record<string, number | null> = Object.fromEntries(metrics.map((m) => [m, null]));
+  for (const d of p.data.data) out[d.name] = d.total_value?.value ?? d.values?.[0]?.value ?? null;
+  return { ok: true, value: out };
+}

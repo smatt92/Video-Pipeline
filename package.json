@@ -69,7 +69,8 @@
     "test:align": "tsc -p tsconfig.verify.json && node scripts/test-align.mjs",
     "verify:episode": "tsc -p tsconfig.verify.json && node scripts/verify-episode.mjs",
     "voice:audition": "tsc -p tsconfig.verify.json && node scripts/voice-audition.mjs",
-    "voice:lock": "tsc -p tsconfig.verify.json && node scripts/voice-lock.mjs"
+    "voice:lock": "tsc -p tsconfig.verify.json && node scripts/voice-lock.mjs",
+    "verify:bureau-publish": "tsc -p tsconfig.verify.json && node scripts/verify-bureau-publish.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

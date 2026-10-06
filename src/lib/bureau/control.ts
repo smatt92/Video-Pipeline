@@ -127,9 +127,17 @@ export async function setKillSwitch(db: Db, token: BureauToken, effects: Effects
   return { ok: true as const, kill_switch: input.on, policy: data };
 }
 
-export async function markScheduled(db: Db, token: BureauToken, input: { publication_id: string; at: string }) {
+/**
+ * `videoId` is optional and is how the metrics loop finds the video: with manual Studio
+ * scheduling nothing else here learns the YouTube id. Parsed by the caller (the publish
+ * layer owns the URL shapes); stored only after the scheduling decision committed.
+ */
+export async function markScheduled(db: Db, token: BureauToken, input: { publication_id: string; at: string; videoId?: string | null; videoUrl?: string | null }) {
   requireApprover(token, 'mark_scheduled');
   const { data, error } = await db.rpc('bureau_mark_scheduled', { p_token: token.id, p_publication: input.publication_id, p_at: input.at });
   if (error) throw dbError(error.message);
-  return { ok: true as const, publication: data };
+  if (input.videoId) {
+    await db.from('publications').update({ external_post_id: input.videoId, external_url: input.videoUrl ?? null }).eq('id', input.publication_id);
+  }
+  return { ok: true as const, publication: data, video_id: input.videoId ?? null, metrics: input.videoId ? 'will be pulled at 1h / 24h / 72h / 7d after the slot' : 'pass video_url to enable metric pulls' };
 }

@@ -1,8 +1,9 @@
 import { writeFile } from 'node:fs/promises';
 
-import { logger, schemaTask, wait } from '@trigger.dev/sdk';
+import { logger, schemaTask, tasks, wait } from '@trigger.dev/sdk';
 import { z } from 'zod';
 
+import { afterBundle } from '@/lib/bureau/after-bundle';
 import { notify } from '@/lib/bureau/alerts';
 import { BUREAU_CHANNEL_ID } from '@/lib/bureau/bible';
 import {
@@ -175,8 +176,12 @@ export const episodeTask = schemaTask({
         if (decision.output.approved) {
           // 9. Bundle
           const b = await bundleEpisode(db, episodeId);
-          await notify(db, BUREAU_CHANNEL_ID, 'info', `Publish bundle ready for episode ${episodeId.slice(0, 8)}${b.slotTime ? ` — slot ${b.slotTime}` : ''}.`);
-          return { bundled: b.publicationId };
+          // Both flags false today: this records "bundle only" and does nothing else.
+          const next = await afterBundle(db, b.publicationId, {
+            startUpload: async (publicationId) => (await tasks.trigger('10-publish', { publicationId, idempotencyKey: `publish:${publicationId}` })).id,
+          });
+          await notify(db, BUREAU_CHANNEL_ID, 'info', `Publish bundle ready for episode ${episodeId.slice(0, 8)}${b.slotTime ? ` — slot ${b.slotTime}` : ''}. YouTube: ${next.youtube}.`);
+          return { bundled: b.publicationId, ...next };
         }
         // Rejected: re-rolls queued by shot_regenerate are generated, then the cut is rebuilt.
         const open = await generationSettled(db, episodeId);

@@ -18,6 +18,7 @@ import {
   topPerformers,
 } from '../read';
 import type { BureauToken } from '../tokens';
+import { youtubeVideoId } from '../../publish/yt-analytics';
 import {
   checkVariation,
   loadVariationHistory,
@@ -219,10 +220,14 @@ export const BUREAU_TOOLS: BureauTool[] = [
   tool({
     name: 'mark_scheduled',
     title: 'Mark a bundle scheduled',
-    description: 'Record that you scheduled a bundle in Studio, at the given ISO time. The review gate and the daily publish cap are enforced by the database.',
+    description: 'Record that you scheduled a bundle in Studio, at the given ISO time. Pass video_url (the Studio link or Shorts URL) so metrics can be pulled. The review gate and the daily publish cap are enforced by the database.',
     scope: 'approver',
-    args: z.object({ id: z.uuid(), at: z.iso.datetime({ offset: true }) }).strict(),
-    run: (c, a) => markScheduled(c.db, c.token, { publication_id: a.id, at: a.at }),
+    args: z.object({ id: z.uuid(), at: z.iso.datetime({ offset: true }), video_url: z.string().min(11).optional() }).strict(),
+    run: async (c, a) => {
+      const videoId = a.video_url ? youtubeVideoId(a.video_url) : null;
+      if (a.video_url && !videoId) return { ok: false, error: `"${a.video_url}" does not contain a YouTube video id.` };
+      return markScheduled(c.db, c.token, { publication_id: a.id, at: a.at, videoId, videoUrl: a.video_url ?? null });
+    },
   }),
   tool({
     name: 'metrics_summary',

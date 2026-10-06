@@ -346,12 +346,43 @@ type MetadataResult =
 async function metadataFor(db: Db, publicationId: string): Promise<MetadataResult> {
   const { data, error } = await db
     .from('publications')
-    .select('title, description, tags, altered_content_disclosed, scheduled_for')
+    .select('title, description, tags, altered_content_disclosed, scheduled_for, episode_id, bundle')
     .eq('id', publicationId)
     .maybeSingle();
 
   if (error || !data) {
     return { ok: false, code: 'metadata_unreadable', detail: error?.message ?? 'no row' };
+  }
+
+  // ── Bureau of Reality publications (decision 0014) ───────────────────────────
+  // The disclosure IS decided, per video, by the bundle: true only when a money shot depicts
+  // a realistic scene (YouTube's own definition of altered or synthetic content); chalk-line
+  // animation is not. The bundle carries that decision explicitly, so it is read, not
+  // defaulted — the rule below ("refused rather than defaulted") still holds, it is just
+  // that this row has a recorded decision of `false` to honour. And the upload is scheduled:
+  // private now, public at the slot (`publishAt`), which keeps the platform-side look.
+  if (data.episode_id) {
+    const decided = (data.bundle as { contains_synthetic_media?: unknown } | null)?.contains_synthetic_media;
+    if (typeof decided !== 'boolean' || decided !== data.altered_content_disclosed) {
+      return {
+        ok: false,
+        code: 'disclosure_not_set',
+        detail: 'The bundle and the publication disagree about the synthetic-media disclosure (or the bundle never decided). Refusing to upload on a guess.',
+      };
+    }
+    const slot = data.scheduled_for ? new Date(data.scheduled_for) : null;
+    return {
+      ok: true,
+      value: {
+        title: data.title as string,
+        description: (data.description as string | null) ?? '',
+        tags: (data.tags as string[] | null) ?? [],
+        alteredContentDisclosed: decided,
+        privacyStatus: 'private',
+        madeForKids: false,
+        ...(slot && slot.getTime() > Date.now() ? { publishAt: slot.toISOString() } : {}),
+      },
+    };
   }
 
   if (data.altered_content_disclosed !== true) {
