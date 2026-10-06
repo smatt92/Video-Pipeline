@@ -21,7 +21,10 @@ import { requireCredential } from '@/lib/integrations/credentials';
  */
 export const draftBriefsTask = schedules.task({
   id: '19-draft-briefs',
-  cron: { pattern: '45 6 * * *', timezone: 'Asia/Kolkata' },
+  // 06:45 IST, written in UTC. Trigger.dev's deploy rejected timezone 'Asia/Kolkata' by name
+  // ("Invalid IANA timezone"), and India has no daylight saving, so UTC+05:30 is exact all
+  // year and no zone name is needed.
+  cron: '15 1 * * *',
   queue: { concurrencyLimit: 1 },
 
   run: async () => {
