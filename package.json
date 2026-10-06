@@ -70,7 +70,10 @@
     "verify:episode": "tsc -p tsconfig.verify.json && node scripts/verify-episode.mjs",
     "voice:audition": "tsc -p tsconfig.verify.json && node scripts/voice-audition.mjs",
     "voice:lock": "tsc -p tsconfig.verify.json && node scripts/voice-lock.mjs",
-    "verify:bureau-publish": "tsc -p tsconfig.verify.json && node scripts/verify-bureau-publish.mjs"
+    "frame:audition": "tsc -p tsconfig.verify.json && node --env-file-if-exists=.env.local scripts/frame-audition.mjs",
+    "frame:lock": "tsc -p tsconfig.verify.json && node --env-file-if-exists=.env.local scripts/frame-lock.mjs",
+    "verify:bureau-publish": "tsc -p tsconfig.verify.json && node scripts/verify-bureau-publish.mjs",
+    "verify:runway-video": "tsc -p tsconfig.verify.json && node --env-file-if-exists=.env.local scripts/verify-runway-video.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

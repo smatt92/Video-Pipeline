@@ -61,6 +61,7 @@ const { runIngest } = require(`${B}/ingest/run.js`);
 const { createSupabaseStorageDriver } = require(`${B}/storage/supabase.js`);
 const { supabaseShim } = await import('./lib/supabase-shim.mjs');
 const { scratchDatabase } = await import('./lib/scratch.mjs');
+const { stubEmbedder } = await import('./lib/stub-embedder.mjs');
 
 let failures = 0;
 const check = (cond, label, detail = '') => {
@@ -122,6 +123,9 @@ const effects = {
   async completeWaitToken(token, output) { this.woken.push({ token, output }); },
   async notify() {},
   presign: async (key) => presign(key),
+  // Embeddings are an input here (variation_check must have run before a brief can be
+  // approved — 0043); the similarity itself is computed by the database.
+  embedderFor: async () => stubEmbedder,
 };
 const mcp = createServer((req, res) => {
   const chunks = [];
@@ -155,10 +159,15 @@ try {
 
   // The world a generated shot needs: a locked reference for Pip, an active recipe that has
   // carried a character reference, and a verified per-second rate. Inputs, not assertions.
-  const FAL_RATE_USD = 0.084;
-  await client.query(`insert into prompts (name, driver, model, template, params, tags, discovered_in, is_active, accepts_character_ref) values ('pip-beat', 'fal', 'fal-ai/kling-video/v3/standard/image-to-video', '{{description}}', '{"max_duration_s": 10}', '{subject_medium}', 'manual', true, true)`);
-  await client.query(`insert into rate_card (driver, model, endpoint, unit, unit_cost, currency, is_verified, source_note, effective_from) values ('fal', 'fal-ai/kling-video/v3/standard/image-to-video', null, 'second', $1, 'USD', true, 'harness', '2026-01-01')`, [FAL_RATE_USD]);
-  await client.query(`insert into integrations (slug, kind, is_enabled, last_verified_at) values ('fal', 'video', true, now()) on conflict (slug) do update set is_enabled = true, last_verified_at = now()`);
+  // Since 0015 the character beat routes to the Runway API with failover off, so the world is
+  // a gen4_turbo recipe and the generation key. The per-second rate is NOT seeded here: it is
+  // migration 0043's row (USD 0.05/s), read back so the expected figure below comes from the
+  // table the estimator reads rather than from a constant this harness invented.
+  await client.query(`insert into prompts (name, driver, model, template, params, tags, discovered_in, is_active, accepts_character_ref) values ('pip-beat', 'runway', 'gen4_turbo', '{{description}}', '{"max_duration_s": 10}', '{subject_medium}', 'manual', true, true)`);
+  const { rows: rateRow } = await client.query(`select unit_cost from rate_card where driver = 'runway' and model = 'gen4_turbo' and unit = 'second' and endpoint is null and is_verified`);
+  const GEN_RATE_USD = Number(rateRow[0]?.unit_cost);
+  check(GEN_RATE_USD === 0.05, 'migration 0043 seeds gen4_turbo at USD 0.05 per second (5 credits × $0.01)', String(rateRow[0]?.unit_cost));
+  await client.query(`insert into integrations (slug, kind, is_enabled, last_verified_at) values ('runway', 'video', true, now()) on conflict (slug) do update set is_enabled = true, last_verified_at = now()`);
 
   // ═══ 1. Draft (agent) ═══
   console.log('1. Draft and approve over MCP\n');
@@ -192,7 +201,8 @@ try {
 
   // Pip's reference frame, now that syncCast will have run inside prepareScript.
   const script1 = await P.prepareScript(db, ep, { apiKey: null, usdInrRate: 88 });
-  await client.query(`update characters set external_ref_id = 'ref_pip', driver = 'fal', reference_urls = $2 where channel_id = $1 and slug = 'pip'`, [BUREAU_CHANNEL_ID, [vendorUrl.replace('clip.mp4', 'pip.png')]]);
+  // A frame locked into our own bucket, the shape `pnpm frame:lock` writes.
+  await client.query(`update characters set external_ref_id = 'storage:characters/pip/ref-1.png', driver = 'runway', reference_urls = '{}' where channel_id = $1 and slug = 'pip'`, [BUREAU_CHANNEL_ID]);
   check(!!script1.scriptId, 'the script is written from the approved brief', script1.reason ?? '');
   const { rows: sRow } = await client.query('select vo_text, beats from scripts where id = $1', [script1.scriptId]);
   check(sRow[0].vo_text.includes('Tides are now on strike.'), 'the approved punchline is in the spoken text');
@@ -224,24 +234,35 @@ try {
   // ═══ 5. Generation through the queue ═══
   const q = await P.enqueueGeneration(db, ep, { usdInrRate: 88 });
   check(q.queued === 1 && q.refused.length === 0, 'one generation job queued for the character beat', JSON.stringify(q));
-  const { rows: job } = await client.query('select provider, estimate_inr, duration_s from gen_jobs where episode_id = $1', [ep]);
-  check(Math.abs(Number(job[0].estimate_inr) - Number(job[0].duration_s) * FAL_RATE_USD * 88) < 1e-9, 'its estimate is duration × the verified per-second rate × ₹88');
+  const { rows: job } = await client.query('select provider, estimate_inr, duration_s, params from gen_jobs where episode_id = $1', [ep]);
+  // gen4_turbo bills whole seconds from 2 to 10 (SDK), so the billed length is the shot's
+  // length rounded up, never under 2 — written out here, not computed by the code under test.
+  const billed = Math.max(2, Math.ceil(Number(job[0].duration_s)));
+  check(job[0].provider === 'runway' && job[0].params.duration_s === billed, 'routed to the generation vendor, submitted at the billed clip length', `${job[0].provider}, ${job[0].params.duration_s}s for a ${Number(job[0].duration_s).toFixed(2)}s shot`);
+  check(Math.abs(Number(job[0].estimate_inr) - Math.round(billed * GEN_RATE_USD * 88 * 100) / 100) < 1e-9, 'its estimate is ONE call: billed seconds × the verified per-second rate × ₹88', String(job[0].estimate_inr));
+  check(job[0].params.reference_frame === 'storage:characters/pip/ref-1.png' && job[0].params.image_url === undefined, 'the job stores the frame as the bible wrote it, never a resolved URL');
   await client.query(`update episodes set gen_wait_token = 'waitpoint_gen' where id = $1`, [ep]);
   const submitted = [];
   const deps = {
     db, worker: 'verify', usdInrRate: 88,
-    credentialsFor: async () => ({ FAL_KEY: 'x' }),
-    submit: async (i) => { submitted.push(i); return { ok: true, requestId: 'req_1', pollRef: { status_url: 'x', response_url: 'y' } }; },
-    poll: async () => ({ state: 'succeeded', outputUrl: vendorUrl, downloadHeaders: {} }),
+    credentialsFor: async () => ({ RUNWAY_API_KEY: 'x' }),
+    presign: async (key) => (key === 'characters/pip/ref-1.png' ? vendorUrl.replace('clip.mp4', 'pip.png') : Promise.reject(new Error(`unexpected key ${key}`))),
+    submit: async (i) => { submitted.push(i); return { ok: true, requestId: 'req_1', pollRef: {} }; },
+    // The vendor's terminal task reports its final charge; 15 credits is a stand-in figure.
+    poll: async () => ({ state: 'succeeded', outputUrl: vendorUrl, downloadHeaders: {}, charged: { quantity: 15, unit: 'credit', usd: 0.15 } }),
     ingest: ({ generationId, assetUrl }) => runIngest({ generationId, assetUrl }, { db, putBytes }),
   };
-  const d1 = await dispatchProvider('fal', 5, deps);
-  check(d1.submitted === 1 && submitted[0].params.image_url?.endsWith('pip.png'), 'the dispatcher submits once, with Pip’s reference frame', JSON.stringify(d1));
+  const d1 = await dispatchProvider('runway', 5, deps);
+  check(d1.submitted === 1 && submitted[0].params.image_url?.endsWith('pip.png') && submitted[0].params.reference_frame === undefined, 'the dispatcher submits once, with Pip’s frame resolved from storage for this call only', JSON.stringify(d1));
+  check((await client.query('select params from gen_jobs where episode_id = $1', [ep])).rows[0].params.image_url === undefined, 'and the resolved URL was not written back to the job');
   const { rows: genLedger } = await client.query(`select cl.entry_kind, cl.cost_inr from cost_ledger cl join generations g on g.id = cl.generation_id join gen_jobs j on j.generation_id = g.id where j.episode_id = $1`, [ep]);
   check(genLedger.length === 1 && genLedger[0].entry_kind === 'estimate', 'the generation cost row was written at submit');
-  const d2 = await dispatchProvider('fal', 5, deps);
+  const d2 = await dispatchProvider('runway', 5, deps);
   check(d2.claimed === 0, 'a second dispatch claims nothing — no double submit');
-  const adv = await advanceSubmitted('fal', deps);
+  const adv = await advanceSubmitted('runway', deps);
+  const { rows: recon } = await client.query(`select cl.quantity, cl.unit, cl.cost_source, cl.cost_inr from cost_ledger cl join gen_jobs j on j.generation_id = cl.generation_id where j.episode_id = $1 and cl.entry_kind = 'reconcile'`, [ep]);
+  check(recon.length === 1 && Number(recon[0].quantity) === 15 && recon[0].unit === 'credit' && recon[0].cost_source === 'measured' && Math.abs(Number(recon[0].cost_inr) - 0.15 * 88) < 1e-9,
+    'the vendor’s reported charge lands as a measured reconcile', JSON.stringify(recon[0]));
   const { rows: jobAfter } = await client.query(`select j.status, s.status shot_status from gen_jobs j join shots s on s.id = j.shot_id where j.episode_id = $1`, [ep]);
   check(adv.advanced === 1 && jobAfter[0].status === 'succeeded' && jobAfter[0].shot_status === 'ready', 'polled, ingested and normalised; the shot is ready', JSON.stringify(jobAfter[0]));
   const s1 = await settleEpisodes(db, async (t, o) => effects.woken.push({ token: t, output: o }));
@@ -291,8 +312,9 @@ try {
 
   // ═══ 9. Cost, under the cap ═══
   const { rows: spend } = await client.query('select spent_inr, unpriced_rows from v_episode_spend where episode_id = $1', [ep]);
-  const expected = expectVoiceInr + Number(job[0].duration_s) * FAL_RATE_USD * 88;
-  check(Math.abs(Number(spend[0].spent_inr) - expected) < 1e-6 && Number(spend[0].unpriced_rows) === 0, 'episode spend = voice + generation, every row priced', `₹${Number(spend[0].spent_inr).toFixed(2)}`);
+  // The measured reconcile replaces the generation estimate (v_ledger_effective).
+  const expected = expectVoiceInr + 0.15 * 88;
+  check(Math.abs(Number(spend[0].spent_inr) - expected) < 1e-6 && Number(spend[0].unpriced_rows) === 0, 'episode spend = voice + the measured generation charge, every row priced', `₹${Number(spend[0].spent_inr).toFixed(2)}`);
   check(Number(spend[0].spent_inr) <= 150, 'under the ₹150 per-Short cap');
   const ledger = await call('costs_ledger', { range: '1d' }, approver.plaintext);
   check(ledger.result?.rows >= 2 && ledger.result?.unpriced_rows === 0, 'costs_ledger reports it over MCP', `${ledger.result?.rows} rows`);
@@ -367,7 +389,7 @@ try {
   await P.prepareScript(db, ep2, { apiKey: null, usdInrRate: 88 });
   // prepareScript re-syncs the cast from the bible (whose references are placeholders), so the
   // harness re-seeds Pip's reference — the bible is the source of truth in production.
-  await client.query(`update characters set external_ref_id = 'ref_pip', driver = 'fal', reference_urls = $2 where channel_id = $1 and slug = 'pip'`, [BUREAU_CHANNEL_ID, [vendorUrl.replace('clip.mp4', 'pip.png')]]);
+  await client.query(`update characters set external_ref_id = 'storage:characters/pip/ref-1.png', driver = 'runway', reference_urls = '{}' where channel_id = $1 and slug = 'pip'`, [BUREAU_CHANNEL_ID]);
   await P.planShots(db, ep2, { usdInrRate: 88, actedBeatAvailable: false });
   const wrongVoice = await P.voiceStep(db, ep2, { usdInrRate: 88, apiKeyFor: async () => 'k', synth: synthFrom(() => 'Calendars drift because a year is not a whole number of days at all.'), align: (i) => alignLine(i), putBytes, presign, routeFor });
   check(!wrongVoice.ok && wrongVoice.code === 'alignment_failed', 'the stage refuses: alignment not confident', wrongVoice.ok ? 'it passed' : wrongVoice.detail.slice(0, 120));

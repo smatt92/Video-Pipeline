@@ -91,9 +91,7 @@ const ENV = {
   TRIGGER_SECRET_KEY: 'tr_ci',
   ANTHROPIC_API_KEY: 'ci',
   VIDEO_DRIVER: 'none',
-  HIGGSFIELD_API_KEY: 'ci',
-  HIGGSFIELD_API_SECRET: 'ci',
-  HIGGSFIELD_WEBHOOK_SECRET: 'ci-placeholder-secret-at-least-32-chars',
+  // No vendor credentials (0015): none is required to boot, and this env proves it.
 };
 
 // ── Driving a real page ─────────────────────────────────────────────────────

@@ -10,14 +10,14 @@ import { z } from 'zod';
 import { SAFE_AREAS } from '../assemble/composition';
 import type { Db } from '../db/server';
 import type { Json } from '../db/types';
-import type { RenderRoute } from '../drivers/jobs';
+import { billedSeconds, REFERENCE_FRAME_PARAM, type RenderRoute } from '../drivers/generation';
 import { routed } from '../llm/router';
 import { POLISH_SYSTEM, PROMPT_REF } from '../prompts/20-bureau.v1';
 import { captionCues, type CaptionCue } from '../review/timeline';
 import { shiftBy, type WordTiming } from '../voice/timings';
 import { normaliseOverlay, type OverlaySpec } from '../../remotion/bureau/overlay-scene';
 import type { BureauShot, BureauVideoProps } from '../../remotion/bureau/bureau-video';
-import { BIBLE, characterBySlug, SERIES, syncCast } from './bible';
+import { BIBLE, characterBySlug, SERIES, STORAGE_REF_PREFIX, syncCast } from './bible';
 import { estimateEpisode, fitToCap, PlannedShotSchema, recipeForRoute, type PlannedShot } from './estimate';
 import { parseScript, type ScriptLine } from './script-lines';
 
@@ -330,13 +330,23 @@ export async function enqueueGeneration(db: Db, episodeId: string, deps: { usdIn
       continue;
     }
     const ref = (chars ?? []).find((c) => c.slug !== null && s.character_slugs.includes(c.slug));
+    if (route === 'character_beat' && !ref?.external_ref_id) {
+      // planShots already swaps these to overlays; this is the same refusal at the consumer,
+      // so a shot that reached here some other way cannot generate a stranger and bill for it.
+      refused.push(`shot ${s.idx}: no locked reference frame for ${s.character_slugs.join(', ') || 'its character'}`);
+      continue;
+    }
+    // The billed length — the same arithmetic the estimate above priced (drivers/generation).
+    const billed = billedSeconds(recipe.driver, recipe.model, duration, Number(recipe.params.max_duration_s) || undefined);
     const params: Record<string, unknown> = {
       ...recipe.params,
       prompt: `${fillTemplate(recipe.template, { description: s.description, intent: b.premise, duration })}. ${BIBLE.world.style_rules[0]}`,
       negative_prompt: BIBLE.world.negative_prompt,
-      duration_s: Math.min(Math.ceil(duration), Number(recipe.params.max_duration_s ?? 10)),
+      duration_s: billed,
       aspect_ratio: '9:16',
-      ...(route === 'character_beat' && ref?.reference_urls?.[0] ? { image_url: ref.reference_urls[0] } : {}),
+      // Stored as the bible wrote it (`storage:<key>` or https); the dispatcher resolves it to
+      // a short-lived URL at submit time and never writes the resolved URL back.
+      ...(route === 'character_beat' ? { [REFERENCE_FRAME_PARAM]: ref!.external_ref_id } : {}),
     };
     const { error } = await db.from('gen_jobs').insert({
       episode_id: e.id,
@@ -618,7 +628,7 @@ export async function qcClips(db: Db, episodeId: string, deps: QcDeps): Promise<
   const qc = { ...((e.qc ?? {}) as Record<string, unknown>) };
   const clips = { ...((qc.clips ?? {}) as Record<string, unknown>) };
   const { data: jobs } = await db.from('gen_jobs').select('id, shot_id, generation_id, status, reroll_index').eq('episode_id', episodeId).eq('status', 'succeeded');
-  const { data: chars } = await db.from('characters').select('slug, reference_urls').eq('channel_id', e.channel_id);
+  const { data: chars } = await db.from('characters').select('slug, reference_urls, external_ref_id').eq('channel_id', e.channel_id);
   let checked = 0;
   let rerolled = 0;
   let flagged = 0;
@@ -632,7 +642,8 @@ export async function qcClips(db: Db, episodeId: string, deps: QcDeps): Promise<
       const local = join(work, `${job.id}.mp4`);
       await deps.download(await deps.presign(asset.storage_key), local);
       const signal = await deps.signal(local, Number(asset.duration_s));
-      const ref = (chars ?? []).find((c) => c.slug !== null && shot!.character_slugs.includes(c.slug))?.reference_urls?.[0] ?? null;
+      const frame = (chars ?? []).find((c) => c.slug !== null && shot!.character_slugs.includes(c.slug))?.external_ref_id ?? null;
+      const ref = frame === null ? null : frame.startsWith(STORAGE_REF_PREFIX) ? await deps.presign(frame.slice(STORAGE_REF_PREFIX.length)) : frame;
       const vision = deps.vision ? await deps.vision({ path: local, referenceUrl: ref, description: shot!.description }).catch((err) => ({ passed: false, reasons: [`vision unavailable: ${err instanceof Error ? err.message : String(err)}`], scores: null })) : null;
       const reasons = [...signal.reasons, ...(vision ? vision.reasons : ['unscored: no vision QC configured'])];
       const passed = signal.passed && (vision?.passed ?? false);

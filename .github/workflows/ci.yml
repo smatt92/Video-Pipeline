@@ -333,6 +333,13 @@ jobs:
       - name: Bureau publishing behind its flags, metrics and comments read back
         run: pnpm verify:bureau-publish "$DATABASE_URL"
 
+      # Decision 0015. §1 drives the real Runway driver, dispatcher and ingest against a local
+      # stand-in for the vendor's HTTP surface and ffprobes the stored file. §2 — one real,
+      # spend-limited gen4_turbo clip — runs only where RUNWAY_API_KEY is set, which CI
+      # deliberately is not (a paid call per push); it prints SKIP with that reason here.
+      - name: Character beats on the generation vendor — ledger, status, stored frame count
+        run: pnpm verify:runway-video "$DATABASE_URL"
+
       - name: Build
         run: pnpm build
         env:
@@ -354,9 +361,9 @@ jobs:
           TRIGGER_SECRET_KEY: tr_ci
           ANTHROPIC_API_KEY: ci
           VIDEO_DRIVER: none
-          HIGGSFIELD_API_KEY: ci
-          HIGGSFIELD_API_SECRET: ci
-          HIGGSFIELD_WEBHOOK_SECRET: ci-placeholder-secret-at-least-32-chars
+          # No vendor credentials (0015): every one is optional at boot, and the build is the
+          # proof. Setting dormant-failover keys here would only show the build passes when
+          # they exist.
 
       # ── The one artifact the product exists to make ───────────────────────
       # Remotion drives Chromium in OLD headless mode, which recent Chrome removed, so the

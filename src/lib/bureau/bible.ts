@@ -164,12 +164,25 @@ export function leadsFromCalendar(lead: string | null): string[] {
 }
 
 /**
+ * How a locked reference frame held in our own bucket is written in `reference_frame_ids`:
+ * `storage:<key>`. Written only by `pnpm frame:lock`; resolved to a short-lived URL by the
+ * dispatcher at submit time and by QC, never stored resolved.
+ */
+export const STORAGE_REF_PREFIX = 'storage:';
+
+/** A reference frame the generator can actually be given: one of ours, or an https URL. */
+export function isUsableReference(ref: string): boolean {
+  return ref.startsWith(STORAGE_REF_PREFIX) ? ref.length > STORAGE_REF_PREFIX.length : /^https:\/\//.test(ref);
+}
+
+/**
  * Mirror the bible's cast into `characters` — idempotent, keyed on (channel, slug).
  *
- * Reference frames: the JSON carries placeholders until Prompt B locks the cast. A
- * placeholder is NOT copied into `external_ref_id`, because a row that claims a reference
- * which does not exist is the "guard that permits what its message forbids" shape: the
- * character-beat route checks that column before it will submit.
+ * Reference frames: the JSON carries placeholders until `pnpm frame:lock` (or Prompt B)
+ * locks the cast. Only a usable reference — `storage:<key>` or an https URL — is copied into
+ * `external_ref_id`, because a row that claims a reference which does not exist is the
+ * "guard that permits what its message forbids" shape: the character-beat route checks that
+ * column before it will submit, and the generator needs a frame it can fetch.
  */
 export async function syncCast(db: {
   from: (t: 'characters') => {
@@ -181,7 +194,7 @@ export async function syncCast(db: {
 }): Promise<{ synced: number; withReference: number; withVoice: number }> {
   const now = new Date().toISOString();
   const rows = BIBLE.characters.map((c) => {
-    const real = c.reference_frame_ids.filter((r) => !r.startsWith('PLACEHOLDER_'));
+    const real = c.reference_frame_ids.filter(isUsableReference);
     // `voice_id` holds the routed voice ("<provider>:<id>") or null while unlocked — never a
     // stand-in, because the voice stage reads null as "refuse this line".
     const route = voiceRouteFor(c);
@@ -195,7 +208,7 @@ export async function syncCast(db: {
       on_screen: c.on_screen,
       season_introduced: c.season_introduced,
       bible: c,
-      reference_urls: real.filter((r) => /^https?:\/\//.test(r)),
+      reference_urls: real.filter((r) => /^https:\/\//.test(r)),
       external_ref_id: real[0] ?? null,
       driver: real[0] ? ROUTE_PROVIDERS.character_beat.primary : null,
       notes: c.personality,

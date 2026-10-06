@@ -21,7 +21,12 @@ const { modelFor, TASK_TIER } = require(`${B}/llm/router.js`);
 const { voiceRouteFor } = require(`${B}/drivers/voice-route.js`);
 const { resolvePunchline } = require(`${B}/bureau/briefs.js`);
 const { validateSegments } = require(`${B}/bureau/longform.js`);
+const { providersForRoute, failoverEnabled } = require(`${B}/drivers/jobs.js`);
+const { videoRequestBody, imageRequestBody, clipSeconds, clipCredits } = require(`${B}/drivers/video-runway.js`);
 const { embedTexts, EMBED_ATTEMPTS } = require(`${B}/drivers/embeddings.js`);
+const { resolveReferenceFrame } = require(`${B}/bureau/dispatch.js`);
+const { BIBLE } = require(`${B}/bureau/bible.js`);
+const { framePrompt } = require(`${B}/bureau/frames.js`);
 
 let failures = 0;
 const check = (cond, label, detail = '') => {
@@ -107,7 +112,9 @@ check(windowed.compared_against === 14 && windowed.status === 'pass', 'only the 
 
 console.log('\nfitToCap\n');
 const shot = (route, d) => ({ route, description: 'x x x', duration_s: d, characters: [], realistic: route === 'money_shot' });
-const est = (inr, voice = 10) => ({ total_inr: null, priced_inr: 0, voice_inr: voice, shots: inr.map((v, idx) => ({ idx, route: 'x', duration_s: 0, inr: v, basis: v === null ? 'no rate' : 'rate' })), unpriced: [], usd_inr_rate: 88 });
+// The fitter reads planned_inr (one call × the re-roll allowance) — the per-call `inr` is set
+// to something else on purpose, so a fitter that read the wrong field fails these.
+const est = (inr, voice = 10) => ({ total_inr: null, priced_inr: 0, voice_inr: voice, shots: inr.map((v, idx) => ({ idx, route: 'x', duration_s: 0, billed_s: null, inr: v === null ? null : 0.01, planned_inr: v, basis: v === null ? 'no rate' : 'rate' })), unpriced: [], usd_inr_rate: 88 });
 const pol = { capInr: 150, overlayMinShare: 0.5, characterBeatMaxS: 8, moneyShotMax: 1 };
 let f = fitToCap([shot('overlay', 30), shot('character_beat', 4), shot('money_shot', 6)], est([0, 20, null]), pol);
 check(f.shots[2].route === 'overlay' && f.swaps[0].reason.startsWith('unpriced'), 'an unpriced money shot becomes an overlay, with the reason');
@@ -120,6 +127,40 @@ const ov = f.shots.filter((s) => s.route === 'overlay').reduce((n, s) => n + s.d
 check(ov / 26 >= 0.5, 'overlay share is raised to at least 50% of runtime', `${ov}/26`);
 f = fitToCap([shot('overlay', 40), shot('character_beat', 4), shot('money_shot', 4)], est([0, 60, 100], 10), pol);
 check(f.shots[2].route === 'overlay' && f.shots[1].route === 'character_beat', '₹170 > ₹150 → the priciest shot (₹100) goes, ₹70 stays');
+
+console.log('\ngeneration on the Runway API (0015)\n');
+check(providersForRoute('character_beat', { failover: false }).join() === 'runway' && providersForRoute('money_shot', { failover: false }).join() === 'runway' && providersForRoute('acted_beat', { failover: false }).join() === 'runway',
+  'failover off: every generated route goes to the one vendor and nowhere else');
+check(providersForRoute('character_beat', { failover: true }).join() === 'runway,higgsfield,fal' && providersForRoute('money_shot', { failover: true }).join() === 'runway,gemini',
+  'failover on: the dormant vendors follow, primary first');
+let threw = null;
+try { failoverEnabled('true'); } catch (err) { threw = err.message; }
+check(failoverEnabled(undefined) === false && failoverEnabled('on') === true && /must be "off" or "on"/.test(threw ?? ''), 'GENERATION_FAILOVER defaults off, and "true" is refused rather than read as off', threw);
+check(clipSeconds('gen4_turbo', 1.2) === 2 && clipSeconds('gen4_turbo', 4.6) === 5 && clipSeconds('gen4_turbo', 8) === 8 && clipSeconds('gen4_turbo', 12) === 10, 'gen4_turbo bills whole seconds, 2 to 10');
+check(clipSeconds('veo3.1_fast', 3.2) === 4 && clipSeconds('veo3.1_fast', 4.1) === 6 && clipSeconds('veo3.1_fast', 9) === 8, 'veo3.1_fast bills 4, 6 or 8 only');
+check(clipCredits('gen4_turbo', 8) * 1.5 === 60 && clipCredits('veo3.1_fast', 4) * 1.5 === 60, 'per-Short arithmetic: an 8 s beat × 1.5 re-rolls = 60 credits; a 4 s money shot × 1.5 × 10 = 60');
+const veo = videoRequestBody('veo3.1_fast', { prompt: 'A wave breaks over a lighthouse', duration_s: 3.2, aspect_ratio: '9:16', negative_prompt: 'text' });
+check(veo.ok && veo.body.audio === false && Object.prototype.hasOwnProperty.call(veo.body, 'audio'), 'LOAD-BEARING: Veo is sent audio:false explicitly — the key is present, not omitted', JSON.stringify(veo.body));
+check(veo.ok && veo.path === '/text_to_video' && veo.body.duration === 4 && veo.body.ratio === '720:1280' && veo.body.promptImage === undefined, 'no start frame → text-to-video, 4 s, 720:1280');
+const veoI = videoRequestBody('veo3.1_fast', { prompt: 'x', duration_s: 6, image_url: 'https://e.test/f.png' });
+check(veoI.ok && veoI.path === '/image_to_video' && veoI.body.audio === false && veoI.body.promptImage[0].position === 'first', 'with a start frame → image-to-video, still audio:false');
+const g4 = videoRequestBody('gen4_turbo', { prompt: 'x', duration_s: 7.4, image_url: 'https://e.test/f.png' });
+check(g4.ok && g4.body.duration === 8 && g4.body.ratio === '720:1280' && !('audio' in g4.body), 'gen4_turbo: 8 s, 720:1280, no audio field (the model has none)');
+const g4noRef = videoRequestBody('gen4_turbo', { prompt: 'x', duration_s: 4 });
+check(!g4noRef.ok && /different-looking character/.test(g4noRef.detail), 'gen4_turbo without a frame is refused before any call', g4noRef.detail);
+check(!videoRequestBody('gen4_turbo', { prompt: 'x'.repeat(1001), duration_s: 4, image_url: 'https://e.test/f.png' }).ok, 'a prompt over 1000 characters is refused, not clipped');
+check(!videoRequestBody('gen4_turbo', { prompt: 'x', duration_s: 4, image_url: 'https://e.test/f.png', aspect_ratio: '1:1' }).ok, 'an aspect with no ratio mapping is refused');
+check(!imageRequestBody({ model: 'gen4_image_turbo', prompt: 'x', ratio: '720:1280', references: [] }).ok, 'gen4_image_turbo needs a reference image');
+check(!imageRequestBody({ model: 'gen4_image', prompt: 'x', ratio: '720:1280', references: [{ uri: 'https://e.test/a.png', tag: 'p-1' }] }).ok, 'a reference tag with a hyphen is refused (3–16, letters/digits/underscore)');
+const img = imageRequestBody({ model: 'gen4_image', prompt: 'x', ratio: '1080:1920', references: [{ uri: 'https://e.test/a.png', tag: 'pip_ref1' }] });
+check(img.ok && img.body.referenceImages[0].tag === 'pip_ref1' && img.body.ratio === '1080:1920', 'gen4_image with a tagged reference');
+check(BIBLE.characters.every((c) => framePrompt(c).length <= 1000), 'every character’s frame prompt fits the vendor’s 1000-character limit', String(Math.max(...BIBLE.characters.map((c) => framePrompt(c).length))));
+const rf1 = await resolveReferenceFrame({ reference_frame: 'storage:characters/pip/ref.png', prompt: 'x' });
+check(!rf1.ok && /no way to presign/.test(rf1.detail), 'a storage frame with no presigner is refused, not submitted without it');
+const rf2 = await resolveReferenceFrame({ reference_frame: 'storage:characters/pip/ref.png' }, async (k) => `https://signed.test/${k}`);
+check(rf2.ok && rf2.params.image_url === 'https://signed.test/characters/pip/ref.png' && !('reference_frame' in rf2.params), 'a storage frame resolves to image_url for the call');
+const rf3 = await resolveReferenceFrame({ reference_frame: 'ref_pip' });
+check(!rf3.ok, 'a vendor-side id that is neither storage nor https is refused');
 
 console.log('\nembeddings on a free tier\n');
 let calls = 0;

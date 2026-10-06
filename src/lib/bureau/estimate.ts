@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { currentRate } from '../cost/rate-card';
 import type { Db } from '../db/server';
-import { providersForRoute, type RenderRoute } from '../drivers/jobs';
+import { billedSeconds, providersForRoute, type RenderRoute } from '../drivers/generation';
 import { TTS_RATE_KEY } from '../drivers/voice-route';
 
 /**
@@ -13,6 +13,18 @@ import { TTS_RATE_KEY } from '../drivers/voice-route';
  * its cost is null, never 0, and the episode total is null while any priced-by-us shot is
  * unpriced. `fitToCap` is what turns that into an action: an unpriced generated shot cannot
  * be proven to sit under the cap, so it is planned as an overlay, with the reason recorded.
+ *
+ * ── Two figures per shot, on purpose ─────────────────────────────────────────
+ *
+ * `inr` is ONE call: the billed clip length (`billedSeconds`, shared with the submitter) ×
+ * the rate. It is what `enqueueGeneration` writes to `gen_jobs.estimate_inr` and what the
+ * dispatcher ledgers at submit — a ledger row is one call, never a forecast.
+ *
+ * `planned_inr` is that × `REROLL_ALLOWANCE`: the plan expects half the generated shots to
+ * be re-rolled once by QC (0015 arithmetic: an 8 s Gen-4 Turbo beat is 40 credits a call,
+ * 60 planned). The episode total and `fitToCap` use `planned_inr`, so the cap is checked
+ * against what a Short is expected to cost, not what it costs when everything works first
+ * time. The per-call figure and the planned figure are never mixed in one sum.
  */
 
 export const SHOT_ROUTES = ['overlay', 'character_beat', 'acted_beat', 'money_shot'] as const;
@@ -31,6 +43,14 @@ export const PlannedShotSchema = z.object({
 });
 export type PlannedShot = z.infer<typeof PlannedShotSchema>;
 
+/**
+ * Expected calls per generated shot. QC re-rolls a failing clip up to
+ * `channel_policy.rerolls_max` times; planning for one re-roll on half of them is the plan
+ * v2.3 figure. A constant rather than a policy column because nothing measures it yet —
+ * when `gen_jobs.reroll_index` has a month of rows, replace this with the observed mean.
+ */
+export const REROLL_ALLOWANCE = 1.5;
+
 export interface Recipe {
   id: string;
   driver: string;
@@ -41,8 +61,13 @@ export interface Recipe {
 }
 
 /** The active recipe for a route: primary provider first, then the failover. */
-export async function recipeForRoute(db: Db, route: Exclude<RenderRoute, 'overlay'>): Promise<Recipe | null> {
-  const providers = providersForRoute(route);
+export async function recipeForRoute(
+  db: Db,
+  route: Exclude<RenderRoute, 'overlay'>,
+  opts: { failover?: boolean } = {},
+): Promise<Recipe | null> {
+  // The one routing predicate (drivers/jobs.ts). Estimator and submitter both arrive here.
+  const providers = providersForRoute(route, opts);
   const { data } = await db
     .from('prompts')
     .select('id, driver, model, template, params, accepts_character_ref, created_at')
@@ -70,7 +95,12 @@ export interface LineEstimate {
   idx: number;
   route: PlannedShot['route'];
   duration_s: number;
+  /** Seconds one call is billed for; null for an overlay or an unpriced shot. */
+  billed_s: number | null;
+  /** One call. What gets ledgered. */
   inr: number | null;
+  /** One call × REROLL_ALLOWANCE (overlays: 0). What the total and the cap fitter use. */
+  planned_inr: number | null;
   basis: string;
 }
 
@@ -86,18 +116,19 @@ export interface EpisodeEstimate {
 
 async function routeRateInr(db: Db, route: Exclude<RenderRoute, 'overlay'>, durationS: number, fx: number) {
   const recipe = await recipeForRoute(db, route);
-  if (!recipe) return { inr: null, basis: `no active recipe for ${route}` };
+  if (!recipe) return { inr: null, billed: null, basis: `no active recipe for ${route}` };
+  const billed = billedSeconds(recipe.driver, recipe.model, durationS, Number(recipe.params.max_duration_s) || undefined);
   const perSecond = await currentRate(db, { driver: recipe.driver, model: recipe.model, endpoint: null, unit: 'second' });
   if (perSecond.found) {
-    return { inr: durationS * perSecond.rate.unitCostUsd * fx, basis: `rate_card ${recipe.model} per second` };
+    return { inr: billed * perSecond.rate.unitCostUsd * fx, billed, basis: `rate_card ${recipe.model} per second × ${billed}s billed` };
   }
   // Credit-priced recipes carry their own credits-per-second, proven with the sample.
   const cps = Number(recipe.params.credits_per_second);
   const perCredit = await currentRate(db, { driver: recipe.driver, model: recipe.model, endpoint: null, unit: 'credit' });
   if (perCredit.found && Number.isFinite(cps) && cps > 0) {
-    return { inr: durationS * cps * perCredit.rate.unitCostUsd * fx, basis: `rate_card ${recipe.model} per credit × ${cps}/s` };
+    return { inr: billed * cps * perCredit.rate.unitCostUsd * fx, billed, basis: `rate_card ${recipe.model} per credit × ${cps}/s × ${billed}s billed` };
   }
-  return { inr: null, basis: `${recipe.model}: ${perSecond.found ? '' : perSecond.detail}` };
+  return { inr: null, billed: null, basis: `${recipe.model}: ${perSecond.found ? '' : perSecond.detail}` };
 }
 
 export async function estimateEpisode(
@@ -110,19 +141,27 @@ export async function estimateEpisode(
 
   for (const [idx, s] of input.shots.entries()) {
     if (s.route === 'overlay') {
-      lines.push({ idx, route: s.route, duration_s: s.duration_s, inr: 0, basis: 'in-house render (worker compute is not ledgered)' });
+      lines.push({ idx, route: s.route, duration_s: s.duration_s, billed_s: null, inr: 0, planned_inr: 0, basis: 'in-house render (worker compute is not ledgered)' });
       continue;
     }
     const r = await routeRateInr(db, s.route, s.duration_s, fx);
     if (r.inr === null) unpriced.push(`shot ${idx} (${s.route}): ${r.basis}`);
-    lines.push({ idx, route: s.route, duration_s: s.duration_s, inr: r.inr, basis: r.basis });
+    lines.push({
+      idx,
+      route: s.route,
+      duration_s: s.duration_s,
+      billed_s: r.billed,
+      inr: r.inr === null ? null : round2(r.inr),
+      planned_inr: r.inr === null ? null : round2(r.inr * REROLL_ALLOWANCE),
+      basis: r.basis,
+    });
   }
 
   const voiceRate = await currentRate(db, { ...TTS_RATE_KEY });
   const voice_inr = voiceRate.found ? input.voChars * voiceRate.rate.unitCostUsd * fx : null;
   if (voice_inr === null) unpriced.push(`voice: ${voiceRate.found ? '' : voiceRate.detail}`);
 
-  const priced_inr = lines.reduce((n, l) => n + (l.inr ?? 0), 0) + (voice_inr ?? 0);
+  const priced_inr = lines.reduce((n, l) => n + (l.planned_inr ?? 0), 0) + (voice_inr ?? 0);
   return {
     total_inr: unpriced.length ? null : round2(priced_inr),
     priced_inr: round2(priced_inr),
@@ -158,7 +197,8 @@ export interface FitResult {
  */
 export function fitToCap(shots: PlannedShot[], est: EpisodeEstimate, p: FitPolicy): FitResult {
   const out = shots.map((s) => ({ ...s }));
-  const cost = est.shots.map((l) => l.inr);
+  // The planned figure — the same one the episode total is made of (see the header).
+  const cost = est.shots.map((l) => l.planned_inr);
   const swaps: FitResult['swaps'] = [];
   const swap = (i: number, reason: string) => {
     if (out[i].route === 'overlay') return;

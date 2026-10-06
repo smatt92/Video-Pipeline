@@ -1,8 +1,9 @@
 
 import type { Db } from '../db/server';
 import type { Json } from '../db/types';
-import type { JobPollResult, JobSubmitResult } from '../drivers/jobs';
-import { providerUsesWebhook } from '../drivers/jobs';
+import type { Charged, JobPollResult, JobSubmitResult } from '../drivers/jobs';
+import { providerUsesWebhook, REFERENCE_FRAME_PARAM } from '../drivers/jobs';
+import { STORAGE_REF_PREFIX } from './bible';
 import { fits, headroom, nextIstMidnight } from './caps';
 import type { IngestResult } from '../ingest/run';
 
@@ -17,6 +18,14 @@ import type { IngestResult } from '../ingest/run';
  * Money: the `generations` row and its `cost_ledger` estimate are written BEFORE the vendor
  * is called (rule 5), keyed by the job's idempotency key (rule 6) — a retry finds the row
  * and does not submit twice.
+ *
+ * Reference frames: a job's params hold the frame as the bible wrote it (`storage:<key>` or
+ * https). It is resolved to a fetchable URL here, immediately before the call, and the
+ * resolved URL is passed to the vendor only — never written back to `gen_jobs.params`.
+ *
+ * Reconcile: when the vendor's terminal task says what it charged, a `reconcile` row with
+ * `cost_source = 'measured'` is written beside the estimate. When it does not say, nothing is
+ * written — a reconcile equal to the estimate would be a measurement nobody took (CLAUDE.md).
  *
  * Throttling: a 429 / THROTTLED moves the job to `throttled` with `next_attempt_at` from the
  * vendor's Retry-After, else exponential backoff (30 s doubling, 15 min cap). The job keeps
@@ -33,6 +42,12 @@ export interface DispatchDeps {
   poll(input: { provider: string; requestId: string; pollRef: Record<string, string>; credentials: Record<string, string> }): Promise<JobPollResult>;
   ingest(input: { generationId: string; assetUrl: string; headers: Record<string, string> }): Promise<IngestResult>;
   webhook?: { baseUrl: string; secret: string };
+  /**
+   * A storage key → a short-lived GET URL the vendor can fetch. Needed for any job carrying a
+   * `storage:` reference frame; absent, such a job fails with that reason rather than
+   * submitting without the frame (which would generate a different-looking character).
+   */
+  presign?(key: string): Promise<string>;
   now?: () => Date;
   log?: { info(m: string, d?: unknown): void; error(m: string, d?: unknown): void };
 }
@@ -93,12 +108,15 @@ export async function dispatchProvider(provider: string, max: number, deps: Disp
         await fail(db, job.id, 'unpriced', 'the job carries no estimate — refusing to submit what cannot be ledgered', now());
         continue;
       }
+      // The billed clip length (params.duration_s, from drivers/generation billedSeconds) —
+      // the quantity the estimate was priced on — not the shot's own length.
+      const billed = Number((job.params as Record<string, unknown>).duration_s);
       const { error: lErr } = await db.from('cost_ledger').insert({
         generation_id: generationId,
         driver: provider,
         entry_kind: 'estimate',
         unit: 'second',
-        quantity: Number(job.duration_s),
+        quantity: Number.isFinite(billed) && billed > 0 ? billed : Number(job.duration_s),
         cost_usd: costInr / deps.usdInrRate,
         cost_inr: costInr,
         usd_inr_rate: deps.usdInrRate,
@@ -113,7 +131,13 @@ export async function dispatchProvider(provider: string, max: number, deps: Disp
     }
 
     const webhook = providerUsesWebhook(provider) ? deps.webhook : undefined;
-    const r = await deps.submit({ provider, model: job.model, endpoint: job.endpoint, params: job.params as Record<string, unknown>, credentials: creds, webhook });
+    const resolved = await resolveReferenceFrame(job.params as Record<string, unknown>, deps.presign);
+    if (!resolved.ok) {
+      await fail(db, job.id, 'reference_frame', resolved.detail, now());
+      await db.from('generations').update({ status: 'failed', error_code: 'invalid_input', error_detail: resolved.detail }).eq('id', generationId);
+      continue;
+    }
+    const r = await deps.submit({ provider, model: job.model, endpoint: job.endpoint, params: resolved.params, credentials: creds, webhook });
     if (r.ok) {
       submitted++;
       await db.from('gen_jobs').update({ status: 'submitted', request_id: r.requestId, poll_ref: r.pollRef as Json, updated_at: now().toISOString() }).eq('id', job.id);
@@ -137,6 +161,47 @@ export async function dispatchProvider(provider: string, max: number, deps: Disp
   return { claimed: (claimed ?? []).length, submitted, deferred };
 }
 
+/**
+ * `reference_frame` → `image_url`, for the call only. Exported for test:bureau.
+ */
+export async function resolveReferenceFrame(
+  params: Record<string, unknown>,
+  presign?: (key: string) => Promise<string>,
+): Promise<{ ok: true; params: Record<string, unknown> } | { ok: false; detail: string }> {
+  const ref = params[REFERENCE_FRAME_PARAM];
+  if (ref === undefined || ref === null) return { ok: true, params };
+  const { [REFERENCE_FRAME_PARAM]: _dropped, ...rest } = params;
+  if (typeof ref !== 'string' || ref.length === 0) return { ok: false, detail: 'reference frame is not a string' };
+  if (ref.startsWith(STORAGE_REF_PREFIX)) {
+    if (!presign) return { ok: false, detail: `reference frame ${ref} is in storage and this dispatcher was given no way to presign it` };
+    try {
+      return { ok: true, params: { ...rest, image_url: await presign(ref.slice(STORAGE_REF_PREFIX.length)) } };
+    } catch (err) {
+      return { ok: false, detail: `reference frame ${ref} could not be presigned: ${err instanceof Error ? err.message : String(err)}` };
+    }
+  }
+  if (/^https:\/\//.test(ref)) return { ok: true, params: { ...rest, image_url: ref } };
+  return { ok: false, detail: `reference frame "${ref}" is neither storage:<key> nor an https URL` };
+}
+
+/** The vendor said what it charged: one measured reconcile row, idempotent on the job key. */
+async function writeReconcile(db: Db, job: { generation_id: string | null; idempotency_key?: string; id: string }, provider: string, charged: Charged, usdInrRate: number) {
+  const { error } = await db.from('cost_ledger').insert({
+    generation_id: job.generation_id,
+    driver: provider,
+    entry_kind: 'reconcile',
+    cost_source: 'measured',
+    unit: charged.unit,
+    quantity: charged.quantity,
+    cost_usd: charged.usd,
+    cost_inr: charged.usd * usdInrRate,
+    usd_inr_rate: usdInrRate,
+    idempotency_key: `${job.idempotency_key ?? job.id}:reconcile`,
+    stage: '05-generate',
+  });
+  if (error && !/duplicate key|unique/i.test(error.message)) throw new Error(`reconcile row could not be written: ${error.message}`);
+}
+
 async function fail(db: Db, jobId: string, code: string, detail: string, at: Date) {
   await db.from('gen_jobs').update({ status: 'failed', last_error: detail, last_error_code: code, updated_at: at.toISOString() }).eq('id', jobId);
 }
@@ -150,7 +215,7 @@ export async function advanceSubmitted(provider: string, deps: DispatchDeps) {
   const now = deps.now ?? (() => new Date());
   const { data: jobs } = await db
     .from('gen_jobs')
-    .select('id, shot_id, generation_id, request_id, poll_ref, attempts, max_attempts')
+    .select('id, shot_id, generation_id, request_id, poll_ref, attempts, max_attempts, idempotency_key')
     .eq('provider', provider)
     .eq('status', 'submitted');
   let done = 0;
@@ -170,8 +235,9 @@ export async function advanceSubmitted(provider: string, deps: DispatchDeps) {
     if (!creds || !job.request_id) continue;
     const r = await deps.poll({ provider, requestId: job.request_id, pollRef: (job.poll_ref ?? {}) as Record<string, string>, credentials: creds });
     if (r.state === 'running') continue;
+    if (r.state === 'failed' && r.code === 'rate_limited') continue; // the poll was throttled, not the job
+    if (r.charged) await writeReconcile(db, job, provider, r.charged, deps.usdInrRate);
     if (r.state === 'failed') {
-      if (r.code === 'rate_limited') continue; // the poll was throttled, not the job
       await db.from('generations').update({ status: 'failed', error_code: r.code, error_detail: r.detail.slice(0, 1000), completed_at: now().toISOString() }).eq('id', job.generation_id!);
       await settleJob(db, job, false, r.detail, now());
       done++;

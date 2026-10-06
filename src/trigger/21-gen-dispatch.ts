@@ -11,6 +11,7 @@ import { expectedWebhookSecret } from '@/lib/drivers/video-status';
 import { env } from '@/lib/env';
 import { resolveCredentials } from '@/lib/integrations/credentials';
 import { runIngest } from '@/lib/ingest/run';
+import { storage } from '@/lib/storage';
 import { putterFor } from '@/lib/storage/put';
 
 /**
@@ -39,6 +40,7 @@ export const genDispatchTask = schedules.task({
 
     const usdInrRate = await requireUsdInrRate(db, 'writing generation cost rows');
     const put = putterFor().put;
+    const driver = storage();
     const credentialCache = new Map<string, Record<string, string> | null>();
     const deps = {
       db,
@@ -52,6 +54,9 @@ export const genDispatchTask = schedules.task({
         }
         return credentialCache.get(provider) ?? null;
       },
+      // Reference frames in our bucket, resolved per call; 15 min is long enough for the vendor
+      // to fetch the frame at submit and short enough that a leaked link is useless.
+      presign: async (key: string) => (await driver.presignGet({ key, expiresIn: 15 * 60 })).url,
       submit: submitJob,
       poll: pollJob,
       ingest: ({ generationId, assetUrl, headers }: { generationId: string; assetUrl: string; headers: Record<string, string> }) =>
