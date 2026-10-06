@@ -29,7 +29,7 @@
     "check:trigger-build": "node scripts/check-trigger-build.mjs",
     "check:scalable-sizes": "node scripts/check-scalable-sizes.mjs",
     "check:script-names": "node scripts/check-script-names.mjs",
-    "check": "pnpm check:gates && pnpm check:script-names && pnpm check:vendors && pnpm check:calendar && pnpm check:public-env && pnpm check:trigger-build && pnpm check:trigger-env && pnpm check:remotion && pnpm check:scalable-sizes && pnpm check:guardrails && pnpm check:duplicates && pnpm typecheck && pnpm lint && pnpm test:timings && pnpm test:entry && pnpm test:tour",
+    "check": "pnpm check:gates && pnpm check:script-names && pnpm check:vendors && pnpm check:calendar && pnpm check:public-env && pnpm check:trigger-build && pnpm check:trigger-env && pnpm check:remotion && pnpm check:scalable-sizes && pnpm check:guardrails && pnpm check:duplicates && pnpm typecheck && pnpm lint && pnpm test:timings && pnpm test:entry && pnpm test:tour && pnpm test:bureau",
     "prebuild": "node scripts/check-public-env.mjs",
     "check:public-env": "node scripts/check-public-env.mjs",
     "check:drift": "node scripts/check-drift.mjs",
@@ -64,7 +64,8 @@
     "check:trigger-env": "node scripts/check-trigger-env.mjs",
     "check:remotion": "node scripts/check-remotion-lockstep.mjs",
     "verify:render": "tsc -p tsconfig.verify.json && node scripts/verify-render.mjs",
-    "verify:bureau": "tsc -p tsconfig.verify.json && node scripts/verify-bureau.mjs"
+    "verify:bureau": "tsc -p tsconfig.verify.json && node scripts/verify-bureau.mjs",
+    "test:bureau": "tsc -p tsconfig.verify.json && node scripts/test-bureau-checks.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

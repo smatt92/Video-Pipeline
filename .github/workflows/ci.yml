@@ -140,6 +140,9 @@ jobs:
       # ── Who gets in ──────────────────────────────────────────────────────
       # entryDestination runs in middleware on every request, where a wrong answer is
       # either a redirect loop or an open door. Eight combinations, all enumerated.
+      - name: Bureau rules — policy, variation, cap fitting, script lines, router
+        run: pnpm test:bureau
+
       - name: Entry flow truth table
         run: pnpm test:entry
 

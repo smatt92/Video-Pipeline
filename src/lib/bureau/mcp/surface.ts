@@ -7,7 +7,7 @@ import { BriefInputSchema, createBriefs, getBrief, pendingBriefs } from '../brie
 import { approveBrief, decideCut, markScheduled, rejectBrief, setCaps, setKillSwitch, type Effects } from '../control';
 import type { Embedder } from '../embed';
 import { DUB_LANGUAGES, listDubs, queueDubs, regenerateShot } from '../episodes';
-import { LintInputSchema, policyLint } from '../policy-lint';
+import { LintInputSchema, policyLint, type LintResult } from '../policy-lint';
 import {
   calendarUpcoming,
   complaintCandidates,
@@ -44,6 +44,8 @@ import {
 export type BureauSideEffects = Effects & {
   /** Embeddings for variation_check; absent → similarity reported as not computed. */
   embedderFor?(db: Db, channelId: string): Promise<Embedder | undefined>;
+  /** The policy judge for needs_judge lints; absent → the brief stays flagged. */
+  judgeFor?(db: Db, channelId: string): Promise<((lint: LintResult, text: string) => Promise<LintResult>) | undefined>;
 };
 
 export const NO_EFFECTS: BureauSideEffects = {
@@ -95,7 +97,8 @@ export const BUREAU_TOOLS: BureauTool[] = [
     args: z.object({ briefs: z.array(z.unknown()).min(1).max(10) }).strict(),
     run: async (c, a) => {
       const embed = await c.effects.embedderFor?.(c.db, c.token.channelId);
-      const results = await createBriefs(a.briefs, { db: c.db, token: c.token, embed });
+      const judge = await c.effects.judgeFor?.(c.db, c.token.channelId);
+      const results = await createBriefs(a.briefs, { db: c.db, token: c.token, embed, judge });
       const created = results.filter((r) => r.ok).length;
       if (created) await c.effects.notify?.(c.token.channelId, 'briefs_pending', `${created} brief${created === 1 ? '' : 's'} waiting for approval.`);
       return { ok: true, created, failed: results.length - created, results };

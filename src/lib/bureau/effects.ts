@@ -3,6 +3,8 @@ import 'server-only';
 import { tasks, wait } from '@trigger.dev/sdk';
 
 import { readUsdInrRate } from '../cost/fx';
+import { requireCredential } from '../integrations/credentials';
+import { judgeLint } from './brief-generator';
 import type { Db } from '../db/server';
 import { ledgeredEmbedder } from './embed';
 import type { BureauSideEffects } from './mcp/surface';
@@ -26,6 +28,18 @@ export function productionEffects(db: Db): BureauSideEffects {
     },
     async notify(channelId, kind, text, dedupeKey) {
       await notify(db, channelId, kind as NotificationKind, text, { dedupeKey });
+    },
+    async judgeFor(d, ch) {
+      const fx = await readUsdInrRate(d);
+      const apiKey = await requireCredential(d, 'anthropic', 'ANTHROPIC_API_KEY').catch(() => null);
+      if (!fx.ok || !apiKey) return undefined;
+      return (lint, text) =>
+        judgeLint(lint, text, {
+          db: d,
+          apiKey,
+          usdInrRate: fx.rate,
+          subject: { kind: 'channel', channelId: ch, idempotencyKey: `judge:${crypto.randomUUID()}`, stage: '20-policy-judge' },
+        });
     },
     async embedderFor(d, ch) {
       const fx = await readUsdInrRate(d);

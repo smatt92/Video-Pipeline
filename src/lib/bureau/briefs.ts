@@ -86,10 +86,15 @@ export const BriefInputSchema = z
   });
 export type BriefInput = z.infer<typeof BriefInputSchema>;
 
+/** Who is drafting: a token holder, or the safety-net task acting as the system. */
+export type Actor = BureauToken | { id: null; scope: 'system'; channelId: string; profileId: null; name: string };
+
 export interface CreateDeps {
   db: Db;
-  token: BureauToken;
+  token: Actor;
   embed?: Embedder;
+  /** Settles a needs_judge lint with the judge model; absent → stays needs_judge (flagged). */
+  judge?: (lint: LintResult, text: string) => Promise<LintResult>;
 }
 
 export type CreateOutcome =
@@ -111,7 +116,15 @@ export async function createBriefs(rawBriefs: unknown[], deps: CreateDeps): Prom
     }
     const b = parsed.data;
 
-    const lint = policyLint({ ...b, fact: b.fact });
+    let lint = policyLint({ ...b, fact: b.fact });
+    if (lint.status === 'needs_judge' && deps.judge) {
+      try {
+        lint = await deps.judge(lint, [b.premise, b.script_text, ...b.punchlines, ...b.titles.map((t) => t.text)].join('\n'));
+      } catch (err) {
+        // A judge that could not answer leaves the brief flagged — a human decides.
+        lint = { ...lint, judge_questions: [...lint.judge_questions, `judge unavailable: ${err instanceof Error ? err.message : String(err)}`] };
+      }
+    }
     const embedding = deps.embed ? await deps.embed([`${b.premise}\n${b.script_text}`, b.titles.map((t) => t.text).join('\n')]) : null;
     const vectors = embedding && embedding.ok ? embedding.vectors : null;
 
@@ -193,7 +206,7 @@ export async function createBriefs(rawBriefs: unknown[], deps: CreateDeps): Prom
         embedding_model: embedding && embedding.ok ? embedding.model : null,
         source_comment_id: b.source_comment_id ?? null,
         created_by: token.scope,
-        created_by_token: token.id,
+        created_by_token: token.id ?? null,
       })
       .select('id')
       .single();
@@ -223,7 +236,7 @@ export async function createBriefs(rawBriefs: unknown[], deps: CreateDeps): Prom
     await db.from('authorship_log').insert({
       channel_id: token.channelId,
       actor_scope: token.scope,
-      token_id: token.id,
+      token_id: token.id ?? null,
       profile_id: token.profileId,
       action: 'brief_create',
       subject_type: 'brief',
