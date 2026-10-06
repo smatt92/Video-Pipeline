@@ -16,7 +16,14 @@ import { defineConfig } from '@trigger.dev/sdk';
  */
 export default defineConfig({
   project: process.env.TRIGGER_PROJECT_REF!,
-  runtime: 'node',
+  /**
+   * Node 22, not the default. `runtime: 'node'` runs the worker on Node 21, which has no global
+   * WebSocket; supabase-js constructs its realtime client on createClient and throws
+   * "Node.js detected but native WebSocket not found" — every task that touches the database
+   * failed on its first line (first real run, 06-Oct, 20-episode: three attempts in 13 s).
+   * CI already runs on 22, so this makes the worker match what is tested.
+   */
+  runtime: 'node-22',
   logLevel: 'info',
 
   /**
