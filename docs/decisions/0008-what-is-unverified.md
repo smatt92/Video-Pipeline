@@ -1118,6 +1118,11 @@ wired into `pnpm check` or CI):
   free-tier limits are unknown.
 - **The legacy `05-generate` lane** is unchanged and still Higgsfield-only (0015).
 
+**A guard that was green over a lost migration.** Two `0043_*.sql` files (parallel sessions)
+passed CI (run 139) because the migration ledger insert is `on conflict (version) do
+nothing`: the second applied without being recorded, so a database already at 0043 would skip
+it silently. `listMigrations()` now throws on a shared version, in every tool that lists them.
+
 ## Gates, and where each can run
 
 | Gate | Runnable in this environment? |

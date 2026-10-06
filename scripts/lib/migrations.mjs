@@ -72,9 +72,23 @@ export function wrap(line, width = 76) {
  * CLI would have written.
  */
 export function listMigrations() {
-  return readdirSync(MIGRATIONS_DIR)
+  const files = readdirSync(MIGRATIONS_DIR)
     .filter((f) => /^\d+_.*\.sql$/.test(f))
-    .sort()
+    .sort();
+  // Two files sharing a version is not an ordering question, it is a lost migration: the
+  // ledger is keyed on version with `on conflict do nothing`, so the second file applies
+  // without being recorded, and any database that already holds the version skips it for
+  // ever. It happened once (two 0043s from parallel sessions, 2026-10-06); this refuses it
+  // in every tool that lists migrations — db:push, db:bundle, check:drift, every harness.
+  const seen = new Map();
+  for (const f of files) {
+    const v = f.match(/^(\d+)_/)[1];
+    if (seen.has(v)) {
+      throw new Error(`Two migrations share version ${v}: ${seen.get(v)} and ${f}. Renumber the newer one to the next free version.`);
+    }
+    seen.set(v, f);
+  }
+  return files
     .map((file) => {
       const m = file.match(/^(\d+)_(.*)\.sql$/);
       return {
