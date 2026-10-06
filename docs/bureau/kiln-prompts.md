@@ -18,7 +18,7 @@ Companion to *Bureau of Reality — Operating Plan v2.3*. Replaces the v1 (Kyona
 
 Before Prompt A: copy `kiln-topic-calendar.csv` into the Kiln repo at `data/kiln-topic-calendar.csv`.
 After Prompt A deploys: add `https://video-pipeline-seven.vercel.app/api/mcp` to Claude as a custom connector, signed in with your **approver** token. Give Routines C, E, F and task D the **agent** token only.
-Before Prompt B: add the official Runway MCP (`https://mcp.runwayml.com/mcp`) to Claude chat as a custom connector. It spends your Runway **app** credits on images and video, has no voice tools, and is never used by the pipeline.
+Before Prompt B: add the official Runway MCP (`https://mcp.runwayml.com/mcp`) to Claude chat as a custom connector. It spends your Runway **app** credits (a separate pool from the API credits the pipeline uses) and is never used by the pipeline. It does have voice tools: `search_voices` (free; searches the Eleven v4 voice library) and `generate_speech` (presets, or a library `voiceId` with `eleven_v4`). **Library voiceIds belong to eleven_v4 and are not accepted by the API's text-to-speech `presetId` field**, which takes only the 49 preset names (decision 0013, addendum) — so audition the pipeline's voices with `pnpm voice:audition`, not with library voices. The MCP's preset list is also three names short of the API's (Mariah, Kendrick, Myrna).
 
 ---
 
@@ -104,6 +104,8 @@ Steps:
 4. After my yes: generate 8 test poses per picked character from that reference to prove consistency. Then the remaining five characters, 2 variants each.
 5. Give me a table of the locked reference image IDs/URLs per character and the exact prompt blocks, formatted to paste into characters.json in the Kiln repo.
 ```
+
+After Prompt B (decision 0015): do not paste Runway app URLs into `characters.json` — they are signed and expire, and the pipeline cannot fetch them later. Download each picked image and run `pnpm frame:lock <character> <file.png>` (uploads to our bucket, reads it back, writes a `storage:` reference; you commit). To re-produce a look on API credits from a sheet, `pnpm frame:audition --character <id> --ref <file>` first.
 
 ---
 

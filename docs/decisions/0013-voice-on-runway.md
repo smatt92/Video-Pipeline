@@ -99,3 +99,34 @@ Other choices recorded here so nobody re-derives them:
 - Unpublished dubbing rate: the ledger carries the vendor's upper-bound estimate, labelled.
 - Polling instead of webhooks for this vendor (above).
 - An aligner calibrated on synthetic speech until the first real line is spoken.
+
+## Addendum, 2026-10-06 (with 0015) — library voices from the Runway MCP
+
+**Question.** The Runway MCP connector has `search_voices` (free; searches the Eleven v4 voice
+library) and `generate_speech` (which accepts a library `voiceId` with `model: "eleven_v4"`).
+Can a voice found that way be used by the pipeline's text-to-speech call?
+
+**Answer: no — not through the API's preset field.** Read from `runwayml/sdk-node` 4.21.0
+(`src/resources/text-to-speech.ts`, main, 2026-10-06): for `eleven_v4`, `eleven_v3` and
+`eleven_multilingual_v2` alike, `voice` is `{ type: "runway-preset", presetId }` and `presetId`
+is an enum of exactly the 49 names in `TTS_PRESET_IDS`. There is no `voiceId` field and no
+other voice type for those models (the only other type, `reference-audio`, belongs to the
+`seed_audio` model). A library `voiceId` is not one of the 49 names, so the API would reject it
+as an invalid preset. Library voices are an MCP-tool feature (app credits), not an API one,
+as of this SDK. `voiceRouteFor` therefore keeps accepting presets only, and the schema keeps
+rejecting anything else.
+
+Observed at the same time:
+
+- `search_voices` returned an empty list on this workspace — its own description says it "is
+  not enabled on every workspace yet".
+- The MCP's preset list has **46** names; the API's has **49**. `Mariah`, `Kendrick` and
+  `Myrna` exist in the API and cannot be auditioned through the MCP — use
+  `pnpm voice:audition` for those.
+- The MCP states `eleven_v4` pricing as 2.2 credits per 1,000 characters until 12-Oct-2026
+  PT, then 5 per 1,000 — against 20 per 1,000 for `eleven_v3`. The API accepts `eleven_v4`
+  with the same presets (paid plans only). Not adopted here: the forced aligner was calibrated
+  on neither, and the switch is one constant (`DEFAULT_TTS_MODEL`) plus a rate row once a
+  real line has been aligned.
+
+`docs/bureau/kiln-prompts.md` no longer says the MCP "has no voice tools".

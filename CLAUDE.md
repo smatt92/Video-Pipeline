@@ -8,9 +8,12 @@ Read `docs/ARCHITECTURE.md` before proposing anything structural. `docs/SCHEMA.s
 Next.js 15 (App Router) on Vercel · Supabase Postgres · **Supabase Storage** (S3 protocol) ·
 **Trigger.dev v4** · Remotion + ffmpeg · **`@remotion/renderer`** for the final render ·
 **Remotion Player** (`@remotion/player`) / Vidstack /
-**wavesurfer.js** on the review screen · Higgsfield (**`@higgsfield/client`**) · **Runway API** (voice,
-dubs, SFX, Act-Two — 0013) · Gemini (Veo money shots, embeddings) · fal (failover) · ElevenLabs
-(direct, per-character upgrade only) · **espeak-ng** on the worker (forced-alignment reference) ·
+**wavesurfer.js** on the review screen · **Runway API** — all generation: character beats
+(`gen4_turbo`), money shots (`veo3.1_fast`, audio always off), reference frames (`gen4_image`),
+voice, dubs, SFX, Act-Two (0013, 0015) · Gemini (embeddings only, free tier — 0015) · Higgsfield
+(**`@higgsfield/client`**) and fal (dormant failover, routed only with `GENERATION_FAILOVER=on`;
+Higgsfield still serves the legacy `05-generate` lane) · ElevenLabs (direct, per-character upgrade
+only) · **espeak-ng** on the worker (forced-alignment reference) ·
 Anthropic SDK (Opus / Sonnet / Haiku through `src/lib/llm/router.ts`) · Three.js (Bureau overlays,
 projected to SVG) · TypeScript strict · pnpm
 
@@ -34,6 +37,7 @@ correct work.** The changes, each with its record:
 | Trigger.dev v3 | v4 | 0001 — v3 is frozen at 3.3.17; v4 is the current major |
 | `higgsfield-js` | `@higgsfield/client` | 0004 — the package that name actually publishes |
 | *(absent)* | Remotion Player, Vidstack, wavesurfer.js | Addendum 02 §5 named them; this list never did |
+| Higgsfield primary for character beats, Gemini Veo for money shots | Runway API for both, and for reference frames; Higgsfield/fal/Veo dormant failover | 0015 — one vendor, one credit pool (2026-10-06) |
 
 ## Non-negotiable rules
 
@@ -57,6 +61,8 @@ correct work.** The changes, each with its record:
 
 ## Working with Higgsfield
 
+Dormant since 0015: the Bureau run routes every generated shot to the Runway API, and reaches
+this vendor only with `GENERATION_FAILOVER=on`. The legacy `05-generate` lane still uses it.
 Three surfaces, different jobs — do not confuse them:
 
 | Surface | Use for | Never use for |

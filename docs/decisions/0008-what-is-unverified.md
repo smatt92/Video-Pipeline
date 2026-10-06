@@ -1082,8 +1082,41 @@ scratch Postgres 16 with every migration 0001–0042 applied, and is wired into 
 - **YouTube Analytics / commentThreads / IG insights.** Shapes from public references; the
   refresh token must carry `yt-analytics.readonly`.
 - **Vision QC** (judge tier with frames). Stubbed in the harness; never called the model.
-- **Embeddings** for variation similarity: no key → every brief's variation is `incomplete`,
-  which the approver sees; it is never reported as a pass.
+- **Embeddings** for variation similarity: no key → every brief's variation is `refused`
+  (was `incomplete` before 0043), which the approver sees and which approval now refuses
+  (§15); it is never reported as a pass.
+
+### 15. Generation on the Runway API (2026-10-06, decision 0015) — the chain RUN against a local vendor surface; the vendor itself NOT
+
+**What ran, here** (scratch Postgres 16, migrations 0001–0043, every harness below green and
+wired into `pnpm check` or CI):
+
+| Harness | What it proves | Result |
+|---|---|---|
+| `verify:runway-video` §1 | The real Runway driver, `dispatchProvider` / `advanceSubmitted` and `runIngest` against a local HTTP stand-in at the vendor's paths: a 4.6 s beat priced as one 5 s call at the 0043 row (expected figure read from the table, multiplied by hand); ledger estimate at submit for 5 billed seconds; body = gen4_turbo / 720:1280 / 5 s / no audio key / locked frame resolved from storage as the first frame, never written back; queued → submitted → submitted (RUNNING) → succeeded, shot ready; the task's `cost.credits` as a **measured** reconcile; **ffprobe of the stored file: 150 packets, 1080×1920** | 14 PASS |
+| `verify:runway-video` §2 | One real 5 s gen4_turbo clip, spend-limited to 25 credits | **SKIP — no RUNWAY_API_KEY here; the host is outside the egress allowlist anyway.** CI skips it by design (a paid call per push) |
+| `test:bureau` | Routing with failover off/on; `GENERATION_FAILOVER="true"` refused; gen4_turbo 2–10 s and Veo 4/6/8 s billing; **Veo `audio:false` present, not omitted (LOAD-BEARING — removing it fails the run)**; 60-credit beat and 60-credit money shot arithmetic; prompt > 1000 refused; gen4_image tag and reference rules; every character's frame prompt ≤ 1000; reference-frame resolution refusals; embeddings 429 backoff (Retry-After honoured) and the named unavailable result; variation `refused` with no score; `fitToCap` reading the planned figure (mutating it to read the per-call figure fails a case) | PASS |
+| `verify:bureau` | A brief drafted with no embeddings is `refused` with the reason and flagged; `brief_approve` refuses it in TypeScript **and** `bureau_brief_approve` refuses it in SQL (LOAD-BEARING, at the consumer); `variation_check` with the id computes, stores and lifts the refusal; then approval proceeds | PASS |
+| `verify:episode` | Ported from fal to the Runway route: recipe → billed-length estimate from the 0043 row → `storage:` frame resolved per call and not persisted → measured reconcile replacing the estimate in `v_episode_spend` → the full render and bundle as before | PASS |
+| `next build` with **no** vendor credentials | The CI and `verify:tour` environments no longer set `HIGGSFIELD_*`: the build passing proves they are optional at boot | PASS |
+
+**What has NOT run:**
+
+- **Any Runway video, image or task read.** Bodies and responses are from SDK 4.21.0 typings,
+  Zod-parsed. First real call: `verify:runway-video --require-real` (0015, "What turns it on").
+- **The rates.** gen4_turbo 5/s, veo3.1_fast 10/s (audio off), gen4_image 5/8, gen4_image_turbo
+  2 — plan v2.3 figures, `is_verified = true` as published prices exactly as 0040 did for
+  voice. The pricing page was not readable here. The first measured reconcile is the check:
+  compare its `quantity` with the estimate's billed seconds × credits/s.
+- **`cost.credits` on terminal tasks.** In the SDK; never observed. If absent in practice, no
+  reconcile is written and the estimate stands, labelled — never a reconcile equal to it.
+- **gen4_turbo holding a chalk-line stickman.** The open risk. The seeded recipe is retired
+  until a clip has been watched.
+- **`frame:audition` / `frame:lock`.** Never run (no key, no bucket here). `frame:lock` reads the
+  upload back and compares bytes before editing the bible.
+- **Gemini embeddings on the free tier.** 429 handling is harnessed against a stub; the real
+  free-tier limits are unknown.
+- **The legacy `05-generate` lane** is unchanged and still Higgsfield-only (0015).
 
 ## Gates, and where each can run
 
