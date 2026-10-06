@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "summary": "Bureau of Reality content policy. policy_lint applies the deterministic rules below; anything it cannot decide is flagged for the judge model and, failing that, for Sahil. A flag is never a silent pass.",
+  "required": {
+    "sourced_facts_exactly": 1,
+    "fact_source_classes": ["gov", "edu", "space_agency", "met_ocean_agency", "museum", "peer_reviewed", "standards_body"],
+    "script_max_words": 150,
+    "punchlines": 3,
+    "titles": 3,
+    "titles_distinct_hook_archetypes": true
+  },
+  "hook_archetypes": ["question", "contradiction", "number_claim", "warning", "story_open", "direct_address", "demonstration"],
+  "reject_categories": [
+    {
+      "id": "finance_advice",
+      "why": "Finance hosts and advice are a named 2026 enforcement pattern and outside the channel's remit.",
+      "patterns": ["\\b(invest|investing|stock tip|buy the dip|crypto|bitcoin|portfolio|returns? of \\d+%|get rich|passive income|trading strategy)\\b"]
+    },
+    {
+      "id": "health_advice",
+      "why": "Health advice from a generated character is a liability and a named enforcement pattern.",
+      "patterns": ["\\b(cure|treat(s|ment)? for|dosage|you should (take|stop taking)|supplement|detox|lose weight|diagnos(e|is)|medical advice)\\b"]
+    },
+    {
+      "id": "politics",
+      "why": "No politics or elections.",
+      "patterns": ["\\b(election|vote for|ballot|campaign|democrat|republican|BJP|Congress party|parliament(ary)? candidate|prime minister|president (trump|biden|modi)|left[- ]wing|right[- ]wing)\\b"]
+    },
+    {
+      "id": "real_living_people",
+      "why": "No real living people. Historical figures are allowed only as part of a sourced fact.",
+      "patterns": ["\\b(elon musk|taylor swift|mr ?beast|modi|trump|biden|zuckerberg|bezos|ronaldo|messi|shah rukh|virat kohli)\\b"],
+      "judge": "Any proper name not on the cast list that could be a living person."
+    },
+    {
+      "id": "franchise_or_brand",
+      "why": "No borrowed IP and no brands.",
+      "patterns": ["\\b(marvel|disney|pixar|star wars|harry potter|pok[eé]mon|minecraft|fortnite|gta|nintendo|coca[- ]cola|pepsi|apple iphone|samsung|nike|mcdonald'?s|netflix)\\b"]
+    },
+    {
+      "id": "true_crime",
+      "why": "The Archive covers history mysteries, never crimes against victims as entertainment.",
+      "patterns": ["\\b(murder(ed|er)?|serial killer|homicide|kidnapp(ed|ing)|cold case|crime scene|victim'?s body|true crime)\\b"]
+    },
+    {
+      "id": "devotional_framing",
+      "why": "Myth Desk is comparative and interpretive, never devotional.",
+      "patterns": ["\\b(pray to|worship|blessings? of|the one true|lord .* will|chant this|miracle cure|sin(ful)? to)\\b"],
+      "judge": "Statements that assert a religious claim as true rather than reporting what a tradition says."
+    },
+    {
+      "id": "kid_coded",
+      "why": "Adult office satire; kids-coded AI content is the most scrutinised category.",
+      "patterns": ["\\b(kids|children|toddler|nursery|bedtime story|abc|learn your colou?rs|baby shark|for little ones|preschool|cocomelon)\\b"],
+      "styling_fields": ["music_bed", "shot_list.style"]
+    }
+  ],
+  "myth_interpretation_markers": ["is said to", "one popular reading", "is often interpreted", "tradition holds", "according to"],
+  "realistic_scene_disclosure": "containsSyntheticMedia is true only when a money shot depicts a realistic scene (photoreal ocean, space, fireworks). Chalk-line animation alone is not realistic altered content."
+}

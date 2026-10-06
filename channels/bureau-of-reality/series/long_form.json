@@ -1,0 +1,100 @@
+{
+  "id": "long_form",
+  "name": "Long-form episode",
+  "day": "Sun (alternate)",
+  "lead": [
+    "ensemble"
+  ],
+  "template": "Cold open → aired Shorts reframed by NEW connective scenes → mid-episode Complaint Box → ending that sets up the next fortnight",
+  "runtime_s": {
+    "min": 480,
+    "target": 600,
+    "max": 720
+  },
+  "beat_sheet": [
+    {
+      "id": "cold_open",
+      "start_s": 0,
+      "end_s": 30,
+      "purpose": "New scene; never a re-cut Short.",
+      "render_route_hint": "character_beat"
+    },
+    {
+      "id": "act_1",
+      "start_s": 30,
+      "end_s": 240,
+      "purpose": "Two aired Shorts, each introduced and closed by a new connective scene.",
+      "render_route_hint": "overlay"
+    },
+    {
+      "id": "complaint_box",
+      "start_s": 240,
+      "end_s": 300,
+      "purpose": "Mid-episode Complaint Box moment.",
+      "render_route_hint": "character_beat"
+    },
+    {
+      "id": "act_2",
+      "start_s": 300,
+      "end_s": 540,
+      "purpose": "Two or three aired Shorts with new framing; one new mechanism overlay.",
+      "render_route_hint": "overlay"
+    },
+    {
+      "id": "ending",
+      "start_s": 540,
+      "end_s": 600,
+      "purpose": "Sets up the next fortnight.",
+      "render_route_hint": "character_beat"
+    }
+  ],
+  "structure_variants": [
+    {
+      "id": "anthology",
+      "shape": "Desk-by-desk anthology with Pip as guide."
+    },
+    {
+      "id": "crisis_day",
+      "shape": "One crisis day; Shorts are the incidents."
+    },
+    {
+      "id": "special",
+      "shape": "Seasonal special built around a festival or date."
+    }
+  ],
+  "ending_types": [
+    "setup_next_fortnight",
+    "cliffhanger_memo",
+    "callback_gag"
+  ],
+  "premise_types": [
+    "anthology",
+    "crisis",
+    "seasonal_special",
+    "archive_volume"
+  ],
+  "desks": [
+    "ensemble"
+  ],
+  "music_bed_pool": [
+    "bed_typewriter_shuffle",
+    "bed_fluorescent_hum",
+    "bed_filing_cabinet_waltz",
+    "bed_tape_deck_noir",
+    "bed_lamp_buzz_minimal",
+    "bed_archive_harpsichord",
+    "bed_deep_sonar",
+    "bed_lantern_strings",
+    "bed_chalk_percussion",
+    "bed_overtime_jazz"
+  ],
+  "music_policy": "Original beds only.",
+  "rules": [
+    "Never raw re-stitching: every included Short is framed by new scenes.",
+    "Generated character beats ≤ 90 s total; overlays preferred.",
+    "One approval brief per episode; estimate target ≤ ₹1,500."
+  ],
+  "serialised": false,
+  "comment_sourced": false,
+  "money_shot_allowed": true
+}

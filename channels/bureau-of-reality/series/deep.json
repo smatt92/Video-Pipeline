@@ -1,0 +1,162 @@
+{
+  "id": "deep",
+  "name": "Deep Desk",
+  "day": "Sat",
+  "lead": [
+    "marlo",
+    "iyer"
+  ],
+  "template": "Visual paradox → explanation (space, ocean)",
+  "runtime_s": {
+    "min": 45,
+    "target": 60,
+    "max": 70
+  },
+  "beat_sheet": [
+    {
+      "id": "cold_open",
+      "start_s": 0,
+      "end_s": 2,
+      "purpose": "Visual paradox — the frame that makes a thumb stop. No dialogue needed.",
+      "render_route_hint": "character_beat|money_shot",
+      "loop_anchor": true
+    },
+    {
+      "id": "stakes",
+      "start_s": 2,
+      "end_s": 8,
+      "purpose": "Who is in trouble and what breaks if nobody fixes it. Director Ohm memo allowed.",
+      "render_route_hint": "character_beat"
+    },
+    {
+      "id": "mechanism_1",
+      "start_s": 8,
+      "end_s": 18,
+      "purpose": "First step of the real mechanism.",
+      "render_route_hint": "overlay",
+      "overlay": {
+        "kind": "orbit",
+        "elements": [
+          "the body and its motion"
+        ],
+        "camera": "slow orbit",
+        "notes": "",
+        "palette": "chalk on navy; one accent from the lead character",
+        "max_labels": 3
+      }
+    },
+    {
+      "id": "mechanism_2",
+      "start_s": 18,
+      "end_s": 29,
+      "purpose": "Second step; the counter-intuitive part.",
+      "render_route_hint": "overlay",
+      "overlay": {
+        "kind": "cross_section",
+        "elements": [
+          "what is underneath / inside"
+        ],
+        "camera": "slow dolly-in",
+        "notes": "",
+        "palette": "chalk on navy; one accent from the lead character",
+        "max_labels": 3
+      }
+    },
+    {
+      "id": "mechanism_3",
+      "start_s": 29,
+      "end_s": 40,
+      "purpose": "Third step; ties back to the paradox.",
+      "render_route_hint": "overlay",
+      "overlay": {
+        "kind": "graph",
+        "elements": [
+          "the number that makes it make sense"
+        ],
+        "camera": "static",
+        "notes": "",
+        "palette": "chalk on navy; one accent from the lead character",
+        "max_labels": 3
+      }
+    },
+    {
+      "id": "fact",
+      "start_s": 40,
+      "end_s": 55,
+      "purpose": "One sourced real-world fact, spoken and shown as a filed stamp; URL logged to fact_sources.",
+      "render_route_hint": "overlay",
+      "overlay": {
+        "kind": "diagram",
+        "elements": [
+          "stamped case-file card",
+          "source line in small caps"
+        ],
+        "camera": "static",
+        "notes": "Source domain visible; never a fabricated citation."
+      }
+    },
+    {
+      "id": "button",
+      "start_s": 55,
+      "end_s": 60,
+      "purpose": "Button gag, then a loop line that hands back to frame one.",
+      "render_route_hint": "character_beat",
+      "loop_line": true
+    }
+  ],
+  "structure_variants": [
+    {
+      "id": "field_report",
+      "shape": "Marlo reports from the location; Iyer corrects the timing."
+    },
+    {
+      "id": "scale_ladder",
+      "shape": "Zoom from human scale to the object in three steps."
+    },
+    {
+      "id": "complaint_from_site",
+      "shape": "A memo from the planet/creature complains; the desk explains."
+    }
+  ],
+  "ending_types": [
+    "loop_back",
+    "cliffhanger_memo",
+    "reversal",
+    "callback_gag",
+    "deadpan_fact",
+    "form_stamped"
+  ],
+  "premise_types": [
+    "visual_paradox",
+    "extreme_environment",
+    "scale_shock",
+    "strange_creature"
+  ],
+  "desks": [
+    "planet",
+    "ocean",
+    "orbit",
+    "gravity",
+    "time_calendars"
+  ],
+  "music_bed_pool": [
+    "bed_typewriter_shuffle",
+    "bed_fluorescent_hum",
+    "bed_filing_cabinet_waltz",
+    "bed_tape_deck_noir",
+    "bed_lamp_buzz_minimal",
+    "bed_archive_harpsichord",
+    "bed_deep_sonar",
+    "bed_lantern_strings",
+    "bed_chalk_percussion",
+    "bed_overtime_jazz"
+  ],
+  "music_policy": "Original beds only, rendered in-house or generated with commercial rights. No licensed or library music.",
+  "serialised": false,
+  "comment_sourced": false,
+  "money_shot_allowed": true,
+  "rules": [
+    "At most one money shot per Short (space/ocean).",
+    "Numbers come from a primary source."
+  ]
+}

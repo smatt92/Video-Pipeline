@@ -1,0 +1,234 @@
+{
+  "version": 1,
+  "channel": "bureau-of-reality",
+  "world": {
+    "name": "The Bureau of Reality",
+    "premise": "A tired government department that keeps physics, time, history and myth working. Every Short is one real mechanism explained through a workplace conflict.",
+    "palette": {
+      "paper": "#0B1F3A",
+      "grid": "#1C3A63",
+      "chalk": "#F4F1E8"
+    },
+    "style_rules": [
+      "White chalk-line stick figures on deep navy blueprint paper with faint grid lines.",
+      "Exactly one accent colour per character; nothing else on screen is saturated except overlays.",
+      "Adult office satire: memos, forms, budget meetings, compliance, burnout. Never a children's cartoon.",
+      "No pastel nursery palettes, no squeaky voices, no sing-song narration, no toys, no classroom framing.",
+      "No resemblance to any existing franchise, mascot or real person."
+    ],
+    "negative_prompt": "realistic human, photorealism, 3D plastic, anime, chibi, pastel kids style, nursery colours, text, watermark, logos, existing cartoon characters, extra limbs, inconsistent accessories"
+  },
+  "characters": [
+    {
+      "id": "pip",
+      "name": "Pip",
+      "role": "New intern; audience surrogate",
+      "desk": "intern_pool",
+      "on_screen": true,
+      "season_introduced": 1,
+      "personality": "Bright, fast, curious, slightly reckless. Asks the question the viewer is thinking. Breaks things by being helpful.",
+      "speech_rules": [
+        "Short sentences, quick rhythm; questions more than statements.",
+        "Never explains the mechanism alone — gets corrected or finishes someone else's line.",
+        "No baby talk, no 'yay', no exclamation stacks."
+      ],
+      "catchphrase": { "text": "I read the manual. Most of it.", "max_per_week": 1 },
+      "accent_hex": "#22D3EE",
+      "visual_lock": {
+        "line": "white chalk line, cyan accent",
+        "props": ["cyan scarf line", "oversized lanyard"],
+        "head_body_ratio": "1:3",
+        "line_weight": "medium",
+        "silhouette": "slight forward lean; lanyard swings past the knees"
+      },
+      "reference_frame_ids": ["PLACEHOLDER_PIP_REF_1"],
+      "voice_id": null,
+      "voice_brief": "Bright, fast, curious young adult; not childlike.",
+      "never_do": [
+        "Never shown as a child or in a classroom.",
+        "Never wins an argument with Mrs. Iyer.",
+        "Never loses the lanyard."
+      ]
+    },
+    {
+      "id": "marlo",
+      "name": "Marlo",
+      "role": "400-year veteran of the Gravity Desk",
+      "desk": "gravity",
+      "on_screen": true,
+      "season_introduced": 1,
+      "personality": "Deadpan, unhurried, has seen every incident twice. Loves procedure because procedure is what stops planets falling.",
+      "speech_rules": [
+        "Deadpan baritone; understatement over volume.",
+        "Uses exact numbers when he has them and says 'roughly' when he does not.",
+        "Delivers the mechanism; jokes only by implication."
+      ],
+      "catchphrase": { "text": "File it under 'falling'.", "max_per_week": 1 },
+      "accent_hex": "#F59E0B",
+      "visual_lock": {
+        "line": "white chalk line, amber accent",
+        "props": ["floating coffee mug that orbits him slowly"],
+        "head_body_ratio": "1:3.5",
+        "line_weight": "heavy",
+        "silhouette": "tall, stooped, hands behind back"
+      },
+      "reference_frame_ids": ["PLACEHOLDER_MARLO_REF_1"],
+      "voice_id": null,
+      "voice_brief": "Deadpan baritone, dry.",
+      "never_do": ["Never runs.", "Never panics on screen.", "The mug never touches a surface."]
+    },
+    {
+      "id": "iyer",
+      "name": "Mrs. Iyer",
+      "role": "Head of Time & Calendars",
+      "desk": "time_calendars",
+      "on_screen": true,
+      "season_introduced": 1,
+      "personality": "Crisp, exacting, dry wit. Has opinions about leap seconds. Owns every festival and calendar episode.",
+      "speech_rules": [
+        "Crisp Indian-English register; precise dates and units.",
+        "Corrects others in one line, never a lecture.",
+        "Respectful about every culture's calendar; explains, never ranks."
+      ],
+      "catchphrase": { "text": "That is not what the calendar says.", "max_per_week": 1 },
+      "accent_hex": "#E0409C",
+      "visual_lock": {
+        "line": "white chalk line, magenta accent",
+        "props": ["reading glasses on a chain", "steel filter-coffee tumbler and davara"],
+        "head_body_ratio": "1:3",
+        "line_weight": "medium",
+        "silhouette": "upright; glasses pushed up to correct someone"
+      },
+      "reference_frame_ids": ["PLACEHOLDER_IYER_REF_1"],
+      "voice_id": null,
+      "voice_brief": "Crisp Indian-English, dry wit, warm underneath.",
+      "never_do": ["Never a caricature or accent joke.", "Never wrong about a date.", "Never without the tumbler on her desk."]
+    },
+    {
+      "id": "nib",
+      "name": "Nib",
+      "role": "Archivist",
+      "desk": "archive",
+      "on_screen": true,
+      "season_introduced": 1,
+      "personality": "Whispery, conspiratorial, delighted by unsolved files. Separates evidence from legend scrupulously.",
+      "speech_rules": [
+        "Whispers; leans into the camera.",
+        "Labels every claim: 'the record says', 'the legend says', 'the best current explanation is'.",
+        "No true crime, no gore, no living people."
+      ],
+      "catchphrase": { "text": "Case reopened.", "max_per_week": 1 },
+      "accent_hex": "#9CA3AF",
+      "visual_lock": {
+        "line": "graphite-grey line",
+        "props": ["pencil-shaped body with eraser hat", "case-file folder"],
+        "head_body_ratio": "1:4",
+        "line_weight": "fine",
+        "silhouette": "thin, sharpened point at the feet"
+      },
+      "reference_frame_ids": ["PLACEHOLDER_NIB_REF_1"],
+      "voice_id": null,
+      "voice_brief": "Whispery, conspiratorial, playful.",
+      "never_do": ["Never treats a crime as entertainment.", "Never states legend as fact.", "Never gets sharpened on screen."]
+    },
+    {
+      "id": "kaz",
+      "name": "Kaz",
+      "role": "Myth Desk liaison",
+      "desk": "myth",
+      "on_screen": true,
+      "season_introduced": 1,
+      "personality": "Warm storyteller; compares how cultures told the same idea. Respectful, curious, never devotional.",
+      "speech_rules": [
+        "Warm, measured storytelling cadence.",
+        "Interpretations are labelled: 'is said to mean', 'one popular reading is'.",
+        "Compares at least two cultures; never ranks them; never preaches."
+      ],
+      "catchphrase": { "text": "Every culture had a word for this.", "max_per_week": 1 },
+      "accent_hex": "#FDBA4D",
+      "visual_lock": {
+        "line": "white chalk line; lantern for a head",
+        "props": ["lantern head whose glow changes colour by culture discussed"],
+        "head_body_ratio": "1:3",
+        "line_weight": "medium",
+        "silhouette": "lantern ring on top; glow halo"
+      },
+      "reference_frame_ids": ["PLACEHOLDER_KAZ_REF_1"],
+      "voice_id": null,
+      "voice_brief": "Warm storyteller, unhurried.",
+      "never_do": ["Never devotional framing.", "Never mocks a belief.", "Never depicts deities as characters."]
+    },
+    {
+      "id": "ohm",
+      "name": "Director Ohm",
+      "role": "Never-seen head of the Bureau",
+      "desk": "directorate",
+      "on_screen": false,
+      "season_introduced": 1,
+      "personality": "Speaks only in memos; raises the stakes; never explains why.",
+      "speech_rules": ["Filtered memo voice; one or two lines per episode at most.", "Always formal; always slightly ominous."],
+      "catchphrase": { "text": "This will be noted.", "max_per_week": 1 },
+      "accent_hex": "#C9A227",
+      "visual_lock": {
+        "line": "a humming brass desk lamp — the only visible presence",
+        "props": ["brass desk lamp that flickers when speaking"],
+        "head_body_ratio": "n/a",
+        "line_weight": "medium",
+        "silhouette": "lamp only; never a body"
+      },
+      "reference_frame_ids": ["PLACEHOLDER_OHM_REF_1"],
+      "voice_id": null,
+      "voice_brief": "Filtered, formal memo voice.",
+      "never_do": ["Never seen.", "Never jokes.", "Never named by first name."]
+    },
+    {
+      "id": "complaint_box",
+      "name": "Complaint Box",
+      "role": "Reads real viewer comments on Sundays",
+      "desk": "complaints",
+      "on_screen": true,
+      "season_introduced": 1,
+      "personality": "Gravelly, put-upon, secretly loves the questions.",
+      "speech_rules": [
+        "Gravelly; reads the comment verbatim, credits the handle only if the comment is public.",
+        "Hands the question to the right desk; never answers it alone."
+      ],
+      "catchphrase": { "text": "Another one in the slot.", "max_per_week": 1 },
+      "accent_hex": "#B7793F",
+      "visual_lock": {
+        "line": "white chalk line, wood-brown accent",
+        "props": ["talking wooden suggestion box; the slot is the mouth"],
+        "head_body_ratio": "n/a",
+        "line_weight": "medium",
+        "silhouette": "box on a short post"
+      },
+      "reference_frame_ids": ["PLACEHOLDER_COMPLAINT_BOX_REF_1"],
+      "voice_id": null,
+      "voice_brief": "Gravelly, weary, fond.",
+      "never_do": ["Never reads a private comment.", "Never mocks the viewer."]
+    },
+    {
+      "id": "auditor",
+      "name": "The Auditor",
+      "role": "Season 2 antagonist (from 06-Jan)",
+      "desk": "audit",
+      "on_screen": true,
+      "season_introduced": 2,
+      "personality": "Clipped, corporate, believes reality is over budget.",
+      "speech_rules": ["Clipped corporate jargon; KPIs about physics.", "Never shouts; always taking notes."],
+      "catchphrase": { "text": "And who signed off on gravity?", "max_per_week": 1 },
+      "accent_hex": "#EF4444",
+      "visual_lock": {
+        "line": "white chalk line, red accent",
+        "props": ["clipboard"],
+        "head_body_ratio": "1:3.5",
+        "line_weight": "medium",
+        "silhouette": "rigid posture, clipboard at chest"
+      },
+      "reference_frame_ids": ["PLACEHOLDER_AUDITOR_REF_1"],
+      "voice_id": null,
+      "voice_brief": "Clipped, corporate.",
+      "never_do": ["Never appears before Season 2.", "Never resembles a real executive or politician."]
+    }
+  ]
+}

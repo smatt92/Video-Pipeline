@@ -106,7 +106,9 @@ alter table characters alter column external_ref_id drop not null;
 alter table characters alter column driver drop not null;
 alter table characters add constraint characters_ref_has_driver
   check (external_ref_id is null or driver is not null);
-create unique index characters_channel_slug_key on characters (channel_id, slug) where slug is not null;
+-- A full constraint, not a partial index: ON CONFLICT (channel_id, slug) cannot target a
+-- partial index without repeating its predicate, and NULL slugs are distinct anyway.
+alter table characters add constraint characters_channel_slug_key unique (channel_id, slug);
 
 comment on column characters.voice_id is
   'The designed voice for this character at the TTS vendor. Null = not designed yet; the '
