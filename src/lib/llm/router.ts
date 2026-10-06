@@ -14,7 +14,7 @@ import type { Db } from '../db/server';
  *
  *   judge tier   (Opus)    the policy judge, edge cases, the weekly strategy memo, vision QC
  *   writer tier  (Sonnet)  briefs, script polish, shotlists
- *   fast tier    (Haiku)   dedup, metadata, QC triage, comment mining
+ *   fast tier    (Haiku)   dedup, metadata, QC triage, comment mining, caption translation
  *
  * The task names the work; the router names the model. A caller never passes a model id,
  * so moving a task between tiers — or a tier to a new model — is one line here.
@@ -45,6 +45,7 @@ export const TASK_TIER = {
   metadata: 'fast',
   qc_triage: 'fast',
   comment_mining: 'fast',
+  translation: 'fast',
 } as const satisfies Record<string, Tier>;
 export type RoutedTask = keyof typeof TASK_TIER;
 

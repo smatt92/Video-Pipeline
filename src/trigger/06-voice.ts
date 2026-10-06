@@ -2,7 +2,7 @@ import { logger, schemaTask } from '@trigger.dev/sdk';
 import { z } from 'zod';
 
 import { serverClient } from '@/lib/db/server';
-import { DEFAULT_CONCURRENCY, primaryForKind } from '@/lib/drivers/catalog';
+import { DEFAULT_CONCURRENCY } from '@/lib/drivers/catalog';
 import { requireUsdInrRate } from '@/lib/cost/fx';
 import { resolveDriver } from '@/lib/integrations/resolve';
 import { runVoice, type VoiceRunResult } from '@/lib/voice/run';

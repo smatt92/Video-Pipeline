@@ -7,6 +7,7 @@ import { afterBundle } from '@/lib/bureau/after-bundle';
 import { notify } from '@/lib/bureau/alerts';
 import { BUREAU_CHANNEL_ID } from '@/lib/bureau/bible';
 import {
+  type AssembleDeps,
   assembleEpisode,
   bundleEpisode,
   enqueueGeneration,
@@ -20,6 +21,7 @@ import {
   voiceStep,
   WIDTH,
 } from '@/lib/bureau/episode-steps';
+import { assembleLongForm, LF_HEIGHT, LF_WIDTH, planLongForm } from '@/lib/bureau/longform';
 import { measureLoudness, normaliseLoudness, sampleFrames, signalQc, visionQc } from '@/lib/bureau/qc';
 import { renderBureau } from '@/lib/bureau/layer-render';
 import { requireUsdInrRate } from '@/lib/cost/fx';
@@ -83,7 +85,11 @@ export const episodeTask = schemaTask({
       const script = await prepareScript(db, episodeId, { apiKey: anthropicKey, usdInrRate, log: logger });
       logger.info('script', script);
       const acted = (await usability(db, PROVIDER_INTEGRATION[ROUTE_PROVIDERS.acted_beat.primary])).usable;
-      const plan = await planShots(db, episodeId, { usdInrRate, actedBeatAvailable: acted, log: logger });
+      const { data: kindRow } = await db.from('episodes').select('kind').eq('id', episodeId).single();
+      const longForm = kindRow?.kind === 'long_form';
+      const plan = longForm
+        ? await planLongForm(db, episodeId, { usdInrRate })
+        : await planShots(db, episodeId, { usdInrRate, actedBeatAvailable: acted, log: logger });
       logger.info('shots planned', plan);
 
       // 3. Voice — before any video, because it sets the durations
@@ -140,15 +146,21 @@ export const episodeTask = schemaTask({
 
       // 7. Assemble three layers
       const browserExecutable = process.env.REMOTION_BROWSER_EXECUTABLE;
-      const assembled = await assembleEpisode(db, episodeId, {
+      const asmDeps: AssembleDeps = {
         usdInrRate,
         presign,
         putBytes: put,
         download,
         normaliseAudio: normaliseLoudness,
-        render: (i) => renderBureau({ ...i, width: WIDTH, height: HEIGHT, fps: FPS, browserExecutable }),
+        render: (i) => renderBureau({ ...i, width: longForm ? LF_WIDTH : WIDTH, height: longForm ? LF_HEIGHT : HEIGHT, fps: FPS, browserExecutable }),
         log: logger,
-      });
+      };
+      const lf = longForm ? await assembleLongForm(db, episodeId, asmDeps) : null;
+      const assembled = lf
+        ? lf.ok
+          ? { ok: true as const, compositeRenderId: lf.renderId, frames: lf.frames }
+          : lf
+        : await assembleEpisode(db, episodeId, asmDeps);
       if (!assembled.ok) {
         await setStatus(db, episodeId, 'failed', `${assembled.code}: ${assembled.detail}`);
         return { failed: assembled.code };
@@ -192,7 +204,7 @@ export const episodeTask = schemaTask({
         const gen = await wait.createToken({ timeout: '3h', idempotencyKey: `gen:${episodeId}:cut${attempt}` });
         await db.from('episodes').update({ gen_wait_token: gen.id, status: 'generating' }).eq('id', episodeId);
         await wait.forToken(gen);
-        const re = await assembleEpisode(db, episodeId, { usdInrRate, presign, putBytes: put, download, normaliseAudio: normaliseLoudness, render: (i) => renderBureau({ ...i, width: WIDTH, height: HEIGHT, fps: FPS, browserExecutable }), log: logger });
+        const re = longForm ? await assembleLongForm(db, episodeId, asmDeps) : await assembleEpisode(db, episodeId, asmDeps);
         if (!re.ok) {
           await setStatus(db, episodeId, 'failed', `${re.code}: ${re.detail}`);
           return { failed: re.code };

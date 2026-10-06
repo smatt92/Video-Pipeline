@@ -16,7 +16,7 @@ import { PAPER, projectOverlay, type OverlaySpec } from './overlay-scene';
  */
 
 export type BureauShot =
-  | { type: 'clip'; url: string; frames: number }
+  | { type: 'clip'; url: string; frames: number; /** 'contain' pillarboxes a 9:16 master inside a 16:9 long-form. */ fit?: 'cover' | 'contain' }
   | { type: 'overlay'; overlay: OverlaySpec; frames: number };
 
 export type BureauLayer = 'composite' | 'clean_master' | 'caption_layer';
@@ -46,7 +46,7 @@ export function BureauVideo(props: BureauVideoProps) {
           if (s.frames <= 0) return null;
           return (
             <Sequence key={i} from={from} durationInFrames={s.frames}>
-              {s.type === 'clip' ? <OffthreadVideo src={s.url} muted /> : <Overlay spec={s.overlay} frames={s.frames} />}
+              {s.type === 'clip' ? <OffthreadVideo src={s.url} muted style={{ width: '100%', height: '100%', objectFit: s.fit ?? 'cover' }} /> : <Overlay spec={s.overlay} frames={s.frames} />}
             </Sequence>
           );
         })}

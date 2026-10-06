@@ -68,3 +68,10 @@ export async function synthLine(input: {
     throw err;
   }
 }
+
+/** Where a dub's credit price lives in `rate_card` (0040): the credit is priced, the dub is not. */
+export const DUB_RATE_KEY = { driver: 'runway', model: 'eleven_voice_dubbing', endpoint: '/v1/voice_dubbing', unit: 'credit' } as const;
+
+/** The dubbing vendor's calls and credential, under names core code may use. */
+export { submitDub as submitDubbing, waitForTask as waitForVoiceTask } from './voice-runway';
+export const DUB_CREDENTIAL = { integration: DUB_RATE_KEY.driver, field: VOICE_CREDENTIAL_FIELDS.runway } as const;

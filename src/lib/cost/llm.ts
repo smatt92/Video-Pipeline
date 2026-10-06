@@ -188,7 +188,8 @@ export type PipelineStage =
   | '20-shotlist'
   | '20-qc'
   | '20-strategy'
-  | '24-comments';
+  | '24-comments'
+  | '24-dub-captions';
 
 /**
  * Write the ledger rows for a drafting call.

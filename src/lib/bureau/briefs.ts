@@ -8,6 +8,7 @@ import { BIBLE, CHARACTER_SLUGS, SERIES } from './bible';
 import type { Embedder } from './embed';
 import { estimateEpisode, PlannedShotSchema } from './estimate';
 import { classifySource, FactSchema, policyLint, type LintResult } from './policy-lint';
+import { airedMasters, longFormScript, SegmentSchema, validateSegments } from './longform';
 import { parseScript } from './script-lines';
 import type { BureauToken } from './tokens';
 import {
@@ -64,6 +65,8 @@ export const BriefInputSchema = z
     flag: z.boolean().default(false),
     flag_reasons: z.array(z.string()).default([]),
     source_comment_id: z.uuid().nullish(),
+    /** Long-form only: aired Shorts and new scenes in running order (see longform.ts). */
+    segments: z.array(SegmentSchema).optional(),
   })
   .superRefine((b, ctx) => {
     const series = SERIES[b.series];
@@ -75,8 +78,12 @@ export const BriefInputSchema = z
     if (!series.music_bed_pool.includes(b.music_bed)) issue('music_bed', `not in the ${b.series} music-bed pool`);
     if (!series.premise_types.includes(b.premise_type)) issue('premise_type', `not one of ${series.premise_types.join(', ')}`);
     if (b.series === 'pip' && (!b.season || !b.episode)) issue('episode', "Pip's First Year is serialised: season and episode are required");
-    const parsed = parseScript(b.script_text);
-    if (!parsed.ok) issue('script_text', parsed.problems.join('; '));
+    if (b.series === 'long_form') {
+      if (!b.segments?.length) issue('segments', 'a long-form brief lists its aired Shorts and new scenes in order');
+    } else {
+      const parsed = parseScript(b.script_text);
+      if (!parsed.ok) issue('script_text', parsed.problems.join('; '));
+    }
     if (b.catchphrase_used && !BIBLE.characters.some((c) => c.catchphrase.text.toLowerCase() === b.catchphrase_used!.toLowerCase())) {
       issue('catchphrase_used', 'not a cast catchphrase');
     }
@@ -114,7 +121,18 @@ export async function createBriefs(rawBriefs: unknown[], deps: CreateDeps): Prom
       out.push({ index, ok: false, error: parsed.error.issues.map((i) => `${i.path.join('.') || 'brief'}: ${i.message}`).join('; ') });
       continue;
     }
-    const b = parsed.data;
+    let b = parsed.data;
+    if (b.series === 'long_form' && b.segments) {
+      // The voiced script and the shots come from the segments, so they cannot disagree.
+      const masters = await airedMasters(db, token.channelId);
+      const problems = validateSegments(b.segments, Object.fromEntries(Object.entries(masters).map(([k, v]) => [k, v.durationS])));
+      if (problems.length) {
+        out.push({ index, ok: false, error: `long-form: ${problems.join('; ')}` });
+        continue;
+      }
+      const built = longFormScript(b.segments);
+      b = { ...b, script_text: built.script_text, shot_list: built.shot_list };
+    }
 
     let lint = policyLint({ ...b, fact: b.fact });
     if (lint.status === 'needs_judge' && deps.judge) {
@@ -205,6 +223,7 @@ export async function createBriefs(rawBriefs: unknown[], deps: CreateDeps): Prom
         title_embedding: vectors ? `[${vectors[1].join(',')}]` : null,
         embedding_model: embedding && embedding.ok ? embedding.model : null,
         source_comment_id: b.source_comment_id ?? null,
+        segments: (b.segments ?? null) as unknown as Json,
         created_by: token.scope,
         created_by_token: token.id ?? null,
       })

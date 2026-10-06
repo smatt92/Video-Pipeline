@@ -56,8 +56,6 @@ function rng(seed: number) {
   return () => (s = (s * 16807) % 2147483647) / 2147483647;
 }
 
-const circle = (r: number, n = 64, y = 0, cx = 0, cz = 0) =>
-  Array.from({ length: n + 1 }, (_, i) => new Vector3(cx + r * Math.cos((i / n) * Math.PI * 2), y, cz + r * Math.sin((i / n) * Math.PI * 2)));
 const vcircle = (r: number, n = 64, cx = 0, cy = 0, z = 0) =>
   Array.from({ length: n + 1 }, (_, i) => new Vector3(cx + r * Math.cos((i / n) * Math.PI * 2), cy + r * Math.sin((i / n) * Math.PI * 2), z));
 

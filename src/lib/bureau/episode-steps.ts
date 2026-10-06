@@ -527,7 +527,7 @@ export async function bundleEpisode(db: Db, episodeId: string): Promise<{ public
     `Source: ${fact.source_url}`,
     '',
     `${series.name} · Bureau of Reality`,
-    '#Shorts #science #animation',
+    e.kind === 'long_form' ? '#science #animation' : '#Shorts #science #animation',
   ].join('\n');
   const tags = [...new Set(['bureau of reality', series.name.toLowerCase(), 'science', 'explained', 'animation', 'office comedy', ...((b.tags as string[]) ?? []).filter((t) => !t.includes(':'))])].slice(0, 15);
 

@@ -28,7 +28,7 @@
  */
 import { execFile } from 'node:child_process';
 import { createReadStream } from 'node:fs';
-import { mkdir, mkdtemp, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -51,6 +51,8 @@ const { serveMcp } = require(`${B}/studio/serve.js`);
 const { mintBureauToken } = require(`${B}/bureau/tokens.js`);
 const { BUREAU_CHANNEL_ID } = require(`${B}/bureau/bible.js`);
 const P = require(`${B}/bureau/episode-steps.js`);
+const LF = require(`${B}/bureau/longform.js`);
+const { runDubJob } = require(`${B}/bureau/dubs.js`);
 const { dispatchProvider, advanceSubmitted, settleEpisodes } = require(`${B}/bureau/dispatch.js`);
 const { signalQc } = require(`${B}/bureau/qc.js`);
 const { renderBureau } = require(`${B}/bureau/layer-render.js`);
@@ -96,7 +98,13 @@ const download = async (url, out) => {
 // ── The fake video vendor: one test clip over HTTP ───────────────────────────
 const clip = join(work, 'vendor-clip.mp4');
 await run('ffmpeg', ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=size=540x960:rate=30:duration=4', '-pix_fmt', 'yuv420p', clip]);
+let dubFile = null;
 const vendor = createServer((req, res) => {
+  if (req.url === '/dub.m4a' && dubFile) {
+    res.writeHead(200, { 'content-type': 'audio/mp4' });
+    createReadStream(dubFile).pipe(res);
+    return;
+  }
   res.writeHead(200, { 'content-type': 'video/mp4' });
   createReadStream(clip).pipe(res);
 });
@@ -289,8 +297,70 @@ try {
   const ledger = await call('costs_ledger', { range: '1d' }, approver.plaintext);
   check(ledger.result?.rows >= 2 && ledger.result?.unpriced_rows === 0, 'costs_ledger reports it over MCP', `${ledger.result?.rows} rows`);
 
+
+  // ═══ 9b. Dubs ═══
+  console.log('\n5. A Hindi dub of the approved episode\n');
+  const dq = await call('dub_queue', { action: 'add', episode_id: ep, languages: ['hi'] }, agent.plaintext);
+  check(dq.result?.queued?.length === 1, 'an agent token queues a dub', JSON.stringify(dq.result?.queued));
+  const [dubRow] = (await client.query(`select id from dub_jobs where episode_id = $1 and language = 'hi'`, [ep])).rows;
+  dubFile = join(work, 'track.m4a');
+  const dubSubmits = [];
+  const dub = await runDubJob(dubRow.id, {
+    db, usdInrRate: 88, presign, putBytes, download,
+    rateKey: { driver: 'runway', model: 'eleven_voice_dubbing', endpoint: '/v1/voice_dubbing', unit: 'credit' },
+    submit: async (i) => { dubSubmits.push(i); return { ok: true, taskId: 'dub_1', estimatedCredits: 120 }; },
+    wait: async () => ({ state: 'succeeded', outputUrl: vendorUrl.replace('clip.mp4', 'dub.m4a') }),
+    translate: async (lines) => lines.map((l) => `[hi] ${l}`),
+  });
+  check(dub.ok && dubSubmits[0].speakers === 2 && dubSubmits[0].language === 'hi', 'the VO stem goes to the dubber with its speaker count', JSON.stringify(dubSubmits[0] ?? {}).slice(0, 120));
+  const [dubCost] = (await client.query(`select quantity, cost_inr, unit from cost_ledger where stage = 'dub:hi' and script_id = $1`, [script1.scriptId])).rows;
+  check(dubCost && Number(dubCost.quantity) === 120 && Math.abs(Number(dubCost.cost_inr) - 120 * 0.01 * 88) < 1e-9, 'its cost is the vendor’s credit estimate × $0.01 × ₹88, written at submit', JSON.stringify(dubCost));
+  const [dj] = (await client.query('select status, audio_asset_id, srt_asset_id from dub_jobs where id = $1', [dubRow.id])).rows;
+  check(dj.status === 'ready' && dj.audio_asset_id && dj.srt_asset_id, 'the dub is ready with an audio track and line-timed captions');
+  const withDub = await call('publish_bundles', {}, approver.plaintext);
+  const dubOut = withDub.result?.bundles?.find((x) => x.episode_id === ep)?.dubs?.[0];
+  check(dubOut?.language === 'hi' && /rate unverified/.test(dubOut?.cost_label ?? '') && dubOut?.audio_url, 'the bundle carries the Hindi track, labelled "rate unverified"');
+
+  // ═══ 9c. Long-form ═══
+  console.log('\n6. A long-form episode around the aired Short\n');
+  const coldOpen = 'Pip: Previously, on the Bureau.\nMarlo: You lost the Moon.';
+  const complaint = 'Complaint Box: Why do tides keep changing?\nMarlo: Because the Moon keeps moving, and so do we.';
+  const segments = [
+    { type: 'scene', purpose: 'cold open', lines: coldOpen, shots: [{ route: 'overlay', description: 'Recap board', duration_s: 4, characters: [], realistic: false }] },
+    { type: 'short', slot_id: 'S001' },
+    { type: 'scene', purpose: 'mid-episode Complaint Box moment', lines: complaint, shots: [{ route: 'overlay', description: 'Complaint slip', duration_s: 5, characters: [], realistic: false }] },
+  ];
+  const masters = await LF.airedMasters(db, BUREAU_CHANNEL_ID);
+  check(masters.S001?.durationS > 10, 'the aired Short’s clean master is found with a measured duration', String(masters.S001?.durationS));
+  const lfProblems = LF.validateSegments(segments, { S001: masters.S001.durationS });
+  check(lfProblems.length === 1 && /8–12 minutes/.test(lfProblems[0]), 'the real validator only objects to the length of this short test fixture', lfProblems.join(' | '));
+  const built = LF.longFormScript(segments);
+  const [lfBrief] = (await client.query(`insert into briefs (channel_id, series, lead_character, desk, premise, premise_type, structure_variant, ending_type, music_bed, hook_archetype, punchlines, beat_sheet, script_text, shot_list, fact, titles, pinned_comment, status, chosen_punchline, approved_at, created_by, segments)
+     values ($1, 'long_form', 'pip', 'gravity', 'The week Pip lost the Moon, told properly.', 'x', 'y', 'z', 'w', 'story_open', '["a","b","c"]', '[]', $2, $3, $4, $5, 'p', 'approved', 'so do we', now(), 'agent', $6) returning id`,
+    [BUREAU_CHANNEL_ID, built.script_text, JSON.stringify(built.shot_list), JSON.stringify(brief.fact), JSON.stringify(brief.titles), JSON.stringify(segments)])).rows;
+  const [lfEp] = (await client.query(`insert into episodes (brief_id, channel_id, kind, status) values ($1, $2, 'long_form', 'queued') returning id`, [lfBrief.id, BUREAU_CHANNEL_ID])).rows;
+  await P.prepareScript(db, lfEp.id, { apiKey: null, usdInrRate: 88 });
+  const lfPlan = await LF.planLongForm(db, lfEp.id, { usdInrRate: 88 });
+  const [lfScript] = (await client.query('select script_id from episodes where id = $1', [lfEp.id])).rows;
+  const lfShots = (await client.query('select idx, source_render_id, render_route from shots where script_id = $1 order by idx', [lfScript.script_id])).rows;
+  check(lfPlan.shots === 3 && lfShots[1].source_render_id !== null && lfShots[0].source_render_id === null, 'scene, replay of S001, scene — in running order');
+  const lfVoice = await P.voiceStep(db, lfEp.id, { usdInrRate: 88, apiKeyFor: async () => 'k', synth: synthFrom((t) => t), align: (i) => alignLine(i), putBytes, presign, routeFor });
+  check(lfVoice.ok, 'only the new scenes are voiced', lfVoice.ok ? `${lfVoice.lines} lines` : lfVoice.detail);
+  const lf = await LF.assembleLongForm(db, lfEp.id, {
+    usdInrRate: 88, presign, putBytes, download,
+    normaliseAudio: async (i, o) => run('ffmpeg', ['-v', 'error', '-y', '-i', i, '-af', 'loudnorm=I=-14:TP=-1.5:LRA=11', '-c:a', 'aac', o]),
+    render: (i) => renderBureau({ ...i, width: 480, height: 270, fps: 30, browserExecutable: shell }),
+  });
+  check(lf.ok, 'the long-form renders', lf.ok ? `${lf.frames} frames` : `${lf.code}: ${lf.detail}`);
+  if (lf.ok) {
+    const durs = (await client.query('select duration_s from shots where script_id = $1 order by idx', [lfScript.script_id])).rows.map((r) => Number(r.duration_s));
+    check(Math.abs(lf.frames / 30 - durs.reduce((a, b) => a + b, 0)) < 0.05 && Math.abs(durs[1] - masters.S001.durationS) < 1e-6, 'its length is the scenes plus the replayed master, exactly', `${(lf.frames / 30).toFixed(2)} s`);
+    const [lfr] = (await client.query('select format, layer from renders where id = $1', [lf.renderId])).rows;
+    check(lfr.format === 'longform_16x9' && lfr.layer === 'longform', 'stored as a 16:9 long-form render');
+  }
+
   // ═══ 10. LOAD-BEARING: the refusal ═══
-  console.log('\n4. A voice that does not match its script\n');
+  console.log('\n7. A voice that does not match its script\n');
   const b2 = await call('briefs_create_batch', { briefs: [{ ...brief, slot_id: 'S008', premise: 'Pip loses the Sun this time and the plants file a grievance.', structure_variant: 'blame_meeting', desk: 'orbit', hook_archetype: 'question', music_bed: 'bed_deep_sonar', premise_type: 'wrong_setting', ending_type: 'reversal' }] }, agent.plaintext);
   const a2 = await call('brief_approve', { id: b2.result.results[0].brief_id, punchline: 'A' }, approver.plaintext);
   const ep2 = a2.result.episode_id;

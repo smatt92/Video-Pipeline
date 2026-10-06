@@ -20,6 +20,7 @@ const { characterMentions, complaintScore } = require(`${B}/bureau/comments.js`)
 const { modelFor, TASK_TIER } = require(`${B}/llm/router.js`);
 const { voiceRouteFor } = require(`${B}/drivers/voice-route.js`);
 const { resolvePunchline } = require(`${B}/bureau/briefs.js`);
+const { validateSegments } = require(`${B}/bureau/longform.js`);
 
 let failures = 0;
 const check = (cond, label, detail = '') => {
@@ -132,11 +133,25 @@ console.log('\nrouter and voice routing\n');
 check(modelFor('policy_judge') === 'claude-opus-5-5' && modelFor('weekly_strategy') === 'claude-opus-5-5', 'judge and strategy → Opus');
 check(['brief', 'script_polish', 'shotlist'].every((t) => modelFor(t) === 'claude-sonnet-5-5'), 'briefs, scripts, shotlists → Sonnet');
 check(['dedup', 'metadata', 'qc_triage', 'comment_mining'].every((t) => modelFor(t) === 'claude-haiku-4-5-20251001'), 'dedup, metadata, QC triage, comment mining → Haiku');
-check(Object.keys(TASK_TIER).length === 10, 'ten routed tasks');
+check(Object.keys(TASK_TIER).length === 11 && modelFor('translation') === 'claude-haiku-4-5-20251001', 'eleven routed tasks; caption translation is fast-tier');
 check(voiceRouteFor({ name: 'Pip', voice: { provider: 'runway', preset_id: null } }).code === 'voice_not_locked', 'an unlocked preset refuses with a reason');
 check(voiceRouteFor({ name: 'Pip', voice: { provider: 'runway', preset_id: 'Maya' } }).voiceId === 'Maya', 'a locked preset routes to it');
 check(voiceRouteFor({ name: 'Pip', voice: { provider: 'elevenlabs', preset_id: null }, elevenlabs_voice_id: null }).code === 'direct_voice_missing', 'the direct path needs its id');
 check(resolvePunchline(['a', 'b', 'c'], ' b ').text === 'b' && resolvePunchline(['a', 'b', 'c'], 'my own line').choice === 'custom', 'punchline letters resolve; anything else is custom');
+
+console.log('\nlong-form segments\n');
+const scene = (purpose, lines, secs, route = 'overlay') => ({ type: 'scene', purpose, lines, shots: [{ route, description: 'x x x', duration_s: secs, characters: [], realistic: false }] });
+const box = scene('Complaint Box moment', 'Complaint Box: Why?\nMarlo: Because.', 40);
+const aired = { S001: 200, S002: 200, S003: 150 };
+const good = [scene('cold open', 'Pip: Previously.', 40), { type: 'short', slot_id: 'S001' }, box, { type: 'short', slot_id: 'S002' }, scene('bridge', 'Marlo: Meanwhile.', 40), { type: 'short', slot_id: 'S003' }, scene('ending', 'Pip: Next week.', 30)];
+check(validateSegments(good, aired).length === 0, 'cold open, three aired Shorts each framed by new scenes, 700 s, 21% new → accepted', JSON.stringify(validateSegments(good, aired)));
+check(validateSegments([good[0], { type: 'short', slot_id: 'S001' }, { type: 'short', slot_id: 'S002' }, box], aired).some((p) => /back to back/.test(p)), 'two aired Shorts back to back is re-stitching, refused');
+check(validateSegments([{ type: 'short', slot_id: 'S001' }, ...good.slice(1)], aired).some((p) => /cold open/.test(p)), 'opening on an aired Short is refused');
+check(validateSegments(good.filter((s) => s !== box), aired).some((p) => /Complaint Box/.test(p)), 'no Complaint Box moment is refused');
+check(validateSegments([scene('cold open', 'Pip: hi.', 10), { type: 'short', slot_id: 'S001' }, box], aired).some((p) => /8–12 minutes/.test(p)), '240 s is too short for long-form');
+check(validateSegments([scene('cold open', 'Pip: hi.', 95, 'character_beat'), { type: 'short', slot_id: 'S001' }, box, { type: 'short', slot_id: 'S002' }, scene('end', 'Pip: bye.', 60)], aired).some((p) => /90 s/.test(p)), 'more than 90 s of generated character beats is refused');
+check(validateSegments([scene('cold open', 'Pip: hi.', 5), { type: 'short', slot_id: 'S001' }, scene('Complaint Box', 'Complaint Box: x', 5), { type: 'short', slot_id: 'S002' }, scene('b', 'Pip: y.', 5), { type: 'short', slot_id: 'S003' }, scene('e', 'Pip: z.', 100)], { S001: 250, S002: 250, S003: 200 }).some((p) => /at least 20%/.test(p)), 'new scenes under 20% of the runtime is refused');
+check(validateSegments([good[0], { type: 'short', slot_id: 'S099' }, box], aired).some((p) => /no aired master/.test(p)), 'a Short that never aired cannot be replayed');
 
 console.log(failures ? `\n${failures} FAILED\n` : '\nAll Bureau rule checks passed.\n');
 process.exit(failures ? 1 : 0);

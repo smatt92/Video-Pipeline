@@ -285,6 +285,7 @@ export type Database = {
           script_embedding: string | null
           script_text: string
           season: number | null
+          segments: Json | null
           series: string
           shot_list: Json
           slot_id: string | null
@@ -331,6 +332,7 @@ export type Database = {
           script_embedding?: string | null
           script_text: string
           season?: number | null
+          segments?: Json | null
           series: string
           shot_list?: Json
           slot_id?: string | null
@@ -377,6 +379,7 @@ export type Database = {
           script_embedding?: string | null
           script_text?: string
           season?: number | null
+          segments?: Json | null
           series?: string
           shot_list?: Json
           slot_id?: string | null
@@ -1217,6 +1220,7 @@ export type Database = {
           output_url_expires_at: string | null
           request_id: string | null
           requested_by: string
+          srt_asset_id: string | null
           status: string
           token_id: string | null
           translated_lines: Json | null
@@ -1235,6 +1239,7 @@ export type Database = {
           output_url_expires_at?: string | null
           request_id?: string | null
           requested_by: string
+          srt_asset_id?: string | null
           status?: string
           token_id?: string | null
           translated_lines?: Json | null
@@ -1253,6 +1258,7 @@ export type Database = {
           output_url_expires_at?: string | null
           request_id?: string | null
           requested_by?: string
+          srt_asset_id?: string | null
           status?: string
           token_id?: string | null
           translated_lines?: Json | null
@@ -1300,6 +1306,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_slot_status"
             referencedColumns: ["episode_id"]
+          },
+          {
+            foreignKeyName: "dub_jobs_srt_asset_id_fkey"
+            columns: ["srt_asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "dub_jobs_token_id_fkey"
@@ -3299,6 +3312,7 @@ export type Database = {
           render_route: string | null
           script_id: string
           shot_kind: string | null
+          source_render_id: string | null
           status: string
           trim_in_s: number | null
           trim_out_s: number | null
@@ -3325,6 +3339,7 @@ export type Database = {
           render_route?: string | null
           script_id: string
           shot_kind?: string | null
+          source_render_id?: string | null
           status?: string
           trim_in_s?: number | null
           trim_out_s?: number | null
@@ -3351,6 +3366,7 @@ export type Database = {
           render_route?: string | null
           script_id?: string
           shot_kind?: string | null
+          source_render_id?: string | null
           status?: string
           trim_in_s?: number | null
           trim_out_s?: number | null
@@ -3434,6 +3450,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_video_cost"
             referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "shots_source_render_id_fkey"
+            columns: ["source_render_id"]
+            isOneToOne: false
+            referencedRelation: "renders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shots_source_render_id_fkey"
+            columns: ["source_render_id"]
+            isOneToOne: false
+            referencedRelation: "v_render_cost"
+            referencedColumns: ["render_id"]
           },
         ]
       }

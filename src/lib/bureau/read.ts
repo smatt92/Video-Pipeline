@@ -116,7 +116,21 @@ export async function readyBundles(
           // A URL that cannot be signed is left out, not faked; the key is still in `bundle`.
         }
       }
-      return { ...r, download_urls: urls };
+      // Language tracks for Studio's multi-language audio upload, when dubbed.
+      const { data: dubs } = r.episode_id
+        ? await db.from('dub_jobs').select('language, status, audio_asset_id, srt_asset_id, estimate_inr').eq('episode_id', r.episode_id).eq('status', 'ready')
+        : { data: [] as never[] };
+      const dubFiles = [];
+      for (const d of dubs ?? []) {
+        const ids = [d.audio_asset_id, d.srt_asset_id].filter((x): x is string => !!x);
+        const { data: assets } = ids.length ? await db.from('assets').select('id, storage_key').in('id', ids) : { data: [] as never[] };
+        const url = async (id: string | null) => {
+          const a = (assets ?? []).find((x) => x.id === id);
+          return a ? presign(a.storage_key, a.storage_key.split('/').pop() ?? 'file').catch(() => null) : null;
+        };
+        dubFiles.push({ language: d.language, audio_url: await url(d.audio_asset_id), captions_url: await url(d.srt_asset_id), cost_inr: d.estimate_inr === null ? null : Number(d.estimate_inr), cost_label: 'rate unverified (vendor upper-bound estimate)' });
+      }
+      return { ...r, download_urls: urls, dubs: dubFiles };
     }),
   );
 }
