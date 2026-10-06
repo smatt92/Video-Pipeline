@@ -1123,6 +1123,43 @@ passed CI (run 139) because the migration ledger insert is `on conflict (version
 nothing`: the second applied without being recorded, so a database already at 0043 would skip
 it silently. `listMigrations()` now throws on a shared version, in every tool that lists them.
 
+### 16. OAuth for /api/mcp (2026-10-06, decision 0016) — the server RUN over real HTTP; Claude's connector handshake NOT, and it cannot be from here
+
+**What has run:**
+
+| Harness | What it drove | Result |
+|---|---|---|
+| `verify:oauth` | The shipped `serveOAuth` + `serveMcp` behind a socket, real Postgres, all migrations: discovery (401 → protected-resource metadata → RFC 8414 metadata), DCR and metadata-document clients, code + PKCE end to end into MCP calls, refresh rotation and replay, a revoked connection, an agent connection on `brief_approve` (TypeScript and SQL), a replayed code, wrong redirect URIs, expiry, Deny, static tokens unchanged. 70 assertions; mutating the PKCE check or the replay revocation fails it | PASS |
+| `verify:public` | `next start` signed out: the real `/api/mcp`, `/.well-known/*` and `/api/oauth/register` route handlers; `/oauth/authorize` gated with its query carried through `/login` | PASS — and it caught `request.nextUrl.origin` reading `localhost` under `next start`, which would have failed every token exchange |
+
+**What has NOT run, and why it cannot from this container:**
+
+- **Claude's connector client completing the handshake.** Only Sahil connecting from Claude can
+  prove it: Claude's servers must dial the public deployment, and Claude's exact requests (which
+  discovery URL it tries first, whether it sends `resource`, its client-metadata URL, its
+  callback host) were read from the MCP authorization spec, not observed — the connector docs
+  could not be fetched by the unattended run that built this (0016 says so).
+- **The consent screen with a real session.** The harness stands in for the signed-in owner.
+- **Refresh in practice.** Whether Claude refreshes on `401 invalid_token` or ahead of
+  `expires_in` is Claude's behaviour; both are handled.
+
+**What Sahil will see when he connects (README → "Add it to Claude"):**
+
+1. Customize → Connectors → Add custom connector → URL → Add → **Connect**: a browser tab opens
+   on `video-pipeline-seven.vercel.app/oauth/authorize?…` (via `/login` if not signed in).
+2. The consent screen: "Connect Claude to Kiln?", the client ID (a `claude.ai` URL if Claude uses
+   a metadata document, or `kiln_dcr_…` if it registered), "Sends you back to
+   `https://claude.ai/api/mcp/auth_callback`", his email, and the scope radio with **Approver**
+   selected.
+3. **Approve** → back in Claude, the connector shows as connected and lists 21 tools (13 with
+   scope agent).
+4. In Kiln, Settings → MCP tokens has a new row, kind *OAuth connection*, last used just now.
+
+If instead the Kiln tab shows *"This connection request was refused"*, its text names the cause
+(`client_host_not_allowed`, `redirect_uri_not_allowed`, …) and 0016's last table gives the
+one-line fix. If Claude says the connection failed after Approve, the Vercel log for
+`/api/oauth/token` carries the `error_description`.
+
 ## Gates, and where each can run
 
 | Gate | Runnable in this environment? |
@@ -1133,6 +1170,7 @@ it silently. `listMigrations()` now throws on a shared version, in every tool th
 | 4 — first real Higgsfield generation | **No.** Replies by webhook and needs a publicly reachable callback URL. Run against a Vercel preview deploy. |
 | 5 — guided first video end to end | **No.** Same reason, plus it spans every vendor. |
 | Studio connector — Anthropic fetching `/api/mcp` | **No.** Needs a public hostname. Run against a Vercel preview deploy with `STUDIO_MCP_TOKEN_SECRET` set. |
+| Claude chat connector — OAuth handshake (0016) | **No.** Only Sahil connecting from Claude to the production URL (§16). |
 
 ## Closing this file
 

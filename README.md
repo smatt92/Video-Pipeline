@@ -297,29 +297,59 @@ Studio tools; a Bureau token (`kb_…`) reaches the control plane: 21 tools and 
 resources (`kiln://bible/characters`, `kiln://series/{id}`, `kiln://policy/rubric`,
 `kiln://calendar/next-14`). Streamable HTTP, POST, JSON-RPC 2.0.
 
-**Mint tokens** in **Settings → MCP tokens** (signed in). The plaintext is shown once; only
-its SHA-256 is stored.
+Two ways to hold a token, one set of rules (decision 0016):
 
-| Scope | Prefix | Who holds it | Can |
+- **OAuth** — Claude chat (web and phone) and Claude's scheduled tasks. You approve a consent
+  screen in Kiln; Claude receives a one-hour access token and a rotating refresh token. Nothing
+  to paste.
+- **Static bearer** — Routines and Claude Code. Minted in **Settings → MCP tokens**; the
+  plaintext is shown once and only its SHA-256 is stored. Never expires; revoke to end it.
+
+| Scope | Prefix (static / OAuth) | Who holds it | Can |
 |---|---|---|---|
-| `approver` | `kb_a_` | Sahil, in Claude chat | everything — including `brief_approve`, `brief_reject`, `cut_approve`, `cut_reject`, `publish_bundles`, `mark_scheduled`, `caps_set`, `kill_switch` |
-| `agent` | `kb_g_` | Routines C, E, F and scheduled task D | read, draft (`briefs_create_batch`), `shot_regenerate`, `dub_queue` — never decide |
+| `approver` | `kb_a_` / `kb_oa_` | Sahil, in Claude chat | everything — including `brief_approve`, `brief_reject`, `cut_approve`, `cut_reject`, `publish_bundles`, `mark_scheduled`, `caps_set`, `kill_switch` |
+| `agent` | `kb_g_` / `kb_og_` | Routines, Claude scheduled tasks | read, draft (`briefs_create_batch`), `shot_regenerate`, `dub_queue` — never decide |
 
 Scope is enforced server-side twice: the tool layer refuses an approver tool for an agent
 token (`refused: true`, `scope_denied`), and every decision is a database function
-(migration 0040) that checks the token's scope again before it changes anything.
-`pnpm verify:bureau` drives both over HTTP. Every decision writes `authorship_log` with the
-exact text — the punchline you chose, the rejection reason, the cap change — in the same
-transaction, and that table refuses UPDATE and DELETE.
+(migration 0040) that checks the token's scope again — and, since 0045, its expiry — before it
+changes anything. `pnpm verify:bureau` and `pnpm verify:oauth` drive both over HTTP. Every
+decision writes `authorship_log` with the exact text — the punchline you chose, the rejection
+reason, the cap change — in the same transaction, and that table refuses UPDATE and DELETE.
 
-**Add it to Claude as a custom connector**
+**Add it to Claude (claude.ai or the Claude app) — OAuth**
 
-1. Claude → Settings → Connectors → **Add custom connector**.
-2. URL: `https://video-pipeline-seven.vercel.app/api/mcp`.
-3. Authentication: the connector's advanced settings → bearer / authorization token → paste
-   your **approver** token. (OAuth is not offered — decision 0012 #2.)
-4. In a chat, enable the connector and try: *"list pending briefs"*, *"approve 1 with B"*,
+1. Be signed in to Kiln in the browser you will use
+   (`https://video-pipeline-seven.vercel.app/login`). If you are not, the consent screen sends
+   you to sign in first and comes back.
+2. Claude → **Customize → Connectors → Add custom connector**.
+3. Name: `Kiln`. URL: `https://video-pipeline-seven.vercel.app/api/mcp`. Leave the advanced
+   OAuth fields (client ID / secret) empty. **Add**.
+4. **Connect**. Claude opens Kiln's consent screen: it shows the client (Claude), where it will
+   send you back (`https://claude.ai/api/mcp/auth_callback`) and a scope choice.
+5. Choose the scope and **Approve**. You land back in Claude, connected.
+6. In a chat, enable the connector and try: *"list pending briefs"*, *"approve 1 with B"*,
    *"what is episode … doing?"*, *"approve the cut"*, *"give me the publish bundle"*.
 
-Give Routines and scheduled tasks an **agent** token only. Revoke from the same settings
-page; revocation takes effect on the next request.
+**A connector on Claude is visible to every scheduled task on your Claude account.** So the
+connection your scheduled tasks use should be consented with scope **agent**: an approver
+connection would let any scheduled task approve, publish, change caps or flip the kill switch.
+If you also want to approve from your phone, that is a separate approver connection — and
+then every scheduled task can see it too; keep scheduled tasks' prompts to agent actions, or
+keep the approver connection disconnected except when you are approving.
+
+The connection appears in **Settings → MCP tokens** as an *OAuth connection* row. **Revoke**
+there ends its access token at once and refuses every refresh after it; Claude will ask you to
+connect again.
+
+**Claude Code and Routines — static bearer**
+
+Mint a token in Settings → MCP tokens (approver for yourself, agent for Routines), then:
+
+```bash
+claude mcp add --transport http kiln https://video-pipeline-seven.vercel.app/api/mcp \
+  --header "Authorization: Bearer kb_…"
+```
+
+Routines send the same header. Revoke from the same settings page; revocation takes effect on
+the next request.
