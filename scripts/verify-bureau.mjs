@@ -45,6 +45,7 @@ const { BUREAU_CHANNEL_ID } = require(`${BUILD}/bureau/bible.js`);
 
 const { supabaseShim } = await import('./lib/supabase-shim.mjs');
 const { scratchDatabase } = await import('./lib/scratch.mjs');
+const { stubEmbedder } = await import('./lib/stub-embedder.mjs');
 
 let failures = 0;
 const ok = (l, d = '') => console.log(`  PASS  ${l}${d ? ` — ${d}` : ''}`);
@@ -63,6 +64,11 @@ const effects = {
   started: [],
   woken: [],
   notified: [],
+  // No embedder until §5: the briefs are drafted while embeddings are unavailable.
+  embed: null,
+  async embedderFor() {
+    return this.embed ?? undefined;
+  },
   async startEpisode(id) {
     this.started.push(id);
     return `run_verify_${this.started.length}`;
@@ -207,7 +213,9 @@ try {
   const briefB = results[2].brief_id;
   const rowA = (await client.query('select created_by, created_by_token, variation, policy, flagged, estimate_inr from briefs where id = $1', [briefA])).rows[0];
   check(rowA.created_by === 'agent' && rowA.created_by_token === agent.id, 'the brief records which token drafted it');
-  check(rowA.variation.status === 'incomplete', 'variation is "incomplete", not pass, when similarity could not be computed', rowA.variation.status);
+  check(rowA.variation.status === 'refused' && /similarity not computed — embeddings are not configured/.test(rowA.variation.refused_reason ?? ''),
+    'variation is "refused", with the reason named, when similarity could not be computed — never a pass, never 0', `${rowA.variation.status}: ${rowA.variation.refused_reason}`);
+  check(rowA.flagged === true, 'and the brief is flagged for it');
   check(rowA.policy.status === 'pass', 'the server re-ran policy_lint itself', rowA.policy.status);
   check(rowA.estimate_inr === null, 'the estimate is null (unpriced), never 0, while a route has no recipe', String(rowA.estimate_inr));
   check(effects.notified.some((n) => n.kind === 'briefs_pending'), 'a briefs_pending alert was requested');
@@ -258,6 +266,30 @@ try {
   console.log('\n5. brief_approve / brief_reject (approver)\n');
   const pending = await call('briefs_pending', {}, approver.plaintext);
   check(pending.result?.count === 2 && pending.result.briefs[0].n === 1, 'briefs_pending lists both, numbered', `${pending.result?.count}`);
+
+  // LOAD-BEARING: the consumer refuses a brief whose repetition check could not run — in the
+  // TypeScript and, below, in the database itself.
+  const refusedApprove = await call('brief_approve', { id: briefA, punchline: 'B' }, approver.plaintext);
+  check(refusedApprove.isError === true && /variation_check refused this brief: similarity not computed/.test(refusedApprove.result?.error ?? ''),
+    'brief_approve refuses while variation_check could not compute similarity, naming why', refusedApprove.result?.error);
+  check(effects.started.length === 0 && (await client.query('select status from briefs where id = $1', [briefA])).rows[0].status === 'pending', 'nothing started, the brief is still pending');
+  let dbRefused = null;
+  try {
+    await client.query(`select bureau_brief_approve($1, $2, 'x', 'A', '{}'::jsonb)`, [approver.id, briefA]);
+  } catch (err) {
+    dbRefused = err.message;
+  }
+  check(/variation_check refused/.test(dbRefused ?? ''), 'the database refuses it too, for a caller that skips the TypeScript', dbRefused ?? 'it ran');
+
+  // Embeddings come back: variation_check on the brief computes, stores, and lifts the refusal.
+  effects.embed = stubEmbedder;
+  const recheck = await call('variation_check', { brief_id: briefA }, agent.plaintext);
+  const rowA2 = (await client.query('select variation, embedding_model, script_embedding is not null has_vec, flag_reasons from briefs where id = $1', [briefA])).rows[0];
+  // Not "pass": briefB (S004) now exists and shares axes with A, which the re-check correctly
+  // sees. What matters is that the check RAN — a computed fail is the approver's call.
+  check(recheck.result?.similarity?.checked === true && rowA2.variation.similarity.checked === true && rowA2.variation.status !== 'refused' && rowA2.variation.refused_reason === null && rowA2.has_vec && rowA2.embedding_model === 'harness-stub',
+    're-running variation_check computes the embedding and stores a computed result on the brief', `${recheck.result?.status} / ${rowA2.variation.status}, max ${rowA2.variation.similarity.max}`);
+  check(!rowA2.flag_reasons.some((f) => f.startsWith('variation:refused')), 'and the refusal reason is gone from the flags', JSON.stringify(rowA2.flag_reasons));
 
   const approved = await call('brief_approve', { id: briefA, punchline: 'B' }, approver.plaintext);
   const epId = approved.result?.episode_id;

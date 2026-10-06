@@ -13,9 +13,15 @@ import { BIBLE } from './bible';
  * character's weekly limit. All thresholds are `channel_policy` columns — the approver sets
  * them with caps_set, nothing here hardcodes one.
  *
- * Three outcomes: pass, fail, and **incomplete** — similarity could not be computed (no
- * embedding key, or the vendor refused). Incomplete is never reported as pass: a check that
- * did not run has not passed (CLAUDE.md, "absent and zero are different facts").
+ * Three outcomes: pass, fail, and **refused** — similarity could not be computed (no
+ * embedding key, the free tier rate-limited past its retries, the vendor refused). Refused
+ * carries `refused_reason`, the vendor's own sentence, and is never reported as a pass and
+ * never as a similarity of 0: a check that did not run has not passed (CLAUDE.md, "absent
+ * and zero are different facts"). `approveBrief` refuses a brief whose check refused, and
+ * so does `bureau_brief_approve` in the database (0043).
+ *
+ * Briefs written before 0043 stored this outcome as `incomplete`; `variationRefusal` reads
+ * both spellings so an old row cannot slip through on its name.
  */
 
 export const AXES = [
@@ -65,8 +71,10 @@ export type Similarity =
   | { checked: false; reason: string };
 
 export interface VariationResult {
-  status: 'pass' | 'fail' | 'incomplete';
+  status: 'pass' | 'fail' | 'refused';
   passed: boolean;
+  /** Set whenever similarity was not computed — including on a `fail`, so the reason survives. */
+  refused_reason: string | null;
   failing_axes: { against_brief_id: string; differing: number; same_axes: Axis[] }[];
   hook_archetype: { week: string; count_including_this: number; max: number; ok: boolean };
   catchphrase: { text: string | null; week_count_including_this: number; max: number; ok: boolean };
@@ -128,11 +136,12 @@ export function checkVariation(
   const simOk = similarity.checked ? similarity.max === null || similarity.max < policy.similarity_max : null;
 
   const hardFail = failing_axes.length > 0 || !hookOk || !phraseOk || simOk === false;
-  const status = hardFail ? 'fail' : simOk === null ? 'incomplete' : 'pass';
+  const status = hardFail ? 'fail' : simOk === null ? 'refused' : 'pass';
 
   return {
     status,
     passed: status === 'pass',
+    refused_reason: similarity.checked ? null : `similarity not computed — ${similarity.reason}`,
     failing_axes,
     hook_archetype: { week, count_including_this: hookCount, max: policy.hook_archetype_weekly_max, ok: hookOk },
     catchphrase: { text: phrase, week_count_including_this: phraseCount, max: phraseMax, ok: phraseOk },
@@ -211,4 +220,19 @@ export async function similarityFor(
     nearest_brief_id: rows[0].brief_id,
     compared: rows.length,
   };
+}
+
+/**
+ * Why a stored variation result may not be approved, or null when it may. A `fail` is
+ * approvable — it is flagged, and a human deciding against a flag is the design. A check
+ * that could not run is not: there is nothing for the human to weigh. Also reads the pre-0043
+ * spelling (`incomplete`) and a result with no similarity block at all.
+ */
+export function variationRefusal(stored: unknown): string | null {
+  const v = (stored ?? null) as { status?: string; refused_reason?: string | null; similarity?: { checked?: boolean; reason?: string } } | null;
+  if (!v || typeof v.status !== 'string') return 'variation_check has no stored result for this brief';
+  if (v.status === 'refused' || v.status === 'incomplete' || v.similarity?.checked !== true) {
+    return v.refused_reason ?? `similarity not computed — ${v.similarity?.reason ?? 'no reason recorded'}`;
+  }
+  return null;
 }

@@ -11,7 +11,7 @@ import { resolveCredentials } from '../integrations/credentials';
  * The vendor returns no usage, so the quantity is ceil(characters / 4) tokens — an estimate
  * of the quantity on top of a rate-card price, and the row says `rate_card` like every
  * estimate. A missing key or an unverified rate is an `ok: false` with the reason; the
- * variation check reports itself incomplete rather than passing.
+ * variation check refuses, naming the reason, rather than passing (0015).
  */
 
 const ENDPOINT = '/v1beta/models:batchEmbedContents';

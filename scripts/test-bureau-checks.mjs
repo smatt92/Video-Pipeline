@@ -13,7 +13,7 @@ require.cache[serverOnly] = { id: serverOnly, filename: serverOnly, loaded: true
 
 const B = new URL('../.verify-build/src/lib', import.meta.url).pathname;
 const { policyLint, classifySource, properNameCandidates } = require(`${B}/bureau/policy-lint.js`);
-const { checkVariation, isoWeek } = require(`${B}/bureau/variation.js`);
+const { checkVariation, isoWeek, variationRefusal } = require(`${B}/bureau/variation.js`);
 const { fitToCap } = require(`${B}/bureau/estimate.js`);
 const { parseScript, speakerSlug } = require(`${B}/bureau/script-lines.js`);
 const { characterMentions, complaintScore } = require(`${B}/bureau/comments.js`);
@@ -21,6 +21,7 @@ const { modelFor, TASK_TIER } = require(`${B}/llm/router.js`);
 const { voiceRouteFor } = require(`${B}/drivers/voice-route.js`);
 const { resolvePunchline } = require(`${B}/bureau/briefs.js`);
 const { validateSegments } = require(`${B}/bureau/longform.js`);
+const { embedTexts, EMBED_ATTEMPTS } = require(`${B}/drivers/embeddings.js`);
 
 let failures = 0;
 const check = (cond, label, detail = '') => {
@@ -91,8 +92,13 @@ const phrase = checkVariation({ ...fourDiff, ...base, series: 'myth', lead: 'kaz
 check(!phrase.catchphrase.ok && phrase.status === 'fail', "Pip's catchphrase twice in a week fails");
 const tooSimilar = checkVariation({ ...base, series: 'myth', lead: 'kaz', desk: 'myth', premise_type: 'x', structure_variant: 'y', hook_archetype: 'warning' }, [], policy, { checked: true, max: 0.85, nearest_brief_id: 'z', compared: 1 });
 check(tooSimilar.status === 'fail' && tooSimilar.similarity.ok === false, 'cosine 0.85 fails (must be < 0.85)');
-const incomplete = checkVariation({ ...base }, [], policy, { checked: false, reason: 'no key' });
-check(incomplete.status === 'incomplete' && incomplete.passed === false, 'no similarity → incomplete, never passed');
+const refused = checkVariation({ ...base }, [], policy, { checked: false, reason: 'embeddings vendor rate-limited (429) on all 4 attempts' });
+check(refused.status === 'refused' && refused.passed === false && refused.similarity.ok === null && refused.similarity.max === undefined,
+  'no similarity → refused, never passed, and no score at all (not 0)', JSON.stringify(refused.similarity));
+check(refused.refused_reason === 'similarity not computed — embeddings vendor rate-limited (429) on all 4 attempts', 'the refusal carries the vendor’s reason verbatim', refused.refused_reason);
+check(variationRefusal(refused) === refused.refused_reason && variationRefusal({ status: 'incomplete', similarity: { checked: false, reason: 'no key' } }) === 'similarity not computed — no key',
+  'a stored refusal blocks approval, including the pre-0043 spelling "incomplete"');
+check(variationRefusal(null) !== null && variationRefusal(fourDiff) === null && variationRefusal(threeSame) === null, 'no stored result blocks; a pass or a computed fail does not (a fail is the approver’s call)');
 const emptyHistory = checkVariation({ ...base }, [], policy, { checked: true, max: null, nearest_brief_id: null, compared: 0 });
 check(emptyHistory.status === 'pass' && emptyHistory.similarity.max === null, 'nothing to compare → pass with max null, not 0');
 const window = Array.from({ length: 20 }, (_, i) => row(`r${i}`, `2026-09-${String(i + 1).padStart(2, '0')}`, i < 6 ? {} : { series: 'deep', lead: 'marlo', desk: 'a', premise_type: 'b', structure_variant: 'c', hook_archetype: 'warning' }));
@@ -114,6 +120,19 @@ const ov = f.shots.filter((s) => s.route === 'overlay').reduce((n, s) => n + s.d
 check(ov / 26 >= 0.5, 'overlay share is raised to at least 50% of runtime', `${ov}/26`);
 f = fitToCap([shot('overlay', 40), shot('character_beat', 4), shot('money_shot', 4)], est([0, 60, 100], 10), pol);
 check(f.shots[2].route === 'overlay' && f.shots[1].route === 'character_beat', '₹170 > ₹150 → the priciest shot (₹100) goes, ₹70 stays');
+
+console.log('\nembeddings on a free tier\n');
+let calls = 0;
+const slept = [];
+const flaky = async () => (++calls <= 2
+  ? new Response('{"error":{"status":"RESOURCE_EXHAUSTED"}}', { status: 429, headers: { 'retry-after': '3' } })
+  : new Response(JSON.stringify({ embeddings: [{ values: Array(768).fill(0.1) }] }), { status: 200 }));
+const e1 = await embedTexts(['hello'], 'k', flaky, async (ms) => { slept.push(ms); });
+check(e1.ok && calls === 3 && slept.join() === '3000,3000', 'two 429s are waited out (Retry-After honoured) and the third call succeeds', `${calls} calls, slept ${slept.join()}`);
+calls = 0;
+const always = async () => { calls++; return new Response('{}', { status: 429 }); };
+const e2 = await embedTexts(['hello'], 'k', always, async () => {});
+check(!e2.ok && calls === EMBED_ATTEMPTS && /rate-limited \(429\) on all 4 attempts/.test(e2.detail), 'a vendor that keeps refusing is reported unavailable, by name, after the last attempt', e2.ok ? 'ok' : e2.detail);
 
 console.log('\nscript lines\n');
 const p = parseScript('Pip: Where is it?\nMrs. Iyer: Filed.\nmrs iyer: Twice.\nDirector Ohm: Noted.\n\nComplaint Box: Why?');

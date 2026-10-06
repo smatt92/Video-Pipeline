@@ -184,6 +184,8 @@ export async function createBriefs(rawBriefs: unknown[], deps: CreateDeps): Prom
       ...(variation.hook_archetype.ok ? [] : ['variation:hook_archetype_weekly']),
       ...(variation.catchphrase.ok ? [] : ['variation:catchphrase_weekly']),
       ...(variation.similarity.ok === false ? ['variation:similarity'] : []),
+      // Named, so the approval card says WHY it cannot be approved yet (approveBrief refuses).
+      ...(variation.refused_reason ? [`variation:refused — ${variation.refused_reason}`] : []),
     ];
     const flagged = b.flag || flagReasons.length > b.flag_reasons.length;
 

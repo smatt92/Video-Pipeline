@@ -4,6 +4,7 @@ import type { Db } from '../db/server';
 import type { Json } from '../db/types';
 import { getBrief, resolvePunchline } from './briefs';
 import type { BureauToken } from './tokens';
+import { variationRefusal } from './variation';
 
 /**
  * The approver's decisions. Each is one database function (migration 0040) that checks the
@@ -50,6 +51,16 @@ export async function approveBrief(
   requireApprover(token, 'brief_approve');
   const brief = await getBrief(db, token.channelId, input.brief_id);
   if (!brief) throw new Error(`Brief ${input.brief_id} does not exist on this channel.`);
+  // The repetition check must have RUN. A failed check is the approver's call against a flag;
+  // a check that could not run gives the approver nothing to weigh. The same refusal sits in
+  // bureau_brief_approve (0043) for any caller that skips this function.
+  const refused = variationRefusal(brief.variation);
+  if (refused) {
+    throw new Error(
+      `variation_check refused this brief: ${refused}. Fix embeddings (onboarding step "Embeddings", or Settings → Integrations), ` +
+        'then run variation_check with this brief_id to compute and store it.',
+    );
+  }
   const punchlines = Array.isArray(brief.punchlines) ? brief.punchlines.map(String) : [];
   const chosen = resolvePunchline(punchlines, input.punchline);
 

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import type { Db } from '../../db/server';
+import type { Json } from '../../db/types';
 import type { McpSurface } from '../../studio/mcp';
 import { BIBLE, POLICY, SERIES } from '../bible';
 import { BriefInputSchema, createBriefs, getBrief, pendingBriefs } from '../briefs';
@@ -154,7 +155,7 @@ export const BUREAU_TOOLS: BureauTool[] = [
   tool({
     name: 'variation_check',
     title: 'Check a brief for repetition',
-    description: 'Differs from each of the last 14 episodes on ≥4 of 7 axes; script cosine vs the last 60 under the threshold; hook archetype ≤2/week; catchphrase ≤1/week. Pass a brief_id, or the axes of a draft. "incomplete" means similarity could not be computed — it is not a pass.',
+    description: 'Differs from each of the last 14 episodes on ≥4 of 7 axes; script cosine vs the last 60 under the threshold; hook archetype ≤2/week; catchphrase ≤1/week. Pass a brief_id, or the axes of a draft. "refused" means similarity could not be computed (refused_reason says why) — it is not a pass, and a refused brief cannot be approved. For a pending brief with no stored embedding, this computes one and stores the new result on the brief.',
     scope: 'any',
     args: z.object({ brief_id: z.uuid().optional(), brief: VariationCandidateSchema.optional() }).strict(),
     run: async (c, a) => {
@@ -163,11 +164,41 @@ export const BUREAU_TOOLS: BureauTool[] = [
       if (a.brief_id) {
         const b = await getBrief(c.db, c.token.channelId, a.brief_id);
         if (!b) return { ok: false, error: 'No such brief on this channel.' };
-        const { data: emb } = await c.db.from('briefs').select('script_embedding').eq('id', a.brief_id).single();
-        const vec = emb?.script_embedding ? JSON.parse(String(emb.script_embedding)) as number[] : null;
+        const { data: emb } = await c.db.from('briefs').select('script_embedding, flag_reasons').eq('id', a.brief_id).single();
+        let vec = emb?.script_embedding ? JSON.parse(String(emb.script_embedding)) as number[] : null;
+        let reason = 'no embedding was computed for this brief';
+        // The re-check path for a brief refused because embeddings were unavailable when it
+        // was written: compute now, store the vectors, then judge. Pending briefs only —
+        // an approved brief's result is part of its record.
+        if (!vec && b.status === 'pending') {
+          const embed = await c.effects.embedderFor?.(c.db, c.token.channelId);
+          const titles = Array.isArray(b.titles) ? (b.titles as { text?: string }[]).map((t) => String(t?.text ?? '')).join('\n') : '';
+          const r = embed ? await embed([`${b.premise}\n${b.script_text}`, titles]) : { ok: false as const, detail: 'embeddings are not configured' };
+          if (r.ok) {
+            vec = r.vectors[0];
+            await c.db
+              .from('briefs')
+              .update({ script_embedding: `[${r.vectors[0].join(',')}]`, title_embedding: `[${r.vectors[1].join(',')}]`, embedding_model: r.model })
+              .eq('id', a.brief_id);
+          } else {
+            reason = r.detail;
+          }
+        }
         const { data: slot } = b.slot_id ? await c.db.from('slots').select('slot_date').eq('id', b.slot_id).maybeSingle() : { data: null };
-        const sim = await similarityFor(c.db, c.token.channelId, vec, policy.similarity_window, a.brief_id);
-        return checkVariation({ ...b, id: b.id, lead: b.lead_character, on_date: slot?.slot_date ?? undefined }, history, policy, sim);
+        const sim = await similarityFor(c.db, c.token.channelId, vec, policy.similarity_window, a.brief_id, reason);
+        const result = checkVariation({ ...b, id: b.id, lead: b.lead_character, on_date: slot?.slot_date ?? undefined }, history, policy, sim);
+        if (b.status === 'pending') {
+          const kept = (emb?.flag_reasons ?? []).filter((f: string) => !f.startsWith('variation:'));
+          const now = [
+            ...result.failing_axes.map((f) => `variation:axes_vs_${f.against_brief_id.slice(0, 8)}`),
+            ...(result.hook_archetype.ok ? [] : ['variation:hook_archetype_weekly']),
+            ...(result.catchphrase.ok ? [] : ['variation:catchphrase_weekly']),
+            ...(result.similarity.ok === false ? ['variation:similarity'] : []),
+            ...(result.refused_reason ? [`variation:refused — ${result.refused_reason}`] : []),
+          ];
+          await c.db.from('briefs').update({ variation: result as unknown as Json, flag_reasons: [...kept, ...now] }).eq('id', a.brief_id);
+        }
+        return result;
       }
       if (!a.brief) return { ok: false, error: 'Pass brief_id or brief.' };
       return checkVariation(a.brief, history, policy, { checked: false, reason: 'a draft has no stored embedding; submit it to compute similarity' });
