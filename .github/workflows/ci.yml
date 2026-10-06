@@ -151,6 +151,11 @@ jobs:
       - name: Worker env from Vercel — refusals, the real sync's layer, production only
         run: pnpm test:trigger-env
 
+      # Save and test on YouTube: credentials, then which channel the token is for. Stub fetch;
+      # every refusal by name, and never an upload.
+      - name: YouTube probe — token exchange, then the Bureau channel's Analytics
+        run: pnpm test:youtube-probe
+
       # ── Migrations must apply to an empty database, in order ─────────────
       # Forward-only means the sequence from nothing is the only sequence that matters.
       # Uses the same script a developer runs, so CI exercises the tool rather than a

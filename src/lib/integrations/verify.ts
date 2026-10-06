@@ -6,8 +6,9 @@ import type { Db } from '../db/server';
 import type { Json } from '../db/types';
 import { integrationForStep } from '../onboarding/step-integration';
 import { createSupabaseStorageDriver } from '../storage/supabase';
+import { BUREAU_CHANNEL_ID } from '../bureau/bible';
 import { resolveCredentials } from './credentials';
-import { integrationState } from './state';
+import { hasVerified } from './state';
 
 /**
  * "Run check" — a real vendor call, and everything it writes.
@@ -117,7 +118,14 @@ async function runProbe(
 
   // Everything else routes through the driver layer, which is the only place allowed to
   // know which vendor is behind which slug.
-  const result = await probeIntegration(descriptor, v);
+  // A publishing channel's probe also checks *which* channel the token is for, against the
+  // Bureau channel row. Read here because the driver layer does not reach the database.
+  let channelExternalId: string | null = null;
+  if (descriptor.kind === 'channel') {
+    const { data: ch } = await db.from('channels').select('external_id').eq('id', BUREAU_CHANNEL_ID).maybeSingle();
+    channelExternalId = ch?.external_id ?? null;
+  }
+  const result = await probeIntegration(descriptor, v, { channelExternalId });
   if (result) return result;
 
   return {
@@ -279,10 +287,8 @@ export async function usability(db: Db, slug: string): Promise<Usability> {
     .eq('slug', slug)
     .maybeSingle();
 
-  // The same predicate the Settings banner counts with (state.ts). Verified means the
-  // *latest* check passed, not that one ever did.
-  const state = data ? integrationState(data) : 'never_run';
-  if (data?.is_enabled && state === 'verified') {
+  // The predicate the Settings banner counts with (state.ts): a real call has accepted it.
+  if (data?.is_enabled && hasVerified(data)) {
     return { usable: true, reason: '', deferred: false };
   }
 
@@ -320,26 +326,15 @@ export async function usability(db: Db, slug: string): Promise<Usability> {
     };
   }
 
-  if (state === 'never_run') {
+  if (!hasVerified(data)) {
     return {
       usable: false,
       deferred: false,
       reason:
         `The ${slug} integration has never verified. A key in Vault or in the environment is ` +
         'not enough: Settings → Integrations → "Save and test" (empty fields test the ' +
-        'environment key) is what lets a task spend money.',
-    };
-  }
-
-  if (state === 'failed') {
-    return {
-      usable: false,
-      deferred: false,
-      reason:
-        `The ${slug} integration failed its latest check` +
-        (data.last_checked_at ? ` (${new Date(data.last_checked_at).toISOString().slice(0, 16)}Z)` : '') +
-        ' and has not verified since. Settings → Integrations → "Save and test".' +
-        (data.last_error ? ` Last error: ${data.last_error}` : ''),
+        'environment key) is what lets a task spend money.' +
+        (data.last_checked_at && data.last_error ? ` Its last test failed: ${data.last_error}` : ''),
     };
   }
 

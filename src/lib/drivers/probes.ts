@@ -5,6 +5,7 @@ import { DEFAULT_CONCURRENCY, PLAN_TIERS, type IntegrationDescriptor } from './c
 import { probeJobVendor } from './jobs';
 import { probeNotify } from './notify';
 import { probeInstagram } from '../publish/instagram';
+import { probeYoutube } from '../publish/youtube-probe';
 
 /**
  * Credential probes — the cheapest authenticated call each vendor offers.
@@ -35,7 +36,7 @@ import { probeInstagram } from '../publish/instagram';
  */
 
 export interface CheckResult {
-  name: 'credentials' | 'round_trip' | 'voices' | 'models';
+  name: 'credentials' | 'round_trip' | 'voices' | 'models' | 'channel';
   passed: boolean;
   /** Shown to the user. Must never contain credential material. */
   detail: string;
@@ -295,11 +296,27 @@ export async function probeAudio(creds: { apiKey: string }): Promise<ProbeResult
  * probe is a property of the `StorageDriver` interface — write, read back, delete — and
  * duplicating it here would be a second implementation to drift.
  */
+export interface ProbeContext {
+  /** The Bureau channel row's `external_id`, for a probe that checks which channel a token is for. */
+  channelExternalId?: string | null;
+  fetchImpl?: typeof fetch;
+}
+
 export async function probeIntegration(
   descriptor: IntegrationDescriptor,
   values: Record<string, string>,
+  context: ProbeContext = {},
 ): Promise<ProbeResult | null> {
   switch (descriptor.slug) {
+    case 'youtube':
+      return probeYoutube({
+        clientId: values.YOUTUBE_CLIENT_ID,
+        clientSecret: values.YOUTUBE_CLIENT_SECRET,
+        refreshToken: values.YOUTUBE_REFRESH_TOKEN,
+        channelExternalId: context.channelExternalId ?? null,
+        fetchImpl: context.fetchImpl,
+      });
+
     case 'anthropic':
       return probeLlm(values.ANTHROPIC_API_KEY);
 

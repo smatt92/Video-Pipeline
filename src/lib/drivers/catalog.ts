@@ -47,7 +47,7 @@ export interface SecretFieldDescriptor {
 }
 
 export interface CheckDescriptor {
-  readonly name: 'credentials' | 'round_trip' | 'voices' | 'models';
+  readonly name: 'credentials' | 'round_trip' | 'voices' | 'models' | 'channel';
   readonly label: string;
   /** What the check actually does. Never "validates the format". */
   readonly detail: string;
@@ -240,7 +240,18 @@ export const INTEGRATION_CATALOG: readonly IntegrationDescriptor[] = [
           + 'anywhere — publish the app to stop that. 10b-token-health finds out by trying.',
       },
     ],
-    checks: [CREDENTIALS],
+    checks: [
+      {
+        name: 'credentials',
+        label: 'Refresh token exchanges',
+        detail: 'Exchanges the refresh token for an access token. invalid_grant is named: revoked, or the seven-day Testing expiry.',
+      },
+      {
+        name: 'channel',
+        label: 'Token is for this channel',
+        detail: "Reads the Bureau channel's own Analytics for the last seven days (its own quota; no Data API units). A 403 means the token belongs to a different channel. Never uploads.",
+      },
+    ],
     capabilities: { creditBalance: false, planTierConcurrency: false },
     notes: [
       'Quota is counted rather than guessed: every call this code makes writes an '

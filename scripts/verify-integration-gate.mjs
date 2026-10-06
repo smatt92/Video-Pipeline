@@ -7,9 +7,10 @@
  * PROVES
  * ─────────────────────────────────────────────────────────────────────────────
  *
- *   §1  The predicate's truth table, and that `usability()` — the refusal — answers usable
- *       exactly when the banner's predicate says verified, for every state, read back from
- *       rows this harness wrote as INPUTS (timestamps), never from a value it asserts on.
+ *   §1  The predicates' truth tables, and that `usability()` — the refusal — answers usable
+ *       exactly when the banner's `hasVerified` says so, for every timestamp shape, read back
+ *       from rows this harness wrote as INPUTS, never from a value it asserts on. Including
+ *       the one case the pill and the refusal differ on: verified once, failed since.
  *   §2  `verifiedCredentials` refuses by name with the key PRESENT in the environment
  *       (written explicitly, deleted at the end — never `??=`), so the refusal can only be
  *       verification; and accepts, returning that key, once verified.
@@ -17,6 +18,10 @@
  *       refuses with the reason and never calls submit; verified, it does not refuse.
  *   §4  Embeddings, the consumer: `ledgeredEmbedder` refuses an unverified integration
  *       before the ledger row; verified, the key reaches the vendor call (a stub fetch).
+ *
+ *   §5  "Save and test" on YouTube end to end through `verifyIntegration`: the Analytics query
+ *       names the Bureau channel row's external_id (set here as an input), two check rows are
+ *       written, and a 403 leaves the integration unverified with the channel check naming why.
  *
  *   Voice and dubs are driven the same way inside verify:episode, where their worlds exist.
  *
@@ -38,8 +43,8 @@ if (!dbUrl) {
   process.exit(2);
 }
 const B = new URL('../.verify-build/src/lib', import.meta.url).pathname;
-const { integrationState } = require(`${B}/integrations/state.js`);
-const { usability, verifiedCredentials } = require(`${B}/integrations/verify.js`);
+const { integrationState, hasVerified } = require(`${B}/integrations/state.js`);
+const { usability, verifiedCredentials, verifyIntegration } = require(`${B}/integrations/verify.js`);
 const { dispatchProvider } = require(`${B}/bureau/dispatch.js`);
 const { ledgeredEmbedder } = require(`${B}/bureau/embed.js`);
 const { BUREAU_CHANNEL_ID } = require(`${B}/bureau/bible.js`);
@@ -88,9 +93,8 @@ try {
   for (const [checked, verified] of cases) {
     await setTimes('runway', checked, verified);
     const row = (await client.query(`select last_checked_at, last_verified_at from integrations where slug = 'runway'`)).rows[0];
-    const state = integrationState(row);
     const use = await usability(db, 'runway');
-    check(use.usable === (state === 'verified'), `checked=${checked}, verified=${verified}: banner says ${state}, stage says ${use.usable ? 'usable' : 'refused'}`);
+    check(use.usable === hasVerified(row), `checked=${checked}, verified=${verified}: pill ${integrationState(row)}, banner ${hasVerified(row) ? 'verified' : 'never verified'}, stage ${use.usable ? 'usable' : 'refused'}`);
   }
 
   // ═══ 2 ═══
@@ -101,9 +105,12 @@ try {
   let c = await verifiedCredentials(db, 'runway');
   check(!c.ok && c.code === 'integration_unverified' && /runway integration has never verified/.test(c.reason) && /Save and test/.test(c.reason),
     'never verified, key in the environment → refused by name, naming the click', c.ok ? 'accepted' : c.reason.slice(0, 80));
-  await setTimes('runway', 'now()', "now() - interval '1 hour'", 'HTTP 401: bad key');
+  await setTimes('runway', 'now()', 'null', 'HTTP 401: bad key');
   c = await verifiedCredentials(db, 'runway');
-  check(!c.ok && /failed its latest check/.test(c.reason) && /HTTP 401: bad key/.test(c.reason), 'failed since → refused, with the last error', c.ok ? 'accepted' : c.reason.slice(0, 80));
+  check(!c.ok && /never verified/.test(c.reason) && /HTTP 401: bad key/.test(c.reason), 'tested and failed, never verified → refused, with the last error', c.ok ? 'accepted' : c.reason.slice(0, 80));
+  await setTimes('runway', 'now()', "now() - interval '1 hour'", 'timeout');
+  c = await verifiedCredentials(db, 'runway');
+  check(c.ok, 'verified once, failed a re-test → still used (a re-test failure may be a blip; the banner says so)');
   await setTimes('runway', "now() - interval '1 second'", 'now()');
   c = await verifiedCredentials(db, 'runway');
   check(c.ok && c.values.RUNWAY_API_KEY === 'rk-from-env', 'verified → the environment key', c.ok ? 'ok' : c.reason);
@@ -152,10 +159,50 @@ try {
   const sentKey = fetched.some((f) => f.url.includes('gk-from-env') || JSON.stringify(f.headers ?? {}).includes('gk-from-env'));
   check(fetched.length > 0 && sentKey, 'verified → the environment key reaches the vendor call', `${fetched.length} call(s)`);
   check((await ledger()) === before + 1, 'and its ledger row was written first');
+
+  // ═══ 5 ═══
+  console.log('\n5. YouTube "Save and test" through verifyIntegration\n');
+  const CH = 'UCsAOylowJKXg7TENr5GskGQ';
+  await client.query('update channels set external_id = $1 where id = $2', [CH, BUREAU_CHANNEL_ID]);
+  process.env.YOUTUBE_CLIENT_ID = 'cid';
+  process.env.YOUTUBE_CLIENT_SECRET = 'csec';
+  process.env.YOUTUBE_REFRESH_TOKEN = 'rt';
+  let reportStatus = 200;
+  const yt = [];
+  globalThis.fetch = async (url, init) => {
+    const u = new URL(String(url));
+    yt.push({ u, method: (init?.method ?? 'GET').toUpperCase() });
+    if (u.hostname === 'oauth2.googleapis.com') return new Response(JSON.stringify({ access_token: 'at', expires_in: 3599 }), { status: 200 });
+    if (u.hostname === 'youtubeanalytics.googleapis.com') {
+      return reportStatus === 200
+        ? new Response(JSON.stringify({ columnHeaders: [{ name: 'views' }], rows: [[3]] }), { status: 200 })
+        : new Response(JSON.stringify({ error: { code: 403, message: 'Forbidden' } }), { status: 403 });
+    }
+    return new Response('{}', { status: 599 });
+  };
+  await client.query(`update integrations set last_checked_at = null, last_verified_at = null, last_error = null where slug = 'youtube'`);
+  const ok = await verifyIntegration(db, 'youtube');
+  const report = yt.find((x) => x.u.hostname === 'youtubeanalytics.googleapis.com');
+  check(ok.ok && report?.u.searchParams.get('ids') === `channel==${CH}`, 'LOAD-BEARING: verified, and the query named the Bureau channel row\'s external_id', report?.u.searchParams.get('ids'));
+  const rows = (await client.query(`select check_name, passed from integration_checks c join integrations i on i.id = c.integration_id where i.slug = 'youtube' order by check_name`)).rows;
+  check(JSON.stringify(rows.map((x) => [x.check_name, x.passed])) === '[["channel",true],["credentials",true]]', 'two check rows: credentials and channel', JSON.stringify(rows));
+  check(yt.every((x) => x.u.hostname !== 'www.googleapis.com'), 'no Data API or upload host was called');
+  // What rotateIntegration does on success, and only then.
+  await client.query(`update integrations set is_enabled = true where slug = 'youtube'`);
+  check((await usability(db, 'youtube')).usable, 'and the stages now see it as verified');
+  reportStatus = 403;
+  const wrong = await verifyIntegration(db, 'youtube');
+  const after = (await client.query(`select passed, detail from integration_checks c join integrations i on i.id = c.integration_id where i.slug = 'youtube' and check_name = 'channel'`)).rows[0];
+  check(!wrong.ok && !after.passed && /^Token belongs to a different channel/.test(after.detail), 'a 403 → not verified; the channel check names a different channel', after.detail.slice(0, 60));
+  const ytRow = (await client.query(`select last_checked_at, last_verified_at from integrations where slug = 'youtube'`)).rows[0];
+  check(integrationState(ytRow) === 'failed', 'the pill shows failed — a green tick over a check that just failed would be a lie');
 } catch (err) {
   check(false, 'harness threw', err.stack ?? err.message);
 } finally {
   globalThis.fetch = realFetch;
+  delete process.env.YOUTUBE_CLIENT_ID;
+  delete process.env.YOUTUBE_CLIENT_SECRET;
+  delete process.env.YOUTUBE_REFRESH_TOKEN;
   delete process.env.RUNWAY_API_KEY;
   delete process.env.GEMINI_API_KEY;
   await scratch.release();

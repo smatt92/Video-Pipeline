@@ -66,6 +66,7 @@
     "src/lib/publish/run.ts",
     "src/lib/publish/read.ts",
     "src/lib/publish/token-health.ts",
+    "src/lib/publish/youtube-probe.ts",
     "src/lib/measure/hook-pattern.ts",
     "src/lib/measure/snapshot.ts",
     "src/lib/measure/read.ts",
