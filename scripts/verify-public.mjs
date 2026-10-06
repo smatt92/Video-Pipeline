@@ -197,6 +197,27 @@ try {
   const asmBody = await asm.json().catch(() => null);
   check(asm.status === 200 && asmBody?.issuer === BASE && asmBody?.authorization_endpoint === `${BASE}/oauth/authorize`,
     'authorization-server metadata through the real route', asmBody?.issuer);
+  // The agent door (decision 0018) through the real routes: its own 401 header, its own
+  // metadata naming only agent, its own issuer, and its consent screen gated like the owner's.
+  const agentMcp = await get('/api/mcp/agent', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} }) });
+  const agentWww = agentMcp.headers.get('www-authenticate') ?? '';
+  check(agentMcp.status === 401 && agentWww.includes(`resource_metadata="${BASE}/.well-known/oauth-protected-resource/api/mcp/agent"`),
+    'the real /api/mcp/agent route answers 401 naming its own metadata', agentWww);
+  const agentPrm = await get('/.well-known/oauth-protected-resource/api/mcp/agent');
+  const agentPrmBody = await agentPrm.json().catch(() => null);
+  check(agentPrm.status === 200 && agentPrmBody?.resource === `${BASE}/api/mcp/agent`
+    && JSON.stringify(agentPrmBody?.scopes_supported) === '["agent"]'
+    && agentPrmBody?.authorization_servers?.[0] === `${BASE}/oauth/agent`,
+    'agent protected-resource metadata: its resource, agent only, its own issuer', JSON.stringify(agentPrmBody));
+  const agentAsm = await get('/.well-known/oauth-authorization-server/oauth/agent');
+  const agentAsmBody = await agentAsm.json().catch(() => null);
+  check(agentAsm.status === 200 && agentAsmBody?.issuer === `${BASE}/oauth/agent`
+    && agentAsmBody?.authorization_endpoint === `${BASE}/oauth/agent/authorize`
+    && agentAsmBody?.token_endpoint === `${BASE}/api/oauth/agent/token`,
+    'agent authorization-server metadata through the real route', JSON.stringify(agentAsmBody));
+  const agentConsent = await get('/oauth/agent/authorize?client_id=https%3A%2F%2Fclaude.ai%2Fx&state=abc');
+  check(agentConsent.status === 307 && new URL(agentConsent.headers.get('location') ?? '/', BASE).pathname === '/login',
+    'the agent consent screen redirects a stranger to /login', String(agentConsent.status));
   const reg = await get('/api/oauth/register', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ redirect_uris: ['https://evil.example/cb'] }) });
   const regBody = await reg.json().catch(() => null);
   check(reg.status === 400 && /^redirect_uri_not_allowed/.test(regBody?.error_description ?? ''), 'registration refuses a non-Claude callback through the real route, before any database write', regBody?.error_description);

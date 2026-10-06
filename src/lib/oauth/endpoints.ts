@@ -1,6 +1,6 @@
 import type { Db } from '../db/server';
 import { registerClient, type FetchDocument } from './clients';
-import { REGISTER_PATH, TOKEN_PATH } from './policy';
+import { DOORS, MCP_DOORS, REGISTER_PATH, doorForIssuerPath, doorForResourcePath } from './policy';
 import { OAuthError } from './errors';
 import { exchangeToken } from './flow';
 import { authorizationServerMetadata, protectedResourceMetadata } from './metadata';
@@ -51,6 +51,9 @@ function json(status: number, body: unknown, extra: Record<string, string> = {})
   return { status, body, headers: { ...CORS, ...extra } };
 }
 
+const PRM_PREFIX = '/.well-known/oauth-protected-resource';
+const ASM_PREFIX = '/.well-known/oauth-authorization-server';
+
 function under(path: string, prefix: string): boolean {
   return path === prefix || path.startsWith(`${prefix}/`);
 }
@@ -74,13 +77,20 @@ export async function serveOAuth(req: OAuthHttpRequest, deps: OAuthDeps): Promis
   if (method === 'OPTIONS') return { status: 204, body: null, headers: CORS };
 
   try {
-    if (under(req.path, '/.well-known/oauth-protected-resource')) {
+    if (under(req.path, PRM_PREFIX)) {
       if (method !== 'GET') return json(405, { error: 'method_not_allowed' }, { allow: 'GET' });
-      return json(200, protectedResourceMetadata(req.origin));
+      // A suffix naming neither door is a 404, not the owner's document: answering every path
+      // with /api/mcp's metadata would tell a connector on /api/mcp/agent that it may ask for
+      // approver.
+      const door = doorForResourcePath(req.path.slice(PRM_PREFIX.length));
+      if (!door) return json(404, { error: 'not_found' });
+      return json(200, protectedResourceMetadata(req.origin, door));
     }
-    if (under(req.path, '/.well-known/oauth-authorization-server')) {
+    if (under(req.path, ASM_PREFIX)) {
       if (method !== 'GET') return json(405, { error: 'method_not_allowed' }, { allow: 'GET' });
-      return json(200, authorizationServerMetadata(req.origin));
+      const door = doorForIssuerPath(req.path.slice(ASM_PREFIX.length));
+      if (!door) return json(404, { error: 'not_found' });
+      return json(200, authorizationServerMetadata(req.origin, door));
     }
     if (req.path === REGISTER_PATH) {
       if (method !== 'POST') return json(405, { error: 'method_not_allowed' }, { allow: 'POST' });
@@ -92,9 +102,13 @@ export async function serveOAuth(req: OAuthHttpRequest, deps: OAuthDeps): Promis
       }
       return json(201, await registerClient(deps.db, body), NO_STORE);
     }
-    if (req.path === TOKEN_PATH) {
+    // One token endpoint per door. The agent door's refuses to mint approver (flow.ts), and
+    // a code from one door is refused at the other's, because it is bound to that door's
+    // resource.
+    for (const door of MCP_DOORS) {
+      if (req.path !== DOORS[door].tokenPath) continue;
       if (method !== 'POST') return json(405, { error: 'method_not_allowed' }, { allow: 'POST' });
-      const token = await exchangeToken(deps.db, formFrom(req), req.authorization, req.origin);
+      const token = await exchangeToken(deps.db, formFrom(req), req.authorization, req.origin, door);
       return json(200, token, NO_STORE);
     }
     return json(404, { error: 'not_found' });

@@ -46,20 +46,102 @@ export type OAuthScope = (typeof OAUTH_SCOPES)[number];
 /** Consent preselects this. Sahil approving from his phone is the reason this server exists. */
 export const DEFAULT_SCOPE: OAuthScope = 'approver';
 
-/** The MCP endpoint, relative to the origin. The resource every token is bound to. */
-export const MCP_PATH = '/api/mcp';
+/**
+ * Two doors onto one MCP server (decision 0016, addendum 0018).
+ *
+ * A Claude connector is visible to every scheduled task on the account, and Claude offers
+ * one connection per connector URL. So a single URL cannot carry Sahil's approver
+ * connection for his phone *and* an agent connection for the automations: whichever was
+ * made last is what every scheduled task holds. The fix is a second URL whose OAuth server
+ * can only ever issue agent connections.
+ *
+ * Each door is its own protected resource, with its own authorization-server issuer and
+ * endpoints. That is deliberate rather than tidy: the agent door's refusal must not depend
+ * on a connector sending the RFC 8707 `resource` parameter. A client that omits it still
+ * walks the agent door's metadata to the agent door's authorize page and token endpoint,
+ * and neither of those can mint approver.
+ *
+ *   owner  /api/mcp        issuer = origin           approver (default) or agent
+ *   agent  /api/mcp/agent  issuer = origin/oauth/agent  agent, fixed
+ *
+ * Everything else — clients, registration, the token rows, revocation, scope enforcement in
+ * TypeScript and in the database — is shared.
+ */
+export const MCP_DOORS = ['owner', 'agent'] as const;
+export type McpDoor = (typeof MCP_DOORS)[number];
 
-export const AUTHORIZE_PATH = '/oauth/authorize';
-export const TOKEN_PATH = '/api/oauth/token';
+export interface DoorPolicy {
+  /** The MCP endpoint, relative to the origin. The resource every token from this door is bound to. */
+  readonly mcpPath: string;
+  /** Appended to the origin to make the issuer. Empty for the owner door: the bare origin. */
+  readonly issuerPath: string;
+  readonly authorizePath: string;
+  readonly tokenPath: string;
+  /** What this door's consent screen may grant and its token endpoint may mint. */
+  readonly scopes: readonly OAuthScope[];
+  readonly defaultScope: OAuthScope;
+}
+
+export const DOORS: Readonly<Record<McpDoor, DoorPolicy>> = {
+  owner: {
+    mcpPath: '/api/mcp',
+    issuerPath: '',
+    authorizePath: '/oauth/authorize',
+    tokenPath: '/api/oauth/token',
+    scopes: OAUTH_SCOPES,
+    defaultScope: DEFAULT_SCOPE,
+  },
+  agent: {
+    mcpPath: '/api/mcp/agent',
+    issuerPath: '/oauth/agent',
+    authorizePath: '/oauth/agent/authorize',
+    tokenPath: '/api/oauth/agent/token',
+    scopes: ['agent'],
+    defaultScope: 'agent',
+  },
+};
+
+/** The owner door's paths, under the names every caller before the agent door used. */
+export const MCP_PATH = DOORS.owner.mcpPath;
+export const AUTHORIZE_PATH = DOORS.owner.authorizePath;
+export const TOKEN_PATH = DOORS.owner.tokenPath;
 export const REGISTER_PATH = '/api/oauth/register';
 
-export function resourceFor(origin: string): string {
-  return `${origin.replace(/\/$/, '')}${MCP_PATH}`;
+function trimOrigin(origin: string): string {
+  return origin.replace(/\/$/, '');
+}
+
+export function resourceFor(origin: string, door: McpDoor = 'owner'): string {
+  return `${trimOrigin(origin)}${DOORS[door].mcpPath}`;
+}
+
+export function issuerFor(origin: string, door: McpDoor = 'owner'): string {
+  return `${trimOrigin(origin)}${DOORS[door].issuerPath}`;
 }
 
 /** RFC 9728 §3.1: the metadata URL for a resource with a path inserts the path after the well-known name. */
-export function resourceMetadataUrlFor(origin: string): string {
-  return `${origin.replace(/\/$/, '')}/.well-known/oauth-protected-resource${MCP_PATH}`;
+export function resourceMetadataUrlFor(origin: string, door: McpDoor = 'owner'): string {
+  return `${trimOrigin(origin)}/.well-known/oauth-protected-resource${DOORS[door].mcpPath}`;
+}
+
+/** RFC 8414 §3.1: the same insertion for an issuer with a path. The owner door's has none. */
+export function authorizationServerMetadataUrlFor(origin: string, door: McpDoor = 'owner'): string {
+  return `${trimOrigin(origin)}/.well-known/oauth-authorization-server${DOORS[door].issuerPath}`;
+}
+
+/** Which door a well-known suffix names, or null for a path that is neither. */
+export function doorForResourcePath(suffix: string): McpDoor | null {
+  const s = suffix.replace(/\/$/, '');
+  if (s === '' || s === DOORS.owner.mcpPath) return 'owner';
+  if (s === DOORS.agent.mcpPath) return 'agent';
+  return null;
+}
+
+export function doorForIssuerPath(suffix: string): McpDoor | null {
+  const s = suffix.replace(/\/$/, '');
+  if (s === DOORS.owner.issuerPath) return 'owner';
+  if (s === DOORS.agent.issuerPath) return 'agent';
+  return null;
 }
 
 /**

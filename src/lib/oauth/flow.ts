@@ -7,10 +7,12 @@ import {
   ACCESS_TOKEN_TTL_S,
   ALLOWED_REDIRECT_URIS,
   AUTH_CODE_TTL_S,
-  DEFAULT_SCOPE,
+  DOORS,
   OAUTH_SCOPES,
   REFRESH_TOKEN_TTL_S,
+  issuerFor,
   resourceFor,
+  type McpDoor,
   type OAuthScope,
 } from './policy';
 import { OAuthError } from './errors';
@@ -30,6 +32,13 @@ import { OAuthError } from './errors';
  * One mcp_tokens row of kind `oauth` (the connection: scope, channel, person, revocation,
  * and the hash of the current access token) and one oauth_refresh_tokens row. Revoking the
  * mcp_tokens row on Settings ends both — see 0045.
+ *
+ * ── Two doors ────────────────────────────────────────────────────────────────
+ * Every function that issues something takes the door (policy.ts `DOORS`). The agent door
+ * refuses approver in three places, each sufficient on its own: the consent decision (a
+ * forged form), the code exchange (a code whose row says approver), and the refresh (a
+ * grant whose scope is approver). And a code is bound to its door's resource, so a code
+ * minted at /oauth/authorize is refused at the agent token endpoint and vice versa.
  */
 
 const ACCESS_PREFIX = { approver: 'kb_oa_', agent: 'kb_og_' } as const;
@@ -72,8 +81,10 @@ export interface ValidAuthorize {
   codeChallenge: string;
   state: string | null;
   resource: string;
-  /** What consent preselects: the requested scope when it names exactly one, else approver. */
+  /** What consent preselects: the requested scope when it names exactly one, else the door's default. */
   suggestedScope: OAuthScope;
+  /** Which door this request came through. Fixes what consent may grant. */
+  door: McpDoor;
 }
 
 export type AuthorizeCheck =
@@ -90,11 +101,32 @@ export function errorRedirect(redirectUri: string, err: OAuthError, state: strin
   return u.toString();
 }
 
-function suggested(scope: string | null): OAuthScope {
-  if (!scope) return DEFAULT_SCOPE;
-  const asked = scope.split(/\s+/).filter((s) => (OAUTH_SCOPES as readonly string[]).includes(s));
-  return asked.length === 1 ? (asked[0] as OAuthScope) : DEFAULT_SCOPE;
+function suggested(scope: string | null, door: McpDoor): OAuthScope {
+  const allowed = DOORS[door].scopes as readonly string[];
+  if (!scope) return DOORS[door].defaultScope;
+  const asked = scope.split(/\s+/).filter((s) => allowed.includes(s));
+  return asked.length === 1 ? (asked[0] as OAuthScope) : DOORS[door].defaultScope;
 }
+
+/** Whether a request's scope parameter names at least one scope this door can grant. */
+function grantable(scope: string | null, door: McpDoor): boolean {
+  const allowed = DOORS[door].scopes as readonly string[];
+  return (scope ?? '').split(/\s+/).some((s) => allowed.includes(s));
+}
+
+/** The scope names a request asked for that this door can never grant. */
+function refusedScopes(scope: string | null, door: McpDoor): string[] {
+  if (!scope) return [];
+  const allowed = DOORS[door].scopes as readonly string[];
+  return scope
+    .split(/\s+/)
+    .filter((s) => (OAUTH_SCOPES as readonly string[]).includes(s) && !allowed.includes(s));
+}
+
+const scopeNotHere = (door: McpDoor, scope: string) =>
+  new OAuthError('invalid_scope', 'scope_not_allowed_here',
+    `${DOORS[door].mcpPath} issues ${DOORS[door].scopes.join(' or ')} connections only; ${scope} is not ` +
+      `available here. An approver connection is made through ${DOORS.owner.mcpPath}.`);
 
 /**
  * Validate an authorize request. Called by the consent page to render, and again by the
@@ -106,6 +138,7 @@ export async function checkAuthorize(
   params: AuthorizeParams,
   origin: string,
   fetchDoc: FetchDocument,
+  door: McpDoor = 'owner',
 ): Promise<AuthorizeCheck> {
   // 1. Client and redirect URI. Refusals here are shown, never redirected.
   let client: OAuthClient;
@@ -135,7 +168,7 @@ export async function checkAuthorize(
   const back = (e: OAuthError): AuthorizeCheck => ({
     ok: false,
     error: e,
-    redirectTo: errorRedirect(redirectUri, e, params.state, origin.replace(/\/$/, '')),
+    redirectTo: errorRedirect(redirectUri, e, params.state, issuerFor(origin, door)),
   });
 
   if (params.response_type !== 'code') {
@@ -153,10 +186,20 @@ export async function checkAuthorize(
     return back(new OAuthError('invalid_request', 'pkce_challenge_malformed',
       'code_challenge must be the base64url SHA-256 of the verifier: 43 characters.'));
   }
-  const resource = resourceFor(origin);
+  const resource = resourceFor(origin, door);
   if (params.resource && params.resource.replace(/\/$/, '') !== resource) {
     return back(new OAuthError('invalid_target', 'resource_not_this_server',
       `This server issues tokens for ${resource} only; asked for ${params.resource}.`));
+  }
+
+  // Asking the agent door for approver and nothing it can grant is refused by name rather
+  // than quietly downgraded: a client that believes it holds approver would fail later, on
+  // a tool call, with a message about scope rather than about which URL it connected to.
+  // A request naming scopes is refused only when it names nothing this door can grant —
+  // "approver agent" at the agent door is answered with agent, "approver" alone is refused.
+  const refused = refusedScopes(params.scope, door);
+  if (refused.length > 0 && !grantable(params.scope, door)) {
+    return back(scopeNotHere(door, refused.join(' ')));
   }
 
   return {
@@ -167,7 +210,8 @@ export async function checkAuthorize(
       codeChallenge: params.code_challenge,
       state: params.state,
       resource,
-      suggestedScope: suggested(params.scope),
+      suggestedScope: suggested(params.scope, door),
+      door,
     },
   };
 }
@@ -188,8 +232,8 @@ export async function decideConsent(
     origin: string;
   },
 ): Promise<string> {
-  const issuer = input.origin.replace(/\/$/, '');
   const { request } = input;
+  const issuer = issuerFor(input.origin, request.door);
   if (!input.approve) {
     return errorRedirect(request.redirectUri,
       new OAuthError('access_denied', 'consent_denied', 'The Kiln owner declined this connection.'),
@@ -199,6 +243,11 @@ export async function decideConsent(
     return errorRedirect(request.redirectUri,
       new OAuthError('invalid_scope', 'scope_unknown', `Scope must be approver or agent; got ${input.scope}.`),
       request.state, issuer);
+  }
+  // The agent door's consent screen offers no approver option, so an approver value here is
+  // a form that page did not render. Refused before a code exists.
+  if (!(DOORS[request.door].scopes as readonly string[]).includes(input.scope)) {
+    return errorRedirect(request.redirectUri, scopeNotHere(request.door, input.scope), request.state, issuer);
   }
 
   const code = randomBytes(32).toString('base64url');
@@ -273,7 +322,13 @@ async function revokeGrant(db: Db, grantId: string): Promise<void> {
 
 const invalidGrant = (kiln: string, detail: string) => new OAuthError('invalid_grant', kiln, detail);
 
-async function exchangeCode(db: Db, form: URLSearchParams, clientId: string | null, origin: string): Promise<TokenResponse> {
+async function exchangeCode(
+  db: Db,
+  form: URLSearchParams,
+  clientId: string | null,
+  origin: string,
+  door: McpDoor,
+): Promise<TokenResponse> {
   const code = form.get('code');
   const verifier = form.get('code_verifier');
   const redirectUri = form.get('redirect_uri');
@@ -322,8 +377,15 @@ async function exchangeCode(db: Db, form: URLSearchParams, clientId: string | nu
   if (resource && resource.replace(/\/$/, '') !== row.resource) {
     throw new OAuthError('invalid_target', 'resource_mismatch', `The code was issued for ${row.resource}.`);
   }
-  if (row.resource !== resourceFor(origin)) {
+  if (row.resource !== resourceFor(origin, door)) {
     throw new OAuthError('invalid_target', 'resource_not_this_server', `The code was issued for ${row.resource}.`);
+  }
+  // Unreachable through this door's own consent (its resource check above already ties the
+  // code to this door, and decideConsent refused approver there) — restated because this is
+  // the endpoint the prompt names as the one that must refuse, and it must not rely on a
+  // different module having been right.
+  if (!(DOORS[door].scopes as readonly string[]).includes(row.scope)) {
+    throw scopeNotHere(door, row.scope);
   }
 
   const { data: client } = await db.from('oauth_clients').select('client_name').eq('client_id', row.client_id).maybeSingle();
@@ -353,7 +415,12 @@ async function exchangeCode(db: Db, form: URLSearchParams, clientId: string | nu
   return { access_token: access, token_type: 'Bearer', expires_in: ACCESS_TOKEN_TTL_S, refresh_token: refresh, scope };
 }
 
-async function exchangeRefresh(db: Db, form: URLSearchParams, clientId: string | null): Promise<TokenResponse> {
+async function exchangeRefresh(
+  db: Db,
+  form: URLSearchParams,
+  clientId: string | null,
+  door: McpDoor,
+): Promise<TokenResponse> {
   const presented = form.get('refresh_token');
   if (!presented) throw new OAuthError('invalid_request', 'refresh_token_missing', 'refresh_token is required.');
   const hash = hashToken(presented);
@@ -394,6 +461,15 @@ async function exchangeRefresh(db: Db, form: URLSearchParams, clientId: string |
     throw invalidGrant('client_mismatch', 'The refresh token was issued to a different client_id.');
   }
 
+  // An approver connection's refresh token presented at the agent door. Nothing this door
+  // issued is approver, so the token came from the owner door and is being replayed somewhere
+  // it was never sent — the same signal as a replayed refresh token, and the same answer:
+  // the connection is revoked, and the person reconnects through the door they meant.
+  if (!(DOORS[door].scopes as readonly string[]).includes(grant.scope)) {
+    await revokeGrant(db, grant.id);
+    throw scopeNotHere(door, grant.scope);
+  }
+
   const scope = grant.scope as OAuthScope;
   const access = newAccess(scope);
   const { error: updateError } = await db
@@ -427,11 +503,12 @@ export async function exchangeToken(
   form: URLSearchParams,
   authorization: string | null,
   origin: string,
+  door: McpDoor = 'owner',
 ): Promise<TokenResponse> {
   const clientId = clientIdFrom(form, authorization);
   const grantType = form.get('grant_type');
-  if (grantType === 'authorization_code') return exchangeCode(db, form, clientId, origin);
-  if (grantType === 'refresh_token') return exchangeRefresh(db, form, clientId);
+  if (grantType === 'authorization_code') return exchangeCode(db, form, clientId, origin, door);
+  if (grantType === 'refresh_token') return exchangeRefresh(db, form, clientId, door);
   throw new OAuthError('unsupported_grant_type', 'grant_type_not_supported',
     `grant_type must be authorization_code or refresh_token; got ${grantType ?? 'none'}.`);
 }

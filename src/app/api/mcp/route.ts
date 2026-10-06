@@ -1,9 +1,6 @@
-import { NextResponse, type NextRequest } from 'next/server';
+import { type NextRequest } from 'next/server';
 
-import { productionEffects } from '@/lib/bureau/effects';
-import { serverClient } from '@/lib/db/server';
-import { originFromHeaders, resourceMetadataUrlFor } from '@/lib/oauth/policy';
-import { serveMcp } from '@/lib/studio/serve';
+import { mcpGet, mcpPost } from '@/lib/studio/next-route';
 
 /**
  * Kiln's own MCP server.
@@ -37,64 +34,22 @@ import { serveMcp } from '@/lib/studio/serve';
  * presigned URL and worker↔bucket directly (rule 2). `stitch_rough_cut` queues a Trigger
  * task rather than running ffmpeg, because ffmpeg does not exist here and would not fit in
  * the time limit if it did (rule 3).
+ *
+ * ── Two doors ────────────────────────────────────────────────────────────────
+ *
+ * This is the owner door: approver or agent tokens, the Studio's session tokens, OAuth with
+ * an approver default. `/api/mcp/agent` is the same server for agent tokens only, so the
+ * scheduled automations can hold a connector that can never approve (decision 0018). The
+ * framework glue for both is `src/lib/studio/next-route.ts`.
  */
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function POST(request: NextRequest) {
-  let body: unknown;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json(
-      { jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Body is not JSON.' } },
-      { status: 400 },
-    );
-  }
-
-  const db = serverClient();
-  const result = await serveMcp(
-    { authorization: request.headers.get('authorization'), body },
-    {
-      db,
-      secret: process.env.STUDIO_MCP_TOKEN_SECRET,
-      // Bound per request to the token's channel inside serveMcp; this is the factory.
-      bureau: productionEffects(db),
-      // Every 401 points a connector at the OAuth server (decision 0016). The origin is the
-      // one the request arrived on, so a preview deployment advertises itself — read from the
-      // headers, never `nextUrl.origin`, which `next start` reports as localhost whatever the
-      // Host was; the consent page can only read headers, and the two must agree.
-      resourceMetadataUrl: resourceMetadataUrlFor(originFromHeaders((n) => request.headers.get(n))),
-    },
-  );
-
-  return result.body === null
-    ? new NextResponse(null, { status: result.status })
-    : NextResponse.json(result.body, { status: result.status, headers: result.headers });
+export function POST(request: NextRequest) {
+  return mcpPost(request, 'owner');
 }
 
 export function GET(request: NextRequest) {
-  // Without a credential the answer is the same as POST's: a 401 naming where to get one. A
-  // client that probes with GET before it POSTs must still be able to discover OAuth.
-  if (!request.headers.get('authorization')) {
-    return NextResponse.json(
-      { error: 'unauthorized' },
-      {
-        status: 401,
-        headers: {
-          'www-authenticate': `Bearer resource_metadata="${resourceMetadataUrlFor(originFromHeaders((n) => request.headers.get(n)))}"`,
-        },
-      },
-    );
-  }
-  return NextResponse.json(
-    {
-      error: 'method_not_allowed',
-      detail:
-        'This server has no server-initiated messages, so it does not open an SSE stream. ' +
-        'Send JSON-RPC over POST.',
-    },
-    { status: 405, headers: { allow: 'POST' } },
-  );
+  return mcpGet(request, 'owner');
 }

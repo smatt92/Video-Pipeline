@@ -25,6 +25,12 @@
  *
  *   Static kb_ tokens are unchanged: kind static, no expiry, same surface.
  *
+ *   The agent door (/api/mcp/agent, decision 0018): its own discovery documents; a consent
+ *   that offers agent only and refuses an approver form; a token endpoint that refuses an
+ *   approver code, an owner-door code, and an approver refresh; an MCP handler that refuses
+ *   approver tokens of both kinds; and an agent connection made through it refused on
+ *   brief_approve in TypeScript and in the database.
+ *
  * ─────────────────────────────────────────────────────────────────────────────
  * DOES NOT PROVE — read this before calling the connector verified
  * ─────────────────────────────────────────────────────────────────────────────
@@ -60,7 +66,7 @@ const BUILD = new URL('../.verify-build/src/lib', import.meta.url).pathname;
 const { serveMcp } = require(`${BUILD}/studio/serve.js`);
 const { serveOAuth } = require(`${BUILD}/oauth/endpoints.js`);
 const { authorizeParamsFrom, checkAuthorize, decideConsent } = require(`${BUILD}/oauth/flow.js`);
-const { resourceMetadataUrlFor, ALLOWED_REDIRECT_URIS, ACCESS_TOKEN_TTL_S } = require(`${BUILD}/oauth/policy.js`);
+const { resourceMetadataUrlFor, ALLOWED_REDIRECT_URIS, ACCESS_TOKEN_TTL_S, DOORS } = require(`${BUILD}/oauth/policy.js`);
 const { mintBureauToken, revokeBureauToken, hashToken } = require(`${BUILD}/bureau/tokens.js`);
 const { BUREAU_CHANNEL_ID } = require(`${BUILD}/bureau/bible.js`);
 
@@ -111,7 +117,9 @@ const server = createServer((req, res) => {
       res.end(body === null ? '' : JSON.stringify(body));
     };
     try {
-      if (url.pathname === '/api/mcp') {
+      // Both doors, exactly as src/lib/studio/next-route.ts wires them: one argument apart.
+      const mcpDoor = url.pathname === '/api/mcp' ? 'owner' : url.pathname === '/api/mcp/agent' ? 'agent' : null;
+      if (mcpDoor) {
         let body = null;
         try {
           body = JSON.parse(rawBody);
@@ -120,15 +128,16 @@ const server = createServer((req, res) => {
         }
         const r = await serveMcp(
           { authorization: req.headers.authorization ?? null, body },
-          { db, secret: undefined, resourceMetadataUrl: resourceMetadataUrlFor(ORIGIN) },
+          { db, secret: undefined, resourceMetadataUrl: resourceMetadataUrlFor(ORIGIN, mcpDoor), door: mcpDoor },
         );
         return send(r.status, r.body, r.headers ?? {});
       }
-      if (url.pathname === '/oauth/authorize') {
+      const authorizeDoor = url.pathname === '/oauth/authorize' ? 'owner' : url.pathname === '/oauth/agent/authorize' ? 'agent' : null;
+      if (authorizeDoor) {
         // page.tsx (GET) and actions.ts (POST), minus the session check.
         const source = req.method === 'POST' ? new URLSearchParams(rawBody) : url.searchParams;
         const params = authorizeParamsFrom((n) => source.get(n));
-        const c = await checkAuthorize(db, params, ORIGIN, fetchDocument);
+        const c = await checkAuthorize(db, params, ORIGIN, fetchDocument, authorizeDoor);
         if (!c.ok) {
           return c.redirectTo
             ? send(302, null, { location: c.redirectTo })
@@ -140,6 +149,7 @@ const server = createServer((req, res) => {
             client_id: c.request.client.clientId,
             redirect_uri: c.request.redirectUri,
             suggested_scope: c.request.suggestedScope,
+            door: c.request.door,
           });
         }
         const location = await decideConsent(db, {
@@ -188,8 +198,8 @@ async function postForm(path, fields) {
   const text = await res.text();
   return { status: res.status, headers: res.headers, body: text ? JSON.parse(text) : null };
 }
-async function rpc(method, params, token) {
-  const res = await fetch(MCP, {
+async function rpc(method, params, token, endpoint = MCP) {
+  const res = await fetch(endpoint, {
     method: 'POST',
     headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
     body: JSON.stringify({ jsonrpc: '2.0', id: randomUUID(), method, params }),
@@ -476,6 +486,143 @@ try {
     shapeRefused = true;
   }
   check(shapeRefused, 'the database refuses an expiry on a static token (mcp_tokens_kind_shape)');
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  console.log('\n12. The agent door: /api/mcp/agent can only ever be agent\n');
+  // ═══════════════════════════════════════════════════════════════════════════
+  const AGENT_MCP = `${ORIGIN}/api/mcp/agent`;
+  const AGENT_ISSUER = `${ORIGIN}/oauth/agent`;
+  const agentAuthorizeGet = async (q) => {
+    const res = await fetch(`${ORIGIN}/oauth/agent/authorize?${q}`, { redirect: 'manual' });
+    const text = await res.text();
+    return { status: res.status, location: res.headers.get('location'), body: text ? JSON.parse(text) : null };
+  };
+  const agentConsent = async (q, decision, scope) => {
+    const r = await postForm('/oauth/agent/authorize', { ...Object.fromEntries(q), decision, grant_scope: scope });
+    return { status: r.status, location: r.headers.get('location') ? new URL(r.headers.get('location')) : null };
+  };
+  const agentQuery = (clientId, challenge, extra = {}) => authorizeQuery(clientId, challenge, { resource: AGENT_MCP, ...extra });
+
+  // Discovery, walked from the agent door's own 401.
+  const agUnauth = await rpc('initialize', { protocolVersion: '2025-06-18' }, null, AGENT_MCP);
+  const agWww = agUnauth.headers.get('www-authenticate') ?? '';
+  const agPrmUrl = /resource_metadata="([^"]+)"/.exec(agWww)?.[1];
+  check(agUnauth.status === 401 && agPrmUrl === `${ORIGIN}/.well-known/oauth-protected-resource/api/mcp/agent`,
+    'POST /api/mcp/agent with no token → 401 naming its own metadata', agWww);
+  const agPrm = await getJson(agPrmUrl);
+  check(agPrm.body?.resource === AGENT_MCP && JSON.stringify(agPrm.body?.scopes_supported) === '["agent"]'
+    && JSON.stringify(agPrm.body?.authorization_servers) === JSON.stringify([AGENT_ISSUER]),
+    'its metadata: resource /api/mcp/agent, scopes [agent], its own issuer', JSON.stringify(agPrm.body));
+  const agAsm = await getJson(`${ORIGIN}/.well-known/oauth-authorization-server/oauth/agent`);
+  check(agAsm.status === 200 && agAsm.body.issuer === AGENT_ISSUER
+    && agAsm.body.authorization_endpoint === `${ORIGIN}/oauth/agent/authorize`
+    && agAsm.body.token_endpoint === `${ORIGIN}/api/oauth/agent/token`
+    && JSON.stringify(agAsm.body.scopes_supported) === '["agent"]',
+    'RFC 8414 at the issuer path: agent authorize and token endpoints, agent only', JSON.stringify(agAsm.body));
+  check(asm.body.issuer === ORIGIN && JSON.stringify((await getJson(`${ORIGIN}/.well-known/oauth-authorization-server`)).body.scopes_supported) === '["approver","agent"]',
+    'the owner door\'s documents are unchanged');
+  check((await getJson(`${ORIGIN}/.well-known/oauth-protected-resource/api/elsewhere`)).status === 404,
+    'a metadata path naming neither door is a 404, not the owner\'s document');
+
+  // Consent shows agent, fixed — and a form posting approver is refused before a code exists.
+  const pa = pkce();
+  const qa = agentQuery(DCR_ID, pa.challenge);
+  const agView = await agentAuthorizeGet(qa);
+  check(agView.status === 200 && agView.body.suggested_scope === 'agent' && agView.body.door === 'agent',
+    'the agent consent view preselects agent', JSON.stringify(agView.body));
+  const agViewAsked = await agentAuthorizeGet(agentQuery(DCR_ID, pa.challenge, { scope: 'approver agent' }));
+  check(agViewAsked.body?.suggested_scope === 'agent', 'asked for "approver agent", it still offers agent');
+  const agOnlyApprover = await agentAuthorizeGet(agentQuery(DCR_ID, pa.challenge, { scope: 'approver' }));
+  const agOnlyLoc = agOnlyApprover.location ? new URL(agOnlyApprover.location) : null;
+  check(agOnlyLoc?.searchParams.get('error') === 'invalid_scope'
+    && /^scope_not_allowed_here/.test(agOnlyLoc?.searchParams.get('error_description') ?? '')
+    && agOnlyLoc?.searchParams.get('iss') === AGENT_ISSUER,
+    'asked for approver alone → invalid_scope back to Claude, iss = the agent issuer', agOnlyLoc?.searchParams.get('error_description'));
+  const codesBeforeForged = await count('select count(*) n from oauth_codes');
+  const forged = await agentConsent(qa, 'approve', 'approver');
+  check(forged.location?.searchParams.get('error') === 'invalid_scope'
+    && /^scope_not_allowed_here/.test(forged.location?.searchParams.get('error_description') ?? '')
+    && !forged.location?.searchParams.get('code'),
+    'a consent form posting approver at the agent door → invalid_scope, no code', forged.location?.searchParams.get('error_description'));
+  check((await count('select count(*) n from oauth_codes')) === codesBeforeForged, 'and no code row exists');
+  const ownerResourceAtAgent = await agentAuthorizeGet(agentQuery(DCR_ID, pa.challenge, { resource: MCP }));
+  check(new URL(ownerResourceAtAgent.location ?? 'x:/').searchParams.get('error') === 'invalid_target',
+    'asking the agent door for /api/mcp as the resource → invalid_target');
+
+  // The whole flow through the agent door, with Claude's metadata-document client.
+  const agBack = await agentConsent(qa, 'approve', 'agent');
+  const agCode = agBack.location?.searchParams.get('code');
+  check(!!agCode && agBack.location?.searchParams.get('iss') === AGENT_ISSUER, 'Approve → a code, iss = the agent issuer');
+  const agTok = await postForm('/api/oauth/agent/token', {
+    grant_type: 'authorization_code', code: agCode, code_verifier: pa.verifier, redirect_uri: CALLBACK, client_id: DCR_ID, resource: AGENT_MCP,
+  });
+  check(agTok.status === 200 && agTok.body.scope === 'agent' && /^kb_og_/.test(agTok.body.access_token),
+    'the agent token endpoint mints an agent connection', JSON.stringify({ status: agTok.status, scope: agTok.body?.scope }));
+  const agDoorGrant = await grantOf(agTok.body.access_token);
+  check(agDoorGrant?.scope === 'agent' && agDoorGrant?.kind === 'oauth', 'one mcp_tokens row: oauth, agent');
+  check((await rpc('tools/list', {}, agTok.body.access_token, AGENT_MCP)).status === 200, 'and it opens /api/mcp/agent');
+
+  // LOAD-BEARING: the prompt's second refusal. The subject is a connection made by the agent
+  // door's token endpoint (not seeded), and the refusal comes from the tool and from the SQL.
+  const agLogBefore = await count('select count(*) n from authorship_log');
+  const agApprove = await rpc('tools/call', { name: 'brief_approve', arguments: { id: randomUUID(), punchline: 'A' } }, agTok.body.access_token, AGENT_MCP);
+  check(agApprove.body?.result?.structuredContent?.blockers?.[0]?.code === 'scope_denied',
+    'an agent connection made via /api/mcp/agent → brief_approve refused: scope_denied', JSON.stringify(agApprove.body?.result?.structuredContent ?? agApprove.body));
+  check((await count('select count(*) n from authorship_log')) === agLogBefore, 'nothing written');
+  raised = null;
+  try {
+    await client.query(`select bureau_brief_approve($1, $2, 'x', 'A', '{}'::jsonb)`, [agDoorGrant.id, randomUUID()]);
+  } catch (err) {
+    raised = err.message;
+  }
+  check(/scope_denied/.test(raised ?? ''), 'and the database refuses bureau_brief_approve for that connection', raised ?? 'it ran');
+
+  // The token endpoint refuses approver, whatever route a code took to get there.
+  const po = pkce();
+  const qo = authorizeQuery(DCR_ID, po.challenge);
+  const ownerBack = await consent(qo, 'approve', 'approver');
+  const crossDoor = await postForm('/api/oauth/agent/token', {
+    grant_type: 'authorization_code', code: ownerBack.location?.searchParams.get('code'), code_verifier: po.verifier,
+    redirect_uri: CALLBACK, client_id: DCR_ID,
+  });
+  check(crossDoor.status === 400 && crossDoor.body.error === 'invalid_target' && /^resource_not_this_server/.test(crossDoor.body.error_description),
+    'an approver code from /oauth/authorize is refused at the agent token endpoint', crossDoor.body?.error_description);
+  // A code row for the agent resource that says approver — what a bug in consent would leave.
+  // Inserted here on purpose: no code path can produce it, and the endpoint must not rely on that.
+  const pf = pkce();
+  const forgedCode = randomBytes(32).toString('base64url');
+  await client.query(
+    `insert into oauth_codes (code_hash, client_id, redirect_uri, code_challenge, scope, resource, profile_id, channel_id, expires_at)
+     values ($1, $2, $3, $4, 'approver', $5, $6, $7, now() + interval '2 minutes')`,
+    [hashToken(forgedCode), DCR_ID, CALLBACK, pf.challenge, AGENT_MCP, OWNER, BUREAU_CHANNEL_ID],
+  );
+  const grantsBeforeForged = await count(`select count(*) n from mcp_tokens where kind = 'oauth' and scope = 'approver'`);
+  const mintApprover = await postForm('/api/oauth/agent/token', {
+    grant_type: 'authorization_code', code: forgedCode, code_verifier: pf.verifier, redirect_uri: CALLBACK, client_id: DCR_ID,
+  });
+  check(mintApprover.status === 400 && mintApprover.body.error === 'invalid_scope' && /^scope_not_allowed_here/.test(mintApprover.body.error_description),
+    'the agent token endpoint refuses to mint approver: scope_not_allowed_here', mintApprover.body?.error_description);
+  check((await count(`select count(*) n from mcp_tokens where kind = 'oauth' and scope = 'approver'`)) === grantsBeforeForged, 'and no approver grant was created');
+  // An approver connection's refresh token presented at the agent door: refused, and revoked.
+  const ownerConn = await connect(CIMD_ID, 'approver');
+  const crossRefresh = await postForm('/api/oauth/agent/token', { grant_type: 'refresh_token', refresh_token: ownerConn.tok.body.refresh_token, client_id: CIMD_ID });
+  check(crossRefresh.status === 400 && /^scope_not_allowed_here/.test(crossRefresh.body.error_description ?? ''),
+    'an approver refresh token at the agent token endpoint → scope_not_allowed_here', crossRefresh.body?.error_description);
+  check((await grantOf(ownerConn.tok.body.access_token)).revoked_at !== null, 'and that connection is revoked');
+
+  // The MCP handler: approver tokens of both kinds are refused on /api/mcp/agent.
+  const ownerConn2 = await connect(CIMD_ID, 'approver');
+  const oaOnAgent = await rpc('tools/list', {}, ownerConn2.tok.body.access_token, AGENT_MCP);
+  check(oaOnAgent.status === 403 && oaOnAgent.body?.error === 'approver_not_allowed_here',
+    'an approver OAuth token on /api/mcp/agent → 403 approver_not_allowed_here', `${oaOnAgent.status} ${oaOnAgent.body?.error}`);
+  check((await rpc('tools/list', {}, ownerConn2.tok.body.access_token)).status === 200, 'the same token still works on /api/mcp');
+  const statApprover = await mintBureauToken(db, { name: 'Phone', scope: 'approver', channelId: BUREAU_CHANNEL_ID, profileId: OWNER });
+  const kbOnAgent = await rpc('tools/call', { name: 'brief_approve', arguments: { id: randomUUID(), punchline: 'A' } }, statApprover.plaintext, AGENT_MCP);
+  check(kbOnAgent.status === 403 && kbOnAgent.body?.error === 'approver_not_allowed_here',
+    'a static kb_a_ approver token on /api/mcp/agent → 403, before any tool runs', `${kbOnAgent.status} ${kbOnAgent.body?.error}`);
+  check((await rpc('tools/list', {}, stat.plaintext, AGENT_MCP)).status === 200, 'a static agent token works on /api/mcp/agent');
+  check((await rpc('tools/list', {}, 'not-a-kb-token', AGENT_MCP)).status === 401, 'a non-Bureau bearer on /api/mcp/agent → 401');
+  check(DOORS.agent.scopes.length === 1 && DOORS.agent.scopes[0] === 'agent', 'policy: the agent door grants agent and nothing else');
 
   // ═══════════════════════════════════════════════════════════════════════════
   console.log('\n11. Deployed before 0045 is pasted\n');

@@ -1,10 +1,4 @@
-import {
-  AUTHORIZE_PATH,
-  OAUTH_SCOPES,
-  REGISTER_PATH,
-  TOKEN_PATH,
-  resourceFor,
-} from './policy';
+import { DOORS, REGISTER_PATH, issuerFor, resourceFor, type McpDoor } from './policy';
 
 /**
  * The two discovery documents the MCP authorization spec has a client read.
@@ -18,6 +12,10 @@ import {
  * is on it. Nothing here is per-request except the origin, which comes from the request
  * that asked: a preview deployment is its own issuer, and a token it issues is bound to
  * its own /api/mcp and is useless anywhere else.
+ *
+ * Two doors since the agent connector (see `DOORS` in policy.ts): each document is per door,
+ * and the agent door's names only the agent scope, its own issuer and its own endpoints.
+ * Registration is shared — a client is a client whichever door it is connecting through.
  */
 
 function trim(origin: string): string {
@@ -25,27 +23,27 @@ function trim(origin: string): string {
 }
 
 /** RFC 9728. */
-export function protectedResourceMetadata(origin: string) {
+export function protectedResourceMetadata(origin: string, door: McpDoor = 'owner') {
   const o = trim(origin);
   return {
-    resource: resourceFor(o),
-    authorization_servers: [o],
-    scopes_supported: [...OAUTH_SCOPES],
+    resource: resourceFor(o, door),
+    authorization_servers: [issuerFor(o, door)],
+    scopes_supported: [...DOORS[door].scopes],
     bearer_methods_supported: ['header'],
-    resource_name: 'Kiln',
+    resource_name: door === 'agent' ? 'Kiln — agent connector' : 'Kiln',
     resource_documentation: `${o}/about`,
   };
 }
 
 /** RFC 8414, with the MCP spec's additions (PKCE S256 only; metadata-document clients). */
-export function authorizationServerMetadata(origin: string) {
+export function authorizationServerMetadata(origin: string, door: McpDoor = 'owner') {
   const o = trim(origin);
   return {
-    issuer: o,
-    authorization_endpoint: `${o}${AUTHORIZE_PATH}`,
-    token_endpoint: `${o}${TOKEN_PATH}`,
+    issuer: issuerFor(o, door),
+    authorization_endpoint: `${o}${DOORS[door].authorizePath}`,
+    token_endpoint: `${o}${DOORS[door].tokenPath}`,
     registration_endpoint: `${o}${REGISTER_PATH}`,
-    scopes_supported: [...OAUTH_SCOPES],
+    scopes_supported: [...DOORS[door].scopes],
     response_types_supported: ['code'],
     response_modes_supported: ['query'],
     grant_types_supported: ['authorization_code', 'refresh_token'],

@@ -45,6 +45,11 @@ export interface McpDeps {
    * to discover the OAuth server (decision 0016). Absent, a 401 is a bare refusal, as before.
    */
   resourceMetadataUrl?: string;
+  /**
+   * `agent` for /api/mcp/agent: Bureau tokens of agent scope only (static or OAuth), nothing
+   * else. Absent, or `owner`, is /api/mcp, unchanged. Decision 0018.
+   */
+  door?: 'owner' | 'agent';
 }
 
 /** Deliberately uninformative: a caller who guessed wrong learns nothing about how wrong. */
@@ -78,12 +83,31 @@ export async function serveMcp(request: McpRequest, deps: McpDeps): Promise<McpR
         ? { status: 503, body: { error: 'token lookup failed', detail: resolved.detail } }
         : unauthorized(deps, true);
     }
+    // The agent door serves agent connections and nothing else. An approver token here is
+    // refused before any tool runs — not left to the per-tool scope check, which would let it
+    // *read* through a URL whose whole promise is that nothing on it holds approver.
+    // 403 rather than 401: the token is valid, and a connector told invalid_token would
+    // refresh and present the same approver token again.
+    if (deps.door === 'agent' && resolved.token.scope !== 'agent') {
+      return {
+        status: 403,
+        body: {
+          error: 'approver_not_allowed_here',
+          detail:
+            'This endpoint (/api/mcp/agent) accepts agent-scoped tokens only. Approver ' +
+            'connections and tokens use /api/mcp.',
+        },
+      };
+    }
     const surface = bureauSurface({ db: deps.db, token: resolved.token, effects: deps.bureau ?? NO_EFFECTS });
     return answer(request.body, surface);
   }
 
   // No credential at all is the same answer whatever is configured.
   if (!bearer) return unauthorized(deps, false);
+
+  // Studio session tokens belong to /api/mcp. The agent door is the Bureau's only.
+  if (deps.door === 'agent') return unauthorized(deps, true);
 
   // An OAuth refresh token (decision 0016) is never a bearer. Said as invalid_token rather
   // than falling through to the Studio check, where a deployment without the HMAC secret
