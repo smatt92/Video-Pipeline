@@ -146,7 +146,7 @@ console.log(`  ${derived.entries.length} tasks reach ${derived.files.size} modul
 console.log(`  ${derived.vars.size} variables read · ${declared.length} declared\n`);
 
 const required = declared.filter((d) => d.required).map((d) => d.name).sort();
-console.log('  Set these in the Trigger.dev environment before deploying:\n');
+console.log('  Required by the worker — set in Vercel production; the deploy copies them (0017):\n');
 for (const name of required) console.log(`      ${name}`);
 
 const optional = declared.filter((d) => !d.required).map((d) => d.name).sort();
