@@ -1,8 +1,10 @@
 import 'server-only';
 
 import type { Db } from '../db/server';
-import { dispatch, PROTOCOL_VERSION } from './mcp';
+import { dispatch, PROTOCOL_VERSION, studioSurface, type McpSurface } from './mcp';
 import { bearerFrom, verifySessionToken } from './token';
+import { bureauSurface, NO_EFFECTS, type BureauSideEffects } from '../bureau/mcp/surface';
+import { isBureauToken, resolveBureauToken } from '../bureau/tokens';
 
 /**
  * The MCP server, minus the framework.
@@ -32,14 +34,37 @@ export interface McpResponse {
 
 export interface McpDeps {
   db: Db;
-  /** `STUDIO_MCP_TOKEN_SECRET`. Absent means this deployment cannot authenticate anyone. */
+  /** `STUDIO_MCP_TOKEN_SECRET`. Absent means this deployment cannot authenticate a Studio
+   *  session. Bureau tokens do not use it — they are looked up by hash. */
   secret: string | undefined;
+  /** The Bureau control plane's side effects (start an episode run, wake a cut gate). */
+  bureau?: BureauSideEffects;
 }
 
 /** Deliberately uninformative: a caller who guessed wrong learns nothing about how wrong. */
 const REFUSED = { error: 'unauthorized' };
 
 export async function serveMcp(request: McpRequest, deps: McpDeps): Promise<McpResponse> {
+  const bearer = bearerFrom(request.authorization);
+
+  // ── The Bureau control plane ─────────────────────────────────────────────
+  // A different token family (`kb_…`, hashed in mcp_tokens), a different tool registry, and
+  // scope enforced inside every tool and again in the database. Routed first because it
+  // needs no HMAC secret: a deployment without STUDIO_MCP_TOKEN_SECRET can still serve it.
+  if (bearer && isBureauToken(bearer)) {
+    const resolved = await resolveBureauToken(deps.db, bearer);
+    if (!resolved.ok) {
+      return resolved.reason === 'lookup_failed'
+        ? { status: 503, body: { error: 'token lookup failed', detail: resolved.detail } }
+        : { status: 401, body: REFUSED };
+    }
+    const surface = bureauSurface({ db: deps.db, token: resolved.token, effects: deps.bureau ?? NO_EFFECTS });
+    return answer(request.body, surface);
+  }
+
+  // No credential at all is the same answer whatever is configured.
+  if (!bearer) return { status: 401, body: REFUSED };
+
   const secret = deps.secret?.trim();
 
   if (!secret) {
@@ -53,7 +78,7 @@ export async function serveMcp(request: McpRequest, deps: McpDeps): Promise<McpR
     };
   }
 
-  const check = verifySessionToken(bearerFrom(request.authorization), secret);
+  const check = verifySessionToken(bearer, secret);
   if (!check.ok) return { status: 401, body: REFUSED };
 
   // The signature proves the token was minted here. It does not prove the session may still
@@ -93,12 +118,16 @@ export async function serveMcp(request: McpRequest, deps: McpDeps): Promise<McpR
     spendCapInr: session.spend_cap_inr === null ? null : Number(session.spend_cap_inr),
   };
 
+  return answer(request.body, studioSurface(ctx));
+}
+
+async function answer(body: unknown, surface: McpSurface): Promise<McpResponse> {
   const headers = { 'mcp-protocol-version': PROTOCOL_VERSION };
 
   // A batch is an array. Notifications inside one produce no response, and a batch that is
   // all notifications produces no body at all — which is why this filters rather than maps.
-  if (Array.isArray(request.body)) {
-    const responses = (await Promise.all(request.body.map((m) => dispatch(m, ctx)))).filter(
+  if (Array.isArray(body)) {
+    const responses = (await Promise.all(body.map((m) => dispatch(m, surface)))).filter(
       (r) => r !== null,
     );
     return responses.length === 0
@@ -106,7 +135,7 @@ export async function serveMcp(request: McpRequest, deps: McpDeps): Promise<McpR
       : { status: 200, body: responses, headers };
   }
 
-  const response = await dispatch(request.body, ctx);
+  const response = await dispatch(body, surface);
   return response === null
     ? { status: 202, body: null }
     : { status: 200, body: response, headers };

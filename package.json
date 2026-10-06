@@ -63,7 +63,8 @@
     "verify:tour": "node scripts/verify-tour.mjs",
     "check:trigger-env": "node scripts/check-trigger-env.mjs",
     "check:remotion": "node scripts/check-remotion-lockstep.mjs",
-    "verify:render": "tsc -p tsconfig.verify.json && node scripts/verify-render.mjs"
+    "verify:render": "tsc -p tsconfig.verify.json && node scripts/verify-render.mjs",
+    "verify:bureau": "tsc -p tsconfig.verify.json && node scripts/verify-bureau.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

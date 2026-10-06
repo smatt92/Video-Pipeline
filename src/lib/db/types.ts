@@ -104,6 +104,13 @@ export type Database = {
             referencedRelation: "v_publish_queue"
             referencedColumns: ["publication_id"]
           },
+          {
+            foreignKeyName: "api_quota_usage_publication_id_fkey"
+            columns: ["publication_id"]
+            isOneToOne: false
+            referencedRelation: "v_ready_bundles"
+            referencedColumns: ["publication_id"]
+          },
         ]
       }
       assets: {
@@ -746,6 +753,13 @@ export type Database = {
             referencedColumns: ["publication_id"]
           },
           {
+            foreignKeyName: "comments_publication_id_fkey"
+            columns: ["publication_id"]
+            isOneToOne: false
+            referencedRelation: "v_ready_bundles"
+            referencedColumns: ["publication_id"]
+          },
+          {
             foreignKeyName: "comments_used_in_brief_fkey"
             columns: ["used_in_brief_id"]
             isOneToOne: false
@@ -1194,11 +1208,14 @@ export type Database = {
           audio_asset_id: string | null
           caption_render_id: string | null
           created_at: string
+          credits_estimated: number | null
           episode_id: string
           error: string | null
           estimate_inr: number | null
           id: string
           language: string
+          output_url_expires_at: string | null
+          request_id: string | null
           requested_by: string
           status: string
           token_id: string | null
@@ -1209,11 +1226,14 @@ export type Database = {
           audio_asset_id?: string | null
           caption_render_id?: string | null
           created_at?: string
+          credits_estimated?: number | null
           episode_id: string
           error?: string | null
           estimate_inr?: number | null
           id?: string
           language: string
+          output_url_expires_at?: string | null
+          request_id?: string | null
           requested_by: string
           status?: string
           token_id?: string | null
@@ -1224,11 +1244,14 @@ export type Database = {
           audio_asset_id?: string | null
           caption_render_id?: string | null
           created_at?: string
+          credits_estimated?: number | null
           episode_id?: string
           error?: string | null
           estimate_inr?: number | null
           id?: string
           language?: string
+          output_url_expires_at?: string | null
+          request_id?: string | null
           requested_by?: string
           status?: string
           token_id?: string | null
@@ -1296,7 +1319,9 @@ export type Database = {
           cut_wait_token: string | null
           estimate_inr: number | null
           final_render_id: string | null
+          gen_wait_token: string | null
           id: string
+          kind: string
           master_render_id: string | null
           publication_id: string | null
           qc: Json
@@ -1307,6 +1332,7 @@ export type Database = {
           status: string
           status_detail: string | null
           updated_at: string
+          voice_detail: Json | null
         }
         Insert: {
           brief_id: string
@@ -1316,7 +1342,9 @@ export type Database = {
           cut_wait_token?: string | null
           estimate_inr?: number | null
           final_render_id?: string | null
+          gen_wait_token?: string | null
           id?: string
+          kind?: string
           master_render_id?: string | null
           publication_id?: string | null
           qc?: Json
@@ -1327,6 +1355,7 @@ export type Database = {
           status?: string
           status_detail?: string | null
           updated_at?: string
+          voice_detail?: Json | null
         }
         Update: {
           brief_id?: string
@@ -1336,7 +1365,9 @@ export type Database = {
           cut_wait_token?: string | null
           estimate_inr?: number | null
           final_render_id?: string | null
+          gen_wait_token?: string | null
           id?: string
+          kind?: string
           master_render_id?: string | null
           publication_id?: string | null
           qc?: Json
@@ -1347,6 +1378,7 @@ export type Database = {
           status?: string
           status_detail?: string | null
           updated_at?: string
+          voice_detail?: Json | null
         }
         Relationships: [
           {
@@ -1452,6 +1484,13 @@ export type Database = {
             columns: ["publication_id"]
             isOneToOne: false
             referencedRelation: "v_publish_queue"
+            referencedColumns: ["publication_id"]
+          },
+          {
+            foreignKeyName: "episodes_publication_id_fkey"
+            columns: ["publication_id"]
+            isOneToOne: false
+            referencedRelation: "v_ready_bundles"
             referencedColumns: ["publication_id"]
           },
           {
@@ -2402,6 +2441,13 @@ export type Database = {
             columns: ["publication_id"]
             isOneToOne: false
             referencedRelation: "v_publish_queue"
+            referencedColumns: ["publication_id"]
+          },
+          {
+            foreignKeyName: "metrics_snapshots_publication_id_fkey"
+            columns: ["publication_id"]
+            isOneToOne: false
+            referencedRelation: "v_ready_bundles"
             referencedColumns: ["publication_id"]
           },
         ]
@@ -4644,6 +4690,72 @@ export type Database = {
           },
         ]
       }
+      v_ready_bundles: {
+        Row: {
+          altered_content_disclosed: boolean | null
+          bundle: Json | null
+          channel_id: string | null
+          created_at: string | null
+          description: string | null
+          episode_id: string | null
+          made_for_kids: boolean | null
+          marked_scheduled_at: string | null
+          platform: string | null
+          publication_id: string | null
+          scheduled_for: string | null
+          series: string | null
+          slot_date: string | null
+          slot_id: string | null
+          status: string | null
+          tags: string[] | null
+          title: string | null
+          topic: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publications_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publications_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "episodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publications_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "v_episode_spend"
+            referencedColumns: ["episode_id"]
+          },
+          {
+            foreignKeyName: "publications_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "v_slot_status"
+            referencedColumns: ["episode_id"]
+          },
+          {
+            foreignKeyName: "publications_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
+            referencedRelation: "slots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publications_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
+            referencedRelation: "v_slot_status"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_recipe_coverage: {
         Row: {
           active_recipes: number | null
@@ -5277,6 +5389,165 @@ export type Database = {
           brief_id: string
           similarity: number
         }[]
+      }
+      bureau_brief_approve: {
+        Args: {
+          p_brief: string
+          p_choice: string
+          p_edits: Json
+          p_punchline: string
+          p_token: string
+        }
+        Returns: string
+      }
+      bureau_brief_reject: {
+        Args: { p_brief: string; p_reason: string; p_token: string }
+        Returns: undefined
+      }
+      bureau_caps_set: {
+        Args: { p_changes: Json; p_token: string }
+        Returns: {
+          catchphrase_weekly_max: number
+          channel_id: string
+          character_beat_max_s: number
+          daily_cap_inr: number
+          daily_longform_cap_inr: number
+          daily_publish_cap: number
+          default_slot_time: string
+          gate2_passed_at: string | null
+          hook_archetype_weekly_max: number
+          instagram_publish_enabled: boolean
+          kill_switch: boolean
+          kill_switch_at: string | null
+          kill_switch_reason: string | null
+          money_shot_max: number
+          monthly_cap_after_gate2_inr: number
+          monthly_cap_inr: number
+          overlay_min_share: number
+          per_short_cap_inr: number
+          rerolls_max: number
+          similarity_max: number
+          similarity_window: number
+          slot_timezone: string
+          updated_at: string
+          updated_by: string | null
+          variation_min_axes: number
+          variation_window: number
+          youtube_api_audited: boolean
+        }
+        SetofOptions: {
+          from: "*"
+          to: "channel_policy"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      bureau_cut_decide: {
+        Args: {
+          p_approve: boolean
+          p_episode: string
+          p_note: string
+          p_token: string
+        }
+        Returns: Json
+      }
+      bureau_kill_switch: {
+        Args: { p_on: boolean; p_reason: string; p_token: string }
+        Returns: {
+          catchphrase_weekly_max: number
+          channel_id: string
+          character_beat_max_s: number
+          daily_cap_inr: number
+          daily_longform_cap_inr: number
+          daily_publish_cap: number
+          default_slot_time: string
+          gate2_passed_at: string | null
+          hook_archetype_weekly_max: number
+          instagram_publish_enabled: boolean
+          kill_switch: boolean
+          kill_switch_at: string | null
+          kill_switch_reason: string | null
+          money_shot_max: number
+          monthly_cap_after_gate2_inr: number
+          monthly_cap_inr: number
+          overlay_min_share: number
+          per_short_cap_inr: number
+          rerolls_max: number
+          similarity_max: number
+          similarity_window: number
+          slot_timezone: string
+          updated_at: string
+          updated_by: string | null
+          variation_min_axes: number
+          variation_window: number
+          youtube_api_audited: boolean
+        }
+        SetofOptions: {
+          from: "*"
+          to: "channel_policy"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      bureau_mark_scheduled: {
+        Args: { p_at: string; p_publication: string; p_token: string }
+        Returns: {
+          altered_content_disclosed: boolean
+          bundle: Json | null
+          channel_id: string
+          created_at: string
+          description: string | null
+          episode_id: string | null
+          error_detail: string | null
+          external_post_id: string | null
+          external_url: string | null
+          id: string
+          idempotency_key: string | null
+          made_for_kids: boolean
+          marked_scheduled_at: string | null
+          platform: string
+          published_at: string | null
+          render_id: string
+          review_id: string
+          scheduled_for: string | null
+          slot_id: string | null
+          status: string
+          tags: string[] | null
+          thumbnail_asset_id: string | null
+          title: string
+          upload_attempts: number
+          upload_bytes_sent: number | null
+          upload_session_url: string | null
+          upload_started_at: string | null
+          upload_total_bytes: number | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "publications"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      bureau_require_scope: {
+        Args: { p_scope: string; p_token: string }
+        Returns: {
+          channel_id: string
+          created_at: string
+          id: string
+          last_used_at: string | null
+          name: string
+          profile_id: string | null
+          revoked_at: string | null
+          scope: string
+          token_hash: string
+          token_prefix: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "mcp_tokens"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       channel_killed: { Args: { p_channel: string }; Returns: boolean }
       claim_gen_jobs: {

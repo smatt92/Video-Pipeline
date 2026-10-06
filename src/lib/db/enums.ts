@@ -290,6 +290,7 @@ export const slotSeries = z.enum([
 export const topicStatus = z.enum(['approved', 'planned', 'bank']);
 export const socialPlatform = z.enum(['youtube', 'instagram']);
 export const briefStatus = z.enum(['pending', 'approved', 'rejected', 'superseded']);
+export const episodeKind = z.enum(['short', 'long_form']);
 export const briefCreator = z.enum(['agent', 'approver', 'ui', 'system']);
 export const factSourceClass = z.enum([
   'gov', 'edu', 'space_agency', 'met_ocean_agency', 'museum', 'peer_reviewed', 'standards_body', 'other',
@@ -362,6 +363,7 @@ export const ENUM_CONSTRAINT_MAP = {
   'briefs.created_by': briefCreator,
   'fact_sources.source_class': factSourceClass,
   'episodes.status': episodeStatus,
+  'episodes.kind': episodeKind,
   'shots.render_route': renderRoute,
   'renders.layer': renderLayer,
   'gen_jobs.render_route': queuedRoute,

@@ -51,6 +51,12 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     status: live(),
   },
   {
+    slug: 'mcp',
+    label: 'MCP tokens',
+    hint: 'Approver and agent tokens for the Kiln connector',
+    status: live(),
+  },
+  {
     slug: 'supabase',
     label: 'Supabase',
     hint: 'Diagnostic only — connection, migrations, Vault, RLS',

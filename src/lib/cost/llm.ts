@@ -179,7 +179,16 @@ export type PipelineStage =
   | '03-script'
   | '04-shotlist'
   | '06-voice'
-  | '09-metadata';
+  | '09-metadata'
+  // The Bureau episode path (src/lib/bureau/, src/trigger/2x-*). One stage per routed task
+  // so v_cost_by_stage can tell a judge call from a brief draft.
+  | '20-brief'
+  | '20-policy-judge'
+  | '20-script-polish'
+  | '20-shotlist'
+  | '20-qc'
+  | '20-strategy'
+  | '24-comments';
 
 /**
  * Write the ledger rows for a drafting call.

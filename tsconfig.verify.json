@@ -81,6 +81,13 @@
     "src/lib/drivers/video-submit.ts",
     "src/lib/generate/webhook.ts",
     "src/lib/onboarding/scene.ts",
-    "src/lib/onboarding/steps.ts"
-  ]
+    "src/lib/onboarding/steps.ts",
+    // The Bureau control plane, minus effects.ts (the Trigger SDK side effects — harnesses
+    // inject recording fakes in its place, so the code under test is everything else).
+    "src/lib/bureau/**/*.ts",
+    "src/lib/llm/**/*.ts",
+    "src/lib/drivers/voice-route.ts",
+    "src/lib/drivers/jobs.ts"
+  ],
+  "exclude": ["node_modules", ".verify-build", "src/lib/bureau/effects.ts"]
 }

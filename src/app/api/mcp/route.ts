@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { productionEffects } from '@/lib/bureau/effects';
 import { serverClient } from '@/lib/db/server';
 import { serveMcp } from '@/lib/studio/serve';
 
@@ -51,9 +52,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const db = serverClient();
   const result = await serveMcp(
     { authorization: request.headers.get('authorization'), body },
-    { db: serverClient(), secret: process.env.STUDIO_MCP_TOKEN_SECRET },
+    {
+      db,
+      secret: process.env.STUDIO_MCP_TOKEN_SECRET,
+      // Bound per request to the token's channel inside serveMcp; this is the factory.
+      bureau: productionEffects(db),
+    },
   );
 
   return result.body === null

@@ -16,6 +16,7 @@ export const EMBEDDING_MODEL = 'gemini-embedding-001';
 export const EMBEDDING_DIMENSIONS = 768;
 /** Integration whose key this needs. */
 export const EMBEDDING_INTEGRATION = 'gemini';
+export const EMBEDDING_KEY_FIELD = 'GEMINI_API_KEY';
 
 const Batch = z.object({
   embeddings: z.array(z.object({ values: z.array(z.number()) })),

@@ -79,8 +79,24 @@ async function isScalarFunction(client, name) {
   // itself rather than from here.
   const scalar = !!row && !row.proretset && row.typtype !== 'c' && row.typtype !== 'p';
   scalarCache.set(name, scalar);
+  // A single composite (`returns channel_policy`, not `setof`) arrives from PostgREST as one
+  // object, not an array of one. Recorded alongside; first needed by the Bureau decision
+  // functions (0040), which return the row they changed.
+  singleRowCache.set(name, !!row && !row.proretset && row.typtype === 'c');
   return scalar;
 }
+const singleRowCache = new Map();
+
+import pg from 'pg';
+
+/**
+ * A `date` column arrives from PostgREST as the string "2026-10-19". node-postgres parses it
+ * into a JS Date at local midnight instead, so code that is correct against production —
+ * a Zod `z.iso.date()`, a `localeCompare` on slot dates — failed here and only here. Found
+ * by verify:bureau. The shim is the instrument, so the shim is what changes: OID 1082 is
+ * returned as its text, exactly what the production client receives.
+ */
+pg.types.setTypeParser(1082, (v) => v);
 
 export function supabaseShim(client) {
   const typesFor = typeCache(client);
@@ -116,6 +132,9 @@ export function supabaseShim(client) {
         // one making the claim.
         if (await isScalarFunction(client, name)) {
           return { data: rows.length ? rows[0][name] : null, error: null };
+        }
+        if (singleRowCache.get(name)) {
+          return { data: rows[0] ?? null, error: null };
         }
 
         return { data: rows, error: null };

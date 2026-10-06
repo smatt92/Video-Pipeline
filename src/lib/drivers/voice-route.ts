@@ -88,3 +88,11 @@ export function voiceRouteFor(c: {
 export function voiceKey(route: Extract<VoiceRoute, { ok: true }>): string {
   return `${route.provider}:${route.voiceId}`;
 }
+
+/** Where the default voice path's per-character rate lives in `rate_card`. */
+export const TTS_RATE_KEY = {
+  driver: 'runway',
+  model: DEFAULT_TTS_MODEL,
+  endpoint: '/v1/text_to_speech',
+  unit: 'character',
+} as const;

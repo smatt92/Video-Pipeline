@@ -281,3 +281,37 @@ session cookie and a redirect to `/`; a non-permitted one gets `denied=not_allow
 session cookie, and any pre-existing session cookie expired. What is *not* verified is the
 Google leg itself — that needs a real console project, and it is the part Google is
 responsible for.
+
+## The Kiln connector (Bureau of Reality control plane)
+
+`/api/mcp` serves two surfaces on one URL. A Studio session token (`k1.…`) reaches the six
+Studio tools; a Bureau token (`kb_…`) reaches the control plane: 21 tools and four
+resources (`kiln://bible/characters`, `kiln://series/{id}`, `kiln://policy/rubric`,
+`kiln://calendar/next-14`). Streamable HTTP, POST, JSON-RPC 2.0.
+
+**Mint tokens** in **Settings → MCP tokens** (signed in). The plaintext is shown once; only
+its SHA-256 is stored.
+
+| Scope | Prefix | Who holds it | Can |
+|---|---|---|---|
+| `approver` | `kb_a_` | Sahil, in Claude chat | everything — including `brief_approve`, `brief_reject`, `cut_approve`, `cut_reject`, `publish_bundles`, `mark_scheduled`, `caps_set`, `kill_switch` |
+| `agent` | `kb_g_` | Routines C, E, F and scheduled task D | read, draft (`briefs_create_batch`), `shot_regenerate`, `dub_queue` — never decide |
+
+Scope is enforced server-side twice: the tool layer refuses an approver tool for an agent
+token (`refused: true`, `scope_denied`), and every decision is a database function
+(migration 0040) that checks the token's scope again before it changes anything.
+`pnpm verify:bureau` drives both over HTTP. Every decision writes `authorship_log` with the
+exact text — the punchline you chose, the rejection reason, the cap change — in the same
+transaction, and that table refuses UPDATE and DELETE.
+
+**Add it to Claude as a custom connector**
+
+1. Claude → Settings → Connectors → **Add custom connector**.
+2. URL: `https://video-pipeline-seven.vercel.app/api/mcp`.
+3. Authentication: the connector's advanced settings → bearer / authorization token → paste
+   your **approver** token. (OAuth is not offered — decision 0012 #2.)
+4. In a chat, enable the connector and try: *"list pending briefs"*, *"approve 1 with B"*,
+   *"what is episode … doing?"*, *"approve the cut"*, *"give me the publish bundle"*.
+
+Give Routines and scheduled tasks an **agent** token only. Revoke from the same settings
+page; revocation takes effect on the next request.

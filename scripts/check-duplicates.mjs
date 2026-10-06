@@ -50,6 +50,12 @@ import { join, basename } from 'node:path';
  * not a reason; "one is the complement of the other and the pair is exhaustive" is.
  */
 const EXEMPTIONS = {
+  'v_cost_attributed::v_ledger_effective':
+    'Different questions over the same rows. v_cost_attributed is every ledger row with its '
+    + 'attribution; v_ledger_effective (0037) drops an estimate once its generation has a '
+    + 'reconcile, so SUM over it is spend counted once, and adds the effective script and '
+    + 'channel the Bureau caps are enforced against. Summing the first double-counts every '
+    + 'reconciled generation; the second cannot show the estimate it superseded.',
   'v_render_cost::v_script_cost':
     'Different denominators over the same spend. v_script_cost is what one script cost with '
     + 'draft and generation kept separate; v_render_cost divides the script-level share '
@@ -170,9 +176,14 @@ const walk = (dir, out = []) => {
     for (const m of code.matchAll(/\bdrop\s+view\s+(?:if\s+exists\s+)?(\w+)/gi)) {
       live.delete(m[1]);
     }
-    for (const m of code.matchAll(/\bcreate\s+(?:or\s+replace\s+)?view\s+(\w+)/gi)) {
-      const name = m[1];
-      if (live.has(name)) {
+    for (const m of code.matchAll(/\bcreate\s+(or\s+replace\s+)?view\s+(\w+)/gi)) {
+      const name = m[2];
+      // `create or replace view` over a live view IS extending it — Postgres applies it
+      // only when the existing columns survive in order, so it cannot silently fork a
+      // concept. It is also the one way to change a view without a DROP, which the hosted
+      // project's MCP route refuses to run unattended (0040). A plain `create view` over a
+      // live one is still the defect this check exists for.
+      if (live.has(name) && !m[1]) {
         dupes += 1;
         fail(
           `${name} is created in ${f} and was already created in ${live.get(name)} with no ` +

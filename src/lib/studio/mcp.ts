@@ -5,6 +5,44 @@ import { z } from 'zod';
 import { toolByName, toolDescriptors, type ToolContext } from './tools';
 
 /**
+ * One MCP surface: the tools (and optionally resources) a caller's token reaches.
+ *
+ * Two surfaces share this protocol layer and the `/api/mcp` URL — the Studio lane (a
+ * session token, six tools, no resources) and the Bureau control plane (an `mcp_tokens`
+ * bearer, approver or agent scope, resources). One dispatcher, so a protocol fix lands for
+ * both; two registries, so a scope can never reach a tool that was not built for it.
+ */
+export interface McpSurface {
+  serverInfo: { name: string; title: string; version: string };
+  instructions: string;
+  listTools(): { name: string; title?: string; description: string; inputSchema: Record<string, unknown> }[];
+  /** `undefined` = no tool by that name *on this surface*. */
+  callTool(name: string, args: Record<string, unknown>): Promise<unknown> | undefined;
+  resources?: {
+    list(): { uri: string; name: string; title?: string; description?: string; mimeType: string }[];
+    templates(): { uriTemplate: string; name: string; title?: string; description?: string; mimeType: string }[];
+    /** `null` = no such resource. */
+    read(uri: string): Promise<{ uri: string; mimeType: string; text: string } | null>;
+  };
+}
+
+export function studioSurface(ctx: ToolContext): McpSurface {
+  return {
+    serverInfo: SERVER_INFO,
+    instructions:
+      'Kiln Studio. These tools write real rows in a real pipeline. Generation costs ' +
+      'money and cannot be undone by deleting a row. Tools refuse rather than guess: a ' +
+      'result with `refused: true` lists every blocker and what would clear it — relay ' +
+      'those to the person rather than retrying the same call.',
+    listTools: toolDescriptors,
+    callTool(name, args) {
+      const tool = toolByName(name);
+      return tool ? tool.run(ctx, args) : undefined;
+    },
+  };
+}
+
+/**
  * The MCP wire protocol, as a pure function of a JSON-RPC message.
  *
  * Transport-free on purpose. `src/app/api/mcp/route.ts` is a thin shell that authenticates
@@ -80,7 +118,7 @@ function fail(id: RpcId, code: number, message: string, data?: unknown): RpcResp
  * Returns `null` for a notification — the caller answers 202 with no body. Anything else
  * is a response object the caller serialises.
  */
-export async function dispatch(message: unknown, ctx: ToolContext): Promise<RpcResponse | null> {
+export async function dispatch(message: unknown, surface: McpSurface): Promise<RpcResponse | null> {
   const parsed = RpcRequest.safeParse(message);
   if (!parsed.success) {
     return fail(
@@ -107,15 +145,13 @@ export async function dispatch(message: unknown, ctx: ToolContext): Promise<RpcR
         capabilities: {
           // No listChanged: the tool set is compiled in, so it cannot change while a
           // connection is open, and advertising a notification we will never send is a
-          // promise to a client that may wait for it.
+          // promise to a client that may wait for it. Resources are advertised only by a
+          // surface that has a reader for them (the Bureau control plane, decision 0012 #3).
           tools: {},
+          ...(surface.resources ? { resources: {} } : {}),
         },
-        serverInfo: SERVER_INFO,
-        instructions:
-          'Kiln Studio. These tools write real rows in a real pipeline. Generation costs ' +
-          'money and cannot be undone by deleting a row. Tools refuse rather than guess: a ' +
-          'result with `refused: true` lists every blocker and what would clear it — relay ' +
-          'those to the person rather than retrying the same call.',
+        serverInfo: surface.serverInfo,
+        instructions: surface.instructions,
       });
     }
 
@@ -128,7 +164,28 @@ export async function dispatch(message: unknown, ctx: ToolContext): Promise<RpcR
       return isNotification ? null : ok(id, {});
 
     case 'tools/list':
-      return ok(id, { tools: toolDescriptors() });
+      return ok(id, { tools: surface.listTools() });
+
+    case 'resources/list':
+      if (!surface.resources) return fail(id, METHOD_NOT_FOUND, `This server does not implement "${method}".`);
+      return ok(id, { resources: surface.resources.list() });
+
+    case 'resources/templates/list':
+      if (!surface.resources) return fail(id, METHOD_NOT_FOUND, `This server does not implement "${method}".`);
+      return ok(id, { resourceTemplates: surface.resources.templates() });
+
+    case 'resources/read': {
+      if (!surface.resources) return fail(id, METHOD_NOT_FOUND, `This server does not implement "${method}".`);
+      const uri = (params as { uri?: unknown } | undefined)?.uri;
+      if (typeof uri !== 'string' || !uri) return fail(id, INVALID_PARAMS, 'resources/read needs a `uri`.');
+      try {
+        const contents = await surface.resources.read(uri);
+        if (!contents) return fail(id, INVALID_PARAMS, `No resource at "${uri}". Call resources/list.`);
+        return ok(id, { contents: [contents] });
+      } catch (err) {
+        return fail(id, INTERNAL_ERROR, err instanceof Error ? err.message : String(err));
+      }
+    }
 
     case 'tools/call': {
       const call = ToolCall.safeParse(params);
@@ -136,8 +193,8 @@ export async function dispatch(message: unknown, ctx: ToolContext): Promise<RpcR
         return fail(id, INVALID_PARAMS, 'tools/call needs a `name` and an `arguments` object.');
       }
 
-      const tool = toolByName(call.data.name);
-      if (!tool) {
+      const pending = surface.callTool(call.data.name, call.data.arguments ?? {});
+      if (!pending) {
         return fail(
           id,
           INVALID_PARAMS,
@@ -146,7 +203,7 @@ export async function dispatch(message: unknown, ctx: ToolContext): Promise<RpcR
       }
 
       try {
-        const result = await tool.run(ctx, call.data.arguments ?? {});
+        const result = await pending;
         return ok(id, toolResult(result, false));
       } catch (err) {
         // The tool threw. That is a fault, not a refusal — refusals are returned as data —

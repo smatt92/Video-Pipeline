@@ -316,6 +316,12 @@ jobs:
       - name: Studio MCP server, tools, auth and spend cap
         run: pnpm verify:studio "$DATABASE_URL"
 
+      # The Bureau control plane on the same endpoint: approver/agent scope enforced in the
+      # tool layer AND in the decision functions, authorship_log written with every decision,
+      # the kill switch and publish cap asserted at their consumers.
+      - name: Bureau MCP control plane, scopes and authorship
+        run: pnpm verify:bureau "$DATABASE_URL"
+
       - name: Build
         run: pnpm build
         env:

@@ -42,6 +42,12 @@ export const ROUTE_PROVIDERS: Record<
   money_shot: { primary: 'gemini', failover: null, webhook: false },
 };
 
+/** Primary first, then failover. Core code matches recipes by these opaque slugs. */
+export function providersForRoute(route: Exclude<RenderRoute, 'overlay'>): string[] {
+  const r = ROUTE_PROVIDERS[route];
+  return r.failover ? [r.primary, r.failover] : [r.primary];
+}
+
 /** Integration slug whose credentials a provider needs, in catalogue field order. */
 export const PROVIDER_INTEGRATION: Record<string, string> = {
   higgsfield: 'higgsfield',
