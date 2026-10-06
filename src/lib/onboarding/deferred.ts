@@ -1,9 +1,9 @@
 import 'server-only';
 
-import { descriptorFor } from '../drivers/catalog';
+import { descriptorFor, type OnboardingRole } from '../drivers/catalog';
 import { serverClient } from '../db/server';
 import { STEPS } from './steps';
-import { integrationForStep } from './step-integration';
+import { STEP_ROLE, integrationForStep } from './step-integration';
 
 /**
  * What is deferred, and what is inert because of it.
@@ -13,7 +13,7 @@ import { integrationForStep } from './step-integration';
  * copies of one rule, and the day they disagree the app tells you two different stories
  * about the same integration.
  *
- * `kinds` is what the screens key off: a screen asks "is the video kind deferred?", never
+ * `roles` is what the screens key off: a screen asks "is the generation role deferred?", never
  * "is <that vendor> deferred?". Same reason `catalog.ts` exists — the vendor filling a
  * role is a config value, and a component that names one is the rule-1 violation this
  * project keeps catching. It caught this very comment, which named one while explaining
@@ -30,19 +30,25 @@ export interface DeferredIntegration {
   /** Present when the step maps to an integration; absent for a step that configures none. */
   slug: string | null;
   label: string | null;
-  kind: string | null;
+  /**
+   * The role the step configures (`STEP_ROLE`). Roles rather than catalogue kinds since
+   * 0015: one integration fills both generation and voice, and embeddings is a role no kind
+   * describes, so keying off `kind` made the voice note unreachable and showed an embeddings
+   * deferral as the video one.
+   */
+  role: OnboardingRole | null;
 }
 
 export interface DeferralState {
   any: boolean;
   items: DeferredIntegration[];
-  /** Kinds with no usable integration because the step configuring them was deferred. */
-  kinds: Set<string>;
+  /** Roles with no usable integration because the step configuring them was deferred. */
+  roles: Set<OnboardingRole>;
   /** Set when the read itself failed — never silently "nothing is deferred". */
   unavailable: string | null;
 }
 
-const NONE: DeferralState = { any: false, items: [], kinds: new Set(), unavailable: null };
+const NONE: DeferralState = { any: false, items: [], roles: new Set(), unavailable: null };
 
 export async function deferralState(): Promise<DeferralState> {
   try {
@@ -71,14 +77,14 @@ export async function deferralState(): Promise<DeferralState> {
           at: d.deferred_at,
           slug,
           label: descriptor?.label ?? null,
-          kind: descriptor?.kind ?? null,
+          role: STEP_ROLE[d.step] ?? null,
         };
       });
 
     return {
       any: items.length > 0,
       items,
-      kinds: new Set(items.map((i) => i.kind).filter((k): k is string => k !== null)),
+      roles: new Set(items.map((i) => i.role).filter((r): r is OnboardingRole => r !== null)),
       unavailable: null,
     };
   } catch (err) {
@@ -87,8 +93,8 @@ export async function deferralState(): Promise<DeferralState> {
 }
 
 /** One sentence naming what a screen cannot show, for an empty state. */
-export function inertBecause(state: DeferralState, kind: string): string | null {
-  const item = state.items.find((i) => i.kind === kind);
+export function inertBecause(state: DeferralState, role: OnboardingRole): string | null {
+  const item = state.items.find((i) => i.role === role);
   if (!item) return null;
   return (
     `${item.label ?? item.stepTitle} was deferred${item.at ? ` on ${item.at.slice(0, 10)}` : ''}: ` +

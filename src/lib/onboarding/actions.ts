@@ -8,6 +8,8 @@ import { serverClient, type Db } from '../db/server';
 import { INTEGRATION_CATALOG, descriptorFor } from '../drivers/catalog';
 import { verifyIntegration } from '../integrations/verify';
 import { storeSecret } from '../integrations/vault';
+import { BUREAU_CHANNEL_ID } from '../bureau/bible';
+import { completeChannelStep } from './channel-step';
 import { isDeferrable } from './gate';
 import { integrationForStep } from './step-integration';
 import { STEPS } from './steps';
@@ -22,7 +24,7 @@ import { STEPS } from './steps';
  * dependency graph from the database before doing anything: step 4 asks whether step 2 has
  * passed and refuses if it has not, regardless of what the page showed.
  *
- * That matters beyond tidiness. Step 4 depends on step 2 because a video credential that
+ * That matters beyond tidiness. Step 4 depends on step 2 because a generation key that
  * "passes" before storage works has proven nothing — the clip generates, cannot be written
  * anywhere, and you have paid for it. Enforcing the order only in the UI would make the
  * guarantee cosmetic.
@@ -206,7 +208,7 @@ export async function saveProfile(_prev: StepState, formData: FormData): Promise
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// Steps 2–5 — configure a vendor, then prove it
+// Steps 2–5 and 11 — configure a vendor, then prove it
 // ═════════════════════════════════════════════════════════════════════════════
 
 /**
@@ -312,8 +314,8 @@ async function configureAndVerify(stepNumber: number, formData: FormData): Promi
 
   await assertUnlocked(db, user.id, stepNumber);
 
-  // Resolved by capability, not by name — the wizard asks for "the video generator" and
-  // the catalogue answers which vendor that is today.
+  // Resolved by capability, not by name — the wizard asks for a role (generation, voice,
+  // embeddings) and the catalogue answers which vendor that is today.
   const slug = integrationForStep(stepNumber);
   if (!slug) throw new Error(`Step ${stepNumber} configures no integration.`);
 
@@ -429,7 +431,7 @@ export async function confirmRateCard(_prev: StepState): Promise<StepState> {
         status: 'error',
         message:
           'No enabled driver declares a priced call yet, so there is nothing to verify. ' +
-          'Finish the generation and voice steps first.',
+          'Finish the generation, voice and embeddings steps first.',
       };
     }
 
@@ -483,34 +485,43 @@ export async function confirmRateCard(_prev: StepState): Promise<StepState> {
 // Step 8 — First channel
 // ═════════════════════════════════════════════════════════════════════════════
 
-/** Concepts cannot exist without a channel — `concepts.channel_id` is NOT NULL. */
+/**
+ * Concepts cannot exist without a channel — `concepts.channel_id` is NOT NULL.
+ *
+ * Completes without inserting when an active channel already exists (the seeded Bureau
+ * channel, on every Bureau workspace): the decision is `completeChannelStep`'s, so a POST
+ * that skips the page's "use this channel" form still cannot create a second channel.
+ */
 export async function createChannel(_prev: StepState, formData: FormData): Promise<StepState> {
   try {
     const user = await currentUser();
     const db = serverClient();
     await assertUnlocked(db, user.id, 8);
 
-    const name = String(formData.get('name') ?? '').trim();
-    const platform = String(formData.get('platform') ?? '').trim();
-    const niche = String(formData.get('niche') ?? '').trim();
-    const handle = String(formData.get('handle') ?? '').trim();
-
-    if (!name || !platform || !niche) {
-      return { status: 'error', message: 'Name, platform and niche are all required.' };
-    }
-
-    const { data, error } = await db
-      .from('channels')
-      .insert({ name, platform, niche, handle: handle || null, is_active: true })
-      .select('id, name')
-      .single();
-
-    if (error || !data) throw new Error(error?.message ?? 'Channel insert returned nothing.');
+    const result = await completeChannelStep(
+      db,
+      {
+        name: String(formData.get('name') ?? ''),
+        platform: String(formData.get('platform') ?? ''),
+        niche: String(formData.get('niche') ?? ''),
+        handle: String(formData.get('handle') ?? ''),
+      },
+      BUREAU_CHANNEL_ID,
+    );
+    if (!result.ok) return { status: 'error', message: result.message };
 
     await completeStep(db, user.id, 8);
     refresh();
 
-    return { status: 'ok', message: `Channel "${data.name}" created.` };
+    const c = result.channel;
+    return {
+      status: 'ok',
+      message: result.inserted
+        ? `Channel "${c.name}" created.`
+        : result.handleChanged
+          ? `Using "${c.name}"; handle set to ${c.handle}.`
+          : `Using "${c.name}"${c.handle ? ` (${c.handle})` : ''}. No new channel was created.`,
+    };
   } catch (err) {
     return fail(err);
   }
@@ -686,8 +697,9 @@ export async function setConcurrency(
  * one cannot be told apart from a step somebody forgot, and the banner that names it would
  * have nothing to say.
  *
- * Only steps 4 and 5 may be deferred. Deferring storage or the LLM would produce an app in
- * which nothing works at all, and a gate that can be waved through entirely is not a gate.
+ * Every step may be deferred since 0020 (`DEFERRABLE_STEPS` in entry.ts): setup decides what
+ * works, not what is reachable, and each task still refuses what it cannot use. The refusal
+ * below is kept for a step number that is not in the list at all.
  */
 export async function deferStep(
   stepNumber: number,

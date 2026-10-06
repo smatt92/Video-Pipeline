@@ -337,6 +337,11 @@ jobs:
       # stand-in for the vendor's HTTP surface and ffprobes the stored file. §2 — one real,
       # spend-limited gen4_turbo clip — runs only where RUNWAY_API_KEY is set, which CI
       # deliberately is not (a paid call per push); it prints SKIP with that reason here.
+      # Step 8 on a workspace that already has the Bureau channel completes without making a
+      # second one; on an empty one it makes exactly one.
+      - name: Onboarding step 8 uses the existing channel, and makes one only when there is none
+        run: pnpm verify:onboarding "$DATABASE_URL"
+
       # The OAuth server Claude's connectors use (decision 0016): discovery, code + PKCE,
       # refresh rotation, and the refusals by name — a non-Claude redirect URI, a replayed
       # code, a revoked connection, an agent connection on brief_approve. Over a real socket

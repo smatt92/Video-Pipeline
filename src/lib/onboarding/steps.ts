@@ -7,9 +7,9 @@
  *
  * Two properties matter more than the list itself:
  *
- *   Dependency order is enforced, not suggested. Storage verifies before the video driver is
- *   offered at all, because nothing can be stored until storage works and a video
- *   credential that "passes" beforehand has proven nothing.
+ *   Dependency order is enforced, not suggested. Storage verifies before the generation key is
+ *   offered at all, because nothing can be stored until storage works and a generation key
+ *   that "passes" beforehand has proven nothing.
  *
  *   Every step verifies with a real call. A format check on an API key tells you the key
  *   is shaped like a key.
@@ -91,17 +91,17 @@ export const STEPS: readonly OnboardingStep[] = [
     n: 6,
     slug: 'rate-card',
     title: 'Rate card',
-    blurb: 'What each call costs. Pasted from your own account dashboards — no vendor publishes these.',
+    blurb: 'What each call costs. The generation and embeddings rates ship seeded from published prices (0040, 0044); check them against your own account and supersede any that differ.',
     verification: 'Cannot proceed while any rate used by an enabled driver is unverified. Until then no rupee figure renders anywhere and submits refuse.',
-    blockedBy: [4, 5],
+    blockedBy: [4, 5, 11],
     required: true,
   },
   {
     n: 7,
     slug: 'host-voice',
     title: 'Host voice',
-    blurb: 'A library voice to start, or begin a Professional Voice Clone.',
-    verification: 'Synthesises one short line and plays it back. PVC is a multi-day external process — recorded as pending and you continue on a stock voice.',
+    blurb: 'The channel\'s default host voice. The Bureau\'s characters carry their own locked voices (pnpm voice:audition → voice:lock, decision 0013).',
+    verification: 'Set on Settings → Voice. Optional.',
     blockedBy: [5],
     required: false,
   },
@@ -109,8 +109,8 @@ export const STEPS: readonly OnboardingStep[] = [
     n: 8,
     slug: 'channel',
     title: 'First channel',
-    blurb: 'Name, platform, niche. One channel minimum — concepts cannot exist without one.',
-    verification: 'Writes a channels row.',
+    blurb: 'The channel everything is made for. Concepts cannot exist without one. On a Bureau workspace it already exists — migration 0037 seeds it — so this step shows it and lets you correct the handle.',
+    verification: 'Uses the active channel if there is one and creates nothing; only a workspace with no active channel gets a new row.',
     blockedBy: [1],
     required: true,
   },
@@ -129,7 +129,7 @@ export const STEPS: readonly OnboardingStep[] = [
     title: 'Guided first video',
     blurb: 'One real 15-second video, end to end: concept → VO → two shots → rough cut → review → download.',
     verification: 'Every integration proves it works together, and you finish holding an artifact rather than a checklist.',
-    blockedBy: [1, 2, 3, 4, 5, 6, 8],
+    blockedBy: [1, 2, 3, 4, 5, 11, 6, 8],
     required: false,
     stubbed:
       'Stubbed until Gate 5. It needs the pipeline leg, the drivers and the rough-cut assembler, none of which exist yet — and it spends real credits, so it cannot be faked.',
@@ -144,4 +144,32 @@ export function stepBySlug(slug: string): OnboardingStep | undefined {
 
 export function isUnlocked(step: OnboardingStep, completed: readonly number[]): boolean {
   return step.blockedBy.every((n) => completed.includes(n));
+}
+
+/**
+ * The step before and after this one, in walk order.
+ *
+ * By position in `STEPS`, never by arithmetic on `n`. Step 11 is listed sixth, so
+ * `STEPS[step.n]` — what the footer used to do — sent step 11's "next" nowhere and every
+ * later step's "next" back to itself.
+ */
+export function stepNeighbours(step: OnboardingStep): { prev: OnboardingStep | null; next: OnboardingStep | null } {
+  const i = STEPS.findIndex((s) => s.n === step.n);
+  return { prev: i > 0 ? STEPS[i - 1] : null, next: i >= 0 && i < STEPS.length - 1 ? STEPS[i + 1] : null };
+}
+
+/**
+ * Where `/setup` sends you: the slug of the first step still to do, in walk order.
+ *
+ * A slug, because the wizard is addressed by slug — `/setup/1` was a 404 for as long as the
+ * index redirected there. First an outstanding required step (not done, not deferred), then
+ * any step not done that has something to run, then the first step. Always a slug that
+ * `stepBySlug` resolves; `test:entry` checks that for every combination of completed steps.
+ */
+export function firstIncompleteSlug(completed: readonly number[], deferred: readonly number[] = []): string {
+  const open = (s: OnboardingStep) => !completed.includes(s.n);
+  const required = STEPS.find((s) => s.required && open(s) && !deferred.includes(s.n));
+  if (required) return required.slug;
+  const any = STEPS.find((s) => open(s) && !s.stubbed && !deferred.includes(s.n));
+  return (any ?? STEPS[0]).slug;
 }

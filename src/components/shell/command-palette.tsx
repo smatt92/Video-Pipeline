@@ -96,7 +96,7 @@ export function CommandPalette({
               value="finish setup onboarding wizard connect accounts"
               onSelect={() => {
                 onOpenChange(false);
-                router.push('/setup/1');
+                router.push('/setup');
               }}
               className="flex cursor-pointer items-center gap-3 rounded-sm px-2 py-[7px] text-sm data-[selected=true]:bg-[var(--surface-3)]"
               style={{ color: 'var(--text-primary)' }}

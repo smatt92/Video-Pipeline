@@ -50,6 +50,8 @@
     "src/lib/generate/regenerate.ts",
     "src/lib/onboarding/gate.ts",
     "src/lib/onboarding/entry.ts",
+    "src/lib/onboarding/step-integration.ts",
+    "src/lib/onboarding/channel-step.ts",
     "src/lib/integrations/referral.ts",
     "src/lib/concepts/approve.ts",
     "src/lib/concepts/run.ts",

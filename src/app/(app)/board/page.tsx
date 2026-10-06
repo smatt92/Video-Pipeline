@@ -181,8 +181,8 @@ async function Board() {
   }
 
   if (result.rows.length === 0) {
-    const videoInert = inertBecause(deferrals, 'video');
-    const audioInert = inertBecause(deferrals, 'audio');
+    const videoInert = inertBecause(deferrals, 'generation');
+    const audioInert = inertBecause(deferrals, 'voice');
 
     return (
       <div className={`${MAX_W} px-5 py-10`} data-board="empty">

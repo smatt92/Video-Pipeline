@@ -57,11 +57,11 @@ export function Fork({ signedIn }: { signedIn: boolean }) {
         style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 20rem), 1fr))' }}
       >
         <Choice
-          href={signedIn ? '/setup/1' : '/login?next=/setup/1'}
+          href={signedIn ? '/setup' : '/login?next=/setup'}
           heading="Set up your account"
           time="About fifteen minutes"
           lead="Each step ends in a real call to the service, so when it says connected, something actually answered."
-          body={`${REQUIRED_STEPS.length} required steps — object storage, the language model, the video and voice vendors, your channel — and ${OPTIONAL_STEPS} optional ones you can come back to.`}
+          body={`${REQUIRED_STEPS.length} required steps — object storage, the language model, the generation key, the embeddings key, your profile, rate card and channel — and ${OPTIONAL_STEPS} optional ones you can come back to.`}
           closing="At the end, the pipeline can run a video end to end."
         />
 

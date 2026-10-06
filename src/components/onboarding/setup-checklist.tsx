@@ -61,7 +61,7 @@ export function SetupChecklist({ progress }: { progress: SetupProgress }) {
             return (
               <li key={step.n}>
                 <Link
-                  href={`/setup/${step.n}`}
+                  href={`/setup/${step.slug}`}
                   className="flex items-center gap-2 rounded-sm px-2 text-2xs"
                   style={{
                     minHeight: 'var(--hit-min)',

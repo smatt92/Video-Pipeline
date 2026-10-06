@@ -18,9 +18,6 @@ import { REQUIRED_STEPS, STEPS } from './steps';
  * steps are simply not in REQUIRED_STEPS.
  */
 
-/** Kept for display: "step N of M". Not what the gate compares. */
-export const GATE_STEP: number = Math.max(...REQUIRED_STEPS);
-
 export interface ProfileProgress {
   onboarding_completed_steps: number[];
   onboarding_completed_at: string | null;

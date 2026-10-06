@@ -181,7 +181,7 @@ export function ProfileForm({ email }: { email: string | null }) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// Steps 2–5 — credentials, then a real call
+// Steps 2–5 and 11 — credentials, then a real call
 // ═════════════════════════════════════════════════════════════════════════════
 
 export function IntegrationStepForm({
@@ -255,6 +255,47 @@ export function RateCardForm() {
 // ═════════════════════════════════════════════════════════════════════════════
 // Step 8 — First channel
 // ═════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Step 8 when an active channel already exists (the seeded Bureau channel). Shows it, lets
+ * the handle be edited, and completes the step without creating anything — the server
+ * decides that, not this form (`completeChannelStep`).
+ */
+export function ExistingChannelForm({
+  channel,
+}: {
+  channel: { name: string; platform: string; niche: string; handle: string | null; external_id: string | null };
+}) {
+  const [state, action] = useActionState(createChannel, IDLE);
+
+  return (
+    <form action={action} className="flex flex-col gap-4">
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+        <dt style={{ color: 'var(--text-faint)' }}>Channel</dt>
+        <dd>{channel.name}</dd>
+        <dt style={{ color: 'var(--text-faint)' }}>Platform</dt>
+        <dd>{channel.platform}</dd>
+        <dt style={{ color: 'var(--text-faint)' }}>Niche</dt>
+        <dd>{channel.niche}</dd>
+        <dt style={{ color: 'var(--text-faint)' }}>Channel ID</dt>
+        <dd className="font-mono">{channel.external_id ?? '—'}</dd>
+      </dl>
+      <div className="max-w-[24rem]">
+        <Field
+          name="handle"
+          label="Handle"
+          defaultValue={channel.handle ?? ''}
+          placeholder="@handle"
+          help="Edit if it is wrong. Leave it as it is to keep it."
+        />
+      </div>
+      <div>
+        <Submit label="Use this channel" busy="Saving…" />
+      </div>
+      <Outcome state={state} />
+    </form>
+  );
+}
 
 export function ChannelForm() {
   const [state, action] = useActionState(createChannel, IDLE);

@@ -3,15 +3,19 @@ import { notFound } from 'next/navigation';
 
 import {
   ChannelForm,
+  ExistingChannelForm,
   IntegrationStepForm,
   ProfileForm,
   RateCardForm,
 } from '@/components/onboarding/step-forms';
 import { CheckPill } from '@/components/settings/parts';
+import { BUREAU_CHANNEL_ID } from '@/lib/bureau/bible';
+import { serverClient } from '@/lib/db/server';
+import { activeChannel } from '@/lib/onboarding/channel-step';
 import { isDeferrable } from '@/lib/onboarding/gate';
 import { onboardingProgress } from '@/lib/onboarding/progress';
 import { stepIntegrationView } from '@/lib/onboarding/step-view';
-import { STEPS, isUnlocked, stepBySlug } from '@/lib/onboarding/steps';
+import { STEPS, isUnlocked, stepBySlug, stepNeighbours } from '@/lib/onboarding/steps';
 
 import { DeferForm } from './defer-form';
 
@@ -58,6 +62,9 @@ export default async function OnboardingStepPage({
   const view = await stepIntegrationView(step.n);
 
   const unlocked = isUnlocked(step, completed);
+  const { prev, next } = stepNeighbours(step);
+  // Step 8 shows the channel that already exists rather than offering to make a second one.
+  const channel = step.n === 8 ? await activeChannel(serverClient(), BUREAU_CHANNEL_ID) : null;
   const blockers = step.blockedBy
     .filter((n) => !completed.includes(n))
     .map((n) => STEPS.find((s) => s.n === n)!.title);
@@ -194,7 +201,7 @@ export default async function OnboardingStepPage({
             <>
               {step.n === 1 && <ProfileForm email={progress.email} />}
               {step.n === 6 && <RateCardForm />}
-              {step.n === 8 && <ChannelForm />}
+              {step.n === 8 && (channel ? <ExistingChannelForm channel={channel} /> : <ChannelForm />)}
               {view && (
                 <IntegrationStepForm
                   stepNumber={step.n}
@@ -202,10 +209,9 @@ export default async function OnboardingStepPage({
                   verification={step.verification}
                 />
               )}
-              {/* Only the two steps whose vendors gate API access behind a paid plan.
-                  Deferring storage or the LLM would open an app in which nothing works,
-                  and a gate that can be waved through entirely is not a gate — `gate.ts`
-                  refuses those server-side regardless of what renders here. */}
+              {/* Every step is deferrable since 0020 (DEFERRABLE_STEPS in entry.ts): setup
+                  decides what works, not what is reachable. Deferring changes no
+                  integration's verified state, so the tasks that need it still refuse. */}
               {isDeferrable(step.n) && (
                 <DeferForm
                   stepNumber={step.n}
@@ -239,22 +245,22 @@ export default async function OnboardingStepPage({
 
       {/* ── Footer nav ───────────────────────────────────────────────────── */}
       <div className="mt-8 flex items-center gap-3">
-        {step.n > 1 && (
+        {prev && (
           <Link
-            href={`/setup/${STEPS[step.n - 2].slug}`}
+            href={`/setup/${prev.slug}`}
             className="text-sm underline underline-offset-4"
             style={{ color: 'var(--text-muted)' }}
           >
-            ← {STEPS[step.n - 2].title}
+            ← {prev.title}
           </Link>
         )}
-        {step.n < STEPS.length && (
+        {next && (
           <Link
-            href={`/setup/${STEPS[step.n].slug}`}
+            href={`/setup/${next.slug}`}
             className="ml-auto text-sm underline underline-offset-4"
             style={{ color: 'var(--accent)' }}
           >
-            {STEPS[step.n].title} →
+            {next.title} →
           </Link>
         )}
       </div>
