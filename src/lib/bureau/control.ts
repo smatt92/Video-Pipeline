@@ -87,6 +87,34 @@ export async function approveBrief(
   return { ok: true as const, brief_id: input.brief_id, episode_id: episodeId, punchline: chosen.text, choice: chosen.choice, run_id: runId, start_error: startError };
 }
 
+/**
+ * Start the run for an approved episode whose run never started.
+ *
+ * approveBrief commits the decision first and then starts the run; when the start fails (a
+ * wrong Trigger key, the worker not deployed yet) the episode sits at 'queued' with the reason
+ * in status_detail and run_id null. Before this existed nothing could move it: re-approving
+ * is refused (the brief is no longer pending) and no other caller starts a run. The board's
+ * "Start run" button calls this. The trigger carries the same idempotency key approveBrief
+ * uses, so a double click or a retry after a run did start cannot start a second run.
+ */
+export async function startQueuedEpisode(db: Db, token: BureauToken, effects: Effects, input: { episode_id: string }) {
+  requireApprover(token, 'episode_start');
+  const { data: ep, error } = await db.from('episodes').select('id, status, run_id').eq('id', input.episode_id).maybeSingle();
+  if (error) throw dbError(error.message);
+  if (!ep) throw new Error('No such episode.');
+  if (ep.status !== 'queued') throw new Error(`Episode is ${ep.status}, not queued — its run already started.`);
+  if (ep.run_id) throw new Error('This episode already has a run.');
+  try {
+    const runId = await effects.startEpisode(ep.id);
+    await db.from('episodes').update({ run_id: runId, status_detail: null, updated_at: new Date().toISOString() }).eq('id', ep.id);
+    return { ok: true as const, episode_id: ep.id, run_id: runId, start_error: null };
+  } catch (err) {
+    const startError = err instanceof Error ? err.message : String(err);
+    await db.from('episodes').update({ status_detail: `run not started: ${startError}` }).eq('id', ep.id);
+    return { ok: false as const, episode_id: ep.id, run_id: null, start_error: startError };
+  }
+}
+
 export async function rejectBrief(db: Db, token: BureauToken, input: { brief_id: string; reason: string }) {
   requireApprover(token, 'brief_reject');
   const { error } = await db.rpc('bureau_brief_reject', { p_token: token.id, p_brief: input.brief_id, p_reason: input.reason });

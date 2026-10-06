@@ -1,4 +1,5 @@
 import { BureauNav } from '@/components/bureau/bureau-nav';
+import { StartRun } from '@/components/bureau/start-run';
 import { BUREAU_CHANNEL_ID } from '@/lib/bureau/bible';
 import { serverClient } from '@/lib/db/server';
 
@@ -19,7 +20,7 @@ const COLUMNS: { key: string; label: string; statuses: string[] }[] = [
 export default async function BureauBoardPage() {
   const db = serverClient();
   const [{ data: eps }, { data: pending }] = await Promise.all([
-    db.from('episodes').select('id, slot_id, status, status_detail, kind, updated_at').eq('channel_id', BUREAU_CHANNEL_ID).order('updated_at', { ascending: false }).limit(300),
+    db.from('episodes').select('id, slot_id, status, status_detail, kind, run_id, updated_at').eq('channel_id', BUREAU_CHANNEL_ID).order('updated_at', { ascending: false }).limit(300),
     db.from('briefs').select('id, slot_id, premise, flagged').eq('channel_id', BUREAU_CHANNEL_ID).eq('status', 'pending').order('created_at'),
   ]);
   return (
@@ -29,8 +30,8 @@ export default async function BureauBoardPage() {
       <div className="mt-4 grid gap-3 overflow-x-auto md:grid-cols-4 xl:grid-cols-8">
         {COLUMNS.map((c) => {
           const items = c.key === 'approval'
-            ? (pending ?? []).map((b) => ({ id: b.id, slot: b.slot_id, line: b.premise, detail: b.flagged ? 'flagged' : null }))
-            : (eps ?? []).filter((e) => c.statuses.includes(e.status)).map((e) => ({ id: e.id, slot: e.slot_id, line: `${e.kind === 'long_form' ? 'long-form · ' : ''}${e.status}`, detail: e.status_detail }));
+            ? (pending ?? []).map((b) => ({ id: b.id, slot: b.slot_id, line: b.premise, detail: b.flagged ? 'flagged' : null, startable: false }))
+            : (eps ?? []).filter((e) => c.statuses.includes(e.status)).map((e) => ({ id: e.id, slot: e.slot_id, line: `${e.kind === 'long_form' ? 'long-form · ' : ''}${e.status}`, detail: e.status_detail, startable: e.status === 'queued' && !e.run_id }));
           return (
             <section key={c.key} className="min-w-[180px] rounded-md border p-2" style={{ borderColor: 'var(--border-default)' }}>
               <h2 className="flex justify-between text-sm font-medium">
@@ -42,6 +43,7 @@ export default async function BureauBoardPage() {
                     <div className="font-mono">{i.slot ?? 'bank'}</div>
                     <div>{i.line}</div>
                     {i.detail && <div style={{ color: 'var(--state-blocked)' }}>{i.detail}</div>}
+                    {i.startable && <StartRun episodeId={i.id} />}
                   </li>
                 ))}
               </ul>
