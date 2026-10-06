@@ -313,7 +313,7 @@ export const INTEGRATION_CATALOG: readonly IntegrationDescriptor[] = [
       'A terminal task reports its final cost in credits; that lands as a measured reconcile row.',
       'Durations differ per model: gen4_turbo 2–10 s, veo3.1_fast 4/6/8 s. 9:16 is 720:1280.',
     ],
-    // Exactly the rows 0040 and 0043 seed. Act-Two is absent on purpose: it has no published
+    // Exactly the rows 0040 and 0044 seed. Act-Two is absent on purpose: it has no published
     // per-second figure, and listing it would hold the rate-card step closed for a route
     // nothing plans until a recipe proves its credits per second.
     rates: [

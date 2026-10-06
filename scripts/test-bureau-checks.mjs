@@ -102,7 +102,7 @@ check(refused.status === 'refused' && refused.passed === false && refused.simila
   'no similarity → refused, never passed, and no score at all (not 0)', JSON.stringify(refused.similarity));
 check(refused.refused_reason === 'similarity not computed — embeddings vendor rate-limited (429) on all 4 attempts', 'the refusal carries the vendor’s reason verbatim', refused.refused_reason);
 check(variationRefusal(refused) === refused.refused_reason && variationRefusal({ status: 'incomplete', similarity: { checked: false, reason: 'no key' } }) === 'similarity not computed — no key',
-  'a stored refusal blocks approval, including the pre-0043 spelling "incomplete"');
+  'a stored refusal blocks approval, including the pre-0044 spelling "incomplete"');
 check(variationRefusal(null) !== null && variationRefusal(fourDiff) === null && variationRefusal(threeSame) === null, 'no stored result blocks; a pass or a computed fail does not (a fail is the approver’s call)');
 const emptyHistory = checkVariation({ ...base }, [], policy, { checked: true, max: null, nearest_brief_id: null, compared: 0 });
 check(emptyHistory.status === 'pass' && emptyHistory.similarity.max === null, 'nothing to compare → pass with max null, not 0');

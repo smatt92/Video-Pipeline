@@ -18,9 +18,9 @@ import { BIBLE } from './bible';
  * carries `refused_reason`, the vendor's own sentence, and is never reported as a pass and
  * never as a similarity of 0: a check that did not run has not passed (CLAUDE.md, "absent
  * and zero are different facts"). `approveBrief` refuses a brief whose check refused, and
- * so does `bureau_brief_approve` in the database (0043).
+ * so does `bureau_brief_approve` in the database (0044).
  *
- * Briefs written before 0043 stored this outcome as `incomplete`; `variationRefusal` reads
+ * Briefs written before 0044 stored this outcome as `incomplete`; `variationRefusal` reads
  * both spellings so an old row cannot slip through on its name.
  */
 
@@ -225,7 +225,7 @@ export async function similarityFor(
 /**
  * Why a stored variation result may not be approved, or null when it may. A `fail` is
  * approvable — it is flagged, and a human deciding against a flag is the design. A check
- * that could not run is not: there is nothing for the human to weigh. Also reads the pre-0043
+ * that could not run is not: there is nothing for the human to weigh. Also reads the pre-0044
  * spelling (`incomplete`) and a result with no similarity block at all.
  */
 export function variationRefusal(stored: unknown): string | null {

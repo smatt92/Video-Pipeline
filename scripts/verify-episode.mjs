@@ -124,7 +124,7 @@ const effects = {
   async notify() {},
   presign: async (key) => presign(key),
   // Embeddings are an input here (variation_check must have run before a brief can be
-  // approved — 0043); the similarity itself is computed by the database.
+  // approved — 0044); the similarity itself is computed by the database.
   embedderFor: async () => stubEmbedder,
 };
 const mcp = createServer((req, res) => {
@@ -161,12 +161,12 @@ try {
   // carried a character reference, and a verified per-second rate. Inputs, not assertions.
   // Since 0015 the character beat routes to the Runway API with failover off, so the world is
   // a gen4_turbo recipe and the generation key. The per-second rate is NOT seeded here: it is
-  // migration 0043's row (USD 0.05/s), read back so the expected figure below comes from the
+  // migration 0044's row (USD 0.05/s), read back so the expected figure below comes from the
   // table the estimator reads rather than from a constant this harness invented.
   await client.query(`insert into prompts (name, driver, model, template, params, tags, discovered_in, is_active, accepts_character_ref) values ('pip-beat', 'runway', 'gen4_turbo', '{{description}}', '{"max_duration_s": 10}', '{subject_medium}', 'manual', true, true)`);
   const { rows: rateRow } = await client.query(`select unit_cost from rate_card where driver = 'runway' and model = 'gen4_turbo' and unit = 'second' and endpoint is null and is_verified`);
   const GEN_RATE_USD = Number(rateRow[0]?.unit_cost);
-  check(GEN_RATE_USD === 0.05, 'migration 0043 seeds gen4_turbo at USD 0.05 per second (5 credits × $0.01)', String(rateRow[0]?.unit_cost));
+  check(GEN_RATE_USD === 0.05, 'migration 0044 seeds gen4_turbo at USD 0.05 per second (5 credits × $0.01)', String(rateRow[0]?.unit_cost));
   await client.query(`insert into integrations (slug, kind, is_enabled, last_verified_at) values ('runway', 'video', true, now()) on conflict (slug) do update set is_enabled = true, last_verified_at = now()`);
 
   // ═══ 1. Draft (agent) ═══

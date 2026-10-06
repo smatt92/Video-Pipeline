@@ -83,7 +83,7 @@ outside the egress allowlist, so **no figure below has been observed against a b
   ledger estimate before each call and a measured reconcile after; nothing written to storage
   or the bible until Sahil runs `frame:lock`, which uploads, reads back, compares bytes, and
   only then edits `reference_frame_ids`. The commit is his.
-- Migration 0043: rate rows; two recipes, retired; the variation refusal in
+- Migration 0044: rate rows; two recipes, retired; the variation refusal in
   `bureau_brief_approve`.
 - `verify:runway-video` — see 0008 §15.
 
@@ -131,7 +131,7 @@ else 2 s doubling) and then returns `ok: false` with the reason. `checkVariation
 uncomputed similarity into status **`refused`** with `refused_reason` (the vendor's sentence),
 `similarity.ok = null`, and no score — never `pass`, never `0`. The brief is flagged
 `variation:refused — …`; `approveBrief` refuses it, and so does `bureau_brief_approve` in the
-database (0043), for a caller that skips the TypeScript. Re-running `variation_check` with the
+database (0044), for a caller that skips the TypeScript. Re-running `variation_check` with the
 brief's id computes and stores the embedding and the new result, which lifts the refusal.
 
 **Why not `v_pipeline_blockers`.** That view is one row per *script*, and a script exists only
@@ -164,7 +164,7 @@ Against the ₹150 per-Short cap and the ₹125 target. A 3.2 s money shot is bi
 
 ## What turns it on (Sahil)
 
-1. Paste `docs/bureau/hosted-migrations-3-of-3-0043.sql` after bundles 1 and 2.
+1. Paste `docs/bureau/hosted-migrations-3-of-3-0044.sql` after bundles 1, 2 and `hosted-migrations-3-0043.sql` (the Vault-function fix).
 2. Settings → Integrations (or onboarding step 4): Runway API key; step 11: Gemini key.
 3. `pnpm frame:audition --character pip --ref <Prompt B sheet>` → pick →
    `pnpm frame:lock pip <file>` → commit `characters.json`.

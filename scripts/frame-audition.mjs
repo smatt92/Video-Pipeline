@@ -130,7 +130,7 @@ const { rows: rate } = await client.query(
   [model, unit],
 );
 if (!rate[0]?.is_verified) {
-  console.error(`No verified rate for runway/${model} per ${unit} — migration 0043 seeds it. Nothing prices against a guess.`);
+  console.error(`No verified rate for runway/${model} per ${unit} — migration 0044 seeds it. Nothing prices against a guess.`);
   process.exit(1);
 }
 const unitUsd = Number(rate[0].unit_cost);

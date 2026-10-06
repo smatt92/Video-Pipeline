@@ -5,7 +5,7 @@
  *
  * PROVES, every run (§1, a local stand-in for the vendor's HTTP surface):
  *   - the estimate for a 4.6 s character beat is ONE 5 s gen4_turbo call at the rate_card
- *     row 0043 seeds — the expected figure is read from the table and multiplied by hand,
+ *     row 0044 seeds — the expected figure is read from the table and multiplied by hand,
  *     not computed by the code under test;
  *   - the dispatcher writes the cost_ledger estimate BEFORE the vendor is called, at the
  *     billed length, keyed to the job's idempotency key, and a second dispatch submits
@@ -139,7 +139,7 @@ const jobRow = async (id) => (await client.query('select j.status, j.request_id,
 
 let vendor = null;
 try {
-  // Inputs: an active gen4_turbo recipe (0043 seeds it retired, on purpose), the generation key.
+  // Inputs: an active gen4_turbo recipe (0044 seeds it retired, on purpose), the generation key.
   await client.query(`insert into prompts (name, driver, model, template, params, tags, discovered_in, is_active, accepts_character_ref) values ('verify-gen4', 'runway', 'gen4_turbo', '{{description}}', '{"max_duration_s": 10}', '{subject_medium}', 'manual', true, true)`);
   const { rows: rate } = await client.query(`select unit_cost from rate_card where driver = 'runway' and model = 'gen4_turbo' and unit = 'second' and endpoint is null and is_verified`);
   const RATE = Number(rate[0]?.unit_cost);
@@ -187,7 +187,7 @@ try {
 
   const j1 = await makeJob('stub');
   check(j1.line.billed_s === 5 && j1.line.inr === Math.round(5 * RATE * 88 * 100) / 100,
-    'a 4.6 s beat is priced as ONE 5 s gen4_turbo call at the 0043 rate (5 × $0.05 × ₹88)', `${j1.line.billed_s}s, ₹${j1.line.inr}`);
+    'a 4.6 s beat is priced as ONE 5 s gen4_turbo call at the 0044 rate (5 × $0.05 × ₹88)', `${j1.line.billed_s}s, ₹${j1.line.inr}`);
   check(j1.line.planned_inr === Math.round(5 * RATE * 1.5 * 88 * 100) / 100, 'and planned at 1.5× for re-rolls (the figure the cap fitter uses)', `₹${j1.line.planned_inr}`);
   check((await jobRow(j1.jobId)).status === 'queued', 'the job starts queued');
 

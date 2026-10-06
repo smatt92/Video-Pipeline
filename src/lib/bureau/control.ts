@@ -53,7 +53,7 @@ export async function approveBrief(
   if (!brief) throw new Error(`Brief ${input.brief_id} does not exist on this channel.`);
   // The repetition check must have RUN. A failed check is the approver's call against a flag;
   // a check that could not run gives the approver nothing to weigh. The same refusal sits in
-  // bureau_brief_approve (0043) for any caller that skips this function.
+  // bureau_brief_approve (0044) for any caller that skips this function.
   const refused = variationRefusal(brief.variation);
   if (refused) {
     throw new Error(

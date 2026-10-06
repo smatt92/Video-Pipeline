@@ -1,72 +1,4 @@
--- Kiln — migrations 0043 to 0043, bundled for the Supabase SQL editor.
---
--- GENERATED FILE. Do not edit; regenerate with `pnpm db:bundle`.
---
--- ── How to use ──────────────────────────────────────────────────────────────
---
---   1. Supabase dashboard → SQL Editor → New query
---   2. Paste this entire file
---   3. Run
---
--- Expected output is "Success. No rows returned". Anything else means nothing was
--- applied: the whole file is one transaction, so a failure rolls back every statement in
--- it. There is no half-applied state to clean up.
---
--- The last statement in this file is `notify pgrst, 'reload schema'`. Without it the
--- app keeps reporting "Could not find the table 'public.X' in the schema cache" even
--- though every table exists — PostgREST caches the schema and pasting SQL does not tell
--- it to reload. It is included; you do not need to run it separately.
---
--- ── Running it twice ────────────────────────────────────────────────────────
---
--- Safe. The guard below raises before any schema change if any of these versions is
--- already recorded, and the transaction rolls back. You will see an error that says so in
--- words — that error is the file working, not failing.
---
--- ── What it records ─────────────────────────────────────────────────────────
---
--- Each migration is written into supabase_migrations.schema_migrations, the same table
--- `supabase db push` uses. If the CLI starts working later it reads this as its own
--- history and reports the project up to date rather than replaying anything.
---
--- Migrations included (1):
---   0043  generation_on_runway
-
-begin;
-
-create schema if not exists supabase_migrations;
-
-create table if not exists supabase_migrations.schema_migrations (
-  version text not null primary key
-);
-
-alter table supabase_migrations.schema_migrations add column if not exists statements text[];
-alter table supabase_migrations.schema_migrations add column if not exists name text;
-
--- ── Guard ───────────────────────────────────────────────────────────────────
-do $kiln_guard$
-declare
-  seen text;
-begin
-  select string_agg(version, ', ' order by version) into seen
-  from supabase_migrations.schema_migrations
-  where version in ('0043');
-
-  if seen is not null then
-    raise exception
-      'Already applied: %. Nothing in this file has been run and the transaction is rolling back. Run pnpm db:doctor, then pnpm db:bundle --from <the next version> for what is actually outstanding.',
-      seen;
-  end if;
-end
-$kiln_guard$;
-
--- ════════════════════════════════════════════════════════════════════════════
--- 0043_generation_on_runway.sql
--- ════════════════════════════════════════════════════════════════════════════
-
-do $kiln_progress$ begin raise notice 'applying 0043 generation_on_runway'; end $kiln_progress$;
-
--- 0043 — Generation on the Runway API (decision 0015): the rates the router prices against,
+-- 0044 — Generation on the Runway API (decision 0015): the rates the router prices against,
 -- two recipes that wait to be watched, and the variation refusal in the database.
 --
 -- Forward-only. Inserts and one `create or replace function`; no DROP, no column change, so
@@ -137,7 +69,7 @@ on conflict (name, version) do nothing;
 -- 0040's function, unchanged except for the block marked NEW. `approveBrief` in TypeScript
 -- refuses first with a readable sentence; this is the refusal that holds for a caller that
 -- skips it. A `fail` stays approvable — flagged, and a human overriding a flag is the design
--- — but a check that did not run gives the human nothing to weigh. Reads the pre-0043
+-- — but a check that did not run gives the human nothing to weigh. Reads the pre-0044
 -- spelling 'incomplete' as well, so no stored row slips through on its name.
 create or replace function bureau_brief_approve(
   p_token uuid, p_brief uuid, p_punchline text, p_choice text, p_edits jsonb
@@ -162,7 +94,7 @@ begin
     raise exception 'invalid: a punchline is required';
   end if;
 
-  -- NEW (0043)
+  -- NEW (0044)
   if coalesce(b.variation->>'status', '') in ('refused', 'incomplete', '')
      or coalesce(b.variation->'similarity'->>'checked', 'false') <> 'true' then
     raise exception 'conflict: variation_check refused brief %: %', p_brief,
@@ -193,27 +125,3 @@ begin
 
   return ep;
 end $$;
-
-insert into supabase_migrations.schema_migrations (version, name, statements)
-values ('0043', 'generation_on_runway', array['-- applied from a lean bundle; text in supabase/migrations/0043_generation_on_runway.sql'])
-on conflict (version) do nothing;
-
--- ════════════════════════════════════════════════════════════════════════════
-commit;
-
--- ── Tell PostgREST the schema changed ───────────────────────────────────────
---
--- Outside the transaction, and not optional.
---
--- Supabase serves the app through PostgREST, which caches the schema in memory. The CLI
--- reloads that cache after a push; pasting SQL into the editor does not. So every table,
--- view and function this file created exists in the database and is invisible to the app
--- until this fires — and the error you get is "Could not find the table 'public.X' in the
--- schema cache", which reads exactly like the migration never ran.
---
--- That sentence cost an evening. It is in the file now so it cannot be forgotten.
-notify pgrst, 'reload schema';
-
--- Confirm from the editor:
---   select version, name from supabase_migrations.schema_migrations order by version;
---   select slug, kind, is_enabled from integrations order by slug;
