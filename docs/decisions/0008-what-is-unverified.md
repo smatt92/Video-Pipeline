@@ -1160,6 +1160,68 @@ If instead the Kiln tab shows *"This connection request was refused"*, its text 
 one-line fix. If Claude says the connection failed after Approve, the Vercel log for
 `/api/oauth/token` carries the `error_description`.
 
+### 17. The worker's environment from Vercel (2026-10-06, decision 0017) — tested against stubs; the sync itself NOT run
+
+**What has run:** `test:trigger-env` (CI) drives `vercelEnv()` — the wrapper around
+`syncVercelEnvVars` — with stub fetches standing in for `api.vercel.com`: every pre-build
+refusal by name (no token, an absent name, a Sensitive one, a branch-only one, a preview-only
+one, a 403), the check's listing made without `decrypt`, the **real** `syncVercelEnvVars`
+producing its layer with every required name, `process.exit(1)` when a required name does not
+arrive, and nothing at all for staging and dev. `check:trigger-env` runs in CI and prints
+`SKIP` (plus a GitHub notice) for the Vercel half, because CI holds no Vercel credential.
+
+**What has NOT run:**
+
+- **The sync.** It has not run until the first `pnpm trigger:deploy` with `VERCEL_ACCESS_TOKEN`
+  in the shell. Until then nobody has seen the CLI call these hooks in this order with these
+  shapes, or Vercel's real listing.
+- **Whether Sahil's production variables are Sensitive.** The likeliest state, given the Vercel
+  CLI's default; the deploy (or `VERCEL_ACCESS_TOKEN=… pnpm check:trigger-env`) will say, by
+  name. `api.vercel.com` is outside this container's egress, and the Vercel connector here has
+  no access to the team's scope.
+- **The worker running on synced values.** The first task run after that deploy is the proof.
+
+### 18. YouTube "Save and test" (2026-10-06) — the probe tested against stubs; Google NOT
+
+**What has run:** `test:youtube-probe` (CI) — every refusal by name with a stub fetch
+(`invalid_grant` as "Refresh token revoked or expired (7-day Testing expiry)", other exchange
+failures, 403 as "Token belongs to a different channel", 403 for scope, 5xx), the query naming
+`channel==<external_id>` over the last seven days, the `channel==MINE` fallback saying what it
+does not prove, and no request to an upload or Data API host. `verify:integration-gate` §5
+drives "Save and test" through `verifyIntegration` against Postgres: two check rows, the Bureau
+channel row's `external_id` in the query, a 403 leaving the integration unverified.
+
+**What has NOT run:** the probe against Google. It ran for real only once **Save and test is
+clicked on YouTube on the deploy** (Settings → Integrations). Expected: credentials ✓, channel
+✓ "The token reads UCsAOylowJKXg7TENr5GskGQ's Analytics". If the refresh token was minted
+without `yt-analytics.readonly`, the channel check says so by name.
+
+### 19. The agent connector, /api/mcp/agent (2026-10-06, decision 0018) — the server RUN over real HTTP; Claude's handshake NOT
+
+**What has run:** `verify:oauth` §12 — its own 401 header and metadata, its own issuer at the
+RFC 8414 path, consent preselecting and fixing agent, an approver form refused before a code
+exists, the agent token endpoint refusing an owner-door code, an approver code row and an
+approver refresh (revoking it), approver tokens of both kinds refused with 403 on the endpoint,
+and an agent connection made through it refused on `brief_approve` in TypeScript and SQL.
+Mutating the door's scope list or the endpoint's refusal fails 10 assertions. `verify:public`
+drives the real Next routes for the same discovery documents and the gated consent page.
+
+**What has NOT run:** Claude connecting to `/api/mcp/agent`. Only Sahil adding the second
+connector proves it — and that a scheduled task with **Kiln (agent)** enabled lists 13 tools
+and cannot approve. Same unknowns as §16 (Claude's exact discovery requests), plus one more:
+whether Claude caches authorization-server metadata per origin rather than per issuer. If the
+agent consent screen ever shows the approver radio, it does not — that page has none — so the
+tab is the owner door's and the connector URL was entered as `/api/mcp`.
+
+### 20. Bureau stages refuse an integration that has never verified (2026-10-06) — RUN
+
+`verify:integration-gate` (CI) and `verify:episode` drive the refusal and the accept path
+through dispatch, voice, dubs and embeddings with the key present in the environment, so the
+refusal can only be verification. One predicate (`hasVerified`, `src/lib/integrations/state.ts`)
+decides the Settings banner's count and the refusal. Not observed on the hosted project: there,
+every Bureau integration Sahil has clicked "Save and test" on is verified, so nothing changes
+until one is not.
+
 ## Gates, and where each can run
 
 | Gate | Runnable in this environment? |
@@ -1171,6 +1233,9 @@ one-line fix. If Claude says the connection failed after Approve, the Vercel log
 | 5 — guided first video end to end | **No.** Same reason, plus it spans every vendor. |
 | Studio connector — Anthropic fetching `/api/mcp` | **No.** Needs a public hostname. Run against a Vercel preview deploy with `STUDIO_MCP_TOKEN_SECRET` set. |
 | Claude chat connector — OAuth handshake (0016) | **No.** Only Sahil connecting from Claude to the production URL (§16). |
+| Agent connector — OAuth handshake on `/api/mcp/agent` (0018) | **No.** Only Sahil adding the second connector (§19). |
+| Worker env sync from Vercel (0017) | **No.** The first `pnpm trigger:deploy` with `VERCEL_ACCESS_TOKEN` (§17). |
+| YouTube "Save and test" against Google | **No.** Clicking it on the deploy (§18). |
 
 ## Closing this file
 

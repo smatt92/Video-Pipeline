@@ -1,6 +1,7 @@
 # 0016 — OAuth 2.1 for /api/mcp, so Claude chat and scheduled tasks can reach Kiln
 
 Status: accepted · 2026-10-06 · amends 0012 #2 ("tokens do not expire") for OAuth connections only
+· amended by 0018: a second, agent-only door at `/api/mcp/agent` with its own issuer
 
 ## Why
 

@@ -144,12 +144,35 @@ supabase/migrations/  forward-only
    uncosted.
 
 
-## Environment: two targets, two sets
+## Environment: Vercel is the single source (decision 0017)
 
-Vercel and Trigger.dev do **not** share environment variables. Every variable has to be
-set on both, or on exactly one, deliberately. A variable set on Vercel and forgotten on
-Trigger.dev produces a control plane that works and a pipeline that fails on its first
-real run.
+Kiln is personal-use: **every secret lives in Vercel → video-pipeline → Settings →
+Environment Variables → Production, entered once.** Nothing is typed into the Trigger.dev
+dashboard; the deploy copies Vercel production into the worker (`syncVercelEnvVars`, wrapped
+by `src/lib/trigger/vercel-env.ts`). Vault — the fields on Settings → Integrations — is
+optional: a key there wins over the environment, and an empty field falls back to it.
+
+Two things that are not optional:
+
+- **Production variables the worker needs must not be Sensitive.** Vercel never returns a
+  Sensitive value to anything, and the sync would skip it without a word. The deploy refuses,
+  naming each one; the fix is `vercel env rm NAME production` then
+  `vercel env add NAME production --no-sensitive`.
+- **Each integration still needs one "Save and test"** (Settings → Integrations, fields
+  empty — that tests the environment key). The stages refuse an integration that has never
+  verified, however present its key is.
+
+Deploy the worker (needs `pnpm dlx trigger.dev@4.5.9 login` once):
+
+```bash
+VERCEL_ACCESS_TOKEN=… TRIGGER_PROJECT_REF=proj_… pnpm trigger:deploy
+```
+
+`VERCEL_ACCESS_TOKEN`: vercel.com/account/settings/tokens, scoped to the
+`sahilmatt-6245s-projects` team. Keep it in your shell, **not** in Vercel (it would be synced
+into the worker). The project (`video-pipeline`) and team id are constants in
+`src/lib/trigger/vercel-env-check.ts`. To check Vercel before deploying:
+`VERCEL_ACCESS_TOKEN=… pnpm check:trigger-env` (names only; never values).
 
 Do **not** use the Vercel Marketplace Supabase integration — it injects its own variable
 names, which collide with the ones below.
@@ -186,7 +209,10 @@ nothing there submits a generation.
 ### Trigger.dev — the pipeline
 
 Orchestration, ffmpeg, Remotion, every vendor call. Deployed separately with
-`npx trigger.dev@latest deploy`.
+`pnpm trigger:deploy` (the pinned CLI — 0017 was written against what that version does).
+**Its environment is no longer set by hand**: the deploy copies Vercel production (above).
+The table below is what the worker reads, for reference; the required set is enforced by the
+deploy itself and listed by `pnpm check:trigger-env`.
 
 | Variable | Environments | Notes |
 |---|---|---|
@@ -210,10 +236,12 @@ values as Vercel.
 `USD_INR_RATE` is no longer read anywhere: the rate lives on `profiles.usd_inr_rate`. Delete
 it from both targets.
 
-Vendor keys for the Bureau lane — the voice vendor (TTS, dubbing, SFX), the embedding model
-and the YouTube/Instagram credentials — are entered in **Settings → Integrations** and stored
-in Vault; an environment variable of the field's name is only a fallback. Nothing new is
-required in either environment for them.
+Vendor keys for the Bureau lane — generation and voice, the embedding model, the LLM, storage
+and the YouTube/Instagram credentials — are read by the field's name (`RUNWAY_API_KEY`,
+`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `YOUTUBE_REFRESH_TOKEN`, …) from Vault first and the
+environment second. With Vercel as the single source, they are Vercel production variables;
+the deploy requires the Bureau roles' fields to be there (`workerCredentialFields()` in the
+catalogue).
 
 ### Two rules that are easy to get wrong
 
@@ -292,7 +320,9 @@ responsible for.
 
 ## The Kiln connector (Bureau of Reality control plane)
 
-`/api/mcp` serves two surfaces on one URL. A Studio session token (`k1.…`) reaches the six
+Two URLs, one server (decision 0018): **`/api/mcp`** takes approver or agent connections and
+is the one for you; **`/api/mcp/agent`** can only ever be agent and is the one for scheduled
+automations. `/api/mcp` serves two surfaces on one URL. A Studio session token (`k1.…`) reaches the six
 Studio tools; a Bureau token (`kb_…`) reaches the control plane: 21 tools and four
 resources (`kiln://bible/characters`, `kiln://series/{id}`, `kiln://policy/rubric`,
 `kiln://calendar/next-14`). Streamable HTTP, POST, JSON-RPC 2.0.
@@ -331,12 +361,17 @@ reason, the cap change — in the same transaction, and that table refuses UPDAT
 6. In a chat, enable the connector and try: *"list pending briefs"*, *"approve 1 with B"*,
    *"what is episode … doing?"*, *"approve the cut"*, *"give me the publish bundle"*.
 
-**A connector on Claude is visible to every scheduled task on your Claude account.** So the
-connection your scheduled tasks use should be consented with scope **agent**: an approver
-connection would let any scheduled task approve, publish, change caps or flip the kill switch.
-If you also want to approve from your phone, that is a separate approver connection — and
-then every scheduled task can see it too; keep scheduled tasks' prompts to agent actions, or
-keep the approver connection disconnected except when you are approving.
+**A connector on Claude is visible to every scheduled task on your Claude account**, and Claude
+offers one connection per connector URL. So there are two connectors:
+
+- **Your phone and chats — `Kiln` on `/api/mcp`, scope Approver** (steps above).
+- **The scheduled automations — `Kiln (agent)` on `/api/mcp/agent`.** Same steps with URL
+  `https://video-pipeline-seven.vercel.app/api/mcp/agent`. Its consent screen shows *Agent*,
+  fixed — there is no approver option, its token endpoint refuses to mint approver, and the
+  endpoint refuses an approver token of any kind (`403 approver_not_allowed_here`). In each
+  scheduled task, enable **Kiln (agent)** and leave **Kiln** off. The approver connector is
+  still visible to them; what the agent connector changes is that the one they are meant to
+  use cannot approve, publish, change caps or flip the kill switch.
 
 The connection appears in **Settings → MCP tokens** as an *OAuth connection* row. **Revoke**
 there ends its access token at once and refuses every refresh after it; Claude will ask you to
@@ -352,4 +387,5 @@ claude mcp add --transport http kiln https://video-pipeline-seven.vercel.app/api
 ```
 
 Routines send the same header. Revoke from the same settings page; revocation takes effect on
-the next request.
+the next request. A Routine holding an **agent** token can use either URL; an approver token on
+`/api/mcp/agent` is refused.

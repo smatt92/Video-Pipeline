@@ -77,6 +77,12 @@ Two checks because they catch different things and the cheap one runs on every p
 
 ### Environment variables the worker needs
 
+> **Superseded for secrets by 0017 (2026-10-06):** the deploy now copies Vercel production into
+> the worker (`syncVercelEnvVars`, wrapped by `src/lib/trigger/vercel-env.ts`), and refuses when a
+> required name is missing or Sensitive. The deploy command is
+> `VERCEL_ACCESS_TOKEN=… TRIGGER_PROJECT_REF=proj_… pnpm trigger:deploy`. The paragraph below is
+> the reasoning that still holds — the two environments are separate — not the procedure.
+
 Trigger.dev does **not** share Vercel's environment. Every variable is set separately, in
 the Trigger dashboard under Environment Variables, and a variable set on Vercel and
 forgotten here produces a control plane that works and a pipeline that fails on its first
