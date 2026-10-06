@@ -47,26 +47,41 @@ export async function regenerateShot(
     throw new Error('Overlay shots are rendered in-house and re-render with the cut; there is nothing to re-roll.');
   }
 
+  const r = await insertReroll(db, { channelId: token.channelId, episodeId: ep.id, shotId: shot.id, shotIdx: shot.idx, note: input.note });
+  await log(db, token, 'shot_regenerate', 'shot', shot.id, input.note, { episode_id: ep.id, job_id: r.jobId, reroll_index: r.rerollIndex });
+  return { ok: true as const, job_id: r.jobId, shot_idx: shot.idx, reroll_index: r.rerollIndex, rerolls_max: r.max };
+}
+
+/**
+ * Queue one re-roll of a generated shot: same provider, model and params as its latest job,
+ * `reroll_of` pointing back, `reroll_index` + 1, capped at `channel_policy.rerolls_max`. The
+ * one implementation behind both shot_regenerate (a person or agent asked) and QC (a clip
+ * failed its checks) — two copies of this would drift on the cap.
+ */
+export async function insertReroll(
+  db: Db,
+  input: { channelId: string; episodeId: string; shotId: string; shotIdx: number; note: string },
+): Promise<{ jobId: string; rerollIndex: number; max: number }> {
   const { data: last } = await db
     .from('gen_jobs')
     .select('id, render_route, provider, model, endpoint, params, prompt_id, duration_s, estimate_inr, reroll_index')
-    .eq('shot_id', shot.id)
+    .eq('shot_id', input.shotId)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
   if (!last) throw new Error('This shot has never been generated, so there is nothing to re-roll from.');
 
-  const { data: pol } = await db.from('channel_policy').select('rerolls_max').eq('channel_id', token.channelId).single();
+  const { data: pol } = await db.from('channel_policy').select('rerolls_max').eq('channel_id', input.channelId).single();
   const max = pol?.rerolls_max ?? 2;
   if (last.reroll_index >= max) {
-    throw new Error(`Shot ${shot.idx} has used its ${max} re-rolls. It goes to the approver as it is, or is swapped to an overlay.`);
+    throw new Error(`Shot ${input.shotIdx} has used its ${max} re-rolls. It goes to the approver as it is, or is swapped to an overlay.`);
   }
 
   const { data: job, error } = await db
     .from('gen_jobs')
     .insert({
-      episode_id: ep.id,
-      shot_id: shot.id,
+      episode_id: input.episodeId,
+      shot_id: input.shotId,
       render_route: last.render_route,
       provider: last.provider,
       model: last.model,
@@ -75,7 +90,7 @@ export async function regenerateShot(
       prompt_id: last.prompt_id,
       duration_s: last.duration_s,
       estimate_inr: last.estimate_inr,
-      idempotency_key: `reroll:${shot.id}:${last.reroll_index + 1}:${randomUUID()}`,
+      idempotency_key: `reroll:${input.shotId}:${last.reroll_index + 1}:${randomUUID()}`,
       reroll_of: last.id,
       reroll_index: last.reroll_index + 1,
       note: input.note,
@@ -83,9 +98,8 @@ export async function regenerateShot(
     .select('id')
     .single();
   if (error || !job) throw new Error(`Queueing the re-roll failed: ${error?.message}`);
-  await db.from('shots').update({ status: 'reshoot' }).eq('id', shot.id);
-  await log(db, token, 'shot_regenerate', 'shot', shot.id, input.note, { episode_id: ep.id, job_id: job.id, reroll_index: last.reroll_index + 1 });
-  return { ok: true as const, job_id: job.id, shot_idx: shot.idx, reroll_index: last.reroll_index + 1, rerolls_max: max };
+  await db.from('shots').update({ status: 'reshoot' }).eq('id', input.shotId);
+  return { jobId: job.id, rerollIndex: last.reroll_index + 1, max };
 }
 
 export async function queueDubs(db: Db, token: BureauToken, input: { episode_id: string; languages: DubLanguage[] }) {

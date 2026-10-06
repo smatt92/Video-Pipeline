@@ -1,4 +1,4 @@
-import { ffmpeg } from '@trigger.dev/build/extensions/core';
+import { aptGet, ffmpeg } from '@trigger.dev/build/extensions/core';
 
 import { headlessShell } from './src/lib/trigger/headless-shell';
 import { defineConfig } from '@trigger.dev/sdk';
@@ -64,7 +64,14 @@ export default defineConfig({
    * `puppeteer()` installs Chrome-stable, which supports only *new* headless mode and which
    * Remotion refuses. See that file for why the wrong browser is worse than none.
    */
-  build: { extensions: [ffmpeg(), headlessShell()] },
+  /**
+   * espeak-ng: the reference voice for forced alignment (src/lib/voice/align.ts). The voice
+   * vendor returns no word timings (decision 0013), and shot durations are derived from
+   * them. `aptGet` was read before adding it: its whole effect is an image layer running
+   * `apt-get install` on the named packages, in deploy builds only. UNVERIFIED like the
+   * rest of this block until a deploy runs (0008).
+   */
+  build: { extensions: [ffmpeg(), aptGet({ packages: ['espeak-ng'] }), headlessShell()] },
 
   dirs: ['./src/trigger'],
 });

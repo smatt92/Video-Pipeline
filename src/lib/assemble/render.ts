@@ -195,7 +195,7 @@ export async function renderComposition(input: RenderInput): Promise<RenderResul
  * duration spans every stream, so an audio track that does not end on a video-frame boundary
  * makes a correct render look 53ms long. Ask the stream that the plan is about.
  */
-async function probeVideoFrames(path: string): Promise<number | null> {
+export async function probeVideoFrames(path: string): Promise<number | null> {
   try {
     const { stdout } = await run('ffprobe', [
       '-v', 'error',

@@ -88,7 +88,11 @@ export async function episodeStatus(db: Db, channelId: string, id: string) {
 
 // ── Bundles ──────────────────────────────────────────────────────────────────
 
-export async function readyBundles(db: Db, channelId: string, opts: { withUrls: boolean } = { withUrls: true }) {
+export async function readyBundles(
+  db: Db,
+  channelId: string,
+  opts: { withUrls: boolean; presign?: (key: string, downloadAs: string) => Promise<string> } = { withUrls: true },
+) {
   const { data, error } = await db
     .from('v_ready_bundles')
     .select('publication_id, episode_id, slot_id, slot_date, series, topic, platform, status, title, description, tags, made_for_kids, altered_content_disclosed, scheduled_for, marked_scheduled_at, bundle, created_at')
@@ -98,7 +102,7 @@ export async function readyBundles(db: Db, channelId: string, opts: { withUrls: 
   if (error) throw new Error(error.message);
   const rows = data ?? [];
   if (!opts.withUrls) return rows;
-  const driver = storage();
+  const presign = opts.presign ?? (async (key: string, downloadAs: string) => (await storage().presignGet({ key, expiresIn: 3600, downloadAs })).url);
   return Promise.all(
     rows.map(async (r) => {
       const b = (r.bundle ?? {}) as { video_key?: string; files?: Record<string, string> };
@@ -107,7 +111,7 @@ export async function readyBundles(db: Db, channelId: string, opts: { withUrls: 
       for (const [name, key] of Object.entries(keys)) {
         if (!key) continue;
         try {
-          urls[name] = (await driver.presignGet({ key, expiresIn: 3600, downloadAs: key.split('/').pop() })).url;
+          urls[name] = await presign(key, key.split('/').pop() ?? 'file');
         } catch {
           // A URL that cannot be signed is left out, not faked; the key is still in `bundle`.
         }

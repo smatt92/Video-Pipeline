@@ -189,8 +189,13 @@ jobs:
       # The ingest and assembly paths have produced three bugs that made a file which
       # plays and is wrong, and duration is the only signal that caught all three. That is
       # not a class of bug to leave to a manual run.
-      - name: Install ffmpeg
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Install ffmpeg and espeak-ng
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg espeak-ng
+
+      # Durations come from word timings; the voice vendor returns none (0013). Audio with
+      # known boundaries in, timings out — and the wrong sentence refused.
+      - name: Forced alignment recovers word timings, and refuses the wrong text
+        run: pnpm test:align
 
       - name: Ingest normalises to the canonical intermediate
         run: pnpm verify:ingest "$DATABASE_URL"
@@ -366,6 +371,13 @@ jobs:
       # every one produced a file that plays and is wrong.
       - name: The final composition renders, and the file is the length the plan said
         run: pnpm verify:render
+
+      # The definition of done: brief → approval → voice (forced alignment) → queue → ingest
+      # → QC → a real three-layer render → cut approval → bundle, all through the Kiln MCP
+      # connector, with the vendors replaced by local stand-ins. And the refusal: a voice that
+      # does not match its script stops generation, and the blocker view says why.
+      - name: Bureau episode end to end through the connector, and the alignment refusal
+        run: pnpm verify:episode "$DATABASE_URL"
 
       # ── The compiled stylesheet, measured in a real browser ──────────────
       # After the build on purpose: it reads .next/static/css, because clamp(), @theme and

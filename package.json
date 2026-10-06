@@ -65,7 +65,11 @@
     "check:remotion": "node scripts/check-remotion-lockstep.mjs",
     "verify:render": "tsc -p tsconfig.verify.json && node scripts/verify-render.mjs",
     "verify:bureau": "tsc -p tsconfig.verify.json && node scripts/verify-bureau.mjs",
-    "test:bureau": "tsc -p tsconfig.verify.json && node scripts/test-bureau-checks.mjs"
+    "test:bureau": "tsc -p tsconfig.verify.json && node scripts/test-bureau-checks.mjs",
+    "test:align": "tsc -p tsconfig.verify.json && node scripts/test-align.mjs",
+    "verify:episode": "tsc -p tsconfig.verify.json && node scripts/verify-episode.mjs",
+    "voice:audition": "tsc -p tsconfig.verify.json && node scripts/voice-audition.mjs",
+    "voice:lock": "tsc -p tsconfig.verify.json && node scripts/voice-lock.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

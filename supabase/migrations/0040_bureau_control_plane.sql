@@ -351,6 +351,13 @@ end $$;
 -- Prompt H: when forced alignment fails or is not confident, timings are null, durations
 -- stay estimates, and stage 5 keeps refusing. Without this branch the view would say "stage
 -- 6 has not run" about a script whose stage 6 ran and paid — the wrong next action.
+--
+-- And two branches that could not see a Bureau script: an overlay shot has no recipe and no
+-- compiled parameters by design (it is rendered in-house), and a Bureau shot is compiled
+-- AFTER the voice sets its duration, not before. So the recipe/rate branches apply to legacy
+-- shots (render_route null), and the workspace-wide vendor checks apply only when a shot is
+-- actually generated. verify:episode reads this view for a Bureau script and asserts the
+-- alignment reason, which is how this was found.
 
 create or replace view v_pipeline_blockers as
  SELECT s.id AS script_id,
@@ -359,10 +366,10 @@ create or replace view v_pipeline_blockers as
     c.title,
     s.created_at,
         CASE
-            WHEN NOT (EXISTS ( SELECT 1
+            WHEN nv.needs_video AND NOT (EXISTS ( SELECT 1
                FROM integrations i
               WHERE i.kind = 'video'::text AND i.is_enabled AND i.last_verified_at IS NOT NULL)) THEN 'no verified video integration — enabling states intent, verifying states fact'::text
-            WHEN NOT (EXISTS ( SELECT 1
+            WHEN nv.needs_video AND NOT (EXISTS ( SELECT 1
                FROM prompts p
               WHERE p.is_active)) THEN 'the prompt library has no active recipe — production reads the library, it never improvises'::text
             WHEN NOT (EXISTS ( SELECT 1
@@ -370,11 +377,11 @@ create or replace view v_pipeline_blockers as
               WHERE sh.script_id = s.id)) THEN 'no shots — stage 4 has not run'::text
             WHEN (EXISTS ( SELECT 1
                FROM shots sh
-              WHERE sh.script_id = s.id AND (sh.compiled_params IS NULL OR sh.prompt_id IS NULL))) THEN 'some shots have no compiled parameters — no library recipe matched'::text
+              WHERE sh.script_id = s.id AND sh.render_route IS NULL AND (sh.compiled_params IS NULL OR sh.prompt_id IS NULL))) THEN 'some shots have no compiled parameters — no library recipe matched'::text
             WHEN (EXISTS ( SELECT 1
                FROM shots sh
                  JOIN prompts p ON p.id = sh.prompt_id
-              WHERE sh.script_id = s.id AND NOT (EXISTS ( SELECT 1
+              WHERE sh.script_id = s.id AND sh.render_route IS NULL AND NOT (EXISTS ( SELECT 1
                        FROM rate_card rc
                       WHERE rc.driver = p.driver AND rc.model = p.model AND rc.unit = 'credit'::text AND rc.is_verified AND rc.effective_from <= now())))) THEN 'no verified credit rate for the recipe these shots use — the call cannot be priced'::text
             WHEN s.pilot_rejected_at IS NOT NULL THEN 'the pilot shot was rejected — change the recipe and submit a new pilot'::text
@@ -394,10 +401,10 @@ create or replace view v_pipeline_blockers as
             ELSE NULL::text
         END AS blocker,
         CASE
-            WHEN NOT (EXISTS ( SELECT 1
+            WHEN nv.needs_video AND NOT (EXISTS ( SELECT 1
                FROM integrations i
               WHERE i.kind = 'video'::text AND i.is_enabled AND i.last_verified_at IS NOT NULL)) THEN true
-            WHEN NOT (EXISTS ( SELECT 1
+            WHEN nv.needs_video AND NOT (EXISTS ( SELECT 1
                FROM prompts p
               WHERE p.is_active)) THEN true
             ELSE false
@@ -405,7 +412,11 @@ create or replace view v_pipeline_blockers as
     s.pilot_generation_id IS NOT NULL AND s.pilot_approved_at IS NULL AND s.pilot_rejected_at IS NULL AS awaiting_pilot_approval
    FROM scripts s
      JOIN concepts c ON c.id = s.concept_id
-     JOIN channels ch ON ch.id = c.channel_id;
+     JOIN channels ch ON ch.id = c.channel_id
+     -- An all-overlay Bureau script needs no video vendor and no recipe: the workspace-wide
+     -- blockers apply only when some shot is generated (or, for a legacy script, always).
+     CROSS JOIN LATERAL ( SELECT NOT (EXISTS ( SELECT 1 FROM shots sh WHERE sh.script_id = s.id))
+                              OR (EXISTS ( SELECT 1 FROM shots sh WHERE sh.script_id = s.id AND sh.render_route IS DISTINCT FROM 'overlay'::text)) AS needs_video) nv;
 
 -- ═════════════════════════════════════════════════════════════════════════════
 -- Read-side views for the control room and the MCP tools

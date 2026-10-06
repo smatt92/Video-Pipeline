@@ -54,7 +54,10 @@ const notes = [];
 //
 // Derived rather than hardcoded. A list of "tasks that need ffmpeg" is a list somebody has
 // to remember to update, which is the same failure mode one level up.
-const BINARIES = ['ffmpeg', 'ffprobe'];
+// espeak-ng joins with the forced aligner (src/lib/voice/align.ts, decision 0013): it is the
+// reference voice the Runway audio is warped against. Installed by `aptGet`, which reads to
+// exactly `apt-get install <packages>` — checked by reading its source, per CLAUDE.md.
+const BINARIES = ['ffmpeg', 'ffprobe', 'espeak-ng'];
 const sources = await collectSources('src');
 const needs = new Map();
 
@@ -80,7 +83,8 @@ for (const [file, text] of sources) {
 
 // ── 2. Does the package still export the extension? ─────────────────────────
 let extensionName = null;
-if (needs.size > 0) {
+const needsFfmpeg = needs.has('ffmpeg') || needs.has('ffprobe');
+if (needsFfmpeg) {
   try {
     const mod = await import('@trigger.dev/build/extensions/core');
     if (typeof mod.ffmpeg !== 'function') {
@@ -119,7 +123,15 @@ const config = readFileSync('trigger.config.ts', 'utf8');
 const declaresImport = /from\s+['"]@trigger\.dev\/build\/extensions\/core['"]/.test(config);
 const declaresExtension = /extensions\s*:\s*\[[^\]]*\bffmpeg\s*\(/s.test(config);
 
-if (needs.size > 0) {
+if (needs.has('espeak-ng') && !/aptGet\s*\(\s*\{\s*packages\s*:\s*\[[^\]]*['"]espeak-ng['"]/s.test(config)) {
+  problems.push(
+    'src/ spawns espeak-ng (the forced aligner) but trigger.config.ts has no ' +
+      "`aptGet({ packages: [..., 'espeak-ng'] })`. Every voice line would synthesise, bill, " +
+      'and then fail alignment with ENOENT — timings null, stage 5 refusing, money spent.',
+  );
+}
+
+if (needsFfmpeg) {
   if (!declaresImport) {
     problems.push(
       'trigger.config.ts does not import from `@trigger.dev/build/extensions/core`, but ' +
@@ -140,7 +152,7 @@ if (needs.size > 0) {
 // Not an error, but worth saying. An extension declared for code that no longer exists is
 // image weight and build time nobody chose, and it is the kind of thing that survives a
 // refactor unnoticed.
-if (needs.size === 0 && declaresExtension) {
+if (!needsFfmpeg && declaresExtension) {
   notes.push(
     'trigger.config.ts declares the ffmpeg extension and nothing under src/ spawns ffmpeg ' +
       'or ffprobe any more. Not a failure — but the image is carrying it for nobody.',

@@ -65,11 +65,8 @@ export function headlessShell(): BuildExtension {
         },
         deploy: {
           env: {
-            // Consumed by whatever passes `browserExecutable` into `renderComposition`.
-            // Deliberately NOT yet in `src/lib/trigger/worker-env.ts`: nothing reads it until
-            // the assemble task does, and `check:trigger-env` derives requirements from the
-            // import graph — a declared-but-unreachable entry is what that check exists to
-            // catch.
+            // Consumed by 20-episode, which passes it to renderBureau. Declared in
+            // src/lib/trigger/worker-env.ts (required: false) now that a task reads it.
             REMOTION_BROWSER_EXECUTABLE:
               `/opt/browsers/chrome-headless-shell/linux-${SHELL_VERSION}/`
               + 'chrome-headless-shell-linux64/chrome-headless-shell',

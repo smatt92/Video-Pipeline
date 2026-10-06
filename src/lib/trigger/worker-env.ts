@@ -55,7 +55,7 @@ import { storageWorkerEnv } from '../storage/worker-env';
  * other entry — a typo'd schema variable would then be a manifest line for a variable that
  * does not exist.
  */
-export type WorkerEnvName = keyof Env | 'KILN_LOCAL_STORAGE_ROOT';
+export type WorkerEnvName = keyof Env | 'KILN_LOCAL_STORAGE_ROOT' | 'REMOTION_BROWSER_EXECUTABLE';
 
 export interface WorkerEnvVar {
   readonly name: WorkerEnvName;
@@ -70,6 +70,15 @@ export interface WorkerEnvVar {
 }
 
 const coreWorkerEnv: readonly WorkerEnvVar[] = [
+  {
+    name: 'REMOTION_BROWSER_EXECUTABLE',
+    required: false,
+    refusedBy:
+      'Set by the image, not by you: the headlessShell() build extension writes it at deploy. '
+      + 'Read by 20-episode for the Bureau render. Unset (a dev run), Remotion uses its own '
+      + 'downloaded browser; on the deployed worker an unset value would mean the extension '
+      + 'did not run, and the first render fails after the clips were paid for.',
+  },
   // ── Required by the schema, not by any task ─────────────────────────────────
   {
     name: 'APP_URL',

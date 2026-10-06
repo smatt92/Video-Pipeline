@@ -1,5 +1,6 @@
 import { Composition } from 'remotion';
 
+import { BureauVideo, type BureauVideoProps } from './bureau/bureau-video';
 import { KilnVideo, type KilnVideoProps } from './kiln-video';
 
 /**
@@ -29,8 +30,28 @@ const DEFAULT_PROPS: KilnVideoProps = {
   clipFrames: [],
 };
 
+const BUREAU_DEFAULTS: BureauVideoProps = {
+  layer: 'composite',
+  shots: [{ type: 'overlay', overlay: { kind: 'orbit', camera: 'slow dolly-in', accent: '#22D3EE', seed: 1 }, frames: 30 }],
+  audioUrl: null,
+  musicUrl: null,
+  cues: [],
+  hook: null,
+  safeBox: { x: 54, y: 154, width: 875, height: 1382 },
+};
+
 export function RemotionRoot() {
   return (
+    <>
+    <Composition
+      id="bureau-video"
+      component={BureauVideo}
+      durationInFrames={30}
+      fps={30}
+      width={1080}
+      height={1920}
+      defaultProps={BUREAU_DEFAULTS}
+    />
     <Composition
       id="kiln-video"
       component={KilnVideo}
@@ -40,5 +61,6 @@ export function RemotionRoot() {
       height={1920}
       defaultProps={DEFAULT_PROPS}
     />
+    </>
   );
 }

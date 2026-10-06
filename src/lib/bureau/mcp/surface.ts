@@ -44,6 +44,8 @@ import {
 export type BureauSideEffects = Effects & {
   /** Embeddings for variation_check; absent → similarity reported as not computed. */
   embedderFor?(db: Db, channelId: string): Promise<Embedder | undefined>;
+  /** Signed download URL for a stored bundle file; absent → the deployment's storage driver. */
+  presign?(key: string, downloadAs: string): Promise<string>;
   /** The policy judge for needs_judge lints; absent → the brief stays flagged. */
   judgeFor?(db: Db, channelId: string): Promise<((lint: LintResult, text: string) => Promise<LintResult>) | undefined>;
 };
@@ -212,7 +214,7 @@ export const BUREAU_TOOLS: BureauTool[] = [
     description: 'Bundles for manual scheduling in YouTube Studio (the upload API is not audited): MP4 download URL (1 h), title, description, tags, madeForKids=false, containsSyntheticMedia, slot time.',
     scope: 'approver',
     args: Empty,
-    run: async (c) => ({ ok: true, bundles: await readyBundles(c.db, c.token.channelId) }),
+    run: async (c) => ({ ok: true, bundles: await readyBundles(c.db, c.token.channelId, { withUrls: true, presign: c.effects.presign }) }),
   }),
   tool({
     name: 'mark_scheduled',

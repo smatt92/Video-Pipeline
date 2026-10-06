@@ -8,8 +8,11 @@ Read `docs/ARCHITECTURE.md` before proposing anything structural. `docs/SCHEMA.s
 Next.js 15 (App Router) on Vercel · Supabase Postgres · **Supabase Storage** (S3 protocol) ·
 **Trigger.dev v4** · Remotion + ffmpeg · **`@remotion/renderer`** for the final render ·
 **Remotion Player** (`@remotion/player`) / Vidstack /
-**wavesurfer.js** on the review screen · Higgsfield (**`@higgsfield/client`**) · ElevenLabs · Anthropic SDK ·
-TypeScript strict · pnpm
+**wavesurfer.js** on the review screen · Higgsfield (**`@higgsfield/client`**) · **Runway API** (voice,
+dubs, SFX, Act-Two — 0013) · Gemini (Veo money shots, embeddings) · fal (failover) · ElevenLabs
+(direct, per-character upgrade only) · **espeak-ng** on the worker (forced-alignment reference) ·
+Anthropic SDK (Opus / Sonnet / Haiku through `src/lib/llm/router.ts`) · Three.js (Bureau overlays,
+projected to SVG) · TypeScript strict · pnpm
 
 The three Remotion packages must sit on the **identical** version, not on compatible ranges.
 `pnpm check:remotion` enforces it from the installed tree rather than from the declared
