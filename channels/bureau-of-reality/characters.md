@@ -29,7 +29,8 @@ overlays rendered by Kiln. Adult office satire — memos, budgets, compliance, b
 | `catchphrase.max_per_week` | Enforced by `variation_check` across the last 7 days of briefs. |
 | `visual_lock` | Prompt material for character beats. Image-to-video always starts from a locked reference frame. |
 | `reference_frame_ids` | **Placeholders** until Prompt B (Higgsfield chat) locks the cast. Paste the locked image URLs/ids here; `syncCast` copies them to `characters.reference_urls` / `external_ref_id`. |
-| `voice_id` | The **ElevenLabs** voice id for this character (vendor-neutral key because core code reads this file — CLAUDE.md rule 1). `null` until the voice is designed; the voice stage refuses a line for a character with no voice rather than substituting one. |
+| `voice` | `{ "provider": "runway", "preset_id": null }` — one locked **Runway preset** per character (plan v2.2: voice, dubs and SFX run on the Runway API). `preset_id` stays `null` until `pnpm voice:audition` has rendered the candidates and `pnpm voice:lock <character> <preset>` writes Sahil's pick. The voice stage refuses a line for a character with no locked voice rather than substituting one. Schema: `src/lib/drivers/voice-route.ts`. |
+| `elevenlabs_voice_id` | Optional upgrade path. Set `voice.provider` to `"elevenlabs"` and fill this to move one character off presets onto a designed voice at the direct vendor; nothing else changes. |
 | `never_do` | Hard constraints, passed to every prompt that writes for the character. |
 
 ## Recurring rules

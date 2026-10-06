@@ -21,7 +21,10 @@ set -uo pipefail
 # 'instagram', and which platform a video is published to is an editorial decision with its
 # own aspect ratio and disclosure obligations — not a swappable driver. What must stay
 # behind the boundary is the API surface, and that is what this name catches.
-VENDORS='higgsfield\|elevenlabs\|googleapis'
+# `runway`, `gemini` and `eleven_` (the TTS model prefix) join with the Bureau retarget and
+# plan v2.2 (voice, dubs and SFX on the Runway API — decision 0013). Same reasoning: which
+# company speaks a character is a driver concern, never a core one.
+VENDORS='higgsfield\|elevenlabs\|googleapis\|runway\|gemini\|eleven_'
 status=0
 
 # ── Check 1: the rule exactly as written in CLAUDE.md ────────────────────────

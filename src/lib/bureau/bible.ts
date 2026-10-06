@@ -12,6 +12,7 @@ import myth from '../../../channels/bureau-of-reality/series/myth.json';
 import pip from '../../../channels/bureau-of-reality/series/pip.json';
 import { bureauSeries, hookPattern } from '../db/enums';
 import { ROUTE_PROVIDERS } from '../drivers/jobs';
+import { CharacterVoiceFields, voiceKey, voiceRouteFor } from '../drivers/voice-route';
 
 /**
  * The channel bible, parsed once and typed.
@@ -45,7 +46,8 @@ export const CharacterSchema = z.object({
     silhouette: z.string(),
   }),
   reference_frame_ids: z.array(z.string().min(1)).min(1),
-  voice_id: z.string().min(1).nullable(),
+  // Vendor-shaped, so the schema lives in the driver layer (rule 1). See voice-route.ts.
+  ...CharacterVoiceFields,
   voice_brief: z.string().min(1),
   never_do: z.array(z.string().min(1)).min(1),
 });
@@ -180,13 +182,16 @@ export async function syncCast(db: {
   const now = new Date().toISOString();
   const rows = BIBLE.characters.map((c) => {
     const real = c.reference_frame_ids.filter((r) => !r.startsWith('PLACEHOLDER_'));
+    // `voice_id` holds the routed voice ("<provider>:<id>") or null while unlocked — never a
+    // stand-in, because the voice stage reads null as "refuse this line".
+    const route = voiceRouteFor(c);
     return {
       channel_id: BUREAU_CHANNEL_ID,
       slug: c.id,
       name: c.name,
       role: c.role,
       accent_hex: c.accent_hex,
-      voice_id: c.voice_id,
+      voice_id: route.ok ? voiceKey(route) : null,
       on_screen: c.on_screen,
       season_introduced: c.season_introduced,
       bible: c,

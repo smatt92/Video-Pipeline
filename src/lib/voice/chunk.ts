@@ -32,7 +32,7 @@ export interface ChunkOptions {
   maxWords?: number;
   /** Below this, a trailing fragment is merged back into the previous chunk. */
   minWords?: number;
-  /** Hard, from the model. `eleven_v3` is 5k, `eleven_multilingual_v2` is 10k. */
+  /** Hard, from the model: the expressive model takes 5k, the multilingual one 10k. */
   maxChars: number;
 }
 

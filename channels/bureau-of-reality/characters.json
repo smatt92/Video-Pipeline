@@ -42,7 +42,8 @@
         "silhouette": "slight forward lean; lanyard swings past the knees"
       },
       "reference_frame_ids": ["PLACEHOLDER_PIP_REF_1"],
-      "voice_id": null,
+      "voice": { "provider": "runway", "preset_id": null },
+      "elevenlabs_voice_id": null,
       "voice_brief": "Bright, fast, curious young adult; not childlike.",
       "never_do": [
         "Never shown as a child or in a classroom.",
@@ -73,7 +74,8 @@
         "silhouette": "tall, stooped, hands behind back"
       },
       "reference_frame_ids": ["PLACEHOLDER_MARLO_REF_1"],
-      "voice_id": null,
+      "voice": { "provider": "runway", "preset_id": null },
+      "elevenlabs_voice_id": null,
       "voice_brief": "Deadpan baritone, dry.",
       "never_do": ["Never runs.", "Never panics on screen.", "The mug never touches a surface."]
     },
@@ -100,7 +102,8 @@
         "silhouette": "upright; glasses pushed up to correct someone"
       },
       "reference_frame_ids": ["PLACEHOLDER_IYER_REF_1"],
-      "voice_id": null,
+      "voice": { "provider": "runway", "preset_id": null },
+      "elevenlabs_voice_id": null,
       "voice_brief": "Crisp Indian-English, dry wit, warm underneath.",
       "never_do": ["Never a caricature or accent joke.", "Never wrong about a date.", "Never without the tumbler on her desk."]
     },
@@ -127,7 +130,8 @@
         "silhouette": "thin, sharpened point at the feet"
       },
       "reference_frame_ids": ["PLACEHOLDER_NIB_REF_1"],
-      "voice_id": null,
+      "voice": { "provider": "runway", "preset_id": null },
+      "elevenlabs_voice_id": null,
       "voice_brief": "Whispery, conspiratorial, playful.",
       "never_do": ["Never treats a crime as entertainment.", "Never states legend as fact.", "Never gets sharpened on screen."]
     },
@@ -154,7 +158,8 @@
         "silhouette": "lantern ring on top; glow halo"
       },
       "reference_frame_ids": ["PLACEHOLDER_KAZ_REF_1"],
-      "voice_id": null,
+      "voice": { "provider": "runway", "preset_id": null },
+      "elevenlabs_voice_id": null,
       "voice_brief": "Warm storyteller, unhurried.",
       "never_do": ["Never devotional framing.", "Never mocks a belief.", "Never depicts deities as characters."]
     },
@@ -177,7 +182,8 @@
         "silhouette": "lamp only; never a body"
       },
       "reference_frame_ids": ["PLACEHOLDER_OHM_REF_1"],
-      "voice_id": null,
+      "voice": { "provider": "runway", "preset_id": null },
+      "elevenlabs_voice_id": null,
       "voice_brief": "Filtered, formal memo voice.",
       "never_do": ["Never seen.", "Never jokes.", "Never named by first name."]
     },
@@ -203,7 +209,8 @@
         "silhouette": "box on a short post"
       },
       "reference_frame_ids": ["PLACEHOLDER_COMPLAINT_BOX_REF_1"],
-      "voice_id": null,
+      "voice": { "provider": "runway", "preset_id": null },
+      "elevenlabs_voice_id": null,
       "voice_brief": "Gravelly, weary, fond.",
       "never_do": ["Never reads a private comment.", "Never mocks the viewer."]
     },
@@ -226,7 +233,8 @@
         "silhouette": "rigid posture, clipboard at chest"
       },
       "reference_frame_ids": ["PLACEHOLDER_AUDITOR_REF_1"],
-      "voice_id": null,
+      "voice": { "provider": "runway", "preset_id": null },
+      "elevenlabs_voice_id": null,
       "voice_brief": "Clipped, corporate.",
       "never_do": ["Never appears before Season 2.", "Never resembles a real executive or politician."]
     }

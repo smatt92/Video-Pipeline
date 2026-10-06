@@ -56,9 +56,10 @@ export const driverEnvSchema = z.object({
 
   HIGGSFIELD_API_BASE_URL: z.url().default('https://platform.higgsfield.ai'),
 
-  // ── ElevenLabs ────────────────────────────────────────────────────────────
-  // Local-development fallback only, like the others. The authoritative source is the
-  // integration record, whose credential lives in Vault.
+  // ── ElevenLabs (direct) ───────────────────────────────────────────────────
+  // Optional since plan v2.2: only a character whose bible entry sets
+  // voice.provider = "elevenlabs" reaches the direct vendor. Local-development fallback
+  // only, like the others; the authoritative source is the integration record (Vault).
   ELEVENLABS_API_KEY: nonEmpty('ELEVENLABS_API_KEY').optional(),
 
   // ── fal.ai ────────────────────────────────────────────────────────────────
@@ -68,7 +69,10 @@ export const driverEnvSchema = z.object({
 
   // Veo money shots + embeddings for the variation check.
   GEMINI_API_KEY: nonEmpty('GEMINI_API_KEY').optional(),
-  // Act-Two. Optional: absent means acted beats are planned as overlays.
+  // Voice, dubs, sound effects and Act-Two (plan v2.2, decision 0013). Optional *here*
+  // because this schema is validated at boot on Vercel, which never speaks; the voice stage
+  // and the dub task refuse without it, by name, on the worker where they run. Absent also
+  // means acted beats are planned as overlays.
   RUNWAY_API_KEY: nonEmpty('RUNWAY_API_KEY').optional(),
   // Notifications (briefs pending, cuts ready, cap at 80%, policy and QC alerts).
   SLACK_WEBHOOK_URL: z.url().optional(),
