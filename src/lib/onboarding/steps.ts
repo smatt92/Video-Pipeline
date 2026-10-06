@@ -60,9 +60,9 @@ export const STEPS: readonly OnboardingStep[] = [
   {
     n: 4,
     slug: 'video',
-    title: 'Video generation',
-    blurb: 'The generator. Needs storage working first — a clip that generates and cannot be written is a clip you paid for and lost.',
-    verification: 'Fetches the credit balance and its expiry date. Credits expire ~90 days from purchase and that clock starts now.',
+    title: 'Generation',
+    blurb: 'Character video, money shots, reference frames, voice, dubs and sound effects — one API key, one credit pool (decision 0015). Needs storage working first: a clip that generates and cannot be written is a clip you paid for and lost.',
+    verification: 'Reads the organisation with the key, which proves it and returns the API credit balance. API credits are a separate pool from app credits.',
     blockedBy: [2],
     required: true,
   },
@@ -70,9 +70,21 @@ export const STEPS: readonly OnboardingStep[] = [
     n: 5,
     slug: 'audio',
     title: 'Voiceover',
-    blurb: 'Voice, and the word timings that shot durations are derived from.',
-    verification: 'Lists voices and reads the subscription tier, then stores that tier’s concurrency limit — this is what the queue reads later, never a hardcoded number.',
+    blurb: 'Voice, and the word timings that shot durations are derived from. Spoken on the generation key — if step 4 verified, this verifies with the same call.',
+    verification: 'The same organisation read as step 4. Word timings come from forced alignment on the worker, not from the vendor (0013).',
     blockedBy: [2],
+    required: true,
+  },
+  {
+    // Numbered 11 because step numbers are stored in profiles.onboarding_completed_steps;
+    // renumbering would silently re-mean every recorded completion. Listed here, after the
+    // voice step, because that is where it belongs in the order a person walks it.
+    n: 11,
+    slug: 'embeddings',
+    title: 'Embeddings',
+    blurb: 'Script and title similarity for the variation check. A free-tier key is enough. Without it every brief is refused by name — a repetition check that did not run has not passed.',
+    verification: 'Lists one model with the key.',
+    blockedBy: [],
     required: true,
   },
   {
