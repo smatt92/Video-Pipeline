@@ -476,6 +476,20 @@ try {
     shapeRefused = true;
   }
   check(shapeRefused, 'the database refuses an expiry on a static token (mcp_tokens_kind_shape)');
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  console.log('\n11. Deployed before 0045 is pasted\n');
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Vercel deploys main the moment it lands; the hosted migration is pasted by hand later. In
+  // between, the token lookup must not name a column that does not exist yet, or every static
+  // token — the Routines — answers 503. Simulated by hiding the column.
+  await client.query('alter table mcp_tokens rename column expires_at to expires_at_not_yet');
+  try {
+    const pre = await rpc('tools/list', {}, stat.plaintext);
+    check(pre.status === 200, 'a static token still works on a database without mcp_tokens.expires_at', String(pre.status));
+  } finally {
+    await client.query('alter table mcp_tokens rename column expires_at_not_yet to expires_at');
+  }
 } catch (err) {
   bad('harness threw', err.stack ?? err.message);
 } finally {

@@ -81,7 +81,11 @@ export type ResolveResult =
 export async function resolveBureauToken(db: Db, plaintext: string): Promise<ResolveResult> {
   const { data, error } = await db
     .from('mcp_tokens')
-    .select('id, name, scope, channel_id, profile_id, revoked_at, expires_at')
+    // `*`, not a column list naming expires_at: until 0045 is pasted into the hosted project
+    // that column does not exist, and naming it would turn every static-token request into a
+    // 503 the moment this code deploys. With `*` a missing column reads as undefined — no
+    // expiry — which is exactly what every pre-0045 row means.
+    .select('*')
     .eq('token_hash', hashToken(plaintext))
     .maybeSingle();
 
@@ -89,7 +93,8 @@ export async function resolveBureauToken(db: Db, plaintext: string): Promise<Res
   if (!data) return { ok: false, reason: 'unknown' };
   if (data.revoked_at) return { ok: false, reason: 'revoked' };
   // An OAuth access token past its hour. The connector answers a 401 by refreshing.
-  if (data.expires_at && new Date(data.expires_at).getTime() <= Date.now()) {
+  const expiresAt = (data as { expires_at?: string | null }).expires_at;
+  if (expiresAt && new Date(expiresAt).getTime() <= Date.now()) {
     return { ok: false, reason: 'expired' };
   }
 

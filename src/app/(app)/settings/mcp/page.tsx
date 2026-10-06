@@ -16,7 +16,8 @@ export const dynamic = 'force-dynamic';
 export default async function McpTokensPage() {
   const { data: tokens } = await serverClient()
     .from('mcp_tokens')
-    .select('id, name, scope, kind, token_prefix, created_at, last_used_at, revoked_at, expires_at')
+    // `*` so the list still renders on a database without 0045's `kind` column.
+    .select('*')
     .order('created_at', { ascending: false });
   const url = `${env.APP_URL.replace(/\/$/, '')}/api/mcp`;
 
