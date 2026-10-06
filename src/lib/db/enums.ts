@@ -278,6 +278,8 @@ export type PromptProvenance = z.infer<typeof promptProvenance>;
 // ── Bureau of Reality (0037) ─────────────────────────────────────────────────
 
 export const mcpTokenScope = z.enum(['approver', 'agent']);
+export const mcpTokenKind = z.enum(['static', 'oauth']);
+export const oauthClientRegistration = z.enum(['metadata_document', 'dynamic']);
 export const actorScope = z.enum(['approver', 'agent', 'ui', 'system']);
 export const slotKind = z.enum(['short', 'long_form', 'bank']);
 export const bureauSeries = z.enum([
@@ -352,6 +354,9 @@ export const ENUM_CONSTRAINT_MAP = {
   'shots.shot_kind': shotKind,
   'prompts.discovered_in': promptProvenance,
   'mcp_tokens.scope': mcpTokenScope,
+  'mcp_tokens.kind': mcpTokenKind,
+  'oauth_clients.registration': oauthClientRegistration,
+  'oauth_codes.scope': mcpTokenScope,
   'authorship_log.actor_scope': actorScope,
   'slots.kind': slotKind,
   'slots.series': slotSeries,

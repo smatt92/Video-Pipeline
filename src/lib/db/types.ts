@@ -2289,9 +2289,13 @@ export type Database = {
         Row: {
           channel_id: string
           created_at: string
+          expires_at: string | null
           id: string
+          kind: string
           last_used_at: string | null
           name: string
+          oauth_client_id: string | null
+          oauth_redirect_uri: string | null
           profile_id: string | null
           revoked_at: string | null
           scope: string
@@ -2301,9 +2305,13 @@ export type Database = {
         Insert: {
           channel_id: string
           created_at?: string
+          expires_at?: string | null
           id?: string
+          kind?: string
           last_used_at?: string | null
           name: string
+          oauth_client_id?: string | null
+          oauth_redirect_uri?: string | null
           profile_id?: string | null
           revoked_at?: string | null
           scope: string
@@ -2313,9 +2321,13 @@ export type Database = {
         Update: {
           channel_id?: string
           created_at?: string
+          expires_at?: string | null
           id?: string
+          kind?: string
           last_used_at?: string | null
           name?: string
+          oauth_client_id?: string | null
+          oauth_redirect_uri?: string | null
           profile_id?: string | null
           revoked_at?: string | null
           scope?: string
@@ -2505,6 +2517,156 @@ export type Database = {
             columns: ["channel_id"]
             isOneToOne: false
             referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      oauth_clients: {
+        Row: {
+          client_id: string
+          client_name: string
+          created_at: string
+          last_seen_at: string
+          metadata: Json
+          redirect_uris: string[]
+          registration: string
+        }
+        Insert: {
+          client_id: string
+          client_name: string
+          created_at?: string
+          last_seen_at?: string
+          metadata?: Json
+          redirect_uris: string[]
+          registration: string
+        }
+        Update: {
+          client_id?: string
+          client_name?: string
+          created_at?: string
+          last_seen_at?: string
+          metadata?: Json
+          redirect_uris?: string[]
+          registration?: string
+        }
+        Relationships: []
+      }
+      oauth_codes: {
+        Row: {
+          channel_id: string
+          client_id: string
+          code_challenge: string
+          code_hash: string
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          grant_id: string | null
+          profile_id: string
+          redirect_uri: string
+          resource: string
+          scope: string
+        }
+        Insert: {
+          channel_id: string
+          client_id: string
+          code_challenge: string
+          code_hash: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          grant_id?: string | null
+          profile_id: string
+          redirect_uri: string
+          resource: string
+          scope: string
+        }
+        Update: {
+          channel_id?: string
+          client_id?: string
+          code_challenge?: string
+          code_hash?: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          grant_id?: string | null
+          profile_id?: string
+          redirect_uri?: string
+          resource?: string
+          scope?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oauth_codes_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oauth_codes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "oauth_clients"
+            referencedColumns: ["client_id"]
+          },
+          {
+            foreignKeyName: "oauth_codes_grant_id_fkey"
+            columns: ["grant_id"]
+            isOneToOne: false
+            referencedRelation: "mcp_tokens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oauth_codes_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "oauth_codes_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_deferred_steps"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "oauth_codes_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_entry_state"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
+      oauth_refresh_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          grant_id: string
+          rotated_at: string | null
+          token_hash: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          grant_id: string
+          rotated_at?: string | null
+          token_hash: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          grant_id?: string
+          rotated_at?: string | null
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oauth_refresh_tokens_grant_id_fkey"
+            columns: ["grant_id"]
+            isOneToOne: false
+            referencedRelation: "mcp_tokens"
             referencedColumns: ["id"]
           },
         ]
@@ -5583,9 +5745,13 @@ export type Database = {
         Returns: {
           channel_id: string
           created_at: string
+          expires_at: string | null
           id: string
+          kind: string
           last_used_at: string | null
           name: string
+          oauth_client_id: string | null
+          oauth_redirect_uri: string | null
           profile_id: string | null
           revoked_at: string | null
           scope: string
