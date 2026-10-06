@@ -39,10 +39,30 @@ export interface McpDeps {
   secret: string | undefined;
   /** The Bureau control plane's side effects (start an episode run, wake a cut gate). */
   bureau?: BureauSideEffects;
+  /**
+   * RFC 9728 protected-resource metadata URL. When set, every 401 carries
+   * `WWW-Authenticate: Bearer resource_metadata="…"` — the header a Claude connector reads
+   * to discover the OAuth server (decision 0016). Absent, a 401 is a bare refusal, as before.
+   */
+  resourceMetadataUrl?: string;
 }
 
 /** Deliberately uninformative: a caller who guessed wrong learns nothing about how wrong. */
 const REFUSED = { error: 'unauthorized' };
+
+/**
+ * A 401, with the discovery header when this deployment advertises OAuth.
+ *
+ * `error="invalid_token"` only when a token was presented (RFC 6750 §3.1): a request with no
+ * credential is told where to get one, and a request with a dead one is told it is dead —
+ * which is what makes a connector refresh rather than start the whole consent again.
+ */
+function unauthorized(deps: McpDeps, presented: boolean): McpResponse {
+  if (!deps.resourceMetadataUrl) return { status: 401, body: REFUSED };
+  const parts = [`resource_metadata="${deps.resourceMetadataUrl}"`];
+  if (presented) parts.push('error="invalid_token"');
+  return { status: 401, body: REFUSED, headers: { 'www-authenticate': `Bearer ${parts.join(', ')}` } };
+}
 
 export async function serveMcp(request: McpRequest, deps: McpDeps): Promise<McpResponse> {
   const bearer = bearerFrom(request.authorization);
@@ -56,14 +76,19 @@ export async function serveMcp(request: McpRequest, deps: McpDeps): Promise<McpR
     if (!resolved.ok) {
       return resolved.reason === 'lookup_failed'
         ? { status: 503, body: { error: 'token lookup failed', detail: resolved.detail } }
-        : { status: 401, body: REFUSED };
+        : unauthorized(deps, true);
     }
     const surface = bureauSurface({ db: deps.db, token: resolved.token, effects: deps.bureau ?? NO_EFFECTS });
     return answer(request.body, surface);
   }
 
   // No credential at all is the same answer whatever is configured.
-  if (!bearer) return { status: 401, body: REFUSED };
+  if (!bearer) return unauthorized(deps, false);
+
+  // An OAuth refresh token (decision 0016) is never a bearer. Said as invalid_token rather
+  // than falling through to the Studio check, where a deployment without the HMAC secret
+  // would answer 503 — which a connector reads as "server down", not "use the other token".
+  if (bearer.startsWith('kbr_')) return unauthorized(deps, true);
 
   const secret = deps.secret?.trim();
 
@@ -79,7 +104,7 @@ export async function serveMcp(request: McpRequest, deps: McpDeps): Promise<McpR
   }
 
   const check = verifySessionToken(bearer, secret);
-  if (!check.ok) return { status: 401, body: REFUSED };
+  if (!check.ok) return unauthorized(deps, true);
 
   // The signature proves the token was minted here. It does not prove the session may still
   // spend money — a capped or archived session's token is still validly signed, and this is
@@ -94,7 +119,7 @@ export async function serveMcp(request: McpRequest, deps: McpDeps): Promise<McpR
 
   // Not 404, and not a distinct message: from outside, a session that never existed and one
   // this token may not touch are the same answer.
-  if (!session) return { status: 401, body: REFUSED };
+  if (!session) return unauthorized(deps, true);
 
   if (session.status !== 'active') {
     // 403, and here the reason *is* given — this caller authenticated, so telling it the

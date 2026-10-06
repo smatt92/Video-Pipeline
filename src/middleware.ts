@@ -61,6 +61,16 @@ import { entryDestination, SEEN_COOKIE } from '@/lib/onboarding/entry';
  *                     not unauthenticated — it requires a session-scoped bearer token it
  *                     mints itself, and refuses every request while the signing key is
  *                     unset. See src/lib/studio/token.ts.
+ *   /.well-known/oauth-*, /api/oauth/*
+ *                     OAuth discovery, client registration and the token endpoint for
+ *                     /api/mcp (decision 0016). A connector calls them from a server with no
+ *                     cookie, exactly like /api/mcp itself. The consent screen,
+ *                     /oauth/authorize, is NOT here: it is where the signed-in owner says yes,
+ *                     so it sits behind this gate and comes back to itself after /login.
+ *   /privacy, /terms, /about
+ *                     The public legal pages and the app's home page for Google's OAuth
+ *                     consent screen and the YouTube API audit, which must be readable by a
+ *                     reviewer with no account. Static text; nothing behind them.
  *   /login, /auth/*   Otherwise signing in requires being signed in.
  *   /onboarding/*     The gate's own destination.
  *   /settings/*       The wizard's steps are settings screens underneath. Locking them
@@ -91,6 +101,11 @@ const PUBLIC_PATHS = [
   '/auth',
   '/api/webhooks',
   '/api/mcp',
+  '/api/oauth',
+  '/.well-known',
+  '/privacy',
+  '/terms',
+  '/about',
   '/_next',
   '/favicon.ico',
 ];
@@ -218,7 +233,9 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return redirect(request, '/login', { next: pathname });
+    // The query string travels with the path. The OAuth consent screen is the case that
+    // needs it — its whole request is in the query — and nothing loses by keeping it.
+    return redirect(request, '/login', { next: `${pathname}${request.nextUrl.search}` });
   }
 
   const decision = checkEmail(user.email);

@@ -86,6 +86,13 @@
     // inject recording fakes in its place, so the code under test is everything else).
     "src/lib/bureau/**/*.ts",
     "src/lib/llm/**/*.ts",
+    // The OAuth server for /api/mcp, minus next-adapter.ts (the Next glue) — decision 0016.
+    "src/lib/oauth/policy.ts",
+    "src/lib/oauth/errors.ts",
+    "src/lib/oauth/metadata.ts",
+    "src/lib/oauth/clients.ts",
+    "src/lib/oauth/flow.ts",
+    "src/lib/oauth/endpoints.ts",
     "src/lib/drivers/voice-route.ts",
     "src/lib/drivers/jobs.ts"
   ],

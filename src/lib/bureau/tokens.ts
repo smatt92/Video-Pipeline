@@ -14,9 +14,12 @@ import type { Db } from '../db/server';
  * Only the SHA-256 is stored (`mcp_tokens.token_hash`). The plaintext is shown once, when
  * minted, and cannot be recovered — rotate by minting a new one and revoking the old.
  *
- * Tokens do not expire (decision 0012 #2): Claude's custom connectors send a static bearer.
- * Revocation is `revoked_at`, checked on every request and again inside every decision
- * function in the database.
+ * Two kinds since 0045. A `static` token (minted on Settings, `kb_a_…` / `kb_g_…`) does not
+ * expire (decision 0012 #2) — Routines and Claude Code send it as a fixed header. An `oauth`
+ * token (`kb_oa_…` / `kb_og_…`) is the current access token of one consented Claude
+ * connector connection (decision 0016): it expires after an hour and is replaced on refresh.
+ * Both are the same row shape with the same scope, and revocation is `revoked_at` for both,
+ * checked on every request and again inside every decision function in the database.
  */
 
 export type BureauScope = 'approver' | 'agent';
@@ -73,18 +76,22 @@ export async function mintBureauToken(
 
 export type ResolveResult =
   | { ok: true; token: BureauToken }
-  | { ok: false; reason: 'unknown' | 'revoked' | 'lookup_failed'; detail?: string };
+  | { ok: false; reason: 'unknown' | 'revoked' | 'expired' | 'lookup_failed'; detail?: string };
 
 export async function resolveBureauToken(db: Db, plaintext: string): Promise<ResolveResult> {
   const { data, error } = await db
     .from('mcp_tokens')
-    .select('id, name, scope, channel_id, profile_id, revoked_at')
+    .select('id, name, scope, channel_id, profile_id, revoked_at, expires_at')
     .eq('token_hash', hashToken(plaintext))
     .maybeSingle();
 
   if (error) return { ok: false, reason: 'lookup_failed', detail: error.message };
   if (!data) return { ok: false, reason: 'unknown' };
   if (data.revoked_at) return { ok: false, reason: 'revoked' };
+  // An OAuth access token past its hour. The connector answers a 401 by refreshing.
+  if (data.expires_at && new Date(data.expires_at).getTime() <= Date.now()) {
+    return { ok: false, reason: 'expired' };
+  }
 
   // Best effort: a failed timestamp write must not fail the request it describes.
   await db.from('mcp_tokens').update({ last_used_at: new Date().toISOString() }).eq('id', data.id);

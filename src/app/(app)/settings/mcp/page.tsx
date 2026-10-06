@@ -8,13 +8,15 @@ export const dynamic = 'force-dynamic';
 /**
  * MCP tokens for the Bureau control plane.
  *
- * Mint an approver token for yourself (Claude chat custom connector) and agent tokens for
- * Routines and scheduled tasks. Agent tokens draft, read and queue; they never decide.
+ * Two kinds in one list (0045). OAuth connections appear here when you approve a Claude
+ * connector on the consent screen; static tokens are minted below for Routines and Claude
+ * Code's `--header`. Revoke works the same on both — for a connection it ends the current
+ * access token immediately and refuses every refresh after it (decision 0016).
  */
 export default async function McpTokensPage() {
   const { data: tokens } = await serverClient()
     .from('mcp_tokens')
-    .select('id, name, scope, token_prefix, created_at, last_used_at, revoked_at')
+    .select('id, name, scope, kind, token_prefix, created_at, last_used_at, revoked_at, expires_at')
     .order('created_at', { ascending: false });
   const url = `${env.APP_URL.replace(/\/$/, '')}/api/mcp`;
 
@@ -22,9 +24,18 @@ export default async function McpTokensPage() {
     <>
       <SectionHeader title="MCP tokens" hint="Bearer tokens for the Kiln connector — approver for you, agent for Routines." />
       <Panel className="mb-5 p-4">
+        <p className="mb-2 text-sm">
+          Connector URL: <code className="font-mono">{url}</code>.
+        </p>
+        <p className="mb-2 text-sm">
+          <strong className="font-medium">Claude (web and phone):</strong> Customize → Connectors → Add custom
+          connector → paste the URL → Add → Connect. Claude opens Kiln&apos;s consent screen; approve it there. The
+          connection then appears in the list below as an OAuth row. No token to paste.
+        </p>
         <p className="mb-3 text-sm">
-          Connector URL: <code className="font-mono">{url}</code>. In Claude: Settings → Connectors → Add custom
-          connector, paste the URL, and put the token in the connector&apos;s authorization (Bearer) field.
+          A connector on Claude is visible to every scheduled task on the account, so consent the connection your
+          scheduled tasks use with scope <code className="font-mono">agent</code>. Mint a static token below only for
+          Routines or Claude Code (<code className="font-mono">--header &quot;Authorization: Bearer kb_…&quot;</code>).
         </p>
         <TokenMint />
       </Panel>
@@ -34,6 +45,7 @@ export default async function McpTokensPage() {
             <tr>
               <th className="py-1">Name</th>
               <th>Scope</th>
+              <th>Kind</th>
               <th>Prefix</th>
               <th>Last used</th>
               <th />
@@ -44,6 +56,7 @@ export default async function McpTokensPage() {
               <tr key={t.id} className={t.revoked_at ? 'opacity-50' : ''}>
                 <td className="py-1">{t.name}</td>
                 <td>{t.scope}</td>
+                <td>{t.kind === 'oauth' ? 'OAuth connection' : 'static'}</td>
                 <td className="font-mono">{t.token_prefix}…</td>
                 <td>{t.last_used_at ? new Date(t.last_used_at).toLocaleString('en-IN') : '—'}</td>
                 <td>{t.revoked_at ? 'revoked' : <RevokeButton id={t.id} />}</td>
@@ -51,7 +64,7 @@ export default async function McpTokensPage() {
             ))}
             {(tokens ?? []).length === 0 && (
               <tr>
-                <td colSpan={5} className="py-2 text-text-muted">
+                <td colSpan={6} className="py-2 text-text-muted">
                   No tokens yet.
                 </td>
               </tr>

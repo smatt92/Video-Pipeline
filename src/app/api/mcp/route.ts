@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 import { productionEffects } from '@/lib/bureau/effects';
 import { serverClient } from '@/lib/db/server';
+import { resourceMetadataUrlFor } from '@/lib/oauth/policy';
 import { serveMcp } from '@/lib/studio/serve';
 
 /**
@@ -60,6 +61,9 @@ export async function POST(request: NextRequest) {
       secret: process.env.STUDIO_MCP_TOKEN_SECRET,
       // Bound per request to the token's channel inside serveMcp; this is the factory.
       bureau: productionEffects(db),
+      // Every 401 points a connector at the OAuth server (decision 0016). The origin is the
+      // one the request arrived on, so a preview deployment advertises itself.
+      resourceMetadataUrl: resourceMetadataUrlFor(request.nextUrl.origin),
     },
   );
 
@@ -68,7 +72,20 @@ export async function POST(request: NextRequest) {
     : NextResponse.json(result.body, { status: result.status, headers: result.headers });
 }
 
-export function GET() {
+export function GET(request: NextRequest) {
+  // Without a credential the answer is the same as POST's: a 401 naming where to get one. A
+  // client that probes with GET before it POSTs must still be able to discover OAuth.
+  if (!request.headers.get('authorization')) {
+    return NextResponse.json(
+      { error: 'unauthorized' },
+      {
+        status: 401,
+        headers: {
+          'www-authenticate': `Bearer resource_metadata="${resourceMetadataUrlFor(request.nextUrl.origin)}"`,
+        },
+      },
+    );
+  }
   return NextResponse.json(
     {
       error: 'method_not_allowed',

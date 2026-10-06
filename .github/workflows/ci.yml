@@ -337,6 +337,13 @@ jobs:
       # stand-in for the vendor's HTTP surface and ffprobes the stored file. §2 — one real,
       # spend-limited gen4_turbo clip — runs only where RUNWAY_API_KEY is set, which CI
       # deliberately is not (a paid call per push); it prints SKIP with that reason here.
+      # The OAuth server Claude's connectors use (decision 0016): discovery, code + PKCE,
+      # refresh rotation, and the refusals by name — a non-Claude redirect URI, a replayed
+      # code, a revoked connection, an agent connection on brief_approve. Over a real socket
+      # through the shipped handlers. What it cannot reach is Claude itself (0008 §16).
+      - name: MCP OAuth — code + PKCE, refresh rotation, revocation, scope
+        run: pnpm verify:oauth "$DATABASE_URL"
+
       - name: Character beats on the generation vendor — ledger, status, stored frame count
         run: pnpm verify:runway-video "$DATABASE_URL"
 
