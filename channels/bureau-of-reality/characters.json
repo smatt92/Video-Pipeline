@@ -42,7 +42,7 @@
         "silhouette": "slight forward lean; lanyard swings past the knees"
       },
       "reference_frame_ids": ["PLACEHOLDER_PIP_REF_1"],
-      "voice": { "provider": "runway", "preset_id": null },
+      "voice": { "provider": "runway", "preset_id": "Chad" },
       "elevenlabs_voice_id": null,
       "voice_brief": "Bright, fast, curious young adult; not childlike.",
       "never_do": [
@@ -74,7 +74,7 @@
         "silhouette": "tall, stooped, hands behind back"
       },
       "reference_frame_ids": ["PLACEHOLDER_MARLO_REF_1"],
-      "voice": { "provider": "runway", "preset_id": null },
+      "voice": { "provider": "runway", "preset_id": "Clint" },
       "elevenlabs_voice_id": null,
       "voice_brief": "Deadpan baritone, dry.",
       "never_do": ["Never runs.", "Never panics on screen.", "The mug never touches a surface."]
