@@ -1,0 +1,193 @@
+slot,date,weekday,format,series,series_name,lead,episode,topic,hook,seasonal_tag,status,notes
+S001,2026-10-19,Mon,short,incident,Incident Report,pip+marlo,,What if the Moon vanished,Pip misplaced the Moon. Here's everything that breaks by Friday.,,approved,launch batch
+S002,2026-10-20,Tue,short,desk_tour,Desk Tour,rotating_desk_head,,Why fireworks have colours (metal salts),"Every firework colour is a different metal, burning loud. The Chemistry Desk explains.",dussehra,approved,launch batch
+S003,2026-10-21,Wed,short,pip,Pip's First Year,pip,S1E1,Orientation: what gravity actually is,Welcome to the Bureau of Reality. Please don't touch the gravity.,,approved,launch batch
+S004,2026-10-22,Thu,short,archive,The Archive,nib,,Dancing Plague of 1518,In 1518 a whole town danced for weeks and couldn't stop. Nib pulled the file.,,approved,launch batch
+S005,2026-10-23,Fri,short,myth,Myth Desk,kaz,,Ravana's ten heads: popular interpretations,"Ten heads, one king. Here's what each head is said to mean.",,approved,launch batch
+S006,2026-10-24,Sat,short,deep,Deep Desk,marlo|iyer,,Why Venus spins backwards,On Venus the sun rises in the west. Somebody at the Planet Desk messed up.,,approved,launch batch
+S007,2026-10-25,Sun,short,complaint,Complaint Box,complaint_box,,Why phone batteries die in the cold,A viewer says their phone dies every winter. The Battery Desk has excuses.,,approved,launch batch
+S008,2026-10-26,Mon,short,incident,Incident Report,pip+marlo,,What if humans glowed like jellyfish,Pip spilled the Glow Desk's entire supply on humanity.,,approved,launch batch
+S009,2026-10-27,Tue,short,desk_tour,Desk Tour,rotating_desk_head,,Why leaves turn orange (carotenoids),The leaves aren't turning orange. They were orange the whole time.,,approved,launch batch
+S010,2026-10-28,Wed,short,pip,Pip's First Year,pip,S1E2,Deja vu,Pip filed the same Tuesday twice. Now everyone has deja vu.,,approved,launch batch
+S011,2026-10-29,Thu,short,archive,The Archive,nib,,Mary Celeste,"A ship found sailing perfectly, with nobody on board. Case reopened.",,approved,launch batch
+S012,2026-10-30,Fri,short,myth,Myth Desk,kaz,,"Samhain to Halloween, and India's ancestor fortnight","Before candy there was Samhain, and India has its own season for honouring ancestors.",halloween,approved,launch batch
+S013,2026-10-31,Sat,short,deep,Deep Desk,marlo|iyer,,Vampire squid,The vampire squid is neither a vampire nor a squid. The Deep Desk is furious.,halloween,approved,launch batch
+S014,2026-11-01,Sun,short,complaint,Complaint Box,complaint_box,,Why Daylight Saving Time exists,Tonight America gets an extra hour. Mrs. Iyer wants it back.,us_dst_end,approved,launch batch
+S015,2026-11-02,Mon,short,incident,Incident Report,pip+marlo,,What if Earth spun twice as fast,Pip found the Earth's speed dial.,,planned,
+S016,2026-11-03,Tue,short,desk_tour,Desk Tour,rotating_desk_head,,Why flames point up (and are spheres in space),In space a flame is a ball. Down here the Fire Desk makes it point up.,,planned,
+S017,2026-11-04,Wed,short,pip,Pip's First Year,pip,S1E3,How eyes see colour (Diwali lights),Director Ohm's memo: light up a billion homes. Don't blow a fuse.,diwali,planned,
+S018,2026-11-05,Thu,short,archive,The Archive,nib,,Antikythera mechanism,"Divers found a 2,000-year-old computer in a shipwreck.",,planned,
+S019,2026-11-06,Fri,short,myth,Myth Desk,kaz,,Samudra Manthan and Dhanvantari,Gods and demons played tug-of-war with a serpent to churn an ocean. Kaz has the minutes.,dhanteras,planned,
+S020,2026-11-07,Sat,short,deep,Deep Desk,marlo|iyer,,Why the new moon is invisible,Diwali falls on the darkest night of the month. That's not an accident.,diwali,planned,
+S021,2026-11-08,Sun,short,complaint,Complaint Box,complaint_box,,Why Diwali's date moves (lunisolar calendar),Mrs. Iyer: 'Diwali didn't move. Your calendar did.',diwali,planned,
+S022,2026-11-09,Mon,short,incident,Incident Report,pip+marlo,,What if every light on Earth switched on at once (grid load),Pip plugged in every light on Earth at once. The Grid Desk is not okay.,diwali,planned,
+S023,2026-11-10,Tue,short,desk_tour,Desk Tour,rotating_desk_head,,Why siblings look alike but differ (genetic shuffle),"You and your sibling got the same recipe, shuffled differently.",bhai_dooj,planned,
+S024,2026-11-11,Wed,short,pip,Pip's First Year,pip,S1E4,Why time feels faster as you age,Director Ohm's lamp flickered twice. Pip is in trouble.,,planned,
+S025,2026-11-12,Thu,short,archive,The Archive,nib,,Tunguska 1908,Something flattened 80 million trees and left no crater.,,planned,
+S026,2026-11-13,Fri,short,myth,Myth Desk,kaz,,Ragnarok vs Pralaya,"Two ways the world ends: once, or on repeat.",,planned,
+S027,2026-11-14,Sat,short,deep,Deep Desk,marlo|iyer,,"Octopus: three hearts, blue blood",The Deep Desk overdid the octopus.,,planned,
+S028,2026-11-15,Sun,short,complaint,Complaint Box,complaint_box,,Static shocks in winter,A viewer keeps getting zapped. The Spark Desk denies everything.,,planned,
+S029,2026-11-16,Mon,short,incident,Incident Report,pip+marlo,,What if oxygen doubled,Pip doubled the oxygen. Bugs got big. Fires got bigger.,,planned,
+S030,2026-11-17,Tue,short,desk_tour,Desk Tour,rotating_desk_head,,Noise-cancelling headphones,The quietest room in the Bureau is two sounds cancelling out.,,planned,
+S031,2026-11-18,Wed,short,pip,Pip's First Year,pip,S1E5,Pip meets Nib,There's a door nobody opens. Pip opened it.,,planned,
+S032,2026-11-19,Thu,short,archive,The Archive,nib,,The Baghdad battery debate,"Was it a 2,000-year-old battery, or just a jar?",,planned,
+S033,2026-11-20,Fri,short,myth,Myth Desk,kaz,,Hanuman and the sun; Rahu/Ketu and eclipses,A god tried to eat the sun. Astronomers took notes.,,planned,
+S034,2026-11-21,Sat,short,deep,Deep Desk,marlo|iyer,,Saturn's rings raining inward,Saturn is slowly eating its own rings.,,planned,
+S035,2026-11-22,Sun,short,complaint,Complaint Box,complaint_box,,Why onions make you cry,The Onion Desk files a formal apology.,,planned,
+S036,2026-11-23,Mon,short,incident,Incident Report,pip+marlo,,Internet down for a week,Pip unplugged the internet to clean behind it.,,planned,
+S037,2026-11-24,Tue,short,desk_tour,Desk Tour,rotating_desk_head,,Why ice floats,"If ice sank, you wouldn't exist. Thank the Water Desk.",,planned,
+S038,2026-11-25,Wed,short,pip,Pip's First Year,pip,S1E6,How wings make lift,"Marlo has 100,000 planes in the air today. Pip wants to fly one.",us_thanksgiving_travel,planned,
+S039,2026-11-26,Thu,short,archive,The Archive,nib,,Potatoes in Europe (Parmentier legend),"Europe once feared potatoes. One trick changed that, if the legend's true.",us_thanksgiving,planned,
+S040,2026-11-27,Fri,short,myth,Myth Desk,kaz,,Prometheus vs Matarishvan,"Two cultures, two fire thieves.",,planned,
+S041,2026-11-28,Sat,short,deep,Deep Desk,marlo|iyer,,Why the sea is salty,Rivers are fresh. The ocean isn't. Somebody's been seasoning.,,planned,
+S042,2026-11-29,Sun,short,complaint,Complaint Box,complaint_box,,Why cats knock things off tables,Exhibit A: one glass. Exhibit B: one cat.,,planned,
+S043,2026-11-30,Mon,short,incident,Incident Report,pip+marlo,,A world with only one colour,Pip deleted every colour but beige.,,planned,
+S044,2026-12-01,Tue,short,desk_tour,Desk Tour,rotating_desk_head,,Six-sided snowflakes,Every snowflake is built from the same hexagon blueprint.,,planned,
+S045,2026-12-02,Wed,short,pip,Pip's First Year,pip,S1E7,Mid-season cliffhanger: the Reality Backup room,The Bureau keeps a backup of everything. Except one thing.,,planned,
+S046,2026-12-03,Thu,short,archive,The Archive,nib,,Library of Alexandria: myth vs fact,It didn't burn in one night. Nib is tired of the rumour.,,planned,
+S047,2026-12-04,Fri,short,myth,Myth Desk,kaz,,Krampus and winter monsters,Every culture invented a monster for December.,,planned,
+S048,2026-12-05,Sat,short,deep,Deep Desk,marlo|iyer,,Why it's dark at 5 pm (axial tilt),The Sun didn't leave early. Earth leaned away.,,planned,
+S049,2026-12-06,Sun,short,complaint,Complaint Box,complaint_box,,Contagious yawns,Try not to yawn. The Yawn Desk is watching.,,planned,
+S050,2026-12-07,Mon,short,incident,Incident Report,pip+marlo,,Snowball Earth (it happened),What if winter never ended? It happened once.,,planned,
+S051,2026-12-08,Tue,short,desk_tour,Desk Tour,rotating_desk_head,,Reindeer eyes turn blue in winter,"Reindeer change eye colour every winter, on purpose.",,planned,
+S052,2026-12-09,Wed,short,pip,Pip's First Year,pip,S1E8,One-night global delivery maths,One night. Two billion kids. Twenty-four time zones.,christmas,planned,
+S053,2026-12-10,Thu,short,archive,The Archive,nib,,1914 Christmas truce,"For one night, the trenches went quiet.",christmas,planned,
+S054,2026-12-11,Fri,short,myth,Myth Desk,kaz,,"Solstice festivals: Yule, Dongzhi, Yalda",Every culture threw a party for the longest night.,solstice,planned,
+S055,2026-12-12,Sat,short,deep,Deep Desk,marlo|iyer,,Geminids,Every December Earth drives through an asteroid's dust.,geminids,planned,
+S056,2026-12-13,Sun,short,complaint,Complaint Box,complaint_box,,Why string lights tangle (knot physics),Science has proven your lights tangle themselves.,christmas,planned,
+S057,2026-12-14,Mon,short,incident,Incident Report,pip+marlo,,If the Sun switched off (8-minute delay),You'd have eight minutes of not knowing.,,planned,
+S058,2026-12-15,Tue,short,desk_tour,Desk Tour,rotating_desk_head,,GPS needs relativity,Your map app runs on Einstein.,,planned,
+S059,2026-12-16,Wed,short,pip,Pip's First Year,pip,S1E9,What a second is (caesium clock),Pip broke the Bureau's clock. Nobody knows what time it is.,,planned,
+S060,2026-12-17,Thu,short,archive,The Archive,nib,,The real St. Nicholas,Santa's origin story starts in a Mediterranean port town.,christmas,planned,
+S061,2026-12-18,Fri,short,myth,Myth Desk,kaz,,Odin's Wild Hunt and Santa's ancestors,"Before reindeer, there was an eight-legged horse.",christmas,planned,
+S062,2026-12-19,Sat,short,deep,Deep Desk,marlo|iyer,,"Snow is white, ice is clear","Same water, different outfit.",,planned,
+S063,2026-12-20,Sun,short,complaint,Complaint Box,complaint_box,,Why holidays feel short,A viewer says the holidays are rigged. Mrs. Iyer investigates.,,planned,
+S064,2026-12-21,Mon,short,incident,Incident Report,pip+marlo,,Earth with no tilt,Pip straightened the planet. Seasons: cancelled.,solstice,planned,
+S065,2026-12-22,Tue,short,desk_tour,Desk Tour,rotating_desk_head,,How microwaves heat food,"Your microwave is shaking water very, very fast.",,planned,
+S066,2026-12-23,Wed,short,pip,Pip's First Year,pip,S1E10,Gilgamesh: the oldest written story,Kaz tells Pip the oldest story ever written down.,,planned,
+S067,2026-12-24,Thu,short,archive,The Archive,nib,,Apollo 8 Earthrise,"On Christmas Eve 1968, humans saw Earth rise.",christmas,planned,
+S068,2026-12-25,Fri,short,myth,Myth Desk,kaz,,Why Santa wears red (not Coca-Cola),The red suit existed before the soda ad.,christmas,planned,
+S069,2026-12-26,Sat,short,deep,Deep Desk,marlo|iyer,,Why the deep ocean is darker than space,Space has stars. The deep sea doesn't.,,planned,
+S070,2026-12-27,Sun,short,complaint,Complaint Box,complaint_box,,Why resolutions fail (habit loops),The Habit Desk has seen your resolution before.,new_year,planned,
+S071,2026-12-28,Mon,short,incident,Incident Report,pip+marlo,,A 13-month calendar (International Fixed Calendar),A company once ran on 13 months.,new_year,planned,
+S072,2026-12-29,Tue,short,desk_tour,Desk Tour,rotating_desk_head,,Timing a midnight fireworks show,Every boom is scheduled to the millisecond.,new_year,planned,
+S073,2026-12-30,Wed,short,pip,Pip's First Year,pip,S1E11,New Year across ~38 local times (S1 finale),Thirty-eight time zones. One intern.,new_year,planned,
+S074,2026-12-31,Thu,short,archive,The Archive,nib,,Why the year starts on 1 January,Blame a Roman calendar reform.,new_year,planned,
+S075,2027-01-01,Fri,short,myth,Myth Desk,kaz,,Janus and the world's many new years,Your New Year isn't everyone's New Year.,new_year,planned,
+S076,2027-01-02,Sat,short,deep,Deep Desk,marlo|iyer,,Perihelion in January,Earth is closest to the Sun now. So why is it cold?,,planned,
+S077,2027-01-03,Sun,short,complaint,Complaint Box,complaint_box,,Why years feel shorter,Mrs. Iyer swears the year was full length.,,planned,
+S078,2027-01-04,Mon,short,incident,Incident Report,pip+marlo,,Gravity 10% weaker,Marlo took a day off. Gravity took 10% off.,,planned,
+S079,2027-01-05,Tue,short,desk_tour,Desk Tour,rotating_desk_head,,How a fridge moves heat,Your fridge doesn't make cold. It exports heat.,,planned,
+S080,2027-01-06,Wed,short,pip,Pip's First Year,pip,S2E1,Season 2: The Audit begins,An Auditor arrived to decide if Reality is worth running.,,planned,
+S081,2027-01-07,Thu,short,archive,The Archive,nib,,"The Great Emu War, 1932",The army lost to birds.,,planned,
+S082,2027-01-08,Fri,short,myth,Myth Desk,kaz,,Sankranti: the solar-dated festival,The one festival Mrs. Iyer never has to recalculate.,sankranti,planned,
+S083,2027-01-09,Sat,short,deep,Deep Desk,marlo|iyer,,Earth's core as hot as the Sun's surface,There's a sun-hot ball under your feet.,,planned,
+S084,2027-01-10,Sun,short,complaint,Complaint Box,complaint_box,,Why kites fly,A viewer wants to win Sankranti. The Wind Desk has notes.,sankranti,planned,
+S085,2027-01-11,Mon,short,incident,Incident Report,pip+marlo,,Moon at ISS distance,Pip parked the Moon a bit too close.,,planned,
+S086,2027-01-12,Tue,short,desk_tour,Desk Tour,rotating_desk_head,,Pressure cookers,Your kitchen is cheating at physics.,,planned,
+S087,2027-01-13,Wed,short,pip,Pip's First Year,pip,S2E2,The Auditor vs the Gravity Desk,"Marlo has a secret, and the Auditor found it.",,planned,
+S088,2027-01-14,Thu,short,archive,The Archive,nib,,"Kallanai: a ~2,000-year-old working dam",A dam older than most empires is still working.,pongal,planned,
+S089,2027-01-15,Fri,short,myth,Myth Desk,kaz,,Surya's seven horses and seven colours,"Seven horses, seven colours. Coincidence?",,planned,
+S090,2027-01-16,Sat,short,deep,Deep Desk,marlo|iyer,,Why Mars is red,Mars is rusty.,,planned,
+S091,2027-01-17,Sun,short,complaint,Complaint Box,complaint_box,,The doorway effect,You walked in. You forgot why. Blame the door.,,planned,
+S092,2027-01-18,Mon,short,incident,Incident Report,pip+marlo,,All ice melts,Pip turned the thermostat up. Coastlines moved.,,planned,
+S093,2027-01-19,Tue,short,desk_tour,Desk Tour,rotating_desk_head,,Torn QR codes still scan,Rip it. It still works. Error correction.,,planned,
+S094,2027-01-20,Wed,short,pip,Pip's First Year,pip,S2E3,Defending the Rainbow Desk,The Auditor wants to cut rainbows. Pip objects.,,planned,
+S095,2027-01-21,Thu,short,archive,The Archive,nib,,Why Pisa hasn't fallen,It's been 'about to fall' for 800 years.,,planned,
+S096,2027-01-22,Fri,short,myth,Myth Desk,kaz,,Thor vs Indra: serpent-slaying thunder gods,"Two thunder gods, two giant serpents.",,planned,
+S097,2027-01-23,Sat,short,deep,Deep Desk,marlo|iyer,,Whale songs and the SOFAR channel,The ocean has a secret phone line.,,planned,
+S098,2027-01-24,Sun,short,complaint,Complaint Box,complaint_box,,Why mosquitoes pick some people,The Mosquito Desk has a favourites list.,,planned,
+S099,2027-01-25,Mon,short,incident,Incident Report,pip+marlo,,Photosynthesising humans,Pip turned everyone slightly green.,,planned,
+S100,2027-01-26,Tue,short,archive,The Archive,nib,,How India's Constitution was drafted,It took almost three years to write the rules.,republic_day,planned,
+S101,2027-01-27,Wed,short,pip,Pip's First Year,pip,S2E4,Britain's 11 skipped days (1752),Mrs. Iyer: 'We once deleted eleven days.',,planned,
+S102,2027-01-28,Thu,short,archive,The Archive,nib,,Zero (Brahmagupta),How India gave the world nothing.,,planned,
+S103,2027-01-29,Fri,short,myth,Myth Desk,kaz,,"Nagas, dragons and world serpents",Why every culture has a giant snake.,,planned,
+S104,2027-01-30,Sat,short,deep,Deep Desk,marlo|iyer,,Jupiter's shrinking Great Red Spot,A storm bigger than Earth is shrinking.,,planned,
+S105,2027-01-31,Sun,short,complaint,Complaint Box,complaint_box,,Why February has 28 days,February lost a fight with a Roman calendar.,,planned,
+S106,2027-02-01,Mon,short,incident,Incident Report,pip+marlo,,Everyone jumps at once,Pip asked 8 billion people to jump.,,planned,
+S107,2027-02-02,Tue,short,desk_tour,Desk Tour,rotating_desk_head,,Can animals predict weather?,The Groundhog Desk has a 50/50 record.,groundhog_day,planned,
+S108,2027-02-03,Wed,short,pip,Pip's First Year,pip,S2E5,Why the heart symbol looks nothing like a heart,The Love Desk drew a heart wrong. On purpose?,valentines,planned,
+S109,2027-02-04,Thu,short,archive,The Archive,nib,,Silphium theory of the heart shape,The heart shape may come from an extinct plant.,valentines,planned,
+S110,2027-02-05,Fri,short,myth,Myth Desk,kaz,,Kamadeva and Cupid,"Two love gods, two bows, one job.",valentines,planned,
+S111,2027-02-06,Sat,short,deep,Deep Desk,marlo|iyer,,Why Lunar New Year moves (verify date),Mrs. Iyer runs that calendar too.,lunar_new_year,planned,
+S112,2027-02-07,Sun,short,complaint,Complaint Box,complaint_box,,Butterflies in the stomach,The Gut Desk is talking to the Brain Desk.,valentines,planned,
+S113,2027-02-08,Mon,short,incident,Incident Report,pip+marlo,,Two moons,Pip ordered a second Moon.,,planned,
+S114,2027-02-09,Tue,short,desk_tour,Desk Tour,rotating_desk_head,,Why many roses lost their scent,Florists bred the smell out of roses.,valentines,planned,
+S115,2027-02-10,Wed,short,pip,Pip's First Year,pip,S2E6,Pip's love letter to the Universe,The Auditor's deadline: one week.,valentines,planned,
+S116,2027-02-11,Thu,short,archive,The Archive,nib,,Taj Mahal's outward-leaning minarets,"The Taj has a built-in tilt, on purpose.",valentines,planned,
+S117,2027-02-12,Fri,short,myth,Myth Desk,kaz,,Savitri out-argues Death,She won a debate with Death itself.,,planned,
+S118,2027-02-13,Sat,short,deep,Deep Desk,marlo|iyer,,Do penguins mate for life? (mostly no),The Penguin Desk has gossip.,valentines,planned,
+S119,2027-02-14,Sun,short,complaint,Complaint Box,complaint_box,,"Chocolate melts in mouth, not hand",Chocolate is tuned to your mouth's temperature.,valentines,planned,
+S120,2027-02-15,Mon,short,incident,Incident Report,pip+marlo,,No sense of smell,Pip unplugged the Smell Desk.,,planned,
+S121,2027-02-16,Tue,short,desk_tour,Desk Tour,rotating_desk_head,,How touchscreens sense fingers,Your screen feels your electricity.,,planned,
+S122,2027-02-17,Wed,short,pip,Pip's First Year,pip,S2E7,The Auditor's identity twist,The Auditor has Director Ohm's handwriting.,,planned,
+S123,2027-02-18,Thu,short,archive,The Archive,nib,,Phaistos Disc,A clay disc stamped in a script nobody knows.,,planned,
+S124,2027-02-19,Fri,short,myth,Myth Desk,kaz,,Why Egyptian gods had animal heads,A jackal head was a job description.,,planned,
+S125,2027-02-20,Sat,short,deep,Deep Desk,marlo|iyer,,The Bloop and icequakes,The ocean's loudest mystery turned out to be ice.,,planned,
+S126,2027-02-21,Sun,short,complaint,Complaint Box,complaint_box,,Earworms,A song moved into your head and won't pay rent.,,planned,
+S127,2027-02-22,Mon,short,incident,Incident Report,pip+marlo,,It rained for a million years (Carnian Pluvial Episode),"It happened, and dinosaurs rose after it.",,planned,
+S128,2027-02-23,Tue,short,desk_tour,Desk Tour,rotating_desk_head,,Why bubbles are round,"Bubbles are lazy, mathematically.",,planned,
+S129,2027-02-24,Wed,short,pip,Pip's First Year,pip,S2E8,The Auditor wants to cancel colour,Holi is in four weeks. The Auditor wants colour gone.,holi_lead,planned,
+S130,2027-02-25,Thu,short,archive,The Archive,nib,,Tyrian purple and mauveine,Purple used to cost more than gold.,holi_lead,planned,
+S131,2027-02-26,Fri,short,myth,Myth Desk,kaz,,"Tricksters: Loki, Anansi, butter-thief Krishna",Every culture loves a trickster.,,planned,
+S132,2027-02-27,Sat,short,deep,Deep Desk,marlo|iyer,,Why deep-sea animals are red,"At depth, red is invisible.",,planned,
+S133,2027-02-28,Sun,short,complaint,Complaint Box,complaint_box,,Why flamingos are pink,Flamingos are what they eat.,,planned,
+S134,2027-03-01,Mon,short,incident,Incident Report,pip+marlo,,Seeing ultraviolet like bees,Pip upgraded human eyes. Flowers look different.,,planned,
+S135,2027-03-02,Tue,short,desk_tour,Desk Tour,rotating_desk_head,,"Natural dyes: turmeric, indigo","Before factories, colour came from plants.",holi_lead,planned,
+S136,2027-03-03,Wed,short,pip,Pip's First Year,pip,S2E9,The Rainbow Desk trial,"Reality vs the Auditor, day one.",holi_lead,planned,
+S137,2027-03-04,Thu,short,archive,The Archive,nib,,Indigo as blue gold,A blue dye once moved fortunes.,holi_lead,planned,
+S138,2027-03-05,Fri,short,myth,Myth Desk,kaz,,"Radha, Krishna and Holi colours",Why Holi starts with a question about skin colour.,holi,planned,
+S139,2027-03-06,Sat,short,deep,Deep Desk,marlo|iyer,,"Mars: pink sky, blue sunsets",Mars got the sky backwards.,,planned,
+S140,2027-03-07,Sun,short,complaint,Complaint Box,complaint_box,,Do we all see the same colours?,Your red might not be my red.,,planned,
+S141,2027-03-08,Mon,short,incident,Incident Report,pip+marlo,,What if Ada Lovelace's machine had been built?,Pip found a blueprint from 1843.,womens_day,planned,
+S142,2027-03-09,Tue,short,desk_tour,Desk Tour,rotating_desk_head,,Thermochromic colour change,Colours that change with temperature.,,planned,
+S143,2027-03-10,Wed,short,pip,Pip's First Year,pip,S2E10,The verdict (S2 finale),The Auditor's decision: Reality stays... for now.,,planned,
+S144,2027-03-11,Thu,short,archive,The Archive,nib,,Madhava's infinite series for pi,An Indian mathematician cracked pi centuries early.,pi_day_lead,planned,
+S145,2027-03-12,Fri,short,myth,Myth Desk,kaz,,Holika and Prahlad,The story behind the Holi bonfire.,holi,planned,
+S146,2027-03-13,Sat,short,deep,Deep Desk,marlo|iyer,,Tidal locking: the Moon's hidden side,The Moon never turns its back. Ever.,,planned,
+S147,2027-03-14,Sun,short,complaint,Complaint Box,complaint_box,,Where the lost hour goes (Pi Day + DST),America lost an hour. Mrs. Iyer keeps it in a drawer.,pi_day,planned,
+S148,2027-03-15,Mon,short,incident,Incident Report,pip+marlo,,If pi were 3 (the 1897 Indiana Pi Bill),A US state once tried to change pi by law.,pi_day,planned,
+S149,2027-03-16,Tue,short,desk_tour,Desk Tour,rotating_desk_head,,Why gulal stains (pigment vs dye),Why Holi colour sticks around.,holi,planned,
+S150,2027-03-17,Wed,short,pip,Pip's First Year,pip,S3E1,Season 3: Pip promoted,Pip is a desk head now. Nobody is safe.,,planned,
+S151,2027-03-18,Thu,short,archive,The Archive,nib,,Nazca Lines,Giant drawings you can only see from the sky.,,planned,
+S152,2027-03-19,Fri,short,myth,Myth Desk,kaz,,Persephone and Nowruz: spring return myths,Spring was always a comeback story.,nowruz,planned,
+S153,2027-03-20,Sat,short,deep,Deep Desk,marlo|iyer,,Day and night aren't actually equal (equinox),"The equinox is lying to you, slightly.",equinox,planned,
+S154,2027-03-21,Sun,short,complaint,Complaint Box,complaint_box,,Why fire crackles (Holika Dahan),That crackle is trapped water escaping.,holi,planned,
+S155,2027-03-22,Mon,short,incident,Incident Report,pip+marlo,,How many colours humans can see (Holi),"Pip sneezed in the Rainbow Desk. Happy Holi, Earth.",holi,planned,
+S156,2027-03-23,Tue,short,desk_tour,Desk Tour,rotating_desk_head,,How soap works,Soap is a molecule with two personalities.,,planned,
+S157,2027-03-24,Wed,short,pip,Pip's First Year,pip,S3E2,Pip's first hire,Pip hired an intern. History repeats.,,planned,
+S158,2027-03-25,Thu,short,archive,The Archive,nib,,Roanoke lost colony,"A colony vanished, leaving one carved word.",,planned,
+S159,2027-03-26,Fri,short,myth,Myth Desk,kaz,,Ganesha's broken tusk and the Mahabharata,He broke his own tusk to keep writing.,,planned,
+S160,2027-03-27,Sat,short,deep,Deep Desk,marlo|iyer,,Sea sparkle plankton,Waves that glow blue at night.,,planned,
+S161,2027-03-28,Sun,short,complaint,Complaint Box,complaint_box,,Season 2 viewer Q&A,The Complaint Box is full. Let's open it.,,planned,
+S162,2027-03-29,Mon,short,incident,Incident Report,pip+marlo,,The Bureau goes on strike,One day without the Bureau. Everything stops.,,planned,
+S163,2027-03-30,Tue,short,desk_tour,Desk Tour,rotating_desk_head,,How cherry blossoms know when to bloom,Trees count the cold days.,,planned,
+S164,2027-03-31,Wed,short,pip,Pip's First Year,pip,S3E3,"Why India's financial year starts 1 April (calendar history, no money advice)",Mrs. Iyer: 'The year starts again tomorrow.',,planned,
+L01,2026-10-25,Sun,long_form,long_form,Long-form episode,ensemble,,Welcome to the Bureau: pilot episode + first incidents with new connective scenes,,,planned,"8-12 min; new connective scenes, never raw re-stitching"
+L02,2026-11-08,Sun,long_form,long_form,Long-form episode,ensemble,,"Diwali special: Mrs. Iyer and the Darkest Night (lunar calendars, light, fireworks chemistry)",,,planned,"8-12 min; new connective scenes, never raw re-stitching"
+L03,2026-11-22,Sun,long_form,long_form,Long-form episode,ensemble,,The Archive Vol. 1: five mysteries with new Nib framing,,,planned,"8-12 min; new connective scenes, never raw re-stitching"
+L04,2026-12-06,Sun,long_form,long_form,Long-form episode,ensemble,,Pip's First Year: mid-season cut + new ending,,,planned,"8-12 min; new connective scenes, never raw re-stitching"
+L05,2026-12-20,Sun,long_form,long_form,Long-form episode,ensemble,,"Christmas special: One Night, 2 Billion Deliveries (time zones, physics)",,,planned,"8-12 min; new connective scenes, never raw re-stitching"
+L06,2027-01-03,Sun,long_form,long_form,Long-form episode,ensemble,,"Season 1 supercut + director's commentary (Sahil's writing notes, voiced)",,,planned,"8-12 min; new connective scenes, never raw re-stitching"
+L07,2027-01-17,Sun,long_form,long_form,Long-form episode,ensemble,,Sankranti/Pongal: The Sun Changes Lanes,,,planned,"8-12 min; new connective scenes, never raw re-stitching"
+L08,2027-01-31,Sun,long_form,long_form,Long-form episode,ensemble,,"Myth Desk Vol. 1: world flood, fire and thunder myths",,,planned,"8-12 min; new connective scenes, never raw re-stitching"
+L09,2027-02-14,Sun,long_form,long_form,Long-form episode,ensemble,,Valentine's: The Love Desk Audit,,,planned,"8-12 min; new connective scenes, never raw re-stitching"
+L10,2027-02-28,Sun,long_form,long_form,Long-form episode,ensemble,,Deep Desk Vol. 1: space and ocean,,,planned,"8-12 min; new connective scenes, never raw re-stitching"
+L11,2027-03-14,Sun,long_form,long_form,Long-form episode,ensemble,,Pi Day / DST: The Hour Mrs. Iyer Keeps in a Drawer,,,planned,"8-12 min; new connective scenes, never raw re-stitching"
+L12,2027-03-28,Sun,long_form,long_form,Long-form episode,ensemble,,Season 2 finale cut: The Auditor's Verdict + new epilogue,,,planned,"8-12 min; new connective scenes, never raw re-stitching"
+B01,,,short,incident,Incident Report,pip+marlo,,What if friction switched off,"Day one. The intern pressed one button, and now nothing on Earth can stop moving.",,bank,"evergreen bank: QC failure cover, 2/day expansion, sequels"
+B02,,,short,desk_tour,Desk Tour,rotating_desk_head,,Why the sky is blue,There's no blue paint up there. Meet the department that makes it blue anyway.,,bank,"evergreen bank: QC failure cover, 2/day expansion, sequels"
+B03,,,short,archive,The Archive,nib,,Voynich Manuscript,"A 600-year-old book nobody on Earth can read, and Nib has the only library card.",,bank,"evergreen bank: QC failure cover, 2/day expansion, sequels"
+B04,,,short,myth,Myth Desk,kaz,,"Flood myths: Manu, Noah, Utnapishtim","Three civilisations, no internet, same story. Kaz has a theory.",,bank,"evergreen bank: QC failure cover, 2/day expansion, sequels"
+B05,,,short,deep,Deep Desk,marlo|iyer,,Pressure in the Mariana Trench (shrunken styrofoam cups),Marlo sent a coffee cup to the bottom of the ocean. It came back the size of a thimble.,,bank,"evergreen bank: QC failure cover, 2/day expansion, sequels"
+B06,,,short,complaint,Complaint Box,complaint_box,,Why the 7-day week exists,The Bureau's first-ever complaint: who invented Monday?,,bank,"evergreen bank: QC failure cover, 2/day expansion, sequels"
+B07,,,short,pip,Pip's First Year,pip,,Leap years and calendar drift,Mrs. Iyer runs every calendar on Earth. Today she runs Pip.,,bank,"evergreen bank: QC failure cover, 2/day expansion, sequels"
+B08,,,short,sequel,Sequel slot,,,Reserved: sequel to a top-20% performer,,,bank,filled by Monday routine
+B09,,,short,sequel,Sequel slot,,,Reserved: sequel to a top-20% performer,,,bank,filled by Monday routine
+B10,,,short,sequel,Sequel slot,,,Reserved: sequel to a top-20% performer,,,bank,filled by Monday routine
+B11,,,short,sequel,Sequel slot,,,Reserved: sequel to a top-20% performer,,,bank,filled by Monday routine
+B12,,,short,sequel,Sequel slot,,,Reserved: sequel to a top-20% performer,,,bank,filled by Monday routine
+B13,,,short,sequel,Sequel slot,,,Reserved: sequel to a top-20% performer,,,bank,filled by Monday routine
+B14,,,short,sequel,Sequel slot,,,Reserved: sequel to a top-20% performer,,,bank,filled by Monday routine
+B15,,,short,sequel,Sequel slot,,,Reserved: sequel to a top-20% performer,,,bank,filled by Monday routine
+B16,,,short,sequel,Sequel slot,,,Reserved: sequel to a top-20% performer,,,bank,filled by Monday routine
