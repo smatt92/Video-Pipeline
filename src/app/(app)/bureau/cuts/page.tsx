@@ -16,7 +16,7 @@ export default async function CutsPage() {
   const db = serverClient();
   const { data: eps } = await db
     .from('episodes')
-    .select('id, slot_id, status, status_detail, script_id, final_render_id, qc, estimate_inr')
+    .select('id, slot_id, status, status_detail, script_id, final_render_id, qc, estimate_inr, voice_detail')
     .eq('channel_id', BUREAU_CHANNEL_ID)
     .in('status', ['awaiting_cut', 'cut_rejected', 'qc', 'assembling'])
     .order('updated_at', { ascending: false });
@@ -59,6 +59,18 @@ export default async function CutsPage() {
                 <span className="font-mono tabular-nums">spent {spend?.spent_inr === undefined || spend?.spent_inr === null ? '—' : `₹${Number(spend.spent_inr).toFixed(2)}`}{Number(spend?.unpriced_rows ?? 0) > 0 ? ` + ${spend?.unpriced_rows} unpriced` : ''} (estimates)</span>
                 <span className="font-mono">{lufs === null ? 'loudness unmeasured' : `${lufs} LUFS`}</span>
               </div>
+              {(() => {
+                // Written by the voice stage: lines whose words the aligner could not confirm.
+                // They caption as whole lines, and only a listen confirms they say the script.
+                const v = e.voice_detail as { unaligned?: number | null; lines?: number } | null;
+                const n = v?.unaligned;
+                if (n === undefined || n === null || n === 0) return null;
+                return (
+                  <p className="mt-1 text-sm" style={{ color: 'var(--state-blocked)' }}>
+                    Listen to every line: {n} of {v?.lines ?? '—'} could not be checked against the script automatically, and caption as whole lines.
+                  </p>
+                );
+              })()}
               {e.status_detail && <p className="mt-1 text-sm" style={{ color: 'var(--state-blocked)' }}>{e.status_detail}</p>}
               <ol className="mt-3 grid gap-1 text-sm">
                 {shots.map((s) => {

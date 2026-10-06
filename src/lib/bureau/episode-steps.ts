@@ -14,6 +14,7 @@ import { billedSeconds, REFERENCE_FRAME_PARAM, type RenderRoute } from '../drive
 import { routed } from '../llm/router';
 import { POLISH_SYSTEM, PROMPT_REF } from '../prompts/20-bureau.v1';
 import { captionCues, type CaptionCue } from '../review/timeline';
+import { takeWords } from './take-words';
 import { shiftBy, type WordTiming } from '../voice/timings';
 import { normaliseOverlay, type OverlaySpec } from '../../remotion/bureau/overlay-scene';
 import type { BureauShot, BureauVideoProps } from '../../remotion/bureau/bureau-video';
@@ -427,8 +428,8 @@ export async function assembleEpisode(db: Db, episodeId: string, deps: AssembleD
     return { ok: false, code: 'durations_unmeasured', detail: 'shot durations are still estimates — the voice stage has not timed them' };
   }
 
-  const { data: takes } = await db.from('vo_takes').select('chunk_idx, word_timings, offset_s').eq('script_id', e.script_id!).eq('language', 'en').order('chunk_idx');
-  const words: WordTiming[] = (takes ?? []).flatMap((t) => shiftBy(t.word_timings as unknown as WordTiming[], Number(t.offset_s)));
+  const { data: takes } = await db.from('vo_takes').select('chunk_idx, word_timings, offset_s, text_in, duration_s').eq('script_id', e.script_id!).eq('language', 'en').order('chunk_idx');
+  const words: WordTiming[] = (takes ?? []).flatMap((t) => shiftBy(takeWords(t), Number(t.offset_s)));
   const voice = e.voice_detail as { vo_asset_id?: string } | null;
   if (!voice?.vo_asset_id) return { ok: false, code: 'no_vo', detail: 'the episode has no VO track' };
   const { data: voAsset } = await db.from('assets').select('storage_key').eq('id', voice.vo_asset_id).single();
@@ -591,10 +592,10 @@ export async function voiceStep(
   deps: Omit<import('./voice').VoiceDeps, 'db'>,
 ): Promise<import('./voice').VoiceOutcome> {
   const { e } = await loadEpisode(db, episodeId);
-  const existing = e.voice_detail as { vo_asset_id?: string; total_s?: number; lines?: number; chars?: number; cost_inr?: number } | null;
+  const existing = e.voice_detail as { vo_asset_id?: string; total_s?: number; lines?: number; chars?: number; cost_inr?: number; unaligned?: number } | null;
   if (existing?.vo_asset_id) {
     // Replayed: the stage already ran and paid. Its own figures, not zeros.
-    return { ok: true, lines: existing.lines ?? 0, totalS: existing.total_s ?? 0, voAssetId: existing.vo_asset_id, chars: existing.chars ?? 0, costInr: existing.cost_inr ?? 0, shotsTimed: 0, reused: existing.lines ?? 0 };
+    return { ok: true, lines: existing.lines ?? 0, totalS: existing.total_s ?? 0, voAssetId: existing.vo_asset_id, chars: existing.chars ?? 0, costInr: existing.cost_inr ?? 0, shotsTimed: 0, reused: existing.lines ?? 0, unaligned: existing.unaligned ?? null };
   }
   await setStatus(db, episodeId, 'voicing');
   const { runEpisodeVoice } = await import('./voice');
@@ -602,7 +603,7 @@ export async function voiceStep(
   if (r.ok) {
     await db
       .from('episodes')
-      .update({ voice_detail: { vo_asset_id: r.voAssetId, total_s: r.totalS, lines: r.lines, chars: r.chars, cost_inr: r.costInr } as unknown as Json, updated_at: new Date().toISOString() })
+      .update({ voice_detail: { vo_asset_id: r.voAssetId, total_s: r.totalS, lines: r.lines, chars: r.chars, cost_inr: r.costInr, unaligned: r.unaligned } as unknown as Json, updated_at: new Date().toISOString() })
       .eq('id', episodeId);
   }
   return r;

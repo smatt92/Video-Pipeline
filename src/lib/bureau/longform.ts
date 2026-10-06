@@ -17,6 +17,7 @@ import { characterBySlug } from './bible';
 import { estimateEpisode, fitToCap, PlannedShotSchema } from './estimate';
 import { bindShotsToLines, setStatus, shotFrames, toSrt, type AssembleDeps } from './episode-steps';
 import { parseScript, type ScriptLine } from './script-lines';
+import { takeWords } from './take-words';
 
 const run = promisify(execFile);
 
@@ -173,11 +174,11 @@ export async function assembleLongForm(db: Db, episodeId: string, deps: Assemble
 
   const { data: script } = await db.from('scripts').select('beats').eq('id', e!.script_id!).single();
   const lines = (script!.beats as unknown as { lines: ScriptLine[] }).lines;
-  const { data: takes } = await db.from('vo_takes').select('chunk_idx, word_timings, offset_s').eq('script_id', e!.script_id!).eq('language', 'en').order('chunk_idx');
+  const { data: takes } = await db.from('vo_takes').select('chunk_idx, word_timings, offset_s, text_in, duration_s').eq('script_id', e!.script_id!).eq('language', 'en').order('chunk_idx');
   const voice = e!.voice_detail as { vo_asset_id?: string } | null;
   const { data: voAsset } = voice?.vo_asset_id ? await db.from('assets').select('storage_key').eq('id', voice.vo_asset_id).single() : { data: null };
   if (!voAsset) return { ok: false, code: 'no_vo', detail: 'the episode has no VO track' };
-  const voWords: WordTiming[] = (takes ?? []).flatMap((tk) => shiftBy(tk.word_timings as unknown as WordTiming[], Number(tk.offset_s)));
+  const voWords: WordTiming[] = (takes ?? []).flatMap((tk) => shiftBy(takeWords(tk), Number(tk.offset_s)));
   const lineOffset = (char: number) => {
     const i = lines.findIndex((l) => char >= l.voStart && char <= l.voEnd);
     return Number(takes?.find((t) => t.chunk_idx === i)?.offset_s ?? 0);
@@ -203,8 +204,8 @@ export async function assembleLongForm(db: Db, episodeId: string, deps: Assemble
         await deps.download(url, local);
         await run('ffmpeg', ['-v', 'error', '-y', '-i', local, '-vn', '-ac', '1', '-ar', '48000', '-t', String(durations[i]), piece]);
         bureauShots.push({ type: 'clip', url, frames: frames[i], fit: 'contain' });
-        const { data: st } = await db.from('vo_takes').select('word_timings, offset_s').eq('script_id', r!.script_id).eq('language', 'en').order('chunk_idx');
-        for (const tk of st ?? []) words.push(...shiftBy(tk.word_timings as unknown as WordTiming[], t + Number(tk.offset_s)));
+        const { data: st } = await db.from('vo_takes').select('word_timings, offset_s, text_in, duration_s').eq('script_id', r!.script_id).eq('language', 'en').order('chunk_idx');
+        for (const tk of st ?? []) words.push(...shiftBy(takeWords(tk), t + Number(tk.offset_s)));
       } else {
         const from = lineOffset(s.vo_char_start!);
         await run('ffmpeg', ['-v', 'error', '-y', '-ss', String(from), '-t', String(durations[i]), '-i', vo, '-ac', '1', '-ar', '48000', '-af', `apad=whole_dur=${durations[i]}`, piece]);

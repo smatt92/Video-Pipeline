@@ -417,27 +417,36 @@ try {
     check(lfr.format === 'longform_16x9' && lfr.layer === 'longform', 'stored as a 16:9 long-form render');
   }
 
-  // ═══ 10. LOAD-BEARING: the refusal ═══
-  console.log('\n7. A voice that does not match its script\n');
+  // ═══ 10. A voice the aligner cannot confirm ═══
+  // This section used to assert a refusal: an unconfirmed alignment halted the episode. On the
+  // first real run (S001, 2026-10-06) that refusal fired on every line of a CORRECT vendor
+  // voice — the aligner's confidence test only separates espeak from espeak — so it was not a
+  // guard, it was the chain being inert. Shot durations cut at line boundaries and every line
+  // is its own ffprobe-measured file, so they never rested on word timings. What is asserted
+  // now is what is still true when the aligner cannot see: durations are the measured line
+  // spans, nothing is invented inside a line, and the count of unconfirmed lines travels with
+  // the episode to the cut review, where a person hears every word before anything publishes.
+  console.log('\n7. A voice the aligner cannot confirm\n');
   const b2 = await call('briefs_create_batch', { briefs: [{ ...brief, slot_id: 'S008', premise: 'Pip loses the Sun this time and the plants file a grievance.', structure_variant: 'blame_meeting', desk: 'orbit', hook_archetype: 'question', music_bed: 'bed_deep_sonar', premise_type: 'wrong_setting', ending_type: 'reversal' }] }, agent.plaintext);
   const a2 = await call('brief_approve', { id: b2.result.results[0].brief_id, punchline: 'A' }, approver.plaintext);
   const ep2 = a2.result.episode_id;
   await P.prepareScript(db, ep2, { apiKey: null, usdInrRate: 88 });
-  // prepareScript re-syncs the cast from the bible (whose references are placeholders), so the
-  // harness re-seeds Pip's reference — the bible is the source of truth in production.
   await client.query(`update characters set external_ref_id = 'storage:characters/pip/ref-1.png', driver = 'runway', reference_urls = '{}' where channel_id = $1 and slug = 'pip'`, [BUREAU_CHANNEL_ID]);
   await P.planShots(db, ep2, { usdInrRate: 88, actedBeatAvailable: false });
   const wrongVoice = await P.voiceStep(db, ep2, { usdInrRate: 88, apiKeyFor: async () => ({ ok: true, value: 'k' }), synth: synthFrom(() => 'Calendars drift because a year is not a whole number of days at all.'), align: (i) => alignLine(i), putBytes, presign, routeFor });
-  check(!wrongVoice.ok && wrongVoice.code === 'alignment_failed', 'the stage refuses: alignment not confident', wrongVoice.ok ? 'it passed' : wrongVoice.detail.slice(0, 120));
-  const { rows: ep2row } = await client.query('select script_id from episodes where id = $1', [ep2]);
-  const { rows: ep2shots } = await client.query(`select count(*) filter (where duration_source = 'derived_from_vo') d from shots where script_id = $1`, [ep2row[0].script_id]);
-  check(Number(ep2shots[0].d) === 0, 'no shot is marked derived_from_vo');
-  const { rows: blank } = await client.query(`select count(*) n from vo_takes where script_id = $1 and word_timings = '[]'::jsonb and asset_id is not null`, [ep2row[0].script_id]);
-  check(Number(blank[0].n) > 0, 'the paid-for audio is kept, with null timings — not zeros');
-  const q2 = await P.enqueueGeneration(db, ep2, { usdInrRate: 88 });
-  check(q2.queued === 0 && q2.refused.some((r) => /still an estimate/.test(r)), 'LOAD-BEARING: the consumer refuses to generate', JSON.stringify(q2.refused));
+  const { rows: ep2row } = await client.query('select script_id, voice_detail from episodes where id = $1', [ep2]);
+  const { rows: ep2takes } = await client.query(`select count(*) n, count(*) filter (where word_timings = '[]'::jsonb and asset_id is not null) blank, sum(duration_s) d from vo_takes where script_id = $1 and language = 'en'`, [ep2row[0].script_id]);
+  const takeCount = Number(ep2takes[0].n);
+  check(wrongVoice.ok && wrongVoice.unaligned === Number(ep2takes[0].blank) && takeCount > 0, 'the stage goes on, and counts every line it could not confirm', wrongVoice.ok ? `${wrongVoice.unaligned} of ${takeCount}` : wrongVoice.detail.slice(0, 120));
+  // LOAD-BEARING: the subject is written by the voice stage (episodes.voice_detail), and the
+  // other side is counted from vo_takes, which the stage writes per line and this harness never touches.
+  check(Number(ep2row[0].voice_detail?.unaligned) === Number(ep2takes[0].blank), 'LOAD-BEARING: the episode carries the unconfirmed-line count to the cut review', JSON.stringify(ep2row[0].voice_detail));
+  const { rows: ep2shots } = await client.query(`select count(*) n, count(*) filter (where duration_source = 'derived_from_vo') d, sum(duration_s) s from shots where script_id = $1`, [ep2row[0].script_id]);
+  check(Number(ep2shots[0].d) === Number(ep2shots[0].n), 'every shot is timed from the measured line spans', `${ep2shots[0].d} of ${ep2shots[0].n}`);
+  check(Math.abs(Number(ep2shots[0].s) - wrongVoice.totalS) < 1e-3, 'and the shots add up to the measured track exactly', `${ep2shots[0].s} vs ${wrongVoice.totalS}`);
+  check(Number(ep2takes[0].blank) > 0, 'the paid-for audio is kept, with absent word timings — not zeros, not an even split');
   const { rows: blk } = await client.query('select blocker from v_pipeline_blockers where script_id = $1', [ep2row[0].script_id]);
-  check(/forced alignment did not confirm every word/.test(blk[0]?.blocker ?? ''), 'the blocker view names the failed alignment as the reason', blk[0]?.blocker);
+  check(!/forced alignment/.test(blk[0]?.blocker ?? ''), 'the blocker view no longer names alignment as a reason to stop', String(blk[0]?.blocker));
   const { rows: blk1 } = await client.query('select blocker from v_pipeline_blockers where script_id = $1', [script1.scriptId]);
   check(blk1[0]?.blocker === null, 'and for the episode that went through, the view says nothing blocks it', String(blk1[0]?.blocker));
 } catch (err) {

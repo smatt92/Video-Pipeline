@@ -39,6 +39,37 @@ export function speakerSlug(label: string): string | null {
   return SPEAKERS.get(norm(label)) ?? null;
 }
 
+/**
+ * Split one physical line into the speaker turns it actually contains.
+ *
+ * The writer model sometimes puts an interrupted exchange on one line —
+ * `Pip: Marlo: File it under— Pip: Missing?` — and before this the whole thing was spoken by
+ * the first speaker, cast names included (S001's last line, 2026-10-06). A cast label
+ * followed by a colon inside the text starts a new turn; a label that is not in the cast
+ * ("Note:", "Desk Four:") is left as words, because only a known speaker has a voice.
+ */
+export function splitTurns(speaker: string, text: string): { speaker: string; text: string }[] {
+  const re = /(^|\s)([A-Z][\w.]*(?: [A-Z][\w.]*)?):\s+/g;
+  const cuts: { at: number; end: number; slug: string }[] = [];
+  for (const m of text.matchAll(re)) {
+    const slug = speakerSlug(m[2]);
+    if (slug) cuts.push({ at: m.index + m[1].length, end: m.index + m[0].length, slug });
+  }
+  if (!cuts.length) return [{ speaker, text }];
+  const out: { speaker: string; text: string }[] = [];
+  let current = speaker;
+  let from = 0;
+  for (const c of cuts) {
+    const seg = text.slice(from, c.at).trim();
+    if (seg) out.push({ speaker: current, text: seg });
+    current = c.slug;
+    from = c.end;
+  }
+  const tail = text.slice(from).trim();
+  if (tail) out.push({ speaker: current, text: tail });
+  return out;
+}
+
 export type ParseResult = { ok: true; lines: ScriptLine[]; voText: string } | { ok: false; problems: string[] };
 
 export function parseScript(script: string): ParseResult {
@@ -58,11 +89,12 @@ export function parseScript(script: string): ParseResult {
       problems.push(`line ${n + 1}: "${m[1]}" is not in the cast`);
       continue;
     }
-    const text = m[2].trim();
-    if (vo) vo += ' ';
-    const start = vo.length;
-    vo += text;
-    lines.push({ idx: lines.length, speaker: slug, text, voStart: start, voEnd: vo.length });
+    for (const turn of splitTurns(slug, m[2].trim())) {
+      if (vo) vo += ' ';
+      const start = vo.length;
+      vo += turn.text;
+      lines.push({ idx: lines.length, speaker: turn.speaker, text: turn.text, voStart: start, voEnd: vo.length });
+    }
   }
   if (!lines.length && !problems.length) problems.push('the script has no lines');
   return problems.length ? { ok: false, problems } : { ok: true, lines, voText: vo };

@@ -58,7 +58,7 @@ export interface VoiceDeps {
 }
 
 export type VoiceOutcome =
-  | { ok: true; lines: number; totalS: number; voAssetId: string; chars: number; costInr: number; shotsTimed: number; reused: number }
+  | { ok: true; lines: number; totalS: number; voAssetId: string; chars: number; costInr: number; shotsTimed: number; reused: number; unaligned: number | null }
   | { ok: false; code: string; detail: string };
 
 /** Silence between lines, so the cut has room to breathe and captions do not collide. */
@@ -149,7 +149,7 @@ export async function runEpisodeVoice(scriptId: string, deps: VoiceDeps): Promis
         lineWords.push(words);
         durations.push(Number(prior.duration_s ?? 0));
         reused++;
-        if (!words) failedLines.push(`line ${line.idx} (${line.speaker}): alignment previously not confident`);
+        if (!words) failedLines.push(`line ${line.idx} (${line.speaker}): not aligned on an earlier run`);
         continue;
       }
 
@@ -213,10 +213,19 @@ export async function runEpisodeVoice(scriptId: string, deps: VoiceDeps): Promis
       await db.from('vo_takes').update({ offset_s: offsets[i] }).eq('script_id', script.id).eq('chunk_idx', line.idx).eq('language', 'en');
     }
 
-    if (failedLines.length) {
-      log.error('alignment not confident; durations stay estimates', { failedLines });
-      return { ok: false, code: 'alignment_failed', detail: failedLines.join('; ') };
-    }
+    // Shot durations do not rest on word timings: deriveContiguous cuts at LINE boundaries, and
+    // every line's span is its own ffprobe-measured file. So a line the aligner could not
+    // confirm keeps word_timings = [] (absent — never an even split) and is captioned as one
+    // cue over its measured span, and the episode goes on to its cut review, where Sahil hears
+    // every word before anything publishes.
+    //
+    // This used to halt the episode. It halted S001 on all 15 lines (79–91% of the null)
+    // because the aligner's confidence test was calibrated espeak-against-espeak only (0008):
+    // three other synthesisers score 75–96% here on correct text, so it could not tell a real
+    // voice saying the right words from one saying the wrong ones, and the chain was inert for
+    // every vendor voice. Gating on an instrument that cannot see is the failure CLAUDE.md
+    // names; the refusal is recorded instead, and the count travels with the outcome.
+    if (failedLines.length) log.error('alignment not confirmed; those lines caption at line level', { failedLines });
 
     // ── The full VO track ──────────────────────────────────────────────────────
     const local = await Promise.all(
@@ -233,11 +242,11 @@ export async function runEpisodeVoice(scriptId: string, deps: VoiceDeps): Promis
       .single();
 
     // ── Shot durations, contiguous ────────────────────────────────────────────
-    const allWords = lineWords.flatMap((w, i) => shiftBy(w!, offsets[i]));
+    const allWords = lineWords.flatMap((w, i) => (w ? shiftBy(w, offsets[i]) : []));
     const shotsTimed = await deriveContiguous(db, script.id, lines, offsets, totalS);
     log.info('voice complete', { lines: lines.length, totalS, words: allWords.length, shotsTimed });
 
-    return { ok: true, lines: lines.length, totalS, voAssetId: trackAsset!.id, chars, costInr, shotsTimed, reused };
+    return { ok: true, lines: lines.length, totalS, voAssetId: trackAsset!.id, chars, costInr, shotsTimed, reused, unaligned: failedLines.length };
   } finally {
     await rm(work, { recursive: true, force: true });
   }

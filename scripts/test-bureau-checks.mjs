@@ -182,6 +182,16 @@ check(p.ok && p.voText === 'Where is it? Filed. Twice. Noted. Why?' && p.lines[1
 const bad = parseScript('Pip: ok\nGandalf: no\njust words');
 check(!bad.ok && bad.problems.length === 2, 'an unknown speaker and an unlabelled line are both reported', JSON.stringify(bad));
 check(speakerSlug('The Auditor') === 'auditor' && speakerSlug('auditor') === 'auditor', '"The Auditor" and "auditor" are one speaker');
+// S001's last line, verbatim: two turns on one line, once voiced entirely by Pip, names and all.
+const two = parseScript('Marlo: You have till lunch.\nPip: Marlo: File it under— Pip: Missing?');
+check(
+  two.ok && JSON.stringify(two.lines.map((l) => [l.speaker, l.text])) === JSON.stringify([['marlo', 'You have till lunch.'], ['marlo', 'File it under—'], ['pip', 'Missing?']]) &&
+    two.voText === 'You have till lunch. File it under— Missing?' && two.lines[2].voStart === 36 && two.lines[2].voEnd === 44,
+  'turns packed onto one line are split by speaker, and no cast name is spoken',
+  JSON.stringify(two),
+);
+const notCast = parseScript('Marlo: Note: Desk Four: closed.');
+check(notCast.ok && notCast.lines.length === 1 && notCast.lines[0].text === 'Note: Desk Four: closed.', 'a colon after a word that is not in the cast stays as words');
 
 console.log('\ncomments\n');
 check(characterMentions('Mrs Iyer is the best, and Pip too').sort().join() === 'iyer,pip', 'mentions find Mrs Iyer (no dot) and Pip');
