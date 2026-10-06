@@ -186,6 +186,345 @@ export type Database = {
           },
         ]
       }
+      authorship_log: {
+        Row: {
+          action: string
+          actor_scope: string
+          channel_id: string | null
+          exact_text: string | null
+          id: string
+          occurred_at: string
+          payload: Json
+          profile_id: string | null
+          subject_id: string
+          subject_type: string
+          token_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_scope: string
+          channel_id?: string | null
+          exact_text?: string | null
+          id?: string
+          occurred_at?: string
+          payload?: Json
+          profile_id?: string | null
+          subject_id: string
+          subject_type: string
+          token_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_scope?: string
+          channel_id?: string | null
+          exact_text?: string | null
+          id?: string
+          occurred_at?: string
+          payload?: Json
+          profile_id?: string | null
+          subject_id?: string
+          subject_type?: string
+          token_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "authorship_log_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "authorship_log_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: false
+            referencedRelation: "mcp_tokens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      briefs: {
+        Row: {
+          approved_at: string | null
+          approved_by_token: string | null
+          approved_edits: Json | null
+          beat_sheet: Json
+          catchphrase_used: string | null
+          channel_id: string
+          chosen_punchline: string | null
+          created_at: string
+          created_by: string
+          created_by_token: string | null
+          desk: string
+          embedding_model: string | null
+          ending_type: string
+          episode: number | null
+          estimate_basis: Json | null
+          estimate_inr: number | null
+          fact: Json
+          flag_reasons: string[]
+          flagged: boolean
+          hook_archetype: string
+          id: string
+          lead_character: string
+          music_bed: string
+          pinned_comment: string
+          policy: Json | null
+          premise: string
+          premise_type: string
+          punchlines: Json
+          reject_reason: string | null
+          rejected_at: string | null
+          script_embedding: string | null
+          script_text: string
+          season: number | null
+          series: string
+          shot_list: Json
+          slot_id: string | null
+          source_comment_id: string | null
+          status: string
+          structure_variant: string
+          supporting_characters: string[]
+          tags: string[]
+          title_embedding: string | null
+          titles: Json
+          variation: Json | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by_token?: string | null
+          approved_edits?: Json | null
+          beat_sheet: Json
+          catchphrase_used?: string | null
+          channel_id: string
+          chosen_punchline?: string | null
+          created_at?: string
+          created_by: string
+          created_by_token?: string | null
+          desk: string
+          embedding_model?: string | null
+          ending_type: string
+          episode?: number | null
+          estimate_basis?: Json | null
+          estimate_inr?: number | null
+          fact: Json
+          flag_reasons?: string[]
+          flagged?: boolean
+          hook_archetype: string
+          id?: string
+          lead_character: string
+          music_bed: string
+          pinned_comment: string
+          policy?: Json | null
+          premise: string
+          premise_type: string
+          punchlines: Json
+          reject_reason?: string | null
+          rejected_at?: string | null
+          script_embedding?: string | null
+          script_text: string
+          season?: number | null
+          series: string
+          shot_list?: Json
+          slot_id?: string | null
+          source_comment_id?: string | null
+          status?: string
+          structure_variant: string
+          supporting_characters?: string[]
+          tags?: string[]
+          title_embedding?: string | null
+          titles: Json
+          variation?: Json | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by_token?: string | null
+          approved_edits?: Json | null
+          beat_sheet?: Json
+          catchphrase_used?: string | null
+          channel_id?: string
+          chosen_punchline?: string | null
+          created_at?: string
+          created_by?: string
+          created_by_token?: string | null
+          desk?: string
+          embedding_model?: string | null
+          ending_type?: string
+          episode?: number | null
+          estimate_basis?: Json | null
+          estimate_inr?: number | null
+          fact?: Json
+          flag_reasons?: string[]
+          flagged?: boolean
+          hook_archetype?: string
+          id?: string
+          lead_character?: string
+          music_bed?: string
+          pinned_comment?: string
+          policy?: Json | null
+          premise?: string
+          premise_type?: string
+          punchlines?: Json
+          reject_reason?: string | null
+          rejected_at?: string | null
+          script_embedding?: string | null
+          script_text?: string
+          season?: number | null
+          series?: string
+          shot_list?: Json
+          slot_id?: string | null
+          source_comment_id?: string | null
+          status?: string
+          structure_variant?: string
+          supporting_characters?: string[]
+          tags?: string[]
+          title_embedding?: string | null
+          titles?: Json
+          variation?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "briefs_approved_by_token_fkey"
+            columns: ["approved_by_token"]
+            isOneToOne: false
+            referencedRelation: "mcp_tokens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "briefs_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "briefs_created_by_token_fkey"
+            columns: ["created_by_token"]
+            isOneToOne: false
+            referencedRelation: "mcp_tokens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "briefs_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
+            referencedRelation: "slots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "briefs_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
+            referencedRelation: "v_slot_status"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "briefs_source_comment_id_fkey"
+            columns: ["source_comment_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_policy: {
+        Row: {
+          catchphrase_weekly_max: number
+          channel_id: string
+          character_beat_max_s: number
+          daily_cap_inr: number
+          daily_longform_cap_inr: number
+          daily_publish_cap: number
+          default_slot_time: string
+          gate2_passed_at: string | null
+          hook_archetype_weekly_max: number
+          instagram_publish_enabled: boolean
+          kill_switch: boolean
+          kill_switch_at: string | null
+          kill_switch_reason: string | null
+          money_shot_max: number
+          monthly_cap_after_gate2_inr: number
+          monthly_cap_inr: number
+          overlay_min_share: number
+          per_short_cap_inr: number
+          rerolls_max: number
+          similarity_max: number
+          similarity_window: number
+          slot_timezone: string
+          updated_at: string
+          updated_by: string | null
+          variation_min_axes: number
+          variation_window: number
+          youtube_api_audited: boolean
+        }
+        Insert: {
+          catchphrase_weekly_max?: number
+          channel_id: string
+          character_beat_max_s?: number
+          daily_cap_inr?: number
+          daily_longform_cap_inr?: number
+          daily_publish_cap?: number
+          default_slot_time?: string
+          gate2_passed_at?: string | null
+          hook_archetype_weekly_max?: number
+          instagram_publish_enabled?: boolean
+          kill_switch?: boolean
+          kill_switch_at?: string | null
+          kill_switch_reason?: string | null
+          money_shot_max?: number
+          monthly_cap_after_gate2_inr?: number
+          monthly_cap_inr?: number
+          overlay_min_share?: number
+          per_short_cap_inr?: number
+          rerolls_max?: number
+          similarity_max?: number
+          similarity_window?: number
+          slot_timezone?: string
+          updated_at?: string
+          updated_by?: string | null
+          variation_min_axes?: number
+          variation_window?: number
+          youtube_api_audited?: boolean
+        }
+        Update: {
+          catchphrase_weekly_max?: number
+          channel_id?: string
+          character_beat_max_s?: number
+          daily_cap_inr?: number
+          daily_longform_cap_inr?: number
+          daily_publish_cap?: number
+          default_slot_time?: string
+          gate2_passed_at?: string | null
+          hook_archetype_weekly_max?: number
+          instagram_publish_enabled?: boolean
+          kill_switch?: boolean
+          kill_switch_at?: string | null
+          kill_switch_reason?: string | null
+          money_shot_max?: number
+          monthly_cap_after_gate2_inr?: number
+          monthly_cap_inr?: number
+          overlay_min_share?: number
+          per_short_cap_inr?: number
+          rerolls_max?: number
+          similarity_max?: number
+          similarity_window?: number
+          slot_timezone?: string
+          updated_at?: string
+          updated_by?: string | null
+          variation_min_axes?: number
+          variation_window?: number
+          youtube_api_audited?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_policy_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: true
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channels: {
         Row: {
           created_at: string
@@ -197,6 +536,7 @@ export type Database = {
           name: string
           niche: string
           platform: string
+          slug: string | null
           token_expires_at: string | null
           token_last_refreshed_at: string | null
           token_refresh_error: string | null
@@ -213,6 +553,7 @@ export type Database = {
           name: string
           niche: string
           platform: string
+          slug?: string | null
           token_expires_at?: string | null
           token_last_refreshed_at?: string | null
           token_refresh_error?: string | null
@@ -229,6 +570,7 @@ export type Database = {
           name?: string
           niche?: string
           platform?: string
+          slug?: string | null
           token_expires_at?: string | null
           token_last_refreshed_at?: string | null
           token_refresh_error?: string | null
@@ -239,33 +581,192 @@ export type Database = {
       }
       characters: {
         Row: {
+          accent_hex: string | null
+          bible: Json
+          channel_id: string | null
           created_at: string
-          driver: string
-          external_ref_id: string
+          driver: string | null
+          external_ref_id: string | null
           id: string
           name: string
           notes: string | null
+          on_screen: boolean
           reference_urls: string[]
+          role: string | null
+          season_introduced: number
+          slug: string | null
+          synced_at: string | null
+          voice_id: string | null
         }
         Insert: {
+          accent_hex?: string | null
+          bible?: Json
+          channel_id?: string | null
           created_at?: string
-          driver: string
-          external_ref_id: string
+          driver?: string | null
+          external_ref_id?: string | null
           id?: string
           name: string
           notes?: string | null
+          on_screen?: boolean
           reference_urls?: string[]
+          role?: string | null
+          season_introduced?: number
+          slug?: string | null
+          synced_at?: string | null
+          voice_id?: string | null
         }
         Update: {
+          accent_hex?: string | null
+          bible?: Json
+          channel_id?: string | null
           created_at?: string
-          driver?: string
-          external_ref_id?: string
+          driver?: string | null
+          external_ref_id?: string | null
           id?: string
           name?: string
           notes?: string | null
+          on_screen?: boolean
           reference_urls?: string[]
+          role?: string | null
+          season_introduced?: number
+          slug?: string | null
+          synced_at?: string | null
+          voice_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "characters_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      comments: {
+        Row: {
+          author_handle: string | null
+          body: string
+          channel_id: string
+          character_mentions: string[]
+          complaint_score: number | null
+          external_id: string
+          fetched_at: string
+          id: string
+          is_public: boolean
+          is_question: boolean
+          like_count: number | null
+          parent_external_id: string | null
+          platform: string
+          publication_id: string | null
+          published_at: string | null
+          reply_count: number | null
+          used_in_brief_id: string | null
+        }
+        Insert: {
+          author_handle?: string | null
+          body: string
+          channel_id: string
+          character_mentions?: string[]
+          complaint_score?: number | null
+          external_id: string
+          fetched_at?: string
+          id?: string
+          is_public?: boolean
+          is_question?: boolean
+          like_count?: number | null
+          parent_external_id?: string | null
+          platform: string
+          publication_id?: string | null
+          published_at?: string | null
+          reply_count?: number | null
+          used_in_brief_id?: string | null
+        }
+        Update: {
+          author_handle?: string | null
+          body?: string
+          channel_id?: string
+          character_mentions?: string[]
+          complaint_score?: number | null
+          external_id?: string
+          fetched_at?: string
+          id?: string
+          is_public?: boolean
+          is_question?: boolean
+          like_count?: number | null
+          parent_external_id?: string | null
+          platform?: string
+          publication_id?: string | null
+          published_at?: string | null
+          reply_count?: number | null
+          used_in_brief_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comments_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_publication_id_fkey"
+            columns: ["publication_id"]
+            isOneToOne: false
+            referencedRelation: "publications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_publication_id_fkey"
+            columns: ["publication_id"]
+            isOneToOne: false
+            referencedRelation: "v_cost_per_1k_views"
+            referencedColumns: ["publication_id"]
+          },
+          {
+            foreignKeyName: "comments_publication_id_fkey"
+            columns: ["publication_id"]
+            isOneToOne: false
+            referencedRelation: "v_hook_unclassified"
+            referencedColumns: ["publication_id"]
+          },
+          {
+            foreignKeyName: "comments_publication_id_fkey"
+            columns: ["publication_id"]
+            isOneToOne: false
+            referencedRelation: "v_measurement_due"
+            referencedColumns: ["publication_id"]
+          },
+          {
+            foreignKeyName: "comments_publication_id_fkey"
+            columns: ["publication_id"]
+            isOneToOne: false
+            referencedRelation: "v_publish_queue"
+            referencedColumns: ["publication_id"]
+          },
+          {
+            foreignKeyName: "comments_used_in_brief_fkey"
+            columns: ["used_in_brief_id"]
+            isOneToOne: false
+            referencedRelation: "briefs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_used_in_brief_fkey"
+            columns: ["used_in_brief_id"]
+            isOneToOne: false
+            referencedRelation: "v_slot_status"
+            referencedColumns: ["brief_id"]
+          },
+          {
+            foreignKeyName: "comments_used_in_brief_fkey"
+            columns: ["used_in_brief_id"]
+            isOneToOne: false
+            referencedRelation: "v_variation_ledger"
+            referencedColumns: ["brief_id"]
+          },
+        ]
       }
       competitor_videos: {
         Row: {
@@ -687,6 +1188,620 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      dub_jobs: {
+        Row: {
+          audio_asset_id: string | null
+          caption_render_id: string | null
+          created_at: string
+          episode_id: string
+          error: string | null
+          estimate_inr: number | null
+          id: string
+          language: string
+          requested_by: string
+          status: string
+          token_id: string | null
+          translated_lines: Json | null
+          updated_at: string
+        }
+        Insert: {
+          audio_asset_id?: string | null
+          caption_render_id?: string | null
+          created_at?: string
+          episode_id: string
+          error?: string | null
+          estimate_inr?: number | null
+          id?: string
+          language: string
+          requested_by: string
+          status?: string
+          token_id?: string | null
+          translated_lines?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          audio_asset_id?: string | null
+          caption_render_id?: string | null
+          created_at?: string
+          episode_id?: string
+          error?: string | null
+          estimate_inr?: number | null
+          id?: string
+          language?: string
+          requested_by?: string
+          status?: string
+          token_id?: string | null
+          translated_lines?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dub_jobs_audio_asset_id_fkey"
+            columns: ["audio_asset_id"]
+            isOneToOne: false
+            referencedRelation: "assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dub_jobs_caption_render_id_fkey"
+            columns: ["caption_render_id"]
+            isOneToOne: false
+            referencedRelation: "renders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dub_jobs_caption_render_id_fkey"
+            columns: ["caption_render_id"]
+            isOneToOne: false
+            referencedRelation: "v_render_cost"
+            referencedColumns: ["render_id"]
+          },
+          {
+            foreignKeyName: "dub_jobs_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "episodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dub_jobs_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "v_episode_spend"
+            referencedColumns: ["episode_id"]
+          },
+          {
+            foreignKeyName: "dub_jobs_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "v_slot_status"
+            referencedColumns: ["episode_id"]
+          },
+          {
+            foreignKeyName: "dub_jobs_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: false
+            referencedRelation: "mcp_tokens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      episodes: {
+        Row: {
+          brief_id: string
+          channel_id: string
+          concept_id: string | null
+          created_at: string
+          cut_wait_token: string | null
+          estimate_inr: number | null
+          final_render_id: string | null
+          id: string
+          master_render_id: string | null
+          publication_id: string | null
+          qc: Json
+          review_id: string | null
+          run_id: string | null
+          script_id: string | null
+          slot_id: string | null
+          status: string
+          status_detail: string | null
+          updated_at: string
+        }
+        Insert: {
+          brief_id: string
+          channel_id: string
+          concept_id?: string | null
+          created_at?: string
+          cut_wait_token?: string | null
+          estimate_inr?: number | null
+          final_render_id?: string | null
+          id?: string
+          master_render_id?: string | null
+          publication_id?: string | null
+          qc?: Json
+          review_id?: string | null
+          run_id?: string | null
+          script_id?: string | null
+          slot_id?: string | null
+          status?: string
+          status_detail?: string | null
+          updated_at?: string
+        }
+        Update: {
+          brief_id?: string
+          channel_id?: string
+          concept_id?: string | null
+          created_at?: string
+          cut_wait_token?: string | null
+          estimate_inr?: number | null
+          final_render_id?: string | null
+          id?: string
+          master_render_id?: string | null
+          publication_id?: string | null
+          qc?: Json
+          review_id?: string | null
+          run_id?: string | null
+          script_id?: string | null
+          slot_id?: string | null
+          status?: string
+          status_detail?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "episodes_brief_id_fkey"
+            columns: ["brief_id"]
+            isOneToOne: true
+            referencedRelation: "briefs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "episodes_brief_id_fkey"
+            columns: ["brief_id"]
+            isOneToOne: true
+            referencedRelation: "v_slot_status"
+            referencedColumns: ["brief_id"]
+          },
+          {
+            foreignKeyName: "episodes_brief_id_fkey"
+            columns: ["brief_id"]
+            isOneToOne: true
+            referencedRelation: "v_variation_ledger"
+            referencedColumns: ["brief_id"]
+          },
+          {
+            foreignKeyName: "episodes_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "episodes_concept_id_fkey"
+            columns: ["concept_id"]
+            isOneToOne: false
+            referencedRelation: "concepts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "episodes_concept_id_fkey"
+            columns: ["concept_id"]
+            isOneToOne: false
+            referencedRelation: "v_pipeline_blockers"
+            referencedColumns: ["concept_id"]
+          },
+          {
+            foreignKeyName: "episodes_final_render_id_fkey"
+            columns: ["final_render_id"]
+            isOneToOne: false
+            referencedRelation: "renders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "episodes_final_render_id_fkey"
+            columns: ["final_render_id"]
+            isOneToOne: false
+            referencedRelation: "v_render_cost"
+            referencedColumns: ["render_id"]
+          },
+          {
+            foreignKeyName: "episodes_master_render_id_fkey"
+            columns: ["master_render_id"]
+            isOneToOne: false
+            referencedRelation: "renders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "episodes_master_render_id_fkey"
+            columns: ["master_render_id"]
+            isOneToOne: false
+            referencedRelation: "v_render_cost"
+            referencedColumns: ["render_id"]
+          },
+          {
+            foreignKeyName: "episodes_publication_id_fkey"
+            columns: ["publication_id"]
+            isOneToOne: false
+            referencedRelation: "publications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "episodes_publication_id_fkey"
+            columns: ["publication_id"]
+            isOneToOne: false
+            referencedRelation: "v_cost_per_1k_views"
+            referencedColumns: ["publication_id"]
+          },
+          {
+            foreignKeyName: "episodes_publication_id_fkey"
+            columns: ["publication_id"]
+            isOneToOne: false
+            referencedRelation: "v_hook_unclassified"
+            referencedColumns: ["publication_id"]
+          },
+          {
+            foreignKeyName: "episodes_publication_id_fkey"
+            columns: ["publication_id"]
+            isOneToOne: false
+            referencedRelation: "v_measurement_due"
+            referencedColumns: ["publication_id"]
+          },
+          {
+            foreignKeyName: "episodes_publication_id_fkey"
+            columns: ["publication_id"]
+            isOneToOne: false
+            referencedRelation: "v_publish_queue"
+            referencedColumns: ["publication_id"]
+          },
+          {
+            foreignKeyName: "episodes_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "reviews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "episodes_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "v_current_review"
+            referencedColumns: ["review_id"]
+          },
+          {
+            foreignKeyName: "episodes_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "episodes_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_cost_per_1k_views"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "episodes_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_hook_unclassified"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "episodes_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_pipeline_blockers"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "episodes_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_cost"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "episodes_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_structure_novelty"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "episodes_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_vo_status"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "episodes_script_id_fkey"
+            columns: ["script_id"]
+            isOneToOne: false
+            referencedRelation: "v_video_cost"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "episodes_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
+            referencedRelation: "slots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "episodes_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
+            referencedRelation: "v_slot_status"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fact_sources: {
+        Row: {
+          brief_id: string
+          checked_at: string | null
+          claim: string
+          created_at: string
+          domain: string
+          http_status: number | null
+          id: string
+          source_class: string
+          title: string | null
+          url: string
+        }
+        Insert: {
+          brief_id: string
+          checked_at?: string | null
+          claim: string
+          created_at?: string
+          domain: string
+          http_status?: number | null
+          id?: string
+          source_class: string
+          title?: string | null
+          url: string
+        }
+        Update: {
+          brief_id?: string
+          checked_at?: string | null
+          claim?: string
+          created_at?: string
+          domain?: string
+          http_status?: number | null
+          id?: string
+          source_class?: string
+          title?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fact_sources_brief_id_fkey"
+            columns: ["brief_id"]
+            isOneToOne: false
+            referencedRelation: "briefs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fact_sources_brief_id_fkey"
+            columns: ["brief_id"]
+            isOneToOne: false
+            referencedRelation: "v_slot_status"
+            referencedColumns: ["brief_id"]
+          },
+          {
+            foreignKeyName: "fact_sources_brief_id_fkey"
+            columns: ["brief_id"]
+            isOneToOne: false
+            referencedRelation: "v_variation_ledger"
+            referencedColumns: ["brief_id"]
+          },
+        ]
+      }
+      gen_jobs: {
+        Row: {
+          attempts: number
+          created_at: string
+          duration_s: number
+          endpoint: string | null
+          episode_id: string | null
+          estimate_inr: number | null
+          failover_of: string | null
+          generation_id: string | null
+          id: string
+          idempotency_key: string
+          last_error: string | null
+          last_error_code: string | null
+          locked_at: string | null
+          locked_by: string | null
+          max_attempts: number
+          model: string
+          next_attempt_at: string
+          note: string | null
+          params: Json
+          poll_ref: Json
+          prompt_id: string | null
+          provider: string
+          render_route: string
+          request_id: string | null
+          reroll_index: number
+          reroll_of: string | null
+          shot_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          duration_s: number
+          endpoint?: string | null
+          episode_id?: string | null
+          estimate_inr?: number | null
+          failover_of?: string | null
+          generation_id?: string | null
+          id?: string
+          idempotency_key: string
+          last_error?: string | null
+          last_error_code?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          max_attempts?: number
+          model: string
+          next_attempt_at?: string
+          note?: string | null
+          params: Json
+          poll_ref?: Json
+          prompt_id?: string | null
+          provider: string
+          render_route: string
+          request_id?: string | null
+          reroll_index?: number
+          reroll_of?: string | null
+          shot_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          duration_s?: number
+          endpoint?: string | null
+          episode_id?: string | null
+          estimate_inr?: number | null
+          failover_of?: string | null
+          generation_id?: string | null
+          id?: string
+          idempotency_key?: string
+          last_error?: string | null
+          last_error_code?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          max_attempts?: number
+          model?: string
+          next_attempt_at?: string
+          note?: string | null
+          params?: Json
+          poll_ref?: Json
+          prompt_id?: string | null
+          provider?: string
+          render_route?: string
+          request_id?: string | null
+          reroll_index?: number
+          reroll_of?: string | null
+          shot_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gen_jobs_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "episodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gen_jobs_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "v_episode_spend"
+            referencedColumns: ["episode_id"]
+          },
+          {
+            foreignKeyName: "gen_jobs_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "v_slot_status"
+            referencedColumns: ["episode_id"]
+          },
+          {
+            foreignKeyName: "gen_jobs_failover_of_fkey"
+            columns: ["failover_of"]
+            isOneToOne: false
+            referencedRelation: "gen_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gen_jobs_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "generations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gen_jobs_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "v_replayed_callbacks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gen_jobs_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "v_stuck_submits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gen_jobs_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "v_unconfirmed_terminal_generations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gen_jobs_prompt_id_fkey"
+            columns: ["prompt_id"]
+            isOneToOne: false
+            referencedRelation: "prompts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gen_jobs_prompt_id_fkey"
+            columns: ["prompt_id"]
+            isOneToOne: false
+            referencedRelation: "v_recipe_performance"
+            referencedColumns: ["prompt_id"]
+          },
+          {
+            foreignKeyName: "gen_jobs_provider_fkey"
+            columns: ["provider"]
+            isOneToOne: false
+            referencedRelation: "provider_limits"
+            referencedColumns: ["provider"]
+          },
+          {
+            foreignKeyName: "gen_jobs_provider_fkey"
+            columns: ["provider"]
+            isOneToOne: false
+            referencedRelation: "v_gen_queue"
+            referencedColumns: ["provider"]
+          },
+          {
+            foreignKeyName: "gen_jobs_reroll_of_fkey"
+            columns: ["reroll_of"]
+            isOneToOne: false
+            referencedRelation: "gen_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gen_jobs_shot_id_fkey"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "shots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gen_jobs_shot_id_fkey"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "v_unresolved_shots"
+            referencedColumns: ["shot_id"]
+          },
+        ]
       }
       generations: {
         Row: {
@@ -1118,12 +2233,81 @@ export type Database = {
         }
         Relationships: []
       }
+      mcp_tokens: {
+        Row: {
+          channel_id: string
+          created_at: string
+          id: string
+          last_used_at: string | null
+          name: string
+          profile_id: string | null
+          revoked_at: string | null
+          scope: string
+          token_hash: string
+          token_prefix: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          id?: string
+          last_used_at?: string | null
+          name: string
+          profile_id?: string | null
+          revoked_at?: string | null
+          scope: string
+          token_hash: string
+          token_prefix: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          id?: string
+          last_used_at?: string | null
+          name?: string
+          profile_id?: string | null
+          revoked_at?: string | null
+          scope?: string
+          token_hash?: string
+          token_prefix?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mcp_tokens_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mcp_tokens_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mcp_tokens_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_deferred_steps"
+            referencedColumns: ["profile_id"]
+          },
+          {
+            foreignKeyName: "mcp_tokens_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "v_entry_state"
+            referencedColumns: ["profile_id"]
+          },
+        ]
+      }
       metrics_snapshots: {
         Row: {
           age_bucket: string
           avg_view_pct: number | null
           captured_at: string
           comments: number | null
+          engaged_views: number | null
           entered_by: string | null
           id: string
           likes: number | null
@@ -1134,8 +2318,10 @@ export type Database = {
           saves: number | null
           shares: number | null
           status: string
+          subs_gained: number | null
           unavailable_reason: string | null
           updated_at: string
+          viewed_vs_swiped_pct: number | null
           views: number | null
         }
         Insert: {
@@ -1143,6 +2329,7 @@ export type Database = {
           avg_view_pct?: number | null
           captured_at?: string
           comments?: number | null
+          engaged_views?: number | null
           entered_by?: string | null
           id?: string
           likes?: number | null
@@ -1153,8 +2340,10 @@ export type Database = {
           saves?: number | null
           shares?: number | null
           status?: string
+          subs_gained?: number | null
           unavailable_reason?: string | null
           updated_at?: string
+          viewed_vs_swiped_pct?: number | null
           views?: number | null
         }
         Update: {
@@ -1162,6 +2351,7 @@ export type Database = {
           avg_view_pct?: number | null
           captured_at?: string
           comments?: number | null
+          engaged_views?: number | null
           entered_by?: string | null
           id?: string
           likes?: number | null
@@ -1172,8 +2362,10 @@ export type Database = {
           saves?: number | null
           shares?: number | null
           status?: string
+          subs_gained?: number | null
           unavailable_reason?: string | null
           updated_at?: string
+          viewed_vs_swiped_pct?: number | null
           views?: number | null
         }
         Relationships: [
@@ -1211,6 +2403,47 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_publish_queue"
             referencedColumns: ["publication_id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          channel_id: string | null
+          created_at: string
+          dedupe_key: string | null
+          delivered: boolean
+          detail: string | null
+          id: string
+          kind: string
+          text: string
+        }
+        Insert: {
+          channel_id?: string | null
+          created_at?: string
+          dedupe_key?: string | null
+          delivered: boolean
+          detail?: string | null
+          id?: string
+          kind: string
+          text: string
+        }
+        Update: {
+          channel_id?: string | null
+          created_at?: string
+          dedupe_key?: string | null
+          delivered?: boolean
+          detail?: string | null
+          id?: string
+          kind?: string
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1484,21 +2717,45 @@ export type Database = {
           },
         ]
       }
+      provider_limits: {
+        Row: {
+          max_concurrency: number
+          provider: string
+          updated_at: string
+        }
+        Insert: {
+          max_concurrency: number
+          provider: string
+          updated_at?: string
+        }
+        Update: {
+          max_concurrency?: number
+          provider?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       publications: {
         Row: {
           altered_content_disclosed: boolean
+          bundle: Json | null
           channel_id: string
           created_at: string
           description: string | null
+          episode_id: string | null
           error_detail: string | null
           external_post_id: string | null
           external_url: string | null
           id: string
           idempotency_key: string | null
+          made_for_kids: boolean
+          marked_scheduled_at: string | null
+          platform: string
           published_at: string | null
           render_id: string
           review_id: string
           scheduled_for: string | null
+          slot_id: string | null
           status: string
           tags: string[] | null
           thumbnail_asset_id: string | null
@@ -1511,18 +2768,24 @@ export type Database = {
         }
         Insert: {
           altered_content_disclosed?: boolean
+          bundle?: Json | null
           channel_id: string
           created_at?: string
           description?: string | null
+          episode_id?: string | null
           error_detail?: string | null
           external_post_id?: string | null
           external_url?: string | null
           id?: string
           idempotency_key?: string | null
+          made_for_kids?: boolean
+          marked_scheduled_at?: string | null
+          platform?: string
           published_at?: string | null
           render_id: string
           review_id: string
           scheduled_for?: string | null
+          slot_id?: string | null
           status?: string
           tags?: string[] | null
           thumbnail_asset_id?: string | null
@@ -1535,18 +2798,24 @@ export type Database = {
         }
         Update: {
           altered_content_disclosed?: boolean
+          bundle?: Json | null
           channel_id?: string
           created_at?: string
           description?: string | null
+          episode_id?: string | null
           error_detail?: string | null
           external_post_id?: string | null
           external_url?: string | null
           id?: string
           idempotency_key?: string | null
+          made_for_kids?: boolean
+          marked_scheduled_at?: string | null
+          platform?: string
           published_at?: string | null
           render_id?: string
           review_id?: string
           scheduled_for?: string | null
+          slot_id?: string | null
           status?: string
           tags?: string[] | null
           thumbnail_asset_id?: string | null
@@ -1564,6 +2833,27 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "channels"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publications_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "episodes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publications_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "v_episode_spend"
+            referencedColumns: ["episode_id"]
+          },
+          {
+            foreignKeyName: "publications_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "v_slot_status"
+            referencedColumns: ["episode_id"]
           },
           {
             foreignKeyName: "publications_render_id_fkey"
@@ -1592,6 +2882,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_current_review"
             referencedColumns: ["review_id"]
+          },
+          {
+            foreignKeyName: "publications_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
+            referencedRelation: "slots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publications_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
+            referencedRelation: "v_slot_status"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "publications_thumbnail_asset_id_fkey"
@@ -1650,6 +2954,8 @@ export type Database = {
           height: number
           id: string
           kind: string
+          language: string
+          layer: string
           origin: string
           render_ms: number | null
           script_id: string
@@ -1666,6 +2972,8 @@ export type Database = {
           height: number
           id?: string
           kind?: string
+          language?: string
+          layer?: string
           origin?: string
           render_ms?: number | null
           script_id: string
@@ -1682,6 +2990,8 @@ export type Database = {
           height?: number
           id?: string
           kind?: string
+          language?: string
+          layer?: string
           origin?: string
           render_ms?: number | null
           script_id?: string
@@ -1921,7 +3231,9 @@ export type Database = {
       }
       shots: {
         Row: {
+          beat_id: string | null
           character_id: string | null
+          character_slugs: string[]
           compile_note: string | null
           compiled_at: string | null
           compiled_params: Json | null
@@ -1932,7 +3244,10 @@ export type Database = {
           effective_duration_s: number | null
           id: string
           idx: number
+          overlay_spec: Json | null
           prompt_id: string | null
+          realistic: boolean
+          render_route: string | null
           script_id: string
           shot_kind: string | null
           status: string
@@ -1942,7 +3257,9 @@ export type Database = {
           vo_char_start: number | null
         }
         Insert: {
+          beat_id?: string | null
           character_id?: string | null
+          character_slugs?: string[]
           compile_note?: string | null
           compiled_at?: string | null
           compiled_params?: Json | null
@@ -1953,7 +3270,10 @@ export type Database = {
           effective_duration_s?: number | null
           id?: string
           idx: number
+          overlay_spec?: Json | null
           prompt_id?: string | null
+          realistic?: boolean
+          render_route?: string | null
           script_id: string
           shot_kind?: string | null
           status?: string
@@ -1963,7 +3283,9 @@ export type Database = {
           vo_char_start?: number | null
         }
         Update: {
+          beat_id?: string | null
           character_id?: string | null
+          character_slugs?: string[]
           compile_note?: string | null
           compiled_at?: string | null
           compiled_params?: Json | null
@@ -1974,7 +3296,10 @@ export type Database = {
           effective_duration_s?: number | null
           id?: string
           idx?: number
+          overlay_spec?: Json | null
           prompt_id?: string | null
+          realistic?: boolean
+          render_route?: string | null
           script_id?: string
           shot_kind?: string | null
           status?: string
@@ -2060,6 +3385,113 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "v_video_cost"
             referencedColumns: ["script_id"]
+          },
+        ]
+      }
+      slots: {
+        Row: {
+          channel_id: string
+          created_at: string
+          episode: string | null
+          hook: string | null
+          id: string
+          kind: string
+          lead: string | null
+          notes: string | null
+          seasonal_tag: string | null
+          series: string
+          series_name: string
+          slot_date: string | null
+          topic: string
+          topic_status: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          episode?: string | null
+          hook?: string | null
+          id: string
+          kind: string
+          lead?: string | null
+          notes?: string | null
+          seasonal_tag?: string | null
+          series: string
+          series_name: string
+          slot_date?: string | null
+          topic: string
+          topic_status: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          episode?: string | null
+          hook?: string | null
+          id?: string
+          kind?: string
+          lead?: string | null
+          notes?: string | null
+          seasonal_tag?: string | null
+          series?: string
+          series_name?: string
+          slot_date?: string | null
+          topic?: string
+          topic_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slots_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      strategy_memos: {
+        Row: {
+          body: string
+          channel_id: string
+          created_at: string
+          created_by: string
+          gates: Json
+          id: string
+          token_id: string | null
+          week_of: string
+        }
+        Insert: {
+          body: string
+          channel_id: string
+          created_at?: string
+          created_by: string
+          gates?: Json
+          id?: string
+          token_id?: string | null
+          week_of: string
+        }
+        Update: {
+          body?: string
+          channel_id?: string
+          created_at?: string
+          created_by?: string
+          gates?: Json
+          id?: string
+          token_id?: string | null
+          week_of?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "strategy_memos_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "strategy_memos_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: false
+            referencedRelation: "mcp_tokens"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2400,6 +3832,27 @@ export type Database = {
           window_started_at: string | null
         }
         Relationships: []
+      }
+      v_channel_spend: {
+        Row: {
+          channel_id: string | null
+          daily_cap_inr: number | null
+          daily_longform_cap_inr: number | null
+          kill_switch: boolean | null
+          month_inr: number | null
+          monthly_cap_effective_inr: number | null
+          per_short_cap_inr: number | null
+          today_inr: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_policy_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: true
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       v_concept_cost: {
         Row: {
@@ -2762,6 +4215,57 @@ export type Database = {
         }
         Relationships: []
       }
+      v_episode_spend: {
+        Row: {
+          brief_id: string | null
+          channel_id: string | null
+          episode_id: string | null
+          spent_inr: number | null
+          unpriced_rows: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "episodes_brief_id_fkey"
+            columns: ["brief_id"]
+            isOneToOne: true
+            referencedRelation: "briefs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "episodes_brief_id_fkey"
+            columns: ["brief_id"]
+            isOneToOne: true
+            referencedRelation: "v_slot_status"
+            referencedColumns: ["brief_id"]
+          },
+          {
+            foreignKeyName: "episodes_brief_id_fkey"
+            columns: ["brief_id"]
+            isOneToOne: true
+            referencedRelation: "v_variation_ledger"
+            referencedColumns: ["brief_id"]
+          },
+          {
+            foreignKeyName: "episodes_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_gen_queue: {
+        Row: {
+          failed_24h: number | null
+          in_flight: number | null
+          max_concurrency: number | null
+          provider: string | null
+          queued: number | null
+          succeeded_24h: number | null
+          throttled: number | null
+        }
+        Relationships: []
+      }
       v_hook_performance: {
         Row: {
           best_retention_3s_pct: number | null
@@ -2791,6 +4295,164 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "channels"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_ledger_effective: {
+        Row: {
+          channel_id: string | null
+          component: string | null
+          concept_id: string | null
+          cost_inr: number | null
+          cost_source: string | null
+          cost_usd: number | null
+          driver: string | null
+          eff_channel_id: string | null
+          eff_script_id: string | null
+          entry_kind: string | null
+          generation_id: string | null
+          id: string | null
+          incurred: boolean | null
+          occurred_at: string | null
+          render_id: string | null
+          script_id: string | null
+          studio_session_id: string | null
+          subject_script_id: string | null
+          unit: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cost_ledger_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_concept_id_fkey"
+            columns: ["concept_id"]
+            isOneToOne: false
+            referencedRelation: "concepts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_concept_id_fkey"
+            columns: ["concept_id"]
+            isOneToOne: false
+            referencedRelation: "v_pipeline_blockers"
+            referencedColumns: ["concept_id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "generations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "v_replayed_callbacks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "v_stuck_submits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_generation_id_fkey"
+            columns: ["generation_id"]
+            isOneToOne: false
+            referencedRelation: "v_unconfirmed_terminal_generations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_render_id_fkey"
+            columns: ["render_id"]
+            isOneToOne: false
+            referencedRelation: "renders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_render_id_fkey"
+            columns: ["render_id"]
+            isOneToOne: false
+            referencedRelation: "v_render_cost"
+            referencedColumns: ["render_id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_script_id_fkey"
+            columns: ["subject_script_id"]
+            isOneToOne: false
+            referencedRelation: "scripts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_script_id_fkey"
+            columns: ["subject_script_id"]
+            isOneToOne: false
+            referencedRelation: "v_cost_per_1k_views"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_script_id_fkey"
+            columns: ["subject_script_id"]
+            isOneToOne: false
+            referencedRelation: "v_hook_unclassified"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_script_id_fkey"
+            columns: ["subject_script_id"]
+            isOneToOne: false
+            referencedRelation: "v_pipeline_blockers"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_script_id_fkey"
+            columns: ["subject_script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_cost"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_script_id_fkey"
+            columns: ["subject_script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_structure_novelty"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_script_id_fkey"
+            columns: ["subject_script_id"]
+            isOneToOne: false
+            referencedRelation: "v_script_vo_status"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_script_id_fkey"
+            columns: ["subject_script_id"]
+            isOneToOne: false
+            referencedRelation: "v_video_cost"
+            referencedColumns: ["script_id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_studio_session_id_fkey"
+            columns: ["studio_session_id"]
+            isOneToOne: false
+            referencedRelation: "studio_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cost_ledger_studio_session_id_fkey"
+            columns: ["studio_session_id"]
+            isOneToOne: false
+            referencedRelation: "v_studio_session_spend"
+            referencedColumns: ["session_id"]
           },
         ]
       }
@@ -3203,6 +4865,40 @@ export type Database = {
           },
         ]
       }
+      v_slot_status: {
+        Row: {
+          brief_id: string | null
+          brief_status: string | null
+          channel_id: string | null
+          created_at: string | null
+          episode: string | null
+          episode_id: string | null
+          episode_status: string | null
+          flagged: boolean | null
+          hook: string | null
+          id: string | null
+          kind: string | null
+          lead: string | null
+          notes: string | null
+          production_status: string | null
+          publish_at: string | null
+          seasonal_tag: string | null
+          series: string | null
+          series_name: string | null
+          slot_date: string | null
+          topic: string | null
+          topic_status: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "slots_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_stuck_submits: {
         Row: {
           charged: boolean | null
@@ -3488,6 +5184,33 @@ export type Database = {
           },
         ]
       }
+      v_variation_ledger: {
+        Row: {
+          brief_id: string | null
+          catchphrase_used: string | null
+          channel_id: string | null
+          created_at: string | null
+          desk: string | null
+          ending_type: string | null
+          hook_archetype: string | null
+          lead: string | null
+          music_bed: string | null
+          on_date: string | null
+          premise_type: string | null
+          series: string | null
+          status: string | null
+          structure_variant: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "briefs_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       v_video_cost: {
         Row: {
           channel_id: string | null
@@ -3543,6 +5266,59 @@ export type Database = {
         Returns: boolean
       }
       assert_vault_available: { Args: never; Returns: undefined }
+      brief_similarity: {
+        Args: {
+          p_channel: string
+          p_embedding: string
+          p_exclude: string
+          p_window: number
+        }
+        Returns: {
+          brief_id: string
+          similarity: number
+        }[]
+      }
+      channel_killed: { Args: { p_channel: string }; Returns: boolean }
+      claim_gen_jobs: {
+        Args: { p_max: number; p_provider: string; p_worker: string }
+        Returns: {
+          attempts: number
+          created_at: string
+          duration_s: number
+          endpoint: string | null
+          episode_id: string | null
+          estimate_inr: number | null
+          failover_of: string | null
+          generation_id: string | null
+          id: string
+          idempotency_key: string
+          last_error: string | null
+          last_error_code: string | null
+          locked_at: string | null
+          locked_by: string | null
+          max_attempts: number
+          model: string
+          next_attempt_at: string
+          note: string | null
+          params: Json
+          poll_ref: Json
+          prompt_id: string | null
+          provider: string
+          render_route: string
+          request_id: string | null
+          reroll_index: number
+          reroll_of: string | null
+          shot_id: string | null
+          status: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "gen_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       confirm_generation_once: {
         Args: {
           p_error_code?: string

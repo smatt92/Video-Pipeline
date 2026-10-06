@@ -2,6 +2,9 @@ import Anthropic from '@anthropic-ai/sdk';
 import { HiggsfieldClient } from '@higgsfield/client';
 
 import { DEFAULT_CONCURRENCY, PLAN_TIERS, type IntegrationDescriptor } from './catalog';
+import { probeJobVendor } from './jobs';
+import { probeNotify } from './notify';
+import { probeInstagram } from '../publish/instagram';
 
 /**
  * Credential probes — the cheapest authenticated call each vendor offers.
@@ -302,8 +305,8 @@ export async function probeIntegration(
 
     case 'higgsfield':
       return probeVideo({
-        apiKey: values.HIGGSFIELD_API_KEY,
-        apiSecret: values.HIGGSFIELD_API_SECRET,
+        apiKey: values.HIGGSFIELD_API_KEY_ID,
+        apiSecret: values.HIGGSFIELD_API_KEY_SECRET,
         baseUrl: process.env.HIGGSFIELD_API_BASE_URL || undefined,
       });
 
@@ -326,6 +329,25 @@ export async function probeIntegration(
           },
         ],
       };
+
+    case 'gemini':
+    case 'runway': {
+      const r = await probeJobVendor(descriptor.slug, values);
+      return {
+        latencyMs: 0,
+        checks: [{ name: 'credentials', passed: r?.passed ?? false, required: true, detail: r?.detail ?? 'No probe.' }],
+      };
+    }
+
+    case 'slack': {
+      const r = await probeNotify(values.SLACK_WEBHOOK_URL);
+      return { latencyMs: 0, checks: [{ name: 'credentials', ...r, required: true }] };
+    }
+
+    case 'instagram': {
+      const r = await probeInstagram(values.META_IG_USER_ID, values.META_ACCESS_TOKEN);
+      return { latencyMs: 0, checks: [{ name: 'credentials', ...r, required: true }] };
+    }
 
     default:
       return null;

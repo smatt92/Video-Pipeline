@@ -101,7 +101,7 @@ export interface Pronunciation {
 }
 
 export const PRONUNCIATIONS: readonly Pronunciation[] = [
-  { grapheme: 'GTA', kind: 'alias', replacement: 'G T A', alphabet: null, note: 'Read as letters' },
+  { grapheme: 'NOAA', kind: 'alias', replacement: 'Noah', alphabet: null, note: 'Read as a word' },
   { grapheme: 'Rockstar', kind: 'alias', replacement: 'Rock Star', alphabet: null, note: '' },
   { grapheme: 'Bengaluru', kind: 'phoneme', replacement: 'B EH1 NG AH0 L UH1 R UH0', alphabet: 'cmu', note: 'CMU is more predictable than IPA' },
   { grapheme: 'Kochi', kind: 'phoneme', replacement: 'K OW1 CH IY0', alphabet: 'cmu', note: '' },

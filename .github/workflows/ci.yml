@@ -21,7 +21,7 @@ jobs:
     # prove the code agrees with itself.
     services:
       postgres:
-        image: postgres:16
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: kiln
@@ -109,6 +109,9 @@ jobs:
       # well-meaning shortcut.
       - name: No vendor names outside the driver, publish and storage layers
         run: pnpm check:vendors
+
+      - name: The calendar migration matches data/kiln-topic-calendar.csv
+        run: pnpm check:calendar
 
       # ── Nothing but the two permitted vars may be client-published ───────
       - name: NEXT_PUBLIC_ prefix guard

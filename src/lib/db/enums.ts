@@ -77,7 +77,7 @@ export const publicationStatus = z.enum([
   'failed',
 ]);
 
-export const metricsAgeBucket = z.enum(['6h', '24h', '7d', '30d']);
+export const metricsAgeBucket = z.enum(['1h', '6h', '24h', '72h', '7d', '30d']);
 
 /**
  * Whether a snapshot's numbers came back (migration 0034).
@@ -124,7 +124,7 @@ export const scriptArc = z.enum([
  * asks about money. `manual_entry` is a person reading the platform's dashboard and typing
  * it, which is the only source Phase 1 has.
  */
-export const metricSource = z.enum(['manual_entry', 'vendor_api']);
+export const metricSource = z.enum(['manual_entry', 'vendor_api', 'studio_csv']);
 
 /**
  * The shape of a hook, which is the key hook performance is grouped on (migration 0034).
@@ -186,6 +186,7 @@ export const integrationKind = z.enum([
   'storage',
   'mcp',
   'channel',
+  'notify',
 ]);
 
 export const mcpAuthMode = z.enum(['none', 'bearer', 'oauth']);
@@ -273,6 +274,47 @@ export type ShotKind = z.infer<typeof shotKind>;
 export const promptProvenance = z.enum(['claude-code-mcp', 'manual', 'imported']);
 export type PromptProvenance = z.infer<typeof promptProvenance>;
 
+
+// ── Bureau of Reality (0037) ─────────────────────────────────────────────────
+
+export const mcpTokenScope = z.enum(['approver', 'agent']);
+export const actorScope = z.enum(['approver', 'agent', 'ui', 'system']);
+export const slotKind = z.enum(['short', 'long_form', 'bank']);
+export const bureauSeries = z.enum([
+  'incident', 'desk_tour', 'pip', 'archive', 'myth', 'deep', 'complaint', 'long_form',
+]);
+/** The calendar also has `sequel` placeholder slots; a brief always names a real series. */
+export const slotSeries = z.enum([
+  'incident', 'desk_tour', 'pip', 'archive', 'myth', 'deep', 'complaint', 'long_form', 'sequel',
+]);
+export const topicStatus = z.enum(['approved', 'planned', 'bank']);
+export const socialPlatform = z.enum(['youtube', 'instagram']);
+export const briefStatus = z.enum(['pending', 'approved', 'rejected', 'superseded']);
+export const briefCreator = z.enum(['agent', 'approver', 'ui', 'system']);
+export const factSourceClass = z.enum([
+  'gov', 'edu', 'space_agency', 'met_ocean_agency', 'museum', 'peer_reviewed', 'standards_body', 'other',
+]);
+export const episodeStatus = z.enum([
+  'queued', 'scripting', 'shotlisting', 'estimating', 'generating', 'qc', 'voicing',
+  'assembling', 'awaiting_cut', 'cut_approved', 'cut_rejected', 'bundled', 'scheduled',
+  'live', 'failed', 'halted',
+]);
+export const renderRoute = z.enum(['overlay', 'character_beat', 'acted_beat', 'money_shot']);
+/** Overlays never enter the generation queue — they are rendered in-house. */
+export const queuedRoute = z.enum(['character_beat', 'acted_beat', 'money_shot']);
+export const renderLayer = z.enum(['composite', 'clean_master', 'caption_layer', 'longform']);
+export const genJobStatus = z.enum([
+  'queued', 'claimed', 'submitted', 'succeeded', 'failed', 'throttled', 'cancelled',
+]);
+export const dubLanguage = z.enum(['hi', 'es', 'pt-BR']);
+export const dubStatus = z.enum([
+  'queued', 'translating', 'voicing', 'rendering', 'ready', 'failed', 'cancelled',
+]);
+export const memoCreator = z.enum(['agent', 'approver', 'system']);
+export const notificationKind = z.enum([
+  'briefs_pending', 'cut_ready', 'cap_80', 'policy_flag', 'qc_failed', 'kill_switch', 'info',
+]);
+
 export const ENUM_CONSTRAINT_MAP = {
   'channels.platform': channelPlatform,
   'concepts.status': conceptStatus,
@@ -308,4 +350,26 @@ export const ENUM_CONSTRAINT_MAP = {
   'integrations.concurrency_source': concurrencySource,
   'shots.shot_kind': shotKind,
   'prompts.discovered_in': promptProvenance,
+  'mcp_tokens.scope': mcpTokenScope,
+  'authorship_log.actor_scope': actorScope,
+  'slots.kind': slotKind,
+  'slots.series': slotSeries,
+  'slots.topic_status': topicStatus,
+  'comments.platform': socialPlatform,
+  'briefs.series': bureauSeries,
+  'briefs.hook_archetype': hookPattern,
+  'briefs.status': briefStatus,
+  'briefs.created_by': briefCreator,
+  'fact_sources.source_class': factSourceClass,
+  'episodes.status': episodeStatus,
+  'shots.render_route': renderRoute,
+  'renders.layer': renderLayer,
+  'gen_jobs.render_route': queuedRoute,
+  'gen_jobs.status': genJobStatus,
+  'publications.platform': socialPlatform,
+  'dub_jobs.language': dubLanguage,
+  'dub_jobs.status': dubStatus,
+  'dub_jobs.requested_by': briefCreator,
+  'strategy_memos.created_by': memoCreator,
+  'notifications.kind': notificationKind,
 } as const;

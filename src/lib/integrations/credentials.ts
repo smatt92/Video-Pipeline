@@ -91,9 +91,10 @@ export async function resolveCredentials(
     }
   }
 
-  for (const key of declared) {
+  for (const field of descriptor.secretFields) {
+    const key = field.key;
     if (values[key]) continue;
-    const fallback = fromEnv(key);
+    const fallback = [key, ...(field.envAliases ?? [])].map(fromEnv).find((v) => v !== null);
     if (fallback) {
       values[key] = fallback;
       sources[key] = 'env';

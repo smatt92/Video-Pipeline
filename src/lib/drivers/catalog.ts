@@ -20,7 +20,7 @@
  * holds the state (configured, verified, last_4) while this holds the shape.
  */
 
-export type IntegrationKindSlug = 'llm' | 'video' | 'audio' | 'storage' | 'channel';
+export type IntegrationKindSlug = 'llm' | 'video' | 'audio' | 'storage' | 'channel' | 'notify';
 
 /**
  * `channel` is the publishing destination, and it differs from the other four in a way
@@ -38,6 +38,12 @@ export interface SecretFieldDescriptor {
   /** Shown under the field. Use it for the mistake people actually make. */
   readonly help?: string;
   readonly minLength?: number;
+  /**
+   * Older environment names still accepted as a fallback, newest first. The catalogue key
+   * is the canonical name and the one the settings screen writes to Vault; an alias exists
+   * so a deployment configured under a previous name keeps working without a silent gap.
+   */
+  readonly envAliases?: readonly string[];
 }
 
 export interface CheckDescriptor {
@@ -144,8 +150,12 @@ export const INTEGRATION_CATALOG: readonly IntegrationDescriptor[] = [
     primary: true,
     dependsOn: 'supabase-storage',
     secretFields: [
-      { key: 'HIGGSFIELD_API_KEY', label: 'API key' },
-      { key: 'HIGGSFIELD_API_SECRET', label: 'API secret' },
+      { key: 'HIGGSFIELD_API_KEY_ID', label: 'API key ID', envAliases: ['HIGGSFIELD_API_KEY'] },
+      {
+        key: 'HIGGSFIELD_API_KEY_SECRET',
+        label: 'API key secret',
+        envAliases: ['HIGGSFIELD_API_SECRET'],
+      },
       {
         key: 'HIGGSFIELD_WEBHOOK_SECRET',
         label: 'Webhook secret',
@@ -168,6 +178,7 @@ export const INTEGRATION_CATALOG: readonly IntegrationDescriptor[] = [
       { model: 'dop-turbo', endpoint: '/v1/image2video/dop', unit: 'credit' },
       { model: 'dop-standard', endpoint: '/v1/image2video/dop', unit: 'credit' },
       { model: 'soul', endpoint: '/v1/text2image/soul', unit: 'credit' },
+      { model: 'kling-3.0-std', endpoint: '/v1/image2video/kling', unit: 'second' },
     ],
   },
   {
@@ -243,8 +254,82 @@ export const INTEGRATION_CATALOG: readonly IntegrationDescriptor[] = [
     secretFields: [{ key: 'FAL_KEY', label: 'API key' }],
     checks: [CREDENTIALS],
     capabilities: { creditBalance: false, planTierConcurrency: false },
-    notes: ['The second driver. Its job is to keep the interface honest; it is not on the critical path.'],
-    rates: [{ model: 'placeholder', endpoint: null, unit: 'second' }],
+    notes: [
+      'Failover for character beats when the primary video vendor refuses or its breaker is open.',
+      'Queue API: submit, then poll the status URL. Webhooks exist but are not used — one polling path for every non-primary vendor.',
+    ],
+    rates: [
+      { model: 'fal-ai/kling-video/v3/standard/image-to-video', endpoint: 'queue.fal.run', unit: 'second' },
+    ],
+  },
+  {
+    // Money shots (ocean, space, fireworks) and the embeddings the variation check reads.
+    // Not primary: the primary video slot belongs to the character-beat vendor, and
+    // `primaryForKind('video')` must keep answering with it.
+    slug: 'gemini',
+    label: 'Gemini (Veo + embeddings)',
+    kind: 'video',
+    dependsOn: 'supabase-storage',
+    secretFields: [{ key: 'GEMINI_API_KEY', label: 'API key' }],
+    checks: [CREDENTIALS],
+    capabilities: { creditBalance: false, planTierConcurrency: false },
+    notes: [
+      'No webhook: long-running operations are polled by 23-gen-poll, at most one money shot per Short.',
+      'Embeddings feed variation_check. Without a key the similarity axis reports "not computed", never "passed".',
+    ],
+    rates: [
+      { model: 'veo-3.1-lite-generate-preview', endpoint: ':predictLongRunning', unit: 'second' },
+      { model: 'veo-3.1-fast-generate-preview', endpoint: ':predictLongRunning', unit: 'second' },
+      { model: 'gemini-embedding-001', endpoint: ':embedContent', unit: 'call' },
+    ],
+  },
+  {
+    // Optional. Act-Two carries a performance from a reference clip onto a character frame.
+    // Absent key → acted beats are re-routed to overlays at planning time, said in the plan.
+    slug: 'runway',
+    label: 'Runway (Act-Two)',
+    kind: 'video',
+    dependsOn: 'supabase-storage',
+    secretFields: [{ key: 'RUNWAY_API_KEY', label: 'API key' }],
+    checks: [CREDENTIALS],
+    capabilities: { creditBalance: false, planTierConcurrency: false },
+    notes: ['Optional. Polled task API.'],
+    rates: [{ model: 'act_two', endpoint: '/v1/character_performance', unit: 'second' }],
+  },
+  {
+    // Reels mirror. Publishing stays behind channel_policy.instagram_publish_enabled = false
+    // until Meta app review clears (CLAUDE.md, current phase) — decision 0012.
+    slug: 'instagram',
+    label: 'Instagram (Reels)',
+    kind: 'channel',
+    dependsOn: 'supabase-storage',
+    secretFields: [
+      { key: 'META_IG_USER_ID', label: 'Instagram professional account ID' },
+      {
+        key: 'META_ACCESS_TOKEN',
+        label: 'Long-lived access token',
+        help: 'Needs instagram_business_basic and instagram_business_content_publish, which need Meta app review.',
+      },
+    ],
+    checks: [CREDENTIALS],
+    capabilities: { creditBalance: false, planTierConcurrency: false },
+    notes: ['Container → poll FINISHED → media_publish. Disabled until app review clears.'],
+    rates: [],
+  },
+  {
+    slug: 'slack',
+    label: 'Slack (notifications)',
+    kind: 'notify',
+    secretFields: [
+      {
+        key: 'SLACK_WEBHOOK_URL',
+        label: 'Incoming webhook URL',
+        help: 'Briefs pending, cuts ready, cap at 80%, policy flags, QC failures after rerolls.',
+      },
+    ],
+    checks: [CREDENTIALS],
+    capabilities: { creditBalance: false, planTierConcurrency: false },
+    rates: [],
   },
 ];
 

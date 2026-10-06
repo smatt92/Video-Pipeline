@@ -33,6 +33,10 @@ export const driverEnvSchema = z.object({
   // will also read HF_CREDENTIALS from the process env on its own; we deliberately do
   // not rely on that, so that a missing credential is caught by the startup check
   // rather than by a 401 in the middle of a fan-out.
+  // Canonical names. The two below them are the previous names, still accepted as an env
+  // fallback by resolveCredentials (catalogue `envAliases`).
+  HIGGSFIELD_API_KEY_ID: nonEmpty('HIGGSFIELD_API_KEY_ID').optional(),
+  HIGGSFIELD_API_KEY_SECRET: nonEmpty('HIGGSFIELD_API_KEY_SECRET').optional(),
   HIGGSFIELD_API_KEY: nonEmpty('HIGGSFIELD_API_KEY').optional(),
   HIGGSFIELD_API_SECRET: nonEmpty('HIGGSFIELD_API_SECRET').optional(),
 
@@ -61,6 +65,16 @@ export const driverEnvSchema = z.object({
   // The second driver. Its job is to keep the interface honest; it is not on the
   // critical path, so it may be absent in environments that only exercise the primary.
   FAL_KEY: nonEmpty('FAL_KEY').optional(),
+
+  // Veo money shots + embeddings for the variation check.
+  GEMINI_API_KEY: nonEmpty('GEMINI_API_KEY').optional(),
+  // Act-Two. Optional: absent means acted beats are planned as overlays.
+  RUNWAY_API_KEY: nonEmpty('RUNWAY_API_KEY').optional(),
+  // Notifications (briefs pending, cuts ready, cap at 80%, policy and QC alerts).
+  SLACK_WEBHOOK_URL: z.url().optional(),
+  // Reels mirror; publishing stays disabled by channel_policy until app review clears.
+  META_IG_USER_ID: nonEmpty('META_IG_USER_ID').optional(),
+  META_ACCESS_TOKEN: nonEmpty('META_ACCESS_TOKEN').optional(),
 });
 
 export type DriverEnv = z.infer<typeof driverEnvSchema>;
