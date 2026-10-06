@@ -146,6 +146,11 @@ jobs:
       - name: Entry flow truth table
         run: pnpm test:entry
 
+      # The deploy-time env sync from Vercel (decision 0017): every refusal by name, the real
+      # extension's layer checked, production only. Stub fetches — no Vercel credential here.
+      - name: Worker env from Vercel — refusals, the real sync's layer, production only
+        run: pnpm test:trigger-env
+
       # ── Migrations must apply to an empty database, in order ─────────────
       # Forward-only means the sequence from nothing is the only sequence that matters.
       # Uses the same script a developer runs, so CI exercises the tool rather than a

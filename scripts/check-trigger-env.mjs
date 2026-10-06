@@ -42,7 +42,22 @@
  *           any. `pnpm db:doctor` reports which of the required names are absent *here*, which
  *           is the same question asked of a machine it can actually see.
  *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * And, with VERCEL_ACCESS_TOKEN: does Vercel production carry them? (decision 0017)
+ * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * Since 0017 the Trigger.dev environment is copied from Vercel production at deploy, so the
+ * environment worth asking about is Vercel's. With a token in this shell, every required
+ * manifest name and every Bureau credential field must exist in Production, branch-
+ * independent, and not Sensitive (the sync cannot read a Sensitive value and skips it in
+ * silence). Names and types only: the listing is fetched without `decrypt` and no value is
+ * read or printed. The same function refuses the deploy itself (src/lib/trigger/vercel-env.ts).
+ *
+ * Without a token — CI, which deliberately holds no Vercel credential — that half is
+ * SKIPPED and says so by name, as a GitHub notice when running there. Not a pass.
+ *
  * Usage: node scripts/check-trigger-env.mjs
+ *        VERCEL_ACCESS_TOKEN=… node scripts/check-trigger-env.mjs
  */
 
 import { deriveWorkerEnv, readManifest, NOT_THE_WORKERS } from './lib/worker-env.mjs';
@@ -148,8 +163,43 @@ if (problems.length > 0) {
   process.exit(1);
 }
 
-console.log(
-  '\nThe manifest names every variable a Trigger task can reach.\n' +
-    'This does not prove the Trigger.dev environment has them — nothing here can see it.\n' +
-    '`pnpm db:doctor` asks that question of the environment it can see.\n',
-);
+console.log('\nThe manifest names every variable a Trigger task can reach.');
+
+// ── 4. Vercel production carries them (decision 0017) ───────────────────────
+//
+// Loaded with Node's own type stripping: both modules have no runtime imports, which is
+// what makes that possible, and a load failure is a failure here rather than a skip.
+const token = process.env.VERCEL_ACCESS_TOKEN?.trim();
+if (!token) {
+  const reason =
+    'Vercel production was NOT checked: VERCEL_ACCESS_TOKEN is not set here. CI holds no ' +
+    'Vercel credential by design, so there this is expected; before a deploy, run ' +
+    '`VERCEL_ACCESS_TOKEN=… pnpm check:trigger-env` — the deploy refuses on the same check.';
+  console.log(`\n  SKIP  ${reason}\n`);
+  if (process.env.GITHUB_ACTIONS) console.log(`::notice title=check:trigger-env skipped the Vercel half::${reason}`);
+  process.exit(0);
+}
+
+const { listVercelEnv, vercelEnvProblems, VERCEL_PROJECT, VERCEL_TEAM_ID } = await import('../src/lib/trigger/vercel-env-check.ts');
+const { workerCredentialFields } = await import('../src/lib/drivers/catalog.ts');
+
+const requiredNames = new Map(required.map((name) => [name, { name, why: 'required by the worker env manifest' }]));
+for (const f of workerCredentialFields()) {
+  if (!requiredNames.has(f.key)) requiredNames.set(f.key, { name: f.key, aliases: f.aliases, why: `the ${f.slug} credential` });
+}
+
+const projectId = process.env.VERCEL_PROJECT_ID?.trim() || VERCEL_PROJECT;
+const teamId = process.env.VERCEL_TEAM_ID?.trim() || VERCEL_TEAM_ID;
+const listing = await listVercelEnv({ token, projectId, teamId });
+if (!listing.ok) {
+  console.error(`\n  ✗ Listing ${projectId}'s Vercel variables failed (HTTP ${listing.status ?? 'none'}): ${listing.detail}\n`);
+  process.exit(1);
+}
+const vercelProblems = vercelEnvProblems(listing.entries, [...requiredNames.values()]);
+console.log(`\n  Vercel ${projectId} (production): ${listing.entries.length} variables listed, ${requiredNames.size} required\n`);
+if (vercelProblems.length > 0) {
+  for (const p of vercelProblems) console.error(`  ✗ ${p.detail}`);
+  console.error(`\n${vercelProblems.length} required name(s) would not reach the worker. The deploy refuses on the same check.\n`);
+  process.exit(1);
+}
+console.log('  Every required name is in Vercel production, branch-independent and readable by the sync.\n');

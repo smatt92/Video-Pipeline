@@ -444,3 +444,23 @@ export const ROLE_INTEGRATION: Readonly<Record<OnboardingRole, string>> = {
 export function descriptorFor(slug: string): IntegrationDescriptor | null {
   return INTEGRATION_CATALOG.find((i) => i.slug === slug) ?? null;
 }
+
+/**
+ * The credentials a deployed worker resolves from its environment when Vault does not hold
+ * them: every field of every integration that fills a Bureau role.
+ *
+ * `resolveCredentials` reads `process.env[field.key]` by a name it computes, so the worker
+ * manifest's import-graph walk (`check:trigger-env`) cannot see these reads at all — which
+ * is how a worker whose secrets live only in Vercel would deploy without any of them and
+ * fail on its first run. Decision 0017: for personal use Vercel is the single source, so
+ * these are what the deploy-time sync must carry. Callers: `vercelEnv()` in
+ * `src/lib/trigger/vercel-env.ts` (the deploy) and `scripts/check-trigger-env.mjs`.
+ */
+export function workerCredentialFields(): { slug: string; key: string; aliases: readonly string[] }[] {
+  const slugs = [...new Set(Object.values(ROLE_INTEGRATION))];
+  return slugs.flatMap((slug) => {
+    const d = descriptorFor(slug);
+    if (!d) throw new Error(`ROLE_INTEGRATION names "${slug}", which is not in the catalogue.`);
+    return d.secretFields.map((f) => ({ slug, key: f.key, aliases: f.envAliases ?? [] }));
+  });
+}

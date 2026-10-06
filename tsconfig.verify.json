@@ -95,6 +95,9 @@
     "src/lib/oauth/clients.ts",
     "src/lib/oauth/flow.ts",
     "src/lib/oauth/endpoints.ts",
+    // The deploy-time env sync (decision 0017), driven by test:trigger-env with stub fetches.
+    "src/lib/trigger/vercel-env.ts",
+    "src/lib/trigger/vercel-env-check.ts",
     "src/lib/drivers/voice-route.ts",
     "src/lib/drivers/jobs.ts"
   ],

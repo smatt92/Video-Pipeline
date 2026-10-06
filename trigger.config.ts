@@ -1,6 +1,7 @@
 import { aptGet, ffmpeg } from '@trigger.dev/build/extensions/core';
 
 import { headlessShell } from './src/lib/trigger/headless-shell';
+import { vercelEnv } from './src/lib/trigger/vercel-env';
 import { defineConfig } from '@trigger.dev/sdk';
 
 /**
@@ -71,7 +72,14 @@ export default defineConfig({
    * `apt-get install` on the named packages, in deploy builds only. UNVERIFIED like the
    * rest of this block until a deploy runs (0008).
    */
-  build: { extensions: [ffmpeg(), aptGet({ packages: ['espeak-ng'] }), headlessShell()] },
+  /**
+   * The worker's environment, from Vercel production (decision 0017). `syncVercelEnvVars`,
+   * wrapped: its source showed it reporting success having copied nothing in three different
+   * ways, and `vercelEnv()` turns each into a refused deploy. Needs VERCEL_ACCESS_TOKEN in the
+   * deploying shell and nothing in the Trigger.dev dashboard. UNVERIFIED until the first
+   * deploy runs it (0008 §17).
+   */
+  build: { extensions: [ffmpeg(), aptGet({ packages: ['espeak-ng'] }), headlessShell(), vercelEnv()] },
 
   dirs: ['./src/trigger'],
 });
