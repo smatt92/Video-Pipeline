@@ -1,6 +1,8 @@
-# Bureau of Reality — Prompt Bundle v2.0 (06-Oct-2026)
+# Bureau of Reality — Prompt Bundle v2.2 (06-Oct-2026)
 
-Companion to *Bureau of Reality — Operating Plan v2.0*. Replaces the v1 (Kyona Labs) bundle entirely. Every prompt is labelled with its destination.
+Companion to *Bureau of Reality — Operating Plan v2.2*. Replaces the v1 (Kyona Labs) bundle entirely. Every prompt is labelled with its destination.
+
+**v2.2 change:** voice, dubbing and sound effects run on the **Runway API** (ElevenLabs models, Runway preset voices), not ElevenLabs direct. Prompt A below is updated for any re-run; the build already running from the v2.1 text gets the change through **Prompt H**.
 
 | ID | Destination | When | What it does |
 |---|---|---|---|
@@ -11,9 +13,11 @@ Companion to *Bureau of Reality — Operating Plan v2.0*. Replaces the v1 (Kyona
 | E | **Claude Code Routine** — Mondays 06:30 IST | From 12-Oct | "Weekly review": gates, costs, sequels, dub queue, date checks |
 | F | **Claude Code Routine** — alternate Thursdays 06:00 IST | From 15-Oct | "Long-form": plans the Sunday episode |
 | G | **Claude Design** | From 12-Oct | Kiln Control Room v2 (approvals-first, phone-friendly) |
+| H | **Claude Code** — Kiln repo | After Prompt A lands on `main` | Switch voice, dubs and SFX to the Runway API; forced alignment for word timings; preset audition script |
 
 Before Prompt A: copy `kiln-topic-calendar.csv` into the Kiln repo at `data/kiln-topic-calendar.csv`.
-After Prompt A deploys: add `https://<your-kiln-domain>/api/mcp` to Claude as a custom connector, signed in with your **approver** token. Give Routines C, E, F and task D the **agent** token only.
+After Prompt A deploys: add `https://video-pipeline-seven.vercel.app/api/mcp` to Claude as a custom connector, signed in with your **approver** token. Give Routines C, E, F and task D the **agent** token only.
+Optional, exploration only: add the official Runway MCP (`https://mcp.runwayml.com/mcp`) to Claude chat as a custom connector. It spends your Runway **app** credits on images and video, has no voice tools, and is never used by the pipeline.
 
 ---
 
@@ -35,10 +39,10 @@ Run Sprints 0–8 as one continuous batch. After each sprint print a checklist o
 SPRINT 0 — Unblock + retarget
 - Diff supabase/migrations vs the hosted VidGen schema; generate missing migrations; print the exact `supabase db push` command and any destructive SQL — do not run destructive SQL against hosted yourself. Use the Supabase MCP if it is connected.
 - Move generic pipeline code to /core; channel config to /channels/bureau-of-reality/.
-- Settings + env: HIGGSFIELD_API_KEY_ID/SECRET, GEMINI_API_KEY, RUNWAY_API_KEY (optional), FAL_KEY (failover), ELEVENLABS_API_KEY, YouTube OAuth, Meta/IG credentials, SLACK_WEBHOOK_URL, caps (per-Short ₹150, daily ₹600 with long-form jobs allowed up to ₹1500, monthly ₹15000 until Gate 2 then ₹25000), daily publish cap 1, FX 88, kill switch.
+- Settings + env: HIGGSFIELD_API_KEY_ID/SECRET, GEMINI_API_KEY, FAL_KEY (failover), RUNWAY_API_KEY (required: voice, dubs, SFX, Act-Two), ELEVENLABS_API_KEY (optional, per-character upgrade only), YouTube OAuth, Meta/IG credentials, SLACK_WEBHOOK_URL, caps (per-Short ₹150, daily ₹600 with long-form jobs allowed up to ₹1500, monthly ₹15000 until Gate 2 then ₹25000), daily publish cap 1, FX 88, kill switch.
 
 SPRINT 1 — Channel bible + data model
-- /channels/bureau-of-reality/characters.json + characters.md: Pip (intern, cyan), Marlo (Gravity Desk veteran, amber, floating mug), Mrs. Iyer (Time & Calendars, magenta, reading glasses, filter-coffee tumbler), Nib (archivist, graphite, pencil body), Kaz (Myth Desk, lantern head), Director Ohm (never seen, brass desk lamp), Complaint Box (talking suggestion box), The Auditor (S2, red, clipboard). Fields: id, role, personality, speech rules, catchphrase limit (max 1×/week), accent hex, visual_lock, reference_frame_ids (placeholders), elevenlabs_voice_id (placeholder), never-do list. World: white chalk lines + one accent colour on navy blueprint paper; adult office satire; never kid-coded.
+- /channels/bureau-of-reality/characters.json + characters.md: Pip (intern, cyan), Marlo (Gravity Desk veteran, amber, floating mug), Mrs. Iyer (Time & Calendars, magenta, reading glasses, filter-coffee tumbler), Nib (archivist, graphite, pencil body), Kaz (Myth Desk, lantern head), Director Ohm (never seen, brass desk lamp), Complaint Box (talking suggestion box), The Auditor (S2, red, clipboard). Fields: id, role, personality, speech rules, catchphrase limit (max 1×/week), accent hex, visual_lock, reference_frame_ids (placeholders), voice {provider: "runway", preset_id} (placeholder) plus optional elevenlabs_voice_id for the upgrade path, never-do list. World: white chalk lines + one accent colour on navy blueprint paper; adult office satire; never kid-coded.
 - /channels/bureau-of-reality/series/*.json: incident (Mon), desk_tour (Tue), pip (Wed, serialised with season/episode), archive (Thu, history mysteries, no true crime), myth (Fri, comparative, interpretations labelled), deep (Sat, space/ocean), complaint (Sun, from real comments). Each: beat timings (0–2 s paradox cold open, 2–8 s stakes, 8–40 s three mechanism beats with Three.js overlay specs, 40–55 s one sourced fact, 55–60 s button gag + loop line), ≥3 structure variants, ending types, music-bed pool (no licensed music).
 - Tables: slots (seeded from data/kiln-topic-calendar.csv: S### dated shorts, L## long-form, B## bank), briefs, scripts, shots, gen_jobs (provider, model, params, estimate_usd, actual_usd, status, request_id, retries), assets, cuts, publications, metric_snapshots, comments, dub_jobs, cost_ledger, authorship_log, fact_sources, variation_axes, strategy_memos, mcp_tokens (hashed, scope). pgvector for script/title embeddings. RLS on everything.
 
@@ -61,7 +65,7 @@ SPRINT 4 — Episode workflow + router (data plane)
 - Generation queue in Postgres with SKIP LOCKED and per-provider concurrency (higgsfield 10, gemini 5, runway 3, fal 5); Higgsfield webhooks, polling elsewhere; 429/THROTTLED backoff; idempotency keys. Production never uses any MCP connector for generation.
 
 SPRINT 5 — Voice, QC, assembly, localisation-ready render
-- ElevenLabs API: one designed voice per character (IDs from characters.json); word timestamps for captions.
+- Runway API text-to-speech (Eleven v3), one locked Runway preset per character (from characters.json). Runway returns no word timestamps: run forced alignment against the known script on the Trigger worker and emit the same word-timing shape the voice stage already uses, since shot durations derive from it. Keep an ElevenLabs-direct driver behind the same interface for any character moved off presets.
 - QC: ffmpeg blackdetect/freezedetect, loudness −14 LUFS, 1–2 fps frame sampling → vision scoring (artifacts, garbled text, extra limbs), character similarity vs reference frame; reroll ≤2, then to review.
 - Render a clean master (no burned text) plus caption/text layer renders per language; final renders on the existing Remotion (@remotion/renderer) Trigger.dev worker.
 
@@ -71,7 +75,7 @@ SPRINT 6 — Publishing + metrics
 - Metrics: YouTube Analytics (views, engaged views, average view %, subs gained) + IG insights; Studio CSV import for viewed-vs-swiped if the API doesn't expose it; comment ingestion with character-name mention counts and Complaint Box candidates.
 
 SPRINT 7 — Dubs + long-form
-- dub_jobs: ElevenLabs dubbing/TTS per character voice for hi, es, pt-BR on queued Shorts; export per-language audio + caption renders for multi-language audio upload in Studio.
+- dub_jobs: ElevenLabs Dubbing via the Runway API (or Runway TTS per character preset) for hi, es, pt-BR on queued Shorts; export per-language audio + caption renders for multi-language audio upload in Studio.
 - Long-form builder: assemble an 8–12 min episode from aired Shorts plus NEW connective scenes (never raw re-stitching); one approval brief.
 
 SPRINT 8 — Control room + notifications
@@ -165,4 +169,41 @@ Screens:
 7) Generation monitor + costs — per-provider queues and concurrency, failures, spend vs daily/monthly caps; kill switch with confirmation.
 8) Cast — the eight characters with reference frames, voice sample, accent colour, never-do list.
 Include empty, loading, error, cap-reached and kill-switch-on states.
+```
+
+---
+
+## H · Destination: Claude Code (Kiln repo, `main`) — voice, dubs and SFX on the Runway API
+
+Run this after the Sprints 0–8 build has finished and pushed to `main`. Do not run it while that build is still committing.
+
+```
+Switch Kiln's voice, dubbing and sound-effect stages from ElevenLabs direct to the Runway API. Decision made by Sahil on 06-Oct-2026: one vendor and one credit pool for voice, dubs and Act-Two; no ElevenLabs subscription.
+
+GIT RULES: work only on main; author every commit as Sahil Mathew <sahil.matt@gmail.com>; no Co-Authored-By trailers, generated-with footers, session links or AI attribution anywhere. Small conventional commits; pnpm check before each; push when done.
+
+READ FIRST: CLAUDE.md, docs/decisions/0008-what-is-unverified.md, the voice stage (06-voice and everything it calls), dub_jobs, the voice driver interface, env schema and .env.example, channels/bureau-of-reality/characters.json. Print a short inventory of what the build actually produced for voice before changing anything. CLAUDE.md wins wherever it conflicts with this prompt.
+
+FACTS TO DESIGN AROUND (verify each against Runway's API docs; record anything that differs):
+- Runway API audio: text_to_speech (models eleven_multilingual_v2, eleven_v3, eleven_v4), speech_to_speech, voice_dubbing (29 languages), sound effects, voice isolation.
+- Text-to-speech uses Runway PRESET voices only. Runway's custom voices (voice design / cloning) attach to avatars, not to text_to_speech.
+- No word timestamps are documented in the response.
+- Pricing: eleven_v3 and eleven_multilingual_v2 at 1 credit per 50 characters; eleven_v4 at 2.2 credits per 1,000 characters only until 12-Oct-2026; $0.01 per credit. No public dubbing rate.
+- Runway app credits and API credits are separate pools.
+
+BUILD:
+1. Decision record docs/decisions/00NN-voice-on-runway.md: why; trade-offs (presets only, no timestamps, unpublished dubbing rate, one more dependency on one vendor); the per-character upgrade path to ElevenLabs direct; and whether Runway offers task webhooks. CLAUDE.md rule 4 says webhooks over polling — if Runway has none, poll with backoff inside the Trigger task and record the exception here.
+2. Runway voice driver in src/lib/drivers/ implementing the existing voice driver interface: text_to_speech with eleven_v3 by default, preset id per character. Zod-validate every response. Idempotency key per line. Pass every option whose default is the behaviour you are avoiding explicitly (CLAUDE.md).
+3. characters.json: voice = {provider: "runway", preset_id: null} for all eight until the audition locks them; elevenlabs_voice_id optional. A character with provider "elevenlabs" routes to the ElevenLabs-direct driver — keep that driver working, and share one routing predicate.
+4. Word timings: forced alignment of the generated audio against the known script on the Trigger worker (pick a CPU aligner that installs on the worker image; read what any extension actually installs before adding it). Emit the exact word-timing shape the voice stage already produces. Assert aligned word count === script word count. If alignment fails or confidence is low, the timings are null, not 0, and derived_from_vo must not be set — stage 5 must keep refusing that script, and v_pipeline_blockers must name the reason.
+5. Cost: cost_ledger row at submit time — credits = ceil(characters / 50) for v3/v2 from a rate table row, not a constant. cost_source marks it an estimate until a measured balance change exists; never write a reconcile you did not measure.
+6. Dubbing: dub_jobs → Runway voice_dubbing for hi, es, pt-BR; ledger row at submit; the rate is unknown, so record the estimate source honestly and surface "rate unverified" wherever dub cost is shown.
+7. Sound effects: optional SFX path for button gags, same ledger rules.
+8. Env: RUNWAY_API_KEY required for the voice stage; ELEVENLABS_API_KEY optional. Update the env schema, .env.example and docs. Grep every harness for ELEVENLABS and for `??=` scaffolding that would restore a removed requirement.
+9. Vendor isolation: "runway" and "eleven" appear only under src/lib/drivers/ (and publish/storage where already allowed). pnpm check:vendors must pass.
+10. `pnpm voice:audition`: lists Runway's preset voices and renders the same two lines for each character brief (Pip, Marlo, Mrs. Iyer, Nib, Kaz, Director Ohm, Complaint Box, The Auditor) into storage, with a cost row per render and a hard spend limit flag. It writes nothing to characters.json — Sahil picks, then a second command locks the chosen preset ids.
+11. Harness verify:voice: drive the real driver once with one short line; assert the ledger row, the aligned word count, and that stage 5 then accepts the script — and that it refuses when alignment is null. Assert outputs the code produced, not rows the harness seeded.
+12. Update docs/decisions/0008-what-is-unverified.md with what ran for real and what did not.
+
+FINISH: push to main, read the CI step list for the commit (not the log tail), and print: (a) Vercel and Trigger.dev environment variable changes — names, environments, where each value comes from; (b) the command for Sahil to run the audition; (c) what is still unverified.
 ```
