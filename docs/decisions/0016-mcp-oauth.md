@@ -64,7 +64,13 @@ edit can widen will be widened while debugging and never narrowed.
   with an entry an hour and make revoking a connection mean revoking a family.
 - **Origin from the request, not `APP_URL`.** The resource a token is bound to must be the URL
   the client actually dialled; a preview deployment is then its own issuer and its tokens are
-  useless elsewhere. `APP_URL` stays what it was (links and the Settings page).
+  useless elsewhere. `APP_URL` stays what it was (links and the Settings page). Read from the
+  `x-forwarded-host` / `host` headers by one function (`originFromHeaders`) on every surface —
+  not `request.nextUrl.origin`, which `verify:public` caught `next start` reporting as
+  `localhost` while the Host was `127.0.0.1`: the consent page (headers only) and the token
+  endpoint would have disagreed and every code would have failed as `resource_not_this_server`.
+  Vercel sets `x-forwarded-host` itself; a client that forges it only changes the issuer named
+  in its own responses.
 - **Public clients only.** PKCE carries the proof; a client secret stored in someone else's
   infrastructure adds a thing to leak and nothing to check.
 - **No revocation endpoint (RFC 7009).** Revocation is Settings → MCP tokens. A client-side

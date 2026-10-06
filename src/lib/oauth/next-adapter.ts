@@ -4,6 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 import { serverClient } from '../db/server';
 import { fetchClientDocument } from './clients';
+import { originFromHeaders } from './policy';
 import { serveOAuth } from './endpoints';
 
 /**
@@ -17,7 +18,7 @@ export async function oauthRoute(request: NextRequest): Promise<NextResponse> {
     {
       method,
       path: request.nextUrl.pathname,
-      origin: request.nextUrl.origin,
+      origin: originFromHeaders((n) => request.headers.get(n)),
       contentType: request.headers.get('content-type'),
       authorization: request.headers.get('authorization'),
       rawBody,

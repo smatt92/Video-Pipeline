@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 import { productionEffects } from '@/lib/bureau/effects';
 import { serverClient } from '@/lib/db/server';
-import { resourceMetadataUrlFor } from '@/lib/oauth/policy';
+import { originFromHeaders, resourceMetadataUrlFor } from '@/lib/oauth/policy';
 import { serveMcp } from '@/lib/studio/serve';
 
 /**
@@ -62,8 +62,10 @@ export async function POST(request: NextRequest) {
       // Bound per request to the token's channel inside serveMcp; this is the factory.
       bureau: productionEffects(db),
       // Every 401 points a connector at the OAuth server (decision 0016). The origin is the
-      // one the request arrived on, so a preview deployment advertises itself.
-      resourceMetadataUrl: resourceMetadataUrlFor(request.nextUrl.origin),
+      // one the request arrived on, so a preview deployment advertises itself — read from the
+      // headers, never `nextUrl.origin`, which `next start` reports as localhost whatever the
+      // Host was; the consent page can only read headers, and the two must agree.
+      resourceMetadataUrl: resourceMetadataUrlFor(originFromHeaders((n) => request.headers.get(n))),
     },
   );
 
@@ -81,7 +83,7 @@ export function GET(request: NextRequest) {
       {
         status: 401,
         headers: {
-          'www-authenticate': `Bearer resource_metadata="${resourceMetadataUrlFor(request.nextUrl.origin)}"`,
+          'www-authenticate': `Bearer resource_metadata="${resourceMetadataUrlFor(originFromHeaders((n) => request.headers.get(n)))}"`,
         },
       },
     );

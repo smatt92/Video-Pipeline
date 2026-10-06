@@ -63,9 +63,12 @@ export function resourceMetadataUrlFor(origin: string): string {
 }
 
 /**
- * The origin a page request arrived on, from its headers. Route handlers have
- * `request.nextUrl.origin`; a page and a Server Action have only headers, and the consent
- * screen must compute the same issuer and resource the token endpoint will.
+ * The origin a request arrived on, from its headers — used by every OAuth surface: the
+ * route handlers, the consent page and its Server Action. One function because the issuer
+ * and resource the consent page computes must equal what the token endpoint computes, and a
+ * page has only headers. Not `request.nextUrl.origin`: verify:public found `next start`
+ * reporting `localhost` there while the Host header said `127.0.0.1`, which would have made
+ * the token endpoint refuse every code as `resource_not_this_server`.
  */
 export function originFromHeaders(get: (name: string) => string | null): string {
   const host = get('x-forwarded-host') ?? get('host');
