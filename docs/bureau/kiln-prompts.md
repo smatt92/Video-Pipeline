@@ -1,23 +1,24 @@
-# Bureau of Reality — Prompt Bundle v2.2 (06-Oct-2026)
+# Bureau of Reality — Prompt Bundle v2.3 (06-Oct-2026)
 
-Companion to *Bureau of Reality — Operating Plan v2.2*. Replaces the v1 (Kyona Labs) bundle entirely. Every prompt is labelled with its destination.
+Companion to *Bureau of Reality — Operating Plan v2.3*. Replaces the v1 (Kyona Labs) bundle entirely. Every prompt is labelled with its destination.
 
-**v2.2 change:** voice, dubbing and sound effects run on the **Runway API** (ElevenLabs models, Runway preset voices), not ElevenLabs direct. Prompt A below is updated for any re-run; the build already running from the v2.1 text gets the change through **Prompt H**.
+**v2.3 change:** all generation runs on the **Runway API** — Gen-4 Turbo for character beats, Veo 3.1 Fast for money shots, Gen-4 Image for reference frames, ElevenLabs models for voice, dubs and sound effects. Higgsfield, Gemini Veo and ElevenLabs direct leave the pipeline; a free Gemini key stays for script embeddings only. Prompt A below is updated for any re-run. The build that already ran gets the change through **Prompt I**. Prompt H (voice on Runway) was folded into that build and is kept for reference.
 
 | ID | Destination | When | What it does |
 |---|---|---|---|
 | A | **Claude Code** — Kiln repo | Today, one long run | Retarget Kiln to Bureau of Reality, build the Kiln MCP server, workflows, router, QC, publishing, metrics, dubs, control room, calendar seed |
-| B | **Claude chat** with the **Higgsfield** connector | Wed 07-Oct | Lock the cast: character sheets and reference frames, stop-and-ask before credits |
+| B | **Claude chat** with the **Runway MCP** connector | Wed 07-Oct | Lock the cast on your Runway app credits: character sheets and reference frames, stop-and-ask before credits |
 | C | **Claude Code Routine** — daily 06:00 IST | From 12-Oct | "Showrunner": drafts tomorrow-plus-two briefs through Kiln MCP |
 | D | **Claude scheduled task** (Claude app; Kiln MCP + Slack) — daily 07:30 IST | From 12-Oct | "Morning desk": approval digest to Slack |
 | E | **Claude Code Routine** — Mondays 06:30 IST | From 12-Oct | "Weekly review": gates, costs, sequels, dub queue, date checks |
 | F | **Claude Code Routine** — alternate Thursdays 06:00 IST | From 15-Oct | "Long-form": plans the Sunday episode |
 | G | **Claude Design** | From 12-Oct | Kiln Control Room v2 (approvals-first, phone-friendly) |
-| H | **Claude Code** — Kiln repo | After Prompt A lands on `main` | Switch voice, dubs and SFX to the Runway API; forced alignment for word timings; preset audition script |
+| H | **Claude Code** — Kiln repo | Done — folded into the v2.2 build | Voice, dubs and SFX on the Runway API; forced alignment; preset audition script |
+| I | **Claude Code** — Kiln repo | After the v2.2 build finishes | Move character video, money shots and reference frames to Runway; Gemini for embeddings only; Higgsfield and fal dormant failover |
 
 Before Prompt A: copy `kiln-topic-calendar.csv` into the Kiln repo at `data/kiln-topic-calendar.csv`.
 After Prompt A deploys: add `https://video-pipeline-seven.vercel.app/api/mcp` to Claude as a custom connector, signed in with your **approver** token. Give Routines C, E, F and task D the **agent** token only.
-Optional, exploration only: add the official Runway MCP (`https://mcp.runwayml.com/mcp`) to Claude chat as a custom connector. It spends your Runway **app** credits on images and video, has no voice tools, and is never used by the pipeline.
+Before Prompt B: add the official Runway MCP (`https://mcp.runwayml.com/mcp`) to Claude chat as a custom connector. It spends your Runway **app** credits on images and video, has no voice tools, and is never used by the pipeline.
 
 ---
 
@@ -39,7 +40,7 @@ Run Sprints 0–8 as one continuous batch. After each sprint print a checklist o
 SPRINT 0 — Unblock + retarget
 - Diff supabase/migrations vs the hosted VidGen schema; generate missing migrations; print the exact `supabase db push` command and any destructive SQL — do not run destructive SQL against hosted yourself. Use the Supabase MCP if it is connected.
 - Move generic pipeline code to /core; channel config to /channels/bureau-of-reality/.
-- Settings + env: HIGGSFIELD_API_KEY_ID/SECRET, GEMINI_API_KEY, FAL_KEY (failover), RUNWAY_API_KEY (required: voice, dubs, SFX, Act-Two), ELEVENLABS_API_KEY (optional, per-character upgrade only), YouTube OAuth, Meta/IG credentials, SLACK_WEBHOOK_URL, caps (per-Short ₹150, daily ₹600 with long-form jobs allowed up to ₹1500, monthly ₹15000 until Gate 2 then ₹25000), daily publish cap 1, FX 88, kill switch.
+- Settings + env: RUNWAY_API_KEY (required: video, reference frames, voice, dubs, SFX, Act-Two), GEMINI_API_KEY (required, free tier, embeddings only), HIGGSFIELD_API_KEY_ID/SECRET and FAL_KEY (optional, dormant failover), ELEVENLABS_API_KEY (optional, per-character upgrade only), YouTube OAuth, Meta/IG credentials, SLACK_WEBHOOK_URL, caps (per-Short ₹150, daily ₹600 with long-form jobs allowed up to ₹1500, monthly ₹15000 until Gate 2 then ₹25000), daily publish cap 1, FX 88, kill switch.
 
 SPRINT 1 — Channel bible + data model
 - /channels/bureau-of-reality/characters.json + characters.md: Pip (intern, cyan), Marlo (Gravity Desk veteran, amber, floating mug), Mrs. Iyer (Time & Calendars, magenta, reading glasses, filter-coffee tumbler), Nib (archivist, graphite, pencil body), Kaz (Myth Desk, lantern head), Director Ohm (never seen, brass desk lamp), Complaint Box (talking suggestion box), The Auditor (S2, red, clipboard). Fields: id, role, personality, speech rules, catchphrase limit (max 1×/week), accent hex, visual_lock, reference_frame_ids (placeholders), voice {provider: "runway", preset_id} (placeholder) plus optional elevenlabs_voice_id for the upgrade path, never-do list. World: white chalk lines + one accent colour on navy blueprint paper; adult office satire; never kid-coded.
@@ -61,8 +62,8 @@ SPRINT 3 — Agents, checks, model routing
 
 SPRINT 4 — Episode workflow + router (data plane)
 - Episode pipeline as Trigger.dev v4 tasks (Kiln's existing orchestrator — do not introduce Vercel Workflows), started by brief_approve; use wait.forToken() for the two approval gates and vendor webhooks: script polish → shotlist (shot types: overlay, character_beat, acted_beat, money_shot) → cost estimate vs cap (if over, swap shots to overlay) → generation fan-out → QC → voices → assembly → wait for cut_approve (hook) → publish → metric pulls at 1h/24h/72h/7d.
-- Routing: overlay → Kiln Three.js render (≥50% of runtime); character_beat → Higgsfield REST API Kling 3.0 Std image-to-video from locked reference frames (≤8 s per Short; failover fal Kling v3 standard); acted_beat → Runway Act-Two if key present; money_shot → Gemini Veo 3.1 Lite/Fast 720p 9:16 (max 1 per Short).
-- Generation queue in Postgres with SKIP LOCKED and per-provider concurrency (higgsfield 10, gemini 5, runway 3, fal 5); Higgsfield webhooks, polling elsewhere; 429/THROTTLED backoff; idempotency keys. Production never uses any MCP connector for generation.
+- Routing: overlay → Kiln Three.js render (≥50% of runtime); character_beat → Runway Gen-4 Turbo image-to-video from locked reference frames (≤8 s per Short; Higgsfield and fal as dormant failover); acted_beat → Runway Act-Two; money_shot → Runway Veo 3.1 Fast, audio off, 9:16 (max 1 per Short).
+- Generation queue in Postgres with SKIP LOCKED and per-provider concurrency (runway set from the account's usage tier; higgsfield 10 and fal 5 when failover is on); 429/THROTTLED backoff; idempotency keys. Production never uses any MCP connector for generation.
 
 SPRINT 5 — Voice, QC, assembly, localisation-ready render
 - Runway API text-to-speech (Eleven v3), one locked Runway preset per character (from characters.json). Runway returns no word timestamps: run forced alignment against the known script on the Trigger worker and emit the same word-timing shape the voice stage already uses, since shot durations derive from it. Keep an ElevenLabs-direct driver behind the same interface for any character moved off presets.
@@ -87,18 +88,18 @@ DEFINITION OF DONE: from Claude chat, using only the Kiln MCP connector, I can l
 
 ---
 
-## B · Destination: Claude chat with the Higgsfield connector — lock the cast
+## B · Destination: Claude chat with the Runway MCP connector — lock the cast
 
 ```
-Help me lock the recurring cast for an original stickman workplace sitcom, "Bureau of Reality". Use the Higgsfield connector, but STOP AND ASK before every generation: tell me the model, the number of images and the credit cost, and wait for my yes. Reuse earlier results wherever possible; never regenerate the whole set to fix one character.
+Help me lock the recurring cast for an original stickman workplace sitcom, "Bureau of Reality". Use the Runway MCP connector (it spends my Runway app credits), but STOP AND ASK before every generation: tell me the model, the number of images and the credit cost, and wait for my yes. Reuse earlier results wherever possible; never regenerate the whole set to fix one character.
 
 Style for everyone: clean white chalk-line stick figures with ONE accent colour each, on deep navy blueprint paper with faint grid lines; adult office-satire tone, NOT a children's cartoon; no resemblance to any existing franchise, mascot or real person.
 
 Cast: Pip (intern; cyan scarf line; oversized lanyard) · Marlo (400-year Gravity Desk veteran; amber line; floating coffee mug) · Mrs. Iyer (Head of Time & Calendars; magenta line; reading glasses; steel filter-coffee tumbler) · Nib (archivist; graphite-grey line; pencil-shaped body) · Kaz (Myth Desk liaison; lantern for a head whose glow changes colour) · Director Ohm (never seen: a humming brass desk lamp) · Complaint Box (talking wooden suggestion box) · The Auditor (red line; clipboard).
 
 Steps:
-1. First, without generating anything, write a character sheet for each: silhouette rules, head:body ratio, line weight, accent hex, 6 expressions, 4 signature poses, props, never-do list, and a Higgsfield prompt block (positive + negative). Negative should include: realistic human, photorealism, 3D plastic, anime, chibi, pastel kids style, text, watermark, logos, existing cartoon characters, extra limbs, inconsistent accessories.
-2. Recommend the cheapest Higgsfield image model that holds clean line art, with its credit cost per image.
+1. First, without generating anything, write a character sheet for each: silhouette rules, head:body ratio, line weight, accent hex, 6 expressions, 4 signature poses, props, never-do list, and a Runway prompt block (positive + negative). Negative should include: realistic human, photorealism, 3D plastic, anime, chibi, pastel kids style, text, watermark, logos, existing cartoon characters, extra limbs, inconsistent accessories.
+2. Recommend the cheapest Runway image model that holds clean line art and accepts reference images (compare Gen-4 Image, Gen-4 Image Turbo and Muse Image), with its credit cost per image. The pipeline will animate these frames with Gen-4 Turbo image-to-video, so they must be clean 9:16 frames on the navy background.
 3. After my yes: generate 4 variants for Pip, Marlo and Mrs. Iyer only. I pick one each.
 4. After my yes: generate 8 test poses per picked character from that reference to prove consistency. Then the remaining five characters, 2 variants each.
 5. Give me a table of the locked reference image IDs/URLs per character and the exact prompt blocks, formatted to paste into characters.json in the Kiln repo.
@@ -206,4 +207,37 @@ BUILD:
 12. Update docs/decisions/0008-what-is-unverified.md with what ran for real and what did not.
 
 FINISH: push to main, read the CI step list for the commit (not the log tail), and print: (a) Vercel and Trigger.dev environment variable changes — names, environments, where each value comes from; (b) the command for Sahil to run the audition; (c) what is still unverified.
+```
+
+---
+
+## I · Destination: Claude Code (Kiln repo, `main`) — all generation on the Runway API
+
+Run after the v2.2 build has finished and pushed. Do not run it while another session is committing.
+
+```
+Move Kiln's video and image generation to the Runway API. Decision made by Sahil on 06-Oct-2026: one vendor and one credit pool for character video, money shots, reference frames, voice, dubs and SFX. A free Gemini key stays for script embeddings only. Higgsfield and fal stay in the code as dormant failover, routed off.
+
+GIT RULES: work only on main; author every commit as Sahil Mathew <sahil.matt@gmail.com>; no Co-Authored-By trailers, generated-with footers, session links or AI attribution anywhere. Small conventional commits; pnpm check before each; git pull --rebase origin main before every push.
+
+READ FIRST: CLAUDE.md, docs/decisions/0008, 0012, 0013 and 0014, src/lib/drivers/ (catalog, video-submit, video-status, embeddings, jobs, env), the generation router and cost estimator, and channels/bureau-of-reality/. Print a short inventory of how character_beat, money_shot and reference frames are routed today before changing anything. CLAUDE.md wins wherever it conflicts with this prompt.
+
+FACTS TO DESIGN AROUND (verify each against Runway's API docs; record anything that differs):
+- gen4_turbo image-to-video: 5 credits/s. veo3.1_fast: 10 credits/s with audio off, 15 with audio. gen4_image: 5 credits (720p) or 8 (1080p), with reference images. gen4_image_turbo 2 credits. eleven_voice_dubbing 1 credit per 2 s. eleven_text_to_sound_v2 1 credit/s. $0.01 per credit.
+- Allowed durations and ratios differ per model — read them; do not assume 9:16 or 8 s exist for every model.
+- Runway API credits and Runway app credits are separate pools.
+
+BUILD:
+1. Decision record docs/decisions/0015-generation-on-runway.md: why, trade-offs (single vendor; Gen-4 Turbo stickman consistency unproven; Veo via Runway costs more per second than Gemini direct), the failover path, and the cost-per-Short arithmetic.
+2. Runway video driver in src/lib/drivers/: character_beat → gen4_turbo image_to_video from the locked reference frame; money_shot → veo3.1_fast with audio passed explicitly OFF (an option whose default is the behaviour you are avoiding must be passed explicitly); Zod-validate every response; idempotency key per shot; cost_ledger row at submit from a rate-table row, estimate until a balance move is measured. Reuse the task polling/backoff 0013 settled for Runway; do not add a second Runway HTTP client.
+3. Reference frames: a Runway gen4_image path for producing and re-producing locked character frames from reference images, writing to storage and to characters.reference_frame_ids only after Sahil approves (same pattern as voice:audition).
+4. Router: Runway first for character_beat, money_shot and acted_beat. Higgsfield and fal stay as failover behind a flag that is OFF, and a missing HIGGSFIELD_* or FAL_KEY must not block anything. One routing predicate shared by the estimator and the submitter.
+5. Embeddings: keep the Gemini embeddings driver, free tier. Handle 429 with backoff. When embeddings are unavailable, variation_check must REFUSE with a named reason — never pass, never score 0 (absent is not zero). Surface it in v_pipeline_blockers if that is where workspace-level blockers live.
+6. Cost estimator and caps: per-Short estimate from the new rates (8 s gen4_turbo × 1.5 reroll = 60 credits; voice ~18; optional money shot 4 s × 1.5 × 10 = 60). The cap-swap-to-overlay logic must use the same numbers.
+7. Env + onboarding: RUNWAY_API_KEY and GEMINI_API_KEY required (Gemini: embeddings only); HIGGSFIELD_* and FAL_KEY optional. Update the env schema, .env.example, onboarding's required steps, docs and the CLAUDE.md stack line. Grep every harness for HIGGSFIELD, FAL_KEY and `??=` scaffolding that would restore a requirement you removed.
+8. Vendor isolation: pnpm check:vendors must pass.
+9. Harness verify:runway-video: drive the real driver once — one 5 s gen4_turbo clip from a placeholder 9:16 frame — and assert the ledger row, the job status transition and an ffprobe of the stored file (frame count, not container duration). Spend-limited; skip with a named reason if RUNWAY_API_KEY is absent, never pass silently.
+10. Update docs/decisions/0008-what-is-unverified.md with what ran for real and what did not.
+
+FINISH: push to main, read the CI step list for the last commit (not the log tail), and print (a) Vercel and Trigger.dev environment variable changes with where each value comes from, (b) whether hosted migrations are applied, (c) what is still unverified.
 ```
