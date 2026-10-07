@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
 import type { ChannelBible } from './bible';
+import { graphicsOf } from './graphics';
+import { graphicsText, isEngineeredShotList, unhedgedNumbers } from './hedge';
 
 /**
  * policy_lint — the deterministic half of the channel's content policy.
@@ -238,6 +240,23 @@ export function policyLint(raw: unknown, cb: Pick<ChannelBible, 'bible' | 'polic
       } else if (new Set(archetypes).size !== archetypes.length) {
         violations.push({ rule: 'title_archetypes', detail: 'The three titles must use three different hook archetypes.' });
       }
+    }
+  }
+
+  // ── Engineered (0052): every number sourced or hedged ────────────────────
+  // A 3D explainer states physical figures out loud and on meters. A figure that is not the
+  // sourced fact's own must carry "≈"/"about"/…, or it is a precise claim nobody checked.
+  // Applied only to engineered briefs, so no other format's scripts change outcome.
+  if (isEngineeredShotList(input.shot_list)) {
+    const sourced = factList.map((f) => (f && typeof f === 'object' ? String((f as { claim?: unknown }).claim ?? '') : ''));
+    const read = [input.script_text, ...(input.shot_list ?? []).map((s) => graphicsText(graphicsOf(s.graphics)))].join('\n');
+    const bare = unhedgedNumbers(read, sourced);
+    if (bare.length) {
+      violations.push({
+        rule: 'unhedged_number',
+        detail: `Numbers must be the sourced fact's own or hedged ("≈", "about", "roughly"): ${bare.join(', ')}.`,
+        match: bare[0],
+      });
     }
   }
 

@@ -31,6 +31,25 @@ interface Shot {
   description?: string;
   duration_s?: number;
   characters?: string[];
+  /** 3D explainer (0052): what the picture is, and the graphics drawn over it. */
+  view?: string;
+  action?: boolean;
+  graphics?: { badge?: { n: number; label: string }; verdict?: { pass: boolean; text: string; sub?: string }; callouts?: { label: string }[]; meters?: { label: string; unit: string }[]; keyword?: { word: string; role: string } };
+}
+
+/** One line of what the graphics layer will draw over a 3D-explainer beat, for the approver. */
+function graphicsLine(s: Shot): string | null {
+  const g = s.graphics;
+  const parts = [
+    s.view && s.view !== 'scene' ? s.view : null,
+    s.action ? 'action' : null,
+    g?.badge ? `${'①②③④⑤⑥⑦⑧⑨'[g.badge.n - 1] ?? g.badge.n} ${g.badge.label}` : null,
+    g?.verdict ? `${g.verdict.pass ? '✓' : '✗'} ${g.verdict.text}${g.verdict.sub ? ` — ${g.verdict.sub}` : ''}` : null,
+    ...(g?.callouts ?? []).map((c) => `→ ${c.label}`),
+    ...(g?.meters ?? []).map((m) => `▬ ${m.label}: ${m.unit}`),
+    g?.keyword ? `“${g.keyword.word}” ${g.keyword.role}` : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(' · ') : null;
 }
 interface EstimateBasis {
   total_inr?: number | null;
@@ -42,6 +61,7 @@ interface EstimateBasis {
 const ROUTE_LABEL: Record<string, string> = {
   overlay: 'Overlay',
   still: 'Scene still',
+  picture_clip: 'Picture clip',
   character_beat: 'Character beat',
   money_shot: 'Money shot',
 };
@@ -121,7 +141,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
   }, {});
   const policyStatus = status(b.policy);
   const variationStatus = status(b.variation);
-  const fmts = await formatOptions(db, channel.id, { series: b.series, shot_list: b.shot_list, script_text: b.script_text, lead_character: b.lead_character });
+  const fmts = await formatOptions(db, channel.id, { series: b.series, shot_list: b.shot_list, script_text: b.script_text, lead_character: b.lead_character, hero_objects: (b as { hero_objects?: unknown }).hero_objects });
   const seriesName = slot?.seriesName ?? bible?.series[b.series as keyof typeof bible.series]?.name ?? b.series;
 
   const briefCard = (
@@ -255,7 +275,10 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
                     <span className="chip">{ROUTE_LABEL[s.route ?? ''] ?? s.route ?? '—'}</span>
                   </td>
                   <td className="r mono">{s.duration_s != null ? `${Number(s.duration_s).toFixed(1)} s` : '—'}</td>
-                  <td className="sm t2">{s.description ?? '—'}</td>
+                  <td className="sm t2">
+                    {s.description ?? '—'}
+                    {graphicsLine(s) && <span className="xs t3" style={{ display: 'block' }}>{graphicsLine(s)}</span>}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -399,6 +422,8 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
         formats={fmts.options}
         defaultFormat={fmts.seriesDefault}
         defaultPace={fmts.seriesPace}
+        motions={fmts.motions}
+        defaultMotion={fmts.seriesMotion}
       />
     </main>
   );

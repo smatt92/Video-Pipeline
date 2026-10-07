@@ -17,6 +17,10 @@ import { z } from 'zod';
  *                character sheet (character-sheets.ts), so a character looks the same in
  *                every picture. A character with no locked sheet is left out of the picture,
  *                and an episode with none at all is planned as illustrated (07-Oct-2026)
+ *   engineered   "3D explainer" (0052): a clean photoreal 3D-render picture per beat, fast cuts,
+ *                the hero objects drawn from per-episode reference sheets, clips animated from
+ *                the picture on the action beats (`motion`), and a graphics layer we draw —
+ *                stage badges, verdicts, callouts, meters, keyword captions (engineered.ts)
  *
  * ── Where the choice lives ───────────────────────────────────────────────────
  *
@@ -26,7 +30,7 @@ import { z } from 'zod';
  * the decision it belongs to, and no migration was needed to ship it.
  */
 
-export const VISUAL_FORMATS = ['illustrated', 'diagram', 'cinematic', 'characters'] as const;
+export const VISUAL_FORMATS = ['illustrated', 'diagram', 'cinematic', 'characters', 'engineered'] as const;
 export type VisualFormat = (typeof VISUAL_FORMATS)[number];
 export const VisualFormatSchema = z.enum(VISUAL_FORMATS);
 export const DEFAULT_VISUAL_FORMAT: VisualFormat = 'illustrated';
@@ -36,6 +40,7 @@ export const FORMAT_INFO: Record<VisualFormat, { label: string; blurb: string }>
   diagram: { label: 'Chalk diagrams', blurb: 'In-house drawn diagrams; only the voice is generated' },
   cinematic: { label: 'Cinematic', blurb: 'Generated video where a recipe is active; pictures elsewhere' },
   characters: { label: 'Cartoon characters', blurb: 'The cast appears as consistent cartoon characters, a new picture every ~6 s' },
+  engineered: { label: '3D explainer', blurb: 'Realistic 3D renders, cutaways, badges and meters — how a thing works, attempt by attempt' },
 };
 
 /** Formats whose every shot is a picture (routesForFormat). They price identically. */
@@ -81,11 +86,14 @@ export function formatOf(input: { approvedEdits?: unknown; seriesFormat?: unknow
  * `stillsAvailable` false (0047 not pasted, switched off, integration unverified) degrades
  * illustrated and cinematic to what the planner did before stills existed.
  */
-export function routesForFormat<T extends { route: string }>(
+export function routesForFormat<T extends { route: string; action?: boolean; view?: string }>(
   shots: readonly T[],
   format: VisualFormat,
   stillsAvailable: boolean,
+  /** The engineered format's motion level (ignored by every other format). */
+  motion: MotionLevel = DEFAULT_MOTION,
 ): { shots: T[]; swaps: { idx: number; from: string; to: string; reason: string }[] } {
+  if (format === 'engineered') return engineeredRoutes(shots, motion, stillsAvailable);
   const swaps: { idx: number; from: string; to: string; reason: string }[] = [];
   const out = shots.map((s, idx) => {
     if (format === 'diagram') {
@@ -201,4 +209,90 @@ export function paceOf(input: { approvedEdits?: unknown; seriesPace?: unknown })
   const s = VoicePaceSchema.safeParse(input.seriesPace);
   if (s.success) return { pace: s.data, tempo: VOICE_PACES[s.data], source: 'series' };
   return { pace: DEFAULT_VOICE_PACE, tempo: VOICE_PACES[DEFAULT_VOICE_PACE], source: 'default' };
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Motion — the engineered format's second choice (0052)
+// ═════════════════════════════════════════════════════════════════════════════
+
+/**
+ * How much of an engineered episode moves. Sahil (08-Oct) asked for "a combination of both":
+ * pictures with our camera moves everywhere, and clips — animated from the beat's own picture
+ * — where something happens.
+ *
+ *   key   clips only on the action beats (at most KEY_MAX_CLIPS), pictures everywhere else.
+ *         The default: the motion lands where the story moves, at a fraction of the price.
+ *   full  a clip on every scene beat; pictures only for cutaways and diagram beats, which are
+ *         explanations and read better held still under the graphics.
+ *
+ * Stored like the voice pace: `briefs.approved_edits.motion`, the series default in its bible
+ * (`motion`), else `key`. Changing it re-routes the plan; it is priced on Approvals by the
+ * same `routesForFormat` the planner calls, so the two cannot disagree.
+ */
+export const MOTION_LEVELS = ['key', 'full'] as const;
+export type MotionLevel = (typeof MOTION_LEVELS)[number];
+export const MotionLevelSchema = z.enum(MOTION_LEVELS);
+export const DEFAULT_MOTION: MotionLevel = 'key';
+export const MOTION_INFO: Record<MotionLevel, { label: string; blurb: string }> = {
+  key: { label: 'Key moments', blurb: 'Pictures with camera moves; clips only on the action beats (≈3–4)' },
+  full: { label: 'Full motion', blurb: 'Clips on most beats; pictures only for cutaways and diagrams' },
+};
+/** The most clips `key` plans. More action beats than this → evenly spaced among them. */
+export const KEY_MAX_CLIPS = 4;
+/** A brief with no beat marked as action (e.g. one written for another format) → this many, evenly spaced. */
+export const KEY_FALLBACK_CLIPS = 3;
+
+/** The motion an episode is made with, and where that came from. Same precedence as formatOf. */
+export function motionOf(input: { approvedEdits?: unknown; seriesMotion?: unknown }): { motion: MotionLevel; source: FormatSource } {
+  const edits = input.approvedEdits && typeof input.approvedEdits === 'object' ? (input.approvedEdits as Record<string, unknown>) : {};
+  const e = MotionLevelSchema.safeParse(edits.motion);
+  if (e.success) return { motion: e.data, source: 'episode' };
+  const s = MotionLevelSchema.safeParse(input.seriesMotion);
+  if (s.success) return { motion: s.data, source: 'series' };
+  return { motion: DEFAULT_MOTION, source: 'default' };
+}
+
+/** k indices spread evenly over n (first and last included when k ≥ 2). Pure, deterministic. */
+export function evenlySpaced(n: number, k: number): number[] {
+  if (k <= 0 || n <= 0) return [];
+  if (k >= n) return Array.from({ length: n }, (_, i) => i);
+  if (k === 1) return [Math.floor((n - 1) / 2)];
+  return [...new Set(Array.from({ length: k }, (_, i) => Math.round((i * (n - 1)) / (k - 1))))];
+}
+
+/** A beat that explains rather than shows: held still under the graphics in every motion level. */
+export const isExplainView = (view: string | undefined) => view === 'cutaway' || view === 'diagram';
+
+/**
+ * The engineered routes. Every beat is a picture; the motion level decides which pictures
+ * are animated (`picture_clip`). Without pictures (stills unavailable) every beat is the chalk
+ * overlay — a clip is made FROM a picture, so there is nothing to animate either.
+ */
+export function engineeredRoutes<T extends { route: string; action?: boolean; view?: string }>(
+  shots: readonly T[],
+  motion: MotionLevel,
+  stillsAvailable: boolean,
+): { shots: T[]; swaps: { idx: number; from: string; to: string; reason: string }[] } {
+  const swaps: { idx: number; from: string; to: string; reason: string }[] = [];
+  const to = (s: T, idx: number, route: string, reason: string): T => {
+    if (s.route !== route) swaps.push({ idx, from: s.route, to: route, reason });
+    return { ...s, route };
+  };
+  if (!stillsAvailable) return { shots: shots.map((s, i) => to(s, i, 'overlay', '3D explainer without pictures — drawn as a diagram')), swaps };
+
+  const scenes = shots.map((s, i) => ({ s, i })).filter((x) => !isExplainView(x.s.view));
+  let animate: Set<number>;
+  let why: string;
+  if (motion === 'full') {
+    animate = new Set(scenes.map((x) => x.i));
+    why = 'full motion — a clip animated from the picture';
+  } else {
+    const marked = scenes.filter((x) => x.s.action === true);
+    const pool = marked.length ? marked : scenes;
+    const k = marked.length ? Math.min(KEY_MAX_CLIPS, marked.length) : Math.min(KEY_FALLBACK_CLIPS, scenes.length);
+    animate = new Set(evenlySpaced(pool.length, k).map((j) => pool[j].i));
+    why = marked.length ? 'an action beat — a clip animated from the picture' : 'no beat is marked as action, so clips go on evenly spaced beats';
+  }
+  const out = shots.map((s, i) => (animate.has(i) ? to(s, i, 'picture_clip', why) : to(s, i, 'still', '3D explainer — a picture with a camera move')));
+  return { shots: out, swaps };
 }

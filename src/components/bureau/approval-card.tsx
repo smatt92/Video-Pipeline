@@ -4,8 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition, type ReactNode } from 'react';
 
 import { PunchlinePicker } from '@/components/ui/punchline-picker';
-import type { FormatOption } from '@/lib/bureau/format-estimates';
-import { PACE_INFO, type VisualFormat, type VoicePace } from '@/lib/bureau/formats';
+import type { FormatOption, MotionOption } from '@/lib/bureau/format-estimates';
+import { MOTION_INFO, PACE_INFO, type MotionLevel, type VisualFormat, type VoicePace } from '@/lib/bureau/formats';
 import { approveBriefAction, rejectBriefAction } from '@/lib/bureau/ui-actions';
 
 /**
@@ -36,6 +36,8 @@ export function ApprovalDesk({
   formats,
   defaultFormat,
   defaultPace,
+  motions = [],
+  defaultMotion = 'key',
 }: {
   brief: ApprovalBrief;
   /** Server-rendered brief card (slot, busts, title, cast). */
@@ -52,6 +54,9 @@ export function ApprovalDesk({
   defaultFormat: VisualFormat;
   /** The series' voice pace (formats.ts); the approver can change it with the format. */
   defaultPace: VoicePace;
+  /** The 3D explainer's motion levels, each priced on this brief after the cap fit (0052). */
+  motions?: MotionOption[];
+  defaultMotion?: MotionLevel;
 }) {
   const router = useRouter();
   const [choice, setChoice] = useState<string | null>(null);
@@ -60,6 +65,7 @@ export function ApprovalDesk({
   // A disabled default (Cartoon characters with no locked sheet) is never pre-selected.
   const [format, setFormat] = useState<VisualFormat>(formats.find((f) => f.format === defaultFormat)?.disabled ? (formats.find((f) => !f.disabled)?.format ?? defaultFormat) : defaultFormat);
   const [pace, setPace] = useState<VoicePace>(defaultPace);
+  const [motion, setMotion] = useState<MotionLevel>(defaultMotion);
   const [reason, setReason] = useState<string>(REASONS[0]);
   const [reasonText, setReasonText] = useState('');
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -73,7 +79,7 @@ export function ApprovalDesk({
   const approve = () => {
     if (!picked || pending) return;
     start(async () => {
-      const r = await approveBriefAction(brief.id, picked, premise !== brief.premise ? premise : undefined, format, pace);
+      const r = await approveBriefAction(brief.id, picked, premise !== brief.premise ? premise : undefined, format, pace, format === 'engineered' ? motion : undefined);
       setMessage({ ok: r.ok, text: r.message });
       if (r.ok) router.refresh();
     });
@@ -143,11 +149,33 @@ export function ApprovalDesk({
                   {f.disabled && <span className="xs" style={{ color: 'var(--blk-text)' }}>Unavailable: {f.disabled}</span>}
                   {f.note && <span className="xs t3">{f.note}</span>}
                 </span>
-                <span className="mono" style={{ fontWeight: 600 }} title={f.inr === null ? 'Not priced — see the note' : 'Estimate, before the cap fitter'}>
-                  {f.inr === null ? '—' : `₹${f.inr.toFixed(0)}`}
+                <span className="mono" style={{ fontWeight: 600 }} title={f.inr === null ? 'Not priced — see the note' : f.format === 'engineered' ? 'Estimate at the motion below, after the cap fit' : 'Estimate, before the cap fitter'}>
+                  {f.format === 'engineered' && format === 'engineered' ? ((m) => (m?.inr === null || m?.inr === undefined ? '—' : `₹${m.inr.toFixed(0)}`))(motions.find((m) => m.motion === motion)) : f.inr === null ? '—' : `₹${f.inr.toFixed(0)}`}
                 </span>
               </button>
             ))}
+            {format === 'engineered' && motions.length > 0 && (
+              <div className="col" style={{ gap: 6, marginTop: 6 }} role="radiogroup" aria-label="Motion">
+                <span className="sm t2">Motion</span>
+                {motions.map((m) => (
+                  <button key={m.motion} type="button" role="radio" aria-checked={motion === m.motion} className={`radio-card${motion === m.motion ? ' on' : ''}`} onClick={() => setMotion(m.motion)} disabled={pending}>
+                    <span className="col" style={{ gap: 2, flex: 1 }}>
+                      <span style={{ fontWeight: 600 }}>
+                        {m.label}
+                        {m.motion === defaultMotion && <span className="xs t3"> · series default</span>}
+                      </span>
+                      <span className="sm t2">
+                        {m.blurb} · {m.clips} clip{m.clips === 1 ? '' : 's'}
+                      </span>
+                      {m.note && <span className="xs t3">{m.note}</span>}
+                    </span>
+                    <span className="mono" style={{ fontWeight: 600 }} title="Estimate after the cap fit — the plan the run will make">
+                      {m.inr === null ? '—' : `₹${m.inr.toFixed(0)}`}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="row sb" style={{ marginTop: 6 }}>
               <span className="sm t2">Voice pace</span>
               <div className="seg" role="radiogroup" aria-label="Voice pace">
@@ -202,7 +230,8 @@ export function ApprovalDesk({
             <div className="row sb">
               <span className="sm t2">Video type</span>
               <span className="mono" style={{ fontWeight: 600 }}>
-                {formats.find((f) => f.format === format)?.label ?? format} · {PACE_INFO[pace].label}
+                {formats.find((f) => f.format === format)?.label ?? format}
+                {format === 'engineered' ? ` · ${MOTION_INFO[motion].label}` : ''} · {PACE_INFO[pace].label}
               </span>
             </div>
             <div className="row sb">

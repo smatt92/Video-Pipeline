@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { CheckPill, Mono, Panel, Row, SectionHeader } from '@/components/settings/parts';
 import { SeriesDefaultsRow, StillStyleForm, TuningForm, type TuningField } from '@/components/settings/tuning-forms';
 import { getBible } from '@/lib/bureau/bible';
-import { FORMAT_INFO, formatOf, PACE_INFO, paceOf, VISUAL_FORMATS, VOICE_PACES, type VoicePace } from '@/lib/bureau/formats';
+import { FORMAT_INFO, formatOf, PACE_INFO, paceOf, VISUAL_FORMATS, VOICE_PACES, type VoicePace , MOTION_INFO, MOTION_LEVELS, motionOf } from '@/lib/bureau/formats';
 import { stillStyle } from '@/lib/bureau/stills';
 import { requireChannel } from '@/lib/channels/active';
 import { serverClient } from '@/lib/db/server';
@@ -137,13 +137,14 @@ export default async function GenerationSettingsPage() {
           series.map((s) => {
             const f = formatOf({ seriesFormat: s.visual_format });
             const p = paceOf({ seriesPace: s.voice_pace });
+            const mo = motionOf({ seriesMotion: s.motion });
             return (
               <Row
                 key={s.id}
                 label={s.name}
-                help={`Now: ${FORMAT_INFO[f.format].label}${f.source === 'default' ? ' (built-in default)' : ''} · ${PACE_INFO[p.pace].label}${p.source === 'default' ? ' (built-in default)' : ''}.`}
+                help={`Now: ${FORMAT_INFO[f.format].label}${f.format === 'engineered' ? ` · ${MOTION_INFO[mo.motion].label}` : ''}${f.source === 'default' ? ' (built-in default)' : ''} · ${PACE_INFO[p.pace].label}${p.source === 'default' ? ' (built-in default)' : ''}.`}
               >
-                <SeriesDefaultsRow channelId={channel.id} seriesId={s.id} format={f.format} pace={p.pace} formats={formats} paces={paces} editable={canEdit && cb.source === 'db'} />
+                <SeriesDefaultsRow channelId={channel.id} seriesId={s.id} format={f.format} pace={p.pace} formats={formats} paces={paces} editable={canEdit && cb.source === 'db'} motion={mo.motion} motions={MOTION_LEVELS.map((v) => ({ value: v, label: MOTION_INFO[v].label }))} />
               </Row>
             );
           })

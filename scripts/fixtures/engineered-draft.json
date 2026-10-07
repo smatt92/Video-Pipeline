@@ -1,0 +1,302 @@
+{
+  "premise": "Railway wagons once had to be joined by a person standing between them; every coupling idea failed until the knuckle locked itself.",
+  "hook_archetype": "warning",
+  "premise_type": "what_went_wrong_first",
+  "structure_variant": "evolution_chronological",
+  "ending_type": "loop_back",
+  "desk": "rail",
+  "music_bed": "bed_steel_percussion",
+  "hero_objects": [
+    {
+      "tag": "Coupler",
+      "name": "knuckle coupler",
+      "look": "A chunky cast-steel railway knuckle coupler, white with a yellow-and-black target decal on the side, the hinged knuckle painted orange."
+    },
+    {
+      "tag": "Wagon",
+      "name": "freight wagon",
+      "look": "A short white freight wagon with yellow-and-black target decals on each end, clean steel wheels, no markings."
+    }
+  ],
+  "beats": [
+    {
+      "kind": "hook",
+      "narration": "Two wagons roll together, and you are standing between them.",
+      "picture": "Low angle between the buffers of two @Wagon ends closing in, the gap a body-width wide.",
+      "view": "scene",
+      "action": true,
+      "objects": [
+        "Wagon"
+      ],
+      "graphics": {
+        "keyword": {
+          "word": "between",
+          "role": "danger"
+        }
+      }
+    },
+    {
+      "kind": "question",
+      "narration": "So why did anyone stand there?",
+      "picture": "Wide shot of a quiet rail yard, two @Wagon on one track a few metres apart.",
+      "view": "scene",
+      "action": false,
+      "objects": [
+        "Wagon"
+      ],
+      "graphics": {}
+    },
+    {
+      "kind": "rule",
+      "narration": "A coupling must lock by itself the moment wagons touch.",
+      "picture": "Close side view of the empty coupling point at the end of a @Wagon.",
+      "view": "scene",
+      "action": false,
+      "objects": [
+        "Wagon"
+      ],
+      "graphics": {
+        "callouts": [
+          {
+            "label": "COUPLING POINT",
+            "x": 0.5,
+            "y": 0.52
+          }
+        ],
+        "keyword": {
+          "word": "lock",
+          "role": "mechanism"
+        }
+      }
+    },
+    {
+      "kind": "attempt",
+      "narration": "First: a link and a pin, dropped in by hand.",
+      "picture": "A steel link hanging from a @Wagon end, a loose pin above its hole.",
+      "view": "scene",
+      "action": false,
+      "objects": [
+        "Wagon"
+      ],
+      "graphics": {
+        "badge": {
+          "n": 1,
+          "label": "LINK AND PIN"
+        }
+      }
+    },
+    {
+      "kind": "attempt",
+      "narration": "Someone guided the link as the wagons met.",
+      "picture": "Two @Wagon ends meeting with the link mid-air between them.",
+      "view": "scene",
+      "action": true,
+      "objects": [
+        "Wagon"
+      ],
+      "graphics": {
+        "verdict": {
+          "pass": false,
+          "text": "CRUSHES HANDS",
+          "sub": "a person stands in the gap"
+        }
+      }
+    },
+    {
+      "kind": "attempt",
+      "narration": "Second: a hook that drops over a bar.",
+      "picture": "A heavy steel hook on one @Wagon end above a bar on the other.",
+      "view": "scene",
+      "action": false,
+      "objects": [
+        "Wagon"
+      ],
+      "graphics": {
+        "badge": {
+          "n": 2,
+          "label": "DROP HOOK"
+        }
+      }
+    },
+    {
+      "kind": "attempt",
+      "narration": "Fine on straight track. On a curve it bounces off.",
+      "picture": "Two @Wagon on a curved track, the hook jumping clear of the bar.",
+      "view": "scene",
+      "action": true,
+      "objects": [
+        "Wagon"
+      ],
+      "graphics": {
+        "verdict": {
+          "pass": false,
+          "text": "LETS GO",
+          "sub": "on curves and bumps"
+        }
+      }
+    },
+    {
+      "kind": "attempt",
+      "narration": "Third: a knuckle that swings shut.",
+      "picture": "Close three-quarter view of an open @Coupler on the end of a @Wagon.",
+      "view": "scene",
+      "action": false,
+      "objects": [
+        "Coupler",
+        "Wagon"
+      ],
+      "graphics": {
+        "badge": {
+          "n": 3,
+          "label": "KNUCKLE"
+        }
+      }
+    },
+    {
+      "kind": "attempt",
+      "narration": "Push the wagons together and it closes. Nobody between them.",
+      "picture": "Two @Coupler meeting head-on, knuckles swinging shut at the instant of contact.",
+      "view": "scene",
+      "action": true,
+      "objects": [
+        "Coupler"
+      ],
+      "graphics": {
+        "verdict": {
+          "pass": true,
+          "text": "LOCKS ITSELF",
+          "sub": "nobody in the gap"
+        }
+      }
+    },
+    {
+      "kind": "mechanism",
+      "narration": "Inside, the closing knuckle pushes a lock block aside.",
+      "picture": "Cutaway of the @Coupler with the lock block sliding aside as the knuckle turns.",
+      "view": "cutaway",
+      "action": false,
+      "objects": [
+        "Coupler"
+      ],
+      "graphics": {
+        "callouts": [
+          {
+            "label": "KNUCKLE",
+            "x": 0.4,
+            "y": 0.45
+          },
+          {
+            "label": "LOCK BLOCK",
+            "x": 0.6,
+            "y": 0.55
+          }
+        ],
+        "keyword": {
+          "word": "knuckle",
+          "role": "mechanism"
+        }
+      }
+    },
+    {
+      "kind": "mechanism",
+      "narration": "Then gravity drops the lock behind it.",
+      "picture": "Cutaway of the @Coupler, the lock block fallen into place behind the closed knuckle.",
+      "view": "cutaway",
+      "action": false,
+      "objects": [
+        "Coupler"
+      ],
+      "graphics": {
+        "keyword": {
+          "word": "gravity",
+          "role": "mechanism"
+        }
+      }
+    },
+    {
+      "kind": "mechanism",
+      "narration": "A freight coupler holds roughly 350 tonnes of pull.",
+      "picture": "Side view of a long line of @Wagon stretching away, the first @Coupler in focus.",
+      "view": "scene",
+      "action": false,
+      "objects": [
+        "Coupler",
+        "Wagon"
+      ],
+      "graphics": {
+        "meters": [
+          {
+            "label": "PULL IT HOLDS",
+            "from": 0.1,
+            "to": 0.85,
+            "unit": "≈ 350 tonnes"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "mechanism",
+      "narration": "To uncouple, a lever lifts the lock from trackside.",
+      "picture": "Cross-section of the @Coupler lock with the lever raising the block.",
+      "view": "diagram",
+      "action": false,
+      "objects": [
+        "Coupler"
+      ],
+      "graphics": {
+        "callouts": [
+          {
+            "label": "RELEASE LEVER",
+            "x": 0.35,
+            "y": 0.6
+          }
+        ],
+        "keyword": {
+          "word": "lever",
+          "role": "outcome"
+        }
+      }
+    },
+    {
+      "kind": "loop",
+      "narration": "So the next time two wagons roll together, nobody stands between them.",
+      "picture": "Low angle between the buffers of two @Wagon ends closing in, the gap empty.",
+      "view": "scene",
+      "action": true,
+      "objects": [
+        "Wagon"
+      ],
+      "graphics": {
+        "keyword": {
+          "word": "nobody",
+          "role": "outcome"
+        }
+      }
+    }
+  ],
+  "loop_endings": [
+    "So the next time two wagons roll together, nobody stands between them.",
+    "Two wagons roll together, and the gap stays empty.",
+    "That orange knuckle is why nobody stands there any more."
+  ],
+  "fact": {
+    "claim": "The 1893 Safety Appliance Act required automatic couplers on United States railroad cars.",
+    "source_url": "https://www.loc.gov/item/llsl-v27/",
+    "source_title": "Library of Congress — U.S. Statutes at Large, vol. 27"
+  },
+  "titles": [
+    {
+      "text": "Why nobody stands between train wagons any more",
+      "hook_archetype": "question"
+    },
+    {
+      "text": "The coupling that used to cost workers their hands",
+      "hook_archetype": "warning"
+    },
+    {
+      "text": "Three ways to join a train — two of them failed",
+      "hook_archetype": "number_claim"
+    }
+  ],
+  "pinned_comment": "Which everyday machine should we open up next?"
+}

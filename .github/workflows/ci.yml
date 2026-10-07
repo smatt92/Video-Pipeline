@@ -450,6 +450,13 @@ jobs:
       # → QC → a real three-layer render → cut approval → bundle, all through the Kiln MCP
       # connector, with the vendors replaced by local stand-ins. And the refusal: a voice that
       # does not match its script stops generation, and the blocker view says why.
+      # The 3D explainer (0052): key vs full priced three ways (Approvals, the planner, the
+      # harness's own sum), the evolution shape, hedged numbers, hero-object sheets in every
+      # picture, clips from their own picture, graphics → Remotion props, Built Like That —
+      # and two beats rendered for real (§11), so it sits after the headless-shell install.
+      - name: 3D explainer — motion pricing, the script shape, object sheets, graphics
+        run: pnpm verify:engineered "$DATABASE_URL"
+
       - name: Bureau episode end to end through the connector, and the alignment refusal
         run: pnpm verify:episode "$DATABASE_URL"
 

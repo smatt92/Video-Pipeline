@@ -16,6 +16,7 @@ import {
   generateStills,
   generationSettled,
   HEIGHT,
+  objectSheetsStep,
   planShots,
   prepareScript,
   qcClips,
@@ -51,7 +52,7 @@ import { alignLine } from '@/lib/voice/align';
  * on a token the dispatcher (`21-gen-dispatch`) completes when the episode's last job is
  * terminal — so nothing here polls a vendor or the database in a loop.
  *
- * Order: polish → shots → estimate/fit → voice → stills → generate → QC (≤2 re-rolls) →
+ * Order: polish → shots → estimate/fit → voice → (hero-object sheets, 0052) → stills → generate → QC (≤2 re-rolls) →
  * assemble → cut gate → bundle. Voice before video: see pipeline.ts. Stills (0021) are made
  * here with a bounded wait each (the vendor has no callback; drivers/still-image.ts), sequentially
  * so each re-reads the cap; one that fails becomes its overlay, recorded for Cuts.
@@ -158,6 +159,22 @@ export const episodeTask = schemaTask({
 
       // 3b. Scene stills — before the video queue, and never holding the run on a failure
       if (!longForm) {
+        // 3a. The 3D explainer's hero-object sheets, before the pictures that reference them
+        // (object-sheets.ts). Every other format returns "skipped" without a call.
+        const sheets = await objectSheetsStep(db, episodeId, {
+          usdInrRate,
+          apiKey: () => verifiedCredential(db, STILL_INTEGRATION, STILL_CREDENTIAL_FIELD),
+          submit: (i) => submitStill(i),
+          wait: (i) => waitStill(i),
+          fetchBytes: async (url) => {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return Buffer.from(await res.arrayBuffer());
+          },
+          putBytes: put,
+          log: logger,
+        });
+        logger.info('object sheets', sheets);
         const st = await generateStills(db, episodeId, {
           usdInrRate,
           llmKey: anthropicKey,

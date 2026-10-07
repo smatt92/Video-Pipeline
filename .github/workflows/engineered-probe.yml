@@ -1,0 +1,93 @@
+name: Engineered probe (Built Like That — one brief, then one sheet + one 3D picture)
+
+# Manual only. Run AFTER bundle 10 (docs/bureau/hosted-migrations-10-0052.sql) is pasted.
+#
+#   step=brief  drafts ONE Built Like That brief from a bank topic through the production writer
+#               and leaves it PENDING on Approvals (never approves). Spends one writer call
+#               (+ embeddings, + a judge call if the lint asks) — a few rupees.
+#   step=proof  for that pending brief: ONE hero-object sheet and ONE 3D picture drawn from it
+#               (≈ ₹8.80 at 0044's verified image rate), then four graphics frames rendered over
+#               the picture by the real Remotion bundle. Prints small JPEGs to the log.
+#
+# Both write their cost rows before any call (rules 5 and 6); --max-inr refuses above it.
+# See scripts/engineered-probe.mjs. The environment is read from Vercel production exactly as
+# the sheet probe reads it (0017).
+
+on:
+  workflow_dispatch:
+    inputs:
+      step:
+        description: 'brief (draft one, leave it pending) or proof (one sheet + one 3D picture + frames)'
+        required: true
+        type: string
+      slot:
+        description: 'brief only: the bank topic (B17–B36); default B26, lift safety brakes'
+        default: 'B26'
+        type: string
+      max_inr:
+        description: 'Refuse a step priced above this'
+        default: '15'
+        type: string
+
+concurrency:
+  group: engineered-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VERCEL_ACCESS_TOKEN: ${{ secrets.VERCEL_ACCESS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
+      - name: Install chrome-headless-shell (proof only — the frames are rendered by Remotion)
+        if: inputs.step == 'proof'
+        run: |
+          npx --yes @puppeteer/browsers install chrome-headless-shell@stable --path "$RUNNER_TEMP/hs"
+          echo "REMOTION_BROWSER_EXECUTABLE=$(find "$RUNNER_TEMP/hs" -name chrome-headless-shell -type f | head -1)" >> "$GITHUB_ENV"
+
+      - name: Production environment from Vercel (values masked)
+        run: |
+          node --input-type=module -e '
+            const team = "team_2UHmmkh8jSZXWBQg8dIICYP5";
+            const want = ["NEXT_PUBLIC_SUPABASE_URL","SUPABASE_SERVICE_ROLE_KEY","SUPABASE_S3_ACCESS_KEY_ID","SUPABASE_S3_SECRET_ACCESS_KEY","SUPABASE_STORAGE_BUCKET","SUPABASE_S3_REGION","SUPABASE_S3_ENDPOINT","RUNWAY_API_KEY","ANTHROPIC_API_KEY","GEMINI_API_KEY"];
+            const r = await fetch(`https://api.vercel.com/v8/projects/video-pipeline/env?target=production&decrypt=true&teamId=${team}`, { headers: { authorization: `Bearer ${process.env.VERCEL_ACCESS_TOKEN}` } });
+            if (!r.ok) { console.log(`::error::Vercel env read failed: HTTP ${r.status}`); process.exit(1); }
+            const { envs } = await r.json();
+            const fs = await import("node:fs");
+            const missing = [];
+            for (const k of want) {
+              const e = envs.find((x) => x.key === k && (x.target ?? []).includes("production") && !x.gitBranch);
+              if (!e || typeof e.value !== "string" || !e.value) { missing.push(k); continue; }
+              console.log(`::add-mask::${e.value}`);
+              fs.appendFileSync(process.env.GITHUB_ENV, `${k}<<__KILN_EOF__\n${e.value}\n__KILN_EOF__\n`);
+            }
+            console.log(`read ${want.length - missing.length} of ${want.length}${missing.length ? `; without a value: ${missing.join(", ")}` : ""}`);
+          '
+
+      - name: The step
+        run: |
+          if [ "${{ inputs.step }}" = "brief" ]; then
+            pnpm probe:engineered --brief --slot "${{ inputs.slot }}" --max-inr "${{ inputs.max_inr }}"
+          elif [ "${{ inputs.step }}" = "proof" ]; then
+            pnpm probe:engineered --proof --max-inr "${{ inputs.max_inr }}"
+          else
+            echo "::error::step must be brief or proof"; exit 2
+          fi
+
+      - name: The sheet, the picture and the frames, full size
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: engineered-probe-${{ inputs.step }}
+          path: out/engineered-probe/
+          if-no-files-found: ignore

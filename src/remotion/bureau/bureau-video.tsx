@@ -2,7 +2,11 @@ import { AbsoluteFill, Audio, Img, OffthreadVideo, Sequence, useCurrentFrame, us
 
 import type { CaptionCue } from '@/lib/review/timeline';
 
+import type { ShotGraphics } from '../../lib/bureau/graphics';
+import type { KeywordCue } from '../../lib/bureau/engineered-captions';
+
 import { PAPER, projectOverlay, type CameraMove, type OverlaySpec } from './overlay-scene';
+import { GraphicsLayer, KeywordCaptions } from './graphics-layer';
 import { kenBurns } from './ken-burns';
 import { DEFAULT_CAPTION_SCALE, DEFAULT_HOOK_SCALE } from './text-scale';
 
@@ -36,6 +40,13 @@ export type BureauVideoProps = {
   safeBox: { x: number; y: number; width: number; height: number };
   /** Caption and hook font sizes as fractions of the frame height (Settings → Assembly). Absent → the defaults. */
   textScale?: { caption: number; hook: number };
+  /**
+   * The 3D explainer (0052): the graphics drawn over each beat — frame window and what to draw —
+   * and captions 2–4 words with the keyword coloured. Text, so drawn on the composite and the
+   * caption layer, never on the clean master. Absent → the standard captions, no graphics.
+   */
+  graphics?: { from: number; frames: number; g: ShotGraphics }[];
+  captionStyle?: 'standard' | 'engineered';
 };
 
 export function BureauVideo(props: BureauVideoProps) {
@@ -64,7 +75,20 @@ export function BureauVideo(props: BureauVideoProps) {
         })}
       {!transparent && props.audioUrl && <Audio src={props.audioUrl} />}
       {!transparent && props.musicUrl && <Audio src={props.musicUrl} volume={0.12} />}
-      {withText && <Captions cues={props.cues} box={props.safeBox} fontSize={Math.round(height * (props.textScale?.caption ?? DEFAULT_CAPTION_SCALE))} />}
+      {withText &&
+        (props.graphics ?? []).map((x, i) =>
+          x.frames > 0 ? (
+            <Sequence key={`g${i}`} from={x.from} durationInFrames={x.frames}>
+              <GraphicsLayer g={x.g} box={props.safeBox} frames={x.frames} />
+            </Sequence>
+          ) : null,
+        )}
+      {withText &&
+        (props.captionStyle === 'engineered' ? (
+          <KeywordCaptions cues={props.cues as KeywordCue[]} box={props.safeBox} fontSize={Math.round(height * (props.textScale?.caption ?? DEFAULT_CAPTION_SCALE) * 1.45)} />
+        ) : (
+          <Captions cues={props.cues} box={props.safeBox} fontSize={Math.round(height * (props.textScale?.caption ?? DEFAULT_CAPTION_SCALE))} />
+        ))}
       {withText && props.hook && <Hook hook={props.hook} box={props.safeBox} fontSize={Math.round(height * (props.textScale?.hook ?? DEFAULT_HOOK_SCALE))} />}
     </AbsoluteFill>
   );

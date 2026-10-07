@@ -6,7 +6,7 @@ import { bureauSeries, hookPattern } from '../db/enums';
 import { ROUTE_PROVIDERS } from '../drivers/jobs';
 import { CharacterVoiceFields, storedVoiceOf, voiceFieldsFromStored, voiceKey, voiceRouteFor, type VoiceOverride, type VoiceRoute } from '../drivers/voice-route';
 import type { Json } from '../db/types';
-import { VisualFormatSchema, VoicePaceSchema } from './formats';
+import { MotionLevelSchema, VisualFormatSchema, VoicePaceSchema } from './formats';
 
 /**
  * Channel bibles, typed — from the database first, the folder second (decision 0022).
@@ -81,6 +81,23 @@ export const BibleSchema = z.object({
     /** The look of a scene still (0021), in one sentence with no people in it. Optional:
      *  without it the still style is built from the palette. */
     still_style: z.string().min(1).optional(),
+    /**
+     * The channel's own look for a video type that is not its default (0052). Absent → the
+     * format's look (engineered.ts `ENGINEERED_LOOK`). The look lives with the format and the
+     * channel — never inside a prompt module.
+     */
+    format_styles: z
+      .object({
+        engineered: z
+          .object({
+            scene: z.string().trim().min(10).max(400).optional(),
+            cutaway: z.string().trim().min(10).max(400).optional(),
+            diagram: z.string().trim().min(10).max(400).optional(),
+            negative: z.string().trim().min(3).max(300).optional(),
+          })
+          .optional(),
+      })
+      .optional(),
   }),
   /** What every upload of this channel carries: hashtag pool (no '#'), base tags, category. */
   publishing: z
@@ -137,6 +154,8 @@ export const SeriesSchema = z.object({
   visual_format: VisualFormatSchema.optional(),
   /** The series' default voice pace (formats.ts); absent → brisk. */
   voice_pace: VoicePaceSchema.optional(),
+  /** The series' default motion for the 3D explainer (formats.ts, 0052); absent → key. */
+  motion: MotionLevelSchema.optional(),
 });
 export type Series = z.infer<typeof SeriesSchema>;
 

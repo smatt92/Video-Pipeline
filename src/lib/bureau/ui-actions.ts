@@ -8,9 +8,9 @@ import { serverClient } from '../db/server';
 import { youtubeVideoId } from '../publish/yt-analytics';
 import { approveBrief, decideCut, markScheduled, rejectBrief, restartHaltedEpisode, setKillSwitch, startQueuedEpisode } from './control';
 import { lockVoice } from '../channels/bible-admin';
-import { productionEffects, productionSheetEffects } from './effects';
+import { productionEffects, productionObjectSheetEffects, productionSheetEffects } from './effects';
 import { applyRecutNotes } from './recut';
-import { VisualFormatSchema, VoicePaceSchema } from './formats';
+import { MotionLevelSchema, VisualFormatSchema, VoicePaceSchema } from './formats';
 import { queueDubs, regenerateShot, type DubLanguage } from './episodes';
 import { importStudioCsv } from './studio-csv';
 import { mintBureauToken, type BureauToken } from './tokens';
@@ -85,13 +85,15 @@ async function run(path: string, subject: Subject, f: (t: BureauToken) => Promis
   }
 }
 
-export async function approveBriefAction(briefId: string, punchline: string, premise?: string, visualFormat?: string, voicePace?: string): Promise<ActionResult> {
+export async function approveBriefAction(briefId: string, punchline: string, premise?: string, visualFormat?: string, voicePace?: string, motionLevel?: string): Promise<ActionResult> {
   return run('/bureau/approvals', { table: 'briefs', id: briefId }, async (t) => {
     const db = serverClient();
     // Format and pace travel in the approval's edits (formats.ts): stored and logged with the decision.
     const format = visualFormat === undefined ? undefined : VisualFormatSchema.parse(visualFormat);
     const pace = voicePace === undefined ? undefined : VoicePaceSchema.parse(voicePace);
-    const r = await approveBrief(db, t, productionEffects(db), { brief_id: briefId, punchline, edits: { ...(premise ? { premise } : {}), ...(format ? { visual_format: format } : {}), ...(pace ? { voice_pace: pace } : {}) } });
+    // The 3D explainer's motion (formats.ts, 0052): stored beside the pace, only with that format.
+    const motion = motionLevel === undefined || format !== 'engineered' ? undefined : MotionLevelSchema.parse(motionLevel);
+    const r = await approveBrief(db, t, productionEffects(db), { brief_id: briefId, punchline, edits: { ...(premise ? { premise } : {}), ...(format ? { visual_format: format } : {}), ...(pace ? { voice_pace: pace } : {}), ...(motion ? { motion } : {}) } });
     return r.start_error ? `Approved; the run did not start: ${r.start_error}` : `Approved with "${r.punchline}". Episode started.`;
   });
 }
@@ -239,6 +241,19 @@ export async function requestSheetAction(channelId: string, slug: string, note: 
     const { requestCharacterSheet } = await import('./character-sheets');
     const r = await requestCharacterSheet(serverClient(), t, productionSheetEffects(), { slug, note });
     return `Drawing a sheet for ${r.name}. It appears here in about a minute — look at it before you lock it.`;
+  });
+}
+
+/**
+ * Cuts → a hero object's "Redraw sheet" (3D explainer, 0052): approver only, logged, starts
+ * 28-object-sheet. Spends one image. Pictures drawn after it use the new sheet; Redraw a picture
+ * to bring one up to date.
+ */
+export async function redrawObjectSheetAction(episodeId: string, tag: string, note: string): Promise<ActionResult> {
+  return run('/bureau/cuts', { table: 'episodes', id: episodeId }, async (t) => {
+    const { requestObjectSheetRedraw } = await import('./object-sheets');
+    const r = await requestObjectSheetRedraw(serverClient(), t, productionObjectSheetEffects(), { episodeId, tag, note });
+    return `Drawing a new sheet for ${r.name}. It appears here in about a minute; pictures drawn after it use it.`;
   });
 }
 

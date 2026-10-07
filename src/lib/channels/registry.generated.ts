@@ -6,6 +6,11 @@ import _template__characters from '../../../channels/_template/characters.json';
 import _template__policy from '../../../channels/_template/policy.json';
 import _template__trends from '../../../channels/_template/trends.json';
 import _template__series_incident from '../../../channels/_template/series/incident.json';
+import built_like_that__characters from '../../../channels/built-like-that/characters.json';
+import built_like_that__policy from '../../../channels/built-like-that/policy.json';
+import built_like_that__trends from '../../../channels/built-like-that/trends.json';
+import built_like_that__series_evolution from '../../../channels/built-like-that/series/evolution.json';
+import built_like_that__series_inside from '../../../channels/built-like-that/series/inside.json';
 import bureau_of_reality__characters from '../../../channels/bureau-of-reality/characters.json';
 import bureau_of_reality__policy from '../../../channels/bureau-of-reality/policy.json';
 import bureau_of_reality__trends from '../../../channels/bureau-of-reality/trends.json';
@@ -20,5 +25,6 @@ import bureau_of_reality__series_pip from '../../../channels/bureau-of-reality/s
 
 export const CHANNEL_FOLDERS: Readonly<Record<string, { characters: unknown; policy: unknown; trends: unknown; series: readonly unknown[] }>> = {
   '_template': { characters: _template__characters, policy: _template__policy, trends: _template__trends, series: [_template__series_incident] },
+  'built-like-that': { characters: built_like_that__characters, policy: built_like_that__policy, trends: built_like_that__trends, series: [built_like_that__series_evolution, built_like_that__series_inside] },
   'bureau-of-reality': { characters: bureau_of_reality__characters, policy: bureau_of_reality__policy, trends: bureau_of_reality__trends, series: [bureau_of_reality__series_archive, bureau_of_reality__series_complaint, bureau_of_reality__series_deep, bureau_of_reality__series_desk_tour, bureau_of_reality__series_incident, bureau_of_reality__series_long_form, bureau_of_reality__series_myth, bureau_of_reality__series_pip] },
 };

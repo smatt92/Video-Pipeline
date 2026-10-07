@@ -4,8 +4,10 @@ Copied by `pnpm channel:new <slug>` into `channels/<slug>/`, which also rewrites
 `characters.json` to the slug and regenerates `src/lib/channels/registry.generated.ts`.
 
 Edit every `REPLACE` before the channel drafts anything. Series ids must be values of the
-`bureau_series` enum (incident, desk_tour, pip, archive, myth, deep, complaint, long_form) —
-a new id is a migration. `trends.json` names the subreddits and YouTube Data API category ids /
+`bureau_series` enum (incident, desk_tour, pip, archive, myth, deep, complaint, long_form, and
+since 0052 evolution, inside) — a new id is a migration. A series may default to any video
+type (`visual_format`), including `engineered` (the 3D explainer) with its `motion` (key/full).
+Slot ids are global across channels (`S001…`, `B01…`): pick ids no other channel uses. `trends.json` names the subreddits and YouTube Data API category ids /
 queries that stage 1 reads for this channel; empty lists mean that source is skipped for it.
 Not every YouTube category has a most-popular chart in every region (Education, 27, has none
 in IN — the API answers 404), and Google publishes no list; a category without one is recorded

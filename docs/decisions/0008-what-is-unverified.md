@@ -1485,6 +1485,33 @@ default is a starting point — /trends prints every score); the second TTS mode
 vendor (its separate 50/day limit is Sahil's statement, not observed here); a real overflowed
 episode; the redesigned /trends signed in on Vercel (screens are from the local seed).
 
+### 34. The 3D explainer and Built Like That (2026-10-07, decision 0025, migration 0052) — RUN locally against stubs + one real Remotion render; hosted NOT
+
+**What has run:** `verify:engineered` (97 checks, in CI): routing for key/full (cutaways never
+clips, unmarked briefs → 3 evenly spaced, no pictures → overlays); the writer's draft → the
+evolution shape (seven refusals by name) → a brief the channel schema accepts; the hedge check
+in the script and on a meter, and NOT on a Bureau brief; **LOAD-BEARING** three-way price
+agreement — Approvals' motion price, the planner's `estimate_inr`, and the harness's own sum over
+the shots the planner wrote (first run found a real ₹0.36 gap: the chosen loop ending changes the
+voice length — the comparison now holds the ending fixed and a separate check covers the
+replacement); object sheets (estimate before each call, auto-lock, replay free); **LOAD-BEARING**
+every picture submitted with exactly its beat's sheet URIs (from keys the harness saw stored) and
+tags, and an object with no sheet named untagged with no reference; each clip's first frame is
+THAT shot's stored picture, and "no picture to animate" refuses; graphics → Remotion props on
+exact frames, captions 2–4 words within beats (a real defect found: cues straddled cuts), keyword
+coloured once per beat; a clip that never came back drawn as its picture; the Bureau's prices
+unchanged; before 0052 the type is disabled and planned as illustrated, said. §11 renders two
+beats through the REAL bundle + headless Chromium and reads the ✗ pill's pixels — which caught
+an `@/` import the Remotion bundler cannot resolve (a stub renderer never would). Bundle 10
+proved on a DB at 0051 (applies; second paste refuses). `verify:episode`, `verify:characters`,
+`verify:channel-bible`, `verify:studio` and the rest re-run green locally.
+
+**Unverified:** a real object sheet, a real 3D still, a real picture clip (gen4_turbo from our
+picture) and how they look; the engineered writer on the real model (shape refusals may bite);
+the Approvals motion choice and the Cuts hero-object card in a browser; `28-object-sheet` on the
+worker; a whole engineered episode end to end; the narrator voice preset ("James") never
+auditioned.
+
 ## Gates, and where each can run
 
 | Gate | Runnable in this environment? |

@@ -15,13 +15,19 @@ import { billedSeconds, REFERENCE_FRAME_PARAM, type RenderRoute } from '../drive
 import { routed } from '../llm/router';
 import { POLISH_SYSTEM, PROMPT_REF } from '../prompts/20-bureau.v1';
 import { captionCues, type CaptionCue } from '../review/timeline';
+import { engineeredCues } from './engineered-captions';
 import { takeWords } from './take-words';
 import { shiftBy, type WordTiming } from '../voice/timings';
 import { normaliseOverlay, type OverlaySpec } from '../../remotion/bureau/overlay-scene';
 import type { BureauShot, BureauVideoProps } from '../../remotion/bureau/bureau-video';
 import { getBible, STORAGE_REF_PREFIX, syncCast, voiceOverrides, type ChannelBible, type Series } from './bible';
-import { estimateEpisode, fitToCap, isVideoRoute, PlannedShotSchema, recipeForRoute, type PlannedShot } from './estimate';
-import { formatOf, paceOf, pictureSpans, picturesFor, routesForFormat, type PictureSpan } from './formats';
+import { estimateEpisode, isVideoRoute, PlannedShotSchema, recipeForRoute, type PlannedShot } from './estimate';
+import { formatOf, motionOf, paceOf, pictureSpans, picturesFor, routesForFormat, type PictureSpan } from './formats';
+import { engineeredAvailability, engineeredLook, heroObjectsOf } from './engineered';
+import { graphicsOf, type ShotGraphics } from './graphics';
+import { lockedObjects, objectRefs, prepareObjectSheets } from './object-sheets';
+import type { SheetDeps } from './sheet-core';
+import { fittedPlan } from './plan-price';
 import { fallBackToOverlay, generateStillForShot, stillsAvailability, stillsByPart, type StillDeps } from './stills';
 import { pictureTuning, readTuning, syntheticFlag, type PictureTuning } from '../settings/tuning';
 import { castAvailability, episodeCastSlugs, pictureCast, plannedFormat, wantedFor, type PlannedFormat } from './picture-cast';
@@ -109,9 +115,16 @@ export async function prepareScript(
   const punchline = b.chosen_punchline!;
   const maxWords = b.series === 'long_form' ? 2000 : 150;
   const lead = leadOf(cb, b.lead_character);
-  const base = scriptAcceptable(b.script_text, punchline, maxWords, cb).ok
-    ? b.script_text
-    : `${b.script_text.trim()}\n${punchlineTurns(punchline, lead.id, cb).map((t) => `${cb.characterBySlug(t.speaker)?.name ?? lead.name}: ${t.text}`).join('\n')}`;
+  // The 3D explainer (0052) is written beat by beat — one line per shot, each with its own
+  // graphics — and its punchline is the loop ending, the LAST line. So the chosen ending
+  // replaces that line (an appended line would shift every graphic off its words), and the
+  // polish is skipped: a rewrite can merge or split lines and move a number out of its hedge.
+  const engineered = formatOf({ approvedEdits: b.approved_edits, seriesFormat: cb.seriesFor(b.series).visual_format }).format === 'engineered';
+  const base = engineered
+    ? withLastLine(b.script_text, punchline)
+    : scriptAcceptable(b.script_text, punchline, maxWords, cb).ok
+      ? b.script_text
+      : `${b.script_text.trim()}\n${punchlineTurns(punchline, lead.id, cb).map((t) => `${cb.characterBySlug(t.speaker)?.name ?? lead.name}: ${t.text}`).join('\n')}`;
 
   // Concept first: the script's cost rows hang off it.
   const titles = (b.titles as { text: string }[]) ?? [];
@@ -134,7 +147,9 @@ export async function prepareScript(
   let polished = false;
   let reason: string | null = null;
   let draftedBy = `brief:${b.created_by}`;
-  if (deps.apiKey) {
+  if (engineered) {
+    reason = 'a 3D explainer keeps its beat lines as approved (each carries its own graphics)';
+  } else if (deps.apiKey) {
     try {
       const r = await routed(
         {
@@ -183,6 +198,15 @@ export async function prepareScript(
   if (sErr || !script) throw new Error(`script insert failed: ${sErr?.message}`);
   await db.from('episodes').update({ script_id: script.id, concept_id: concept.id, updated_at: new Date().toISOString() }).eq('id', episodeId);
   return { scriptId: script.id, polished, reason };
+}
+
+/** The script with its last line's words replaced (speaker kept). Pure. */
+export function withLastLine(script: string, text: string): string {
+  const lines = script.trim().split('\n');
+  const last = lines[lines.length - 1] ?? '';
+  const colon = last.indexOf(':');
+  lines[lines.length - 1] = colon > 0 ? `${last.slice(0, colon)}: ${text.trim()}` : text.trim();
+  return lines.join('\n');
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -260,7 +284,17 @@ export async function planShots(
     const avail = castAvailability(cb, episodeCastSlugs({ lead: b.lead_character, speakers: lines.map((l) => l.speaker), shotCharacters: planned.map((s) => s.characters) }));
     if (!avail.available) fmt = { format: 'illustrated', source: asked.source, requested: 'characters', fallback_reason: avail.reason };
   }
-  const routed = routesForFormat(planned, fmt.format, stills.available);
+  // The 3D explainer needs 0052 (the picture_clip route, the graphics column); before the
+  // bundle is pasted it is planned as illustrated, and says why — the same probe Approvals
+  // disables the option with.
+  if (asked.format === 'engineered') {
+    const avail = await engineeredAvailability(db);
+    if (!avail.available) fmt = { format: 'illustrated', source: asked.source, requested: 'engineered', fallback_reason: avail.reason };
+  }
+  const engineered = fmt.format === 'engineered';
+  const motion = motionOf({ approvedEdits: b.approved_edits, seriesMotion: series.motion });
+  const heroObjects = engineered ? heroObjectsOf((b as { hero_objects?: unknown }).hero_objects) : [];
+  const routed = routesForFormat(planned, fmt.format, stills.available, motion.motion);
 
   // Pre-swaps the cap fitter cannot know about. A shot the planner cannot make falls back to
   // a picture when the format draws pictures, and to the chalk overlay otherwise.
@@ -285,22 +319,20 @@ export async function planShots(
   });
 
   await setStatus(db, episodeId, 'estimating');
-  const est = await estimateEpisode(db, { shots: adjusted, voChars: script!.vo_text.length, usdInrRate: deps.usdInrRate, channelId: e.channel_id });
-  const { data: pol } = await db.from('channel_policy').select('*').eq('channel_id', e.channel_id).single();
-  const fit = fitToCap(adjusted, est, {
-    capInr: Number(e.kind === 'long_form' ? pol!.daily_longform_cap_inr : pol!.per_short_cap_inr),
-    overlayMinShare: Number(pol!.overlay_min_share),
-    characterBeatMaxS: Number(pol!.character_beat_max_s),
-    moneyShotMax: pol!.money_shot_max,
-  });
-  const finalEst = await estimateEpisode(db, { shots: fit.shots, voChars: script!.vo_text.length, usdInrRate: deps.usdInrRate, channelId: e.channel_id });
+  // The same estimate → fit → re-estimate Approvals prices the motion levels with (plan-price.ts).
+  const { fit, finalEst } = await fittedPlan(db, { channelId: e.channel_id, kind: e.kind === 'long_form' ? 'long_form' : 'short', shots: adjusted, voChars: script!.vo_text.length, usdInrRate: deps.usdInrRate, objectSheets: heroObjects.length });
 
   const lead = leadOf(cb, b.lead_character);
-  const bound = bindShotsToLines(fit.shots, lines);
+  // A 3D explainer is written one line per beat, and each beat's graphics belong to its own
+  // words: with as many shots as lines, shot i takes line i exactly. Otherwise (a brief written
+  // for another format) the proportional binding as before.
+  const bound = engineered && fit.shots.length === lines.length ? fit.shots.map((shot, i) => ({ shot, first: i, last: i })) : bindShotsToLines(fit.shots, lines);
   const rows = bound.map(({ shot, first, last }, idx) => {
     const beat = series.beat_sheet.find((x) => x.id === shot.beat_id);
-    // A still carries its overlay too: it is the shot's fallback, and its camera move.
-    const overlay: OverlaySpec | null = shot.route === 'overlay' || shot.route === 'still' ? normaliseOverlay(shot.overlay ?? beat?.overlay, lead.accent_hex, idx + 1) : null;
+    // A still (and a picture clip, whose fallback is its picture) carries its overlay too: it is
+    // the shot's fallback, and its camera move.
+    const overlay: OverlaySpec | null = shot.route === 'overlay' || shot.route === 'still' || shot.route === 'picture_clip' ? normaliseOverlay(shot.overlay ?? beat?.overlay, lead.accent_hex, idx + 1) : null;
+    const graphics = engineered ? graphicsOf(shot.graphics) : null;
     return {
       script_id: e.script_id!,
       idx,
@@ -309,8 +341,13 @@ export async function planShots(
       render_route: shot.route,
       character_slugs: shot.characters,
       overlay_spec: overlay as unknown as Json,
-      realistic: shot.route === 'money_shot' && shot.realistic,
+      // A 3D explainer is photoreal CG of real objects throughout, so every one of its pictures
+      // counts as realistic for the synthetic-media disclosure (Settings → Publishing, auto).
+      realistic: (shot.route === 'money_shot' && shot.realistic) || (engineered && shot.route !== 'overlay'),
       beat_id: shot.beat_id ?? null,
+      // Written only when there is something to draw: a DB without 0052 has no such column, and
+      // only an engineered plan (which requires 0052) ever has graphics.
+      ...(graphics ? { graphics: graphics as unknown as Json } : {}),
       vo_char_start: lines[first].voStart,
       vo_char_end: lines[last].voEnd,
       status: 'pending',
@@ -324,11 +361,27 @@ export async function planShots(
     .from('episodes')
     .update({
       estimate_inr: finalEst.total_inr,
-      qc: { ...(e.qc as object), plan: { swaps, unpriced: finalEst.unpriced, estimate: finalEst, stills: stills.available ? 'available' : stills.reason, format: fmt } } as unknown as Json,
+      qc: { ...(e.qc as object), plan: { swaps, unpriced: finalEst.unpriced, estimate: finalEst, stills: stills.available ? 'available' : stills.reason, format: fmt, ...(engineered ? { motion, hero_objects: heroObjects.map((o) => o.tag) } : {}) } } as unknown as Json,
       updated_at: new Date().toISOString(),
     })
     .eq('id', episodeId);
   return { shots: rows.length, swaps, estimateInr: finalEst.total_inr };
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// 4a0. Hero-object sheets (0052) — before the pictures that reference them
+// ═════════════════════════════════════════════════════════════════════════════
+
+/**
+ * An engineered episode's hero-object sheets (object-sheets.ts): one image per object, locked
+ * automatically, before the first picture is drawn. Every other format: nothing, and says so.
+ */
+export async function objectSheetsStep(db: Db, episodeId: string, deps: SheetDeps): Promise<{ skipped: string } | Awaited<ReturnType<typeof prepareObjectSheets>>> {
+  const { e, b, cb } = await loadEpisode(db, episodeId);
+  const planned = plannedFormat(e.qc, { approvedEdits: b.approved_edits, seriesFormat: cb.seriesFor(b.series as never)?.visual_format }).format;
+  if (planned !== 'engineered') return { skipped: `not a 3D explainer (${planned})` };
+  await setStatus(db, episodeId, 'generating', 'drawing the hero-object sheets');
+  return prepareObjectSheets(db, episodeId, deps);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -347,12 +400,17 @@ export async function generateStills(
 ): Promise<{ made: number; reused: number; pictures: number; fellBack: { idx: number; reason: string }[]; partial: { idx: number; missing: number[] }[]; costInr: number }> {
   const log = deps.log ?? quiet;
   const { e, b, cb } = await loadEpisode(db, episodeId);
-  const { data: shots } = await db.from('shots').select('id, idx, description, script_id, character_slugs').eq('script_id', e.script_id!).eq('render_route', 'still').order('idx');
+  // A picture clip's picture is drawn here too (0052): it is the clip's first frame.
+  const { data: shots } = await db.from('shots').select('id, idx, description, script_id, character_slugs, beat_id').eq('script_id', e.script_id!).in('render_route', ['still', 'picture_clip']).order('idx');
   const spans = await pictureSpansFor(db, e.script_id!, await pictureTuning(db, e.channel_id));
   const lead = leadOf(cb, b.lead_character);
   const cast = cb.bible.characters.map((c) => ({ id: c.id, name: c.name }));
+  const planned = plannedFormat(e.qc, { approvedEdits: b.approved_edits, seriesFormat: cb.seriesFor(b.series as never)?.visual_format }).format;
   // 'characters' format: who is drawn in each picture, from their locked sheets (picture-cast.ts).
-  const withCast = plannedFormat(e.qc, { approvedEdits: b.approved_edits, seriesFormat: cb.seriesFor(b.series as never)?.visual_format }).format === 'characters';
+  const withCast = planned === 'characters';
+  // 'engineered' (0052): each beat's view and hero objects come from the brief's shot (by
+  // beat id); the objects are the sheets this episode locked (object-sheets.ts).
+  const engineeredCtx = planned === 'engineered' ? await engineeredPictureContext(db, episodeId, b, cb) : null;
   const castLog: { idx: number; part: number; drawn: string[]; excluded: { slug: string; reason: string }[] }[] = [];
   const total = (shots ?? []).reduce((n, s) => n + (spans.get(s.id)?.length ?? 1), 0);
   let made = 0;
@@ -378,7 +436,7 @@ export async function generateStills(
       const pc = withCast ? pictureCast(cb.bible.characters, wantedFor(span.speakers, s.character_slugs)) : undefined;
       const r = await generateStillForShot(
         db,
-        { shot: s, channelId: e.channel_id, premise: b.premise, cast, world: cb.bible.world, accent: lead.accent_hex, kind: e.kind === 'long_form' ? 'long_form' : 'short', part: parts.length > 1 || span.narration ? { index: k, of: parts.length, narration: span.narration } : undefined, pictureCast: pc },
+        { shot: s, channelId: e.channel_id, premise: b.premise, cast, world: cb.bible.world, accent: lead.accent_hex, kind: e.kind === 'long_form' ? 'long_form' : 'short', part: parts.length > 1 || span.narration ? { index: k, of: parts.length, narration: span.narration } : undefined, pictureCast: pc, engineered: engineeredCtx?.forBeat(s.beat_id) },
         deps,
       );
       if (r.ok && withCast) castLog.push({ idx: s.idx, part: k, drawn: r.drawn, excluded: r.excluded });
@@ -413,6 +471,28 @@ export async function generateStills(
 }
 
 /**
+ * The 3D explainer's per-picture context (0052): the format's or channel's look, and for each
+ * beat its view, whether it is an action beat, and the hero-object sheets it shows. The beat's
+ * fields are read from the brief's shot list by beat id — the shot row carries the route and
+ * the graphics, the brief carries what the picture is. A beat with no entry is a plain scene.
+ */
+export async function engineeredPictureContext(db: Db, episodeId: string, b: { shot_list: unknown; hero_objects?: unknown }, cb: ChannelBible) {
+  const look = engineeredLook(cb.bible.world);
+  const locked = await lockedObjects(db, episodeId);
+  const known = heroObjectsOf((b as { hero_objects?: unknown }).hero_objects).map((o) => ({ tag: o.tag, name: o.name }));
+  const briefShots = z.array(PlannedShotSchema).safeParse(b.shot_list);
+  const byBeat = new Map((briefShots.success ? briefShots.data : []).filter((x) => x.beat_id).map((x) => [x.beat_id!, x]));
+  return {
+    look,
+    locked,
+    forBeat(beatId: string | null | undefined) {
+      const x = beatId ? byBeat.get(beatId) : undefined;
+      return { look, view: x?.view ?? ('scene' as const), action: x?.action ?? false, objects: objectRefs(locked, x?.objects), known };
+    },
+  };
+}
+
+/**
  * Every still shot's picture spans (formats.ts), from the timed shot list and the VO words —
  * the one computation the stills step and the assembler share, so they cannot disagree about
  * where a picture changes. A shot whose duration is still an estimate gets one picture.
@@ -431,8 +511,10 @@ export async function pictureSpansFor(db: Db, scriptId: string, pictures: Pictur
   const frames = shotFrames(shots.map((s) => Number(s.duration_s)));
   let start = 0;
   for (const [i, s] of shots.entries()) {
-    if (s.render_route === 'still') {
-      const spans = timed ? pictureSpans({ startFrame: start, frames: frames[i] }, picturesFor(Number(s.duration_s), pictures), words, FPS) : [{ from: 0, frames: frames[i], narration: '' }];
+    if (s.render_route === 'still' || s.render_route === 'picture_clip') {
+      // A picture clip has exactly one picture — its first frame (0052).
+      const n = s.render_route === 'picture_clip' ? 1 : picturesFor(Number(s.duration_s), pictures);
+      const spans = timed ? pictureSpans({ startFrame: start, frames: frames[i] }, n, words, FPS) : [{ from: 0, frames: frames[i], narration: '' }];
       out.set(
         s.id,
         spans.map((sp) => ({
@@ -484,6 +566,11 @@ export function fillTemplate(template: string, vars: { description: string; inte
     .replace(/\{\{?\s*duration\s*\}?\}/g, String(vars.duration));
 }
 
+/** A beat description with each hero object's `@Tag` said as its name — a video model knows no tags. */
+export function untagged(text: string, objects: readonly { tag: string; name: string }[]): string {
+  return text.replace(/@([A-Za-z][A-Za-z0-9_]*)/g, (m, t: string) => objects.find((o) => o.tag === t)?.name ?? t);
+}
+
 export async function enqueueGeneration(db: Db, episodeId: string, deps: { usdInrRate: number }): Promise<{ queued: number; refused: string[] }> {
   const { e, b, cb } = await loadEpisode(db, episodeId);
   const { data: shots } = await db
@@ -514,6 +601,13 @@ export async function enqueueGeneration(db: Db, episodeId: string, deps: { usdIn
       refused.push(`shot ${s.idx}: unpriced (${est.shots[0].basis})`);
       continue;
     }
+    // A picture clip animates the shot's own picture (0052): no picture, nothing to animate —
+    // refused before a job exists, so nothing is ledgered for a clip that could never start.
+    const picture = route === 'picture_clip' ? (await stillsByPart(db, s.id)).get(0) : undefined;
+    if (route === 'picture_clip' && !picture) {
+      refused.push(`shot ${s.idx}: no picture to animate`);
+      continue;
+    }
     const ref = (chars ?? []).find((c) => c.slug !== null && s.character_slugs.includes(c.slug));
     if (route === 'character_beat' && !ref?.external_ref_id) {
       // planShots already swaps these to overlays; this is the same refusal at the consumer,
@@ -525,13 +619,17 @@ export async function enqueueGeneration(db: Db, episodeId: string, deps: { usdIn
     const billed = billedSeconds(recipe.driver, recipe.model, duration, Number(recipe.params.max_duration_s) || undefined);
     const params: Record<string, unknown> = {
       ...recipe.params,
-      prompt: `${fillTemplate(recipe.template, { description: s.description, intent: b.premise, duration })}. ${cb.bible.world.style_rules[0]}`,
-      negative_prompt: cb.bible.world.negative_prompt,
+      // A picture clip's look is its picture: the channel's style line (written for its default
+      // format — the Bureau's says chalk lines) would argue with the first frame, so it is left off.
+      prompt: route === 'picture_clip' ? fillTemplate(recipe.template, { description: untagged(s.description, heroObjectsOf((b as { hero_objects?: unknown }).hero_objects)), intent: b.premise, duration }) : `${fillTemplate(recipe.template, { description: s.description, intent: b.premise, duration })}. ${cb.bible.world.style_rules[0]}`,
+      ...(route === 'picture_clip' ? {} : { negative_prompt: cb.bible.world.negative_prompt }),
       duration_s: billed,
       aspect_ratio: '9:16',
       // Stored as the bible wrote it (`storage:<key>` or https); the dispatcher resolves it to
       // a short-lived URL at submit time and never writes the resolved URL back.
       ...(route === 'character_beat' ? { [REFERENCE_FRAME_PARAM]: ref!.external_ref_id } : {}),
+      // The picture as the first frame, stored as a key and resolved at submit (never a stored URL).
+      ...(route === 'picture_clip' ? { [REFERENCE_FRAME_PARAM]: `${STORAGE_REF_PREFIX}${picture!.storageKey}` } : {}),
     };
     const { error } = await db.from('gen_jobs').insert({
       episode_id: e.id,
@@ -625,7 +723,11 @@ export async function assembleEpisode(
   const log = deps.log ?? quiet;
   const { e, b, cb } = await loadEpisode(db, episodeId);
   if (!opts.keepStatus) await setStatus(db, episodeId, 'assembling');
-  const { data: shots } = await db.from('shots').select('id, idx, render_route, duration_s, duration_source, overlay_spec').eq('script_id', e.script_id!).order('idx');
+  const engineered = plannedFormat(e.qc, { approvedEdits: b.approved_edits, seriesFormat: cb.seriesFor(b.series as never)?.visual_format }).format === 'engineered';
+  // `graphics` exists only once 0052 is applied, and only an engineered plan has any.
+  const { data: shots } = engineered
+    ? await db.from('shots').select('id, idx, render_route, duration_s, duration_source, overlay_spec, graphics').eq('script_id', e.script_id!).order('idx')
+    : await db.from('shots').select('id, idx, render_route, duration_s, duration_source, overlay_spec').eq('script_id', e.script_id!).order('idx');
   if (!shots?.length) return { ok: false, code: 'no_shots', detail: 'nothing to assemble' };
   if (shots.some((s) => s.duration_source !== 'derived_from_vo')) {
     return { ok: false, code: 'durations_unmeasured', detail: 'shot durations are still estimates — the voice stage has not timed them' };
@@ -677,8 +779,22 @@ export async function assembleEpisode(
       }
       continue;
     }
-    const { data: gen } = await db.from('generations').select('id').eq('shot_id', s.id).eq('status', 'succeeded').order('completed_at', { ascending: false }).limit(1).maybeSingle();
+    // The newest succeeded VIDEO generation: a picture clip's shot also owns its picture (an
+    // image generation), which is not the clip.
+    const { data: gen } = await db.from('generations').select('id').eq('shot_id', s.id).eq('kind', 'video').eq('status', 'succeeded').order('completed_at', { ascending: false }).limit(1).maybeSingle();
     const { data: asset } = gen ? await db.from('assets').select('storage_key').eq('generation_id', gen.id).not('normalized_at', 'is', null).limit(1).maybeSingle() : { data: null };
+    if (!asset && s.render_route === 'picture_clip') {
+      // No clip, but the picture it was to animate exists: drawn as that picture with our camera
+      // move — the format holds, and the swap is recorded for Cuts (0052).
+      const pic = (await stillsByPart(db, s.id)).get(0);
+      if (pic) {
+        const spec = (s.overlay_spec as unknown as OverlaySpec | null) ?? normaliseOverlay({}, lead.accent_hex, i + 1);
+        log.error('picture clip has no clip; drawing its picture', { idx: s.idx });
+        await recordClipFallback(db, episodeId, s.idx);
+        bureauShots.push({ type: 'still', url: await deps.presign(pic.storageKey), camera: spec.camera, accent: spec.accent, seed: spec.seed, frames: frames[i] });
+        continue;
+      }
+    }
     if (!asset) {
       // A generated shot that never produced a clip is drawn as its overlay rather than holding
       // the episode; the swap is recorded and shown on the Cuts page.
@@ -705,7 +821,20 @@ export async function assembleEpisode(
 
     const safe = SAFE_AREAS.shorts_9x16;
     const safeBox = { x: Math.round(WIDTH * safe.left), y: Math.round(HEIGHT * safe.top), width: Math.round(WIDTH * (1 - safe.left - safe.right)), height: Math.round(HEIGHT * (1 - safe.top - safe.bottom)) };
-    const cues = captionCues(words);
+    // The 3D explainer: each beat's graphics over its own frames, and 2–4-word captions with the
+    // beat's keyword coloured (engineered-captions.ts). Every other format: as before.
+    const graphics: NonNullable<BureauVideoProps['graphics']> = [];
+    const beatWindows: { startS: number; endS: number; graphics: ShotGraphics | null }[] = [];
+    if (engineered) {
+      let at = 0;
+      for (const [i, s] of shots.entries()) {
+        const g = graphicsOf((s as { graphics?: unknown }).graphics);
+        if (g) graphics.push({ from: at, frames: frames[i], g });
+        beatWindows.push({ startS: at / FPS, endS: (at + frames[i]) / FPS, graphics: g });
+        at += frames[i];
+      }
+    }
+    const cues = engineered ? engineeredCues(words, beatWindows) : captionCues(words);
     const titles = (b.titles as { text: string }[]) ?? [];
     const hook = { text: (titles[0]?.text ?? b.premise).toUpperCase(), startS: 0, endS: Math.min(tuning.hookS, total / FPS) };
     const base: Omit<BureauVideoProps, 'layer'> = {
@@ -716,6 +845,7 @@ export async function assembleEpisode(
       hook,
       safeBox,
       textScale: { caption: tuning.captionScale, hook: tuning.hookScale },
+      ...(engineered ? { graphics, captionStyle: 'engineered' as const } : {}),
     };
 
     const variantGroup = randomUUID();
@@ -768,6 +898,18 @@ export async function assembleEpisode(
   } finally {
     await rm(work, { recursive: true, force: true });
   }
+}
+
+/** A picture clip drawn as its picture at assembly: one swap row on the plan, for Cuts. Idempotent. */
+async function recordClipFallback(db: Db, episodeId: string, idx: number) {
+  const { data: cur } = await db.from('episodes').select('qc').eq('id', episodeId).single();
+  const qc = (cur?.qc ?? {}) as { plan?: { swaps?: { idx: number; from: string; to?: string; reason: string }[] } & Record<string, unknown> } & Record<string, unknown>;
+  const swaps = qc.plan?.swaps ?? [];
+  if (swaps.some((x) => x.idx === idx && x.from === 'picture_clip' && x.to === 'still')) return;
+  await db
+    .from('episodes')
+    .update({ qc: { ...qc, plan: { ...(qc.plan ?? {}), swaps: [...swaps, { idx, from: 'picture_clip', to: 'still', reason: 'the clip did not come back — its picture is shown instead' }] } } as unknown as Json })
+    .eq('id', episodeId);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -922,11 +1064,14 @@ export async function qcClips(db: Db, episodeId: string, deps: QcDeps): Promise<
       if (clips[job.id]) continue; // already judged
       const { data: asset } = await db.from('assets').select('storage_key, duration_s').eq('generation_id', job.generation_id!).not('normalized_at', 'is', null).limit(1).maybeSingle();
       if (!asset) continue;
-      const { data: shot } = await db.from('shots').select('id, idx, description, character_slugs').eq('id', job.shot_id!).single();
+      const { data: shot } = await db.from('shots').select('id, idx, description, character_slugs, render_route').eq('id', job.shot_id!).single();
       const local = join(work, `${job.id}.mp4`);
       await deps.download(await deps.presign(asset.storage_key), local);
       const signal = await deps.signal(local, Number(asset.duration_s));
-      const frame = (chars ?? []).find((c) => c.slug !== null && shot!.character_slugs.includes(c.slug))?.external_ref_id ?? null;
+      // The reference a clip is judged against: the character's locked frame, or — for a picture
+      // clip (0052) — the picture it was animated from.
+      const pic = shot!.render_route === 'picture_clip' ? (await stillsByPart(db, shot!.id)).get(0) : undefined;
+      const frame = pic ? `${STORAGE_REF_PREFIX}${pic.storageKey}` : ((chars ?? []).find((c) => c.slug !== null && shot!.character_slugs.includes(c.slug))?.external_ref_id ?? null);
       const ref = frame === null ? null : frame.startsWith(STORAGE_REF_PREFIX) ? await deps.presign(frame.slice(STORAGE_REF_PREFIX.length)) : frame;
       const vision = deps.vision ? await deps.vision({ path: local, referenceUrl: ref, description: shot!.description }).catch((err) => ({ passed: false, reasons: [`vision unavailable: ${err instanceof Error ? err.message : String(err)}`], scores: null })) : null;
       const reasons = [...signal.reasons, ...(vision ? vision.reasons : ['unscored: no vision QC configured'])];

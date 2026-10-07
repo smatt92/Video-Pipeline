@@ -8,6 +8,7 @@ import { judgeLint } from './brief-generator';
 import type { Db } from '../db/server';
 import { ledgeredEmbedder } from './embed';
 import type { SheetEffects } from './character-sheets';
+import type { ObjectSheetEffects } from './object-sheets';
 import type { BureauSideEffects } from './mcp/surface';
 import { notify, type NotificationKind } from './alerts';
 
@@ -66,6 +67,16 @@ export function productionSheetEffects(): Required<SheetEffects> {
   return {
     async startSheet(input) {
       const handle = await tasks.trigger('27-character-sheet', input, { idempotencyKey: `sheet:${input.requestId}` });
+      return handle.id;
+    },
+  };
+}
+
+/** Cuts → "Redraw sheet" on a 3D explainer: starts 28-object-sheet, one run per request (0052). */
+export function productionObjectSheetEffects(): Required<ObjectSheetEffects> {
+  return {
+    async startObjectSheet(input) {
+      const handle = await tasks.trigger('28-object-sheet', input, { idempotencyKey: `objsheet:${input.requestId}` });
       return handle.id;
     },
   };

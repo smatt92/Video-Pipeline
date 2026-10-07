@@ -211,7 +211,11 @@ export async function runShotlist(
 
   const perf = new Map((perfRows ?? []).map((r) => [r.prompt_id, r]));
 
-  const library: LibraryPrompt[] = (libraryRows ?? []).map((p) => ({
+  // A recipe that names the one Bureau route it serves (`params.route`, 0052 — the picture
+  // clip, which needs our picture as its first frame) is not a shot-kind recipe: this lane
+  // never compiles a shot against it.
+  const servesShotKinds = (p: { params: unknown }) => !(p.params && typeof p.params === 'object' && !Array.isArray(p.params) && 'route' in (p.params as Record<string, unknown>));
+  const library: LibraryPrompt[] = (libraryRows ?? []).filter(servesShotKinds).map((p) => ({
     id: p.id,
     name: p.name,
     driver: p.driver,

@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { getBible, type Series } from '../bureau/bible';
 import { composeStillPrompt } from '../bureau/stills';
-import { VisualFormatSchema, VoicePaceSchema } from '../bureau/formats';
+import { MotionLevelSchema, VisualFormatSchema, VoicePaceSchema } from '../bureau/formats';
 import { updateSeries, type AdminResult, type BibleActor } from '../channels/bible-admin';
 import type { Db } from '../db/server';
 import type { Json } from '../db/types';
@@ -145,8 +145,8 @@ export async function updateSlot(db: Db, actor: SettingsActor, channelId: string
 // ═════════════════════════════════════════════════════════════════════════════
 
 export const SeriesDefaultsSchema = z
-  .object({ visual_format: VisualFormatSchema.optional(), voice_pace: VoicePaceSchema.optional() })
-  .refine((v) => v.visual_format !== undefined || v.voice_pace !== undefined, 'pass a video type, a voice pace, or both');
+  .object({ visual_format: VisualFormatSchema.optional(), voice_pace: VoicePaceSchema.optional(), motion: MotionLevelSchema.optional() })
+  .refine((v) => v.visual_format !== undefined || v.voice_pace !== undefined || v.motion !== undefined, 'pass a video type, a voice pace or a motion');
 
 /**
  * A series' default video type and voice pace, written into its bible document through the

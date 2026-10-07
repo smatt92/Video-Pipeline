@@ -6,7 +6,7 @@ import type { McpSurface } from '../../studio/mcp';
 import { getBible, type ChannelBible } from '../bible';
 import { createBriefs, getBrief, pendingBriefs } from '../briefs';
 import { approveBrief, decideCut, markScheduled, rejectBrief, setCaps, setKillSwitch, type Effects } from '../control';
-import { VisualFormatSchema, VoicePaceSchema } from '../formats';
+import { VisualFormatSchema, VoicePaceSchema, MotionLevelSchema } from '../formats';
 import type { Embedder } from '../embed';
 import { DUB_LANGUAGES, listDubs, queueDubs, regenerateShot } from '../episodes';
 import { LintInputSchema, policyLint, type LintResult } from '../policy-lint';
@@ -154,12 +154,12 @@ export const BUREAU_TOOLS: BureauTool[] = [
     name: 'brief_approve',
     title: 'Approve a brief',
     description:
-      'Approve a pending brief with a punchline: "A", "B" or "C" picks a drafted one, any other text is used verbatim. Optional edits: premise, script_text, pinned_comment, visual_format ("illustrated" | "diagram" | "cinematic" | "characters"; default: the series\' format, else illustrated; "characters" draws the cast from their locked sheets and is planned as illustrated when none of the episode\'s cast has one), voice_pace ("normal" | "brisk" | "fast"; default brisk). Writes the authorship log and starts the episode run.',
+      'Approve a pending brief with a punchline: "A", "B" or "C" picks a drafted one, any other text is used verbatim. Optional edits: premise, script_text, pinned_comment, visual_format ("illustrated" | "diagram" | "cinematic" | "characters" | "engineered"; default: the series\' format, else illustrated; "characters" draws the cast from their locked sheets and is planned as illustrated when none of the episode\'s cast has one; "engineered" is the 3D explainer — photoreal 3D pictures, hero-object sheets, badges/verdicts/meters drawn on top), voice_pace ("normal" | "brisk" | "fast"; default brisk), motion (engineered only: "key" = clips on the action beats, "full" = clips on most beats; default the series\' motion, else key). Writes the authorship log and starts the episode run.',
     scope: 'approver',
     args: z.object({
       id: z.uuid(),
       punchline: z.string().min(1),
-      edits: z.object({ premise: z.string().optional(), script_text: z.string().optional(), pinned_comment: z.string().optional(), visual_format: VisualFormatSchema.optional(), voice_pace: VoicePaceSchema.optional() }).strict().optional(),
+      edits: z.object({ premise: z.string().optional(), script_text: z.string().optional(), pinned_comment: z.string().optional(), visual_format: VisualFormatSchema.optional(), voice_pace: VoicePaceSchema.optional(), motion: MotionLevelSchema.optional() }).strict().optional(),
     }).strict(),
     run: (c, a) => approveBrief(c.db, c.token, c.effects, { brief_id: a.id, punchline: a.punchline, edits: a.edits }),
   }),

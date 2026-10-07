@@ -284,10 +284,13 @@ export const actorScope = z.enum(['approver', 'agent', 'ui', 'system']);
 export const slotKind = z.enum(['short', 'long_form', 'bank']);
 export const bureauSeries = z.enum([
   'incident', 'desk_tour', 'pip', 'archive', 'myth', 'deep', 'complaint', 'long_form',
+  // Built Like That (0052): "every attempt failed until this one" and "the machine inside".
+  'evolution', 'inside',
 ]);
 /** The calendar also has `sequel` placeholder slots; a brief always names a real series. */
 export const slotSeries = z.enum([
   'incident', 'desk_tour', 'pip', 'archive', 'myth', 'deep', 'complaint', 'long_form', 'sequel',
+  'evolution', 'inside',
 ]);
 export const topicStatus = z.enum(['approved', 'planned', 'bank']);
 export const socialPlatform = z.enum(['youtube', 'instagram']);
@@ -302,10 +305,10 @@ export const episodeStatus = z.enum([
   'assembling', 'awaiting_cut', 'cut_approved', 'cut_rejected', 'bundled', 'scheduled',
   'live', 'failed', 'halted',
 ]);
-export const renderRoute = z.enum(['overlay', 'still', 'character_beat', 'acted_beat', 'money_shot']);
+export const renderRoute = z.enum(['overlay', 'still', 'picture_clip', 'character_beat', 'acted_beat', 'money_shot']);
 /** Overlays never enter the generation queue — they are rendered in-house. Nor do stills (0021):
  *  one image each, made by the episode's still step with a bounded wait. */
-export const queuedRoute = z.enum(['character_beat', 'acted_beat', 'money_shot']);
+export const queuedRoute = z.enum(['picture_clip', 'character_beat', 'acted_beat', 'money_shot']);
 export const renderLayer = z.enum(['composite', 'clean_master', 'caption_layer', 'longform']);
 export const genJobStatus = z.enum([
   'queued', 'claimed', 'submitted', 'succeeded', 'failed', 'throttled', 'cancelled',

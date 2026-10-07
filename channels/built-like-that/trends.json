@@ -1,0 +1,11 @@
+{
+  "subreddits": [],
+  "youtube": {
+    "region_code": "IN",
+    "category_ids": ["28"],
+    "queries": ["how it works engineering", "engineering explained", "how is it made machine", "why is it designed this way"]
+  },
+  "google_trends": null,
+  "wikipedia": { "languages": ["en"], "top_n": 50 },
+  "hn": { "top_n": 30 }
+}

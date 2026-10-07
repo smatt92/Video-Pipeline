@@ -271,6 +271,7 @@ export type Database = {
           fact: Json
           flag_reasons: string[]
           flagged: boolean
+          hero_objects: Json
           hook_archetype: string
           id: string
           lead_character: string
@@ -318,6 +319,7 @@ export type Database = {
           fact: Json
           flag_reasons?: string[]
           flagged?: boolean
+          hero_objects?: Json
           hook_archetype: string
           id?: string
           lead_character: string
@@ -365,6 +367,7 @@ export type Database = {
           fact?: Json
           flag_reasons?: string[]
           flagged?: boolean
+          hero_objects?: Json
           hook_archetype?: string
           id?: string
           lead_character?: string
@@ -3801,6 +3804,7 @@ export type Database = {
           duration_s: number
           duration_source: string
           effective_duration_s: number | null
+          graphics: Json | null
           id: string
           idx: number
           overlay_spec: Json | null
@@ -3828,6 +3832,7 @@ export type Database = {
           duration_s: number
           duration_source?: string
           effective_duration_s?: number | null
+          graphics?: Json | null
           id?: string
           idx: number
           overlay_spec?: Json | null
@@ -3855,6 +3860,7 @@ export type Database = {
           duration_s?: number
           duration_source?: string
           effective_duration_s?: number | null
+          graphics?: Json | null
           id?: string
           idx?: number
           overlay_spec?: Json | null

@@ -7,6 +7,7 @@ import { STILL_RATE_KEY } from '../drivers/still-image';
 import { TTS_RATE_KEY } from '../drivers/voice-route';
 
 import { picturesFor } from './formats';
+import { ShotGraphicsSchema } from './graphics';
 import { pictureTuning, type PictureTuning } from '../settings/tuning';
 
 /**
@@ -31,9 +32,13 @@ import { pictureTuning, type PictureTuning } from '../settings/tuning';
  * time. The per-call figure and the planned figure are never mixed in one sum.
  */
 
-export const SHOT_ROUTES = ['overlay', 'still', 'character_beat', 'acted_beat', 'money_shot'] as const;
-/** Routes that generate VIDEO through the queue. A still is one image, made by its own step. */
-export const VIDEO_ROUTES = ['character_beat', 'acted_beat', 'money_shot'] as const;
+export const SHOT_ROUTES = ['overlay', 'still', 'picture_clip', 'character_beat', 'acted_beat', 'money_shot'] as const;
+/**
+ * Routes that generate VIDEO through the queue. A still is one image, made by its own step. A
+ * picture clip (0052) is both: its picture is made by the stills step, then the clip is queued
+ * with that picture as its first frame.
+ */
+export const VIDEO_ROUTES = ['picture_clip', 'character_beat', 'acted_beat', 'money_shot'] as const;
 export type VideoRoute = (typeof VIDEO_ROUTES)[number];
 export const isVideoRoute = (r: string | null | undefined): r is VideoRoute => (VIDEO_ROUTES as readonly string[]).includes(r ?? '');
 /** Drawn on screen without generated motion: the chalk overlay or a scene still. */
@@ -50,6 +55,17 @@ export const PlannedShotSchema = z.object({
   /** Photoreal money shot → containsSyntheticMedia on the bundle. */
   realistic: z.boolean().default(false),
   style: z.string().optional(),
+  /**
+   * Engineered format (0052). `view` is what the picture is — a scene, a see-through cutaway
+   * or a diagram — and `action` marks the beats where something happens, which the `key`
+   * motion level animates. `graphics` is the layer we draw over the beat (graphics.ts).
+   * All optional: a brief written for another format has none, and routes on defaults.
+   */
+  view: z.enum(['scene', 'cutaway', 'diagram']).optional(),
+  action: z.boolean().optional(),
+  /** The hero objects (brief.hero_objects tags) this picture shows. */
+  objects: z.array(z.string()).max(3).optional(),
+  graphics: ShotGraphicsSchema.optional(),
 });
 export type PlannedShot = z.infer<typeof PlannedShotSchema>;
 
@@ -85,8 +101,15 @@ export async function recipeForRoute(
     .in('driver', providers)
     .order('created_at', { ascending: false });
   const rows = data ?? [];
+  // A recipe may name the one route it serves (`params.route`, 0052): the picture-clip recipe
+  // animates our own picture and must never be handed a money shot, and a route-less recipe is
+  // never handed a picture clip — "the newest active row for this vendor" is not a selection.
+  const serves = (x: { params: unknown }) => {
+    const named = (x.params && typeof x.params === 'object' ? (x.params as Record<string, unknown>).route : undefined) ?? null;
+    return route === 'picture_clip' ? named === 'picture_clip' : named === null || named === route;
+  };
   for (const p of providers) {
-    const r = rows.find((x) => x.driver === p && (route !== 'character_beat' || x.accepts_character_ref));
+    const r = rows.find((x) => x.driver === p && serves(x) && (route !== 'character_beat' || x.accepts_character_ref));
     if (r) {
       return {
         id: r.id,
@@ -111,6 +134,12 @@ export interface LineEstimate {
   inr: number | null;
   /** One call × REROLL_ALLOWANCE (overlays: 0; stills: × 1, nothing re-rolls them). What the total and the cap fitter use. */
   planned_inr: number | null;
+  /**
+   * The picture part of a still or a picture clip (a clip is animated from its own picture, so
+   * it pays for both). What the shot costs if the cap fitter takes its clip away; null when
+   * pictures are unpriced; absent for routes with no picture.
+   */
+  picture_inr?: number | null;
   basis: string;
 }
 
@@ -119,6 +148,8 @@ export interface EpisodeEstimate {
   total_inr: number | null;
   priced_inr: number;
   voice_inr: number | null;
+  /** The engineered format's per-episode hero-object sheets (one image each); 0 when none are planned. */
+  sheets_inr: number | null;
   shots: LineEstimate[];
   unpriced: string[];
   usd_inr_rate: number;
@@ -148,7 +179,7 @@ export async function estimateEpisode(
    * (Settings → Generation, read through `pictureTuning`) — the same numbers the stills step
    * draws and the assembler cuts with.
    */
-  input: { shots: PlannedShot[]; voChars: number; usdInrRate: number; channelId: string },
+  input: { shots: PlannedShot[]; voChars: number; usdInrRate: number; channelId: string; /** Hero-object reference sheets this episode will draw (engineered, 0052). */ objectSheets?: number },
 ): Promise<EpisodeEstimate> {
   const fx = input.usdInrRate;
   let pictures: PictureTuning | null = null;
@@ -168,11 +199,29 @@ export async function estimateEpisode(
       const rate = await currentRate(db, { ...STILL_RATE_KEY });
       const inr = rate.found ? round2(rate.rate.unitCostUsd * fx * n) : null;
       if (inr === null) unpriced.push(`shot ${idx} (still): ${rate.found ? '' : rate.detail}`);
-      lines.push({ idx, route: s.route, duration_s: s.duration_s, billed_s: null, inr, planned_inr: inr, basis: rate.found ? `rate_card ${STILL_RATE_KEY.model} per ${STILL_RATE_KEY.unit} × ${n}` : 'unpriced' });
+      lines.push({ idx, route: s.route, duration_s: s.duration_s, billed_s: null, inr, planned_inr: inr, picture_inr: inr, basis: rate.found ? `rate_card ${STILL_RATE_KEY.model} per ${STILL_RATE_KEY.unit} × ${n}` : 'unpriced' });
       continue;
     }
     const r = await routeRateInr(db, s.route, s.duration_s, fx);
     if (r.inr === null) unpriced.push(`shot ${idx} (${s.route}): ${r.basis}`);
+    if (s.route === 'picture_clip') {
+      // One picture (the first frame — the stills step draws exactly one for a clip shot) plus
+      // the clip. Re-rolls re-buy the clip, never the picture.
+      const rate = await currentRate(db, { ...STILL_RATE_KEY });
+      const pic = rate.found ? round2(rate.rate.unitCostUsd * fx) : null;
+      if (pic === null) unpriced.push(`shot ${idx} (picture_clip picture): ${rate.found ? '' : rate.detail}`);
+      lines.push({
+        idx,
+        route: s.route,
+        duration_s: s.duration_s,
+        billed_s: r.billed,
+        inr: r.inr === null ? null : round2(r.inr),
+        planned_inr: r.inr === null || pic === null ? null : round2(r.inr * REROLL_ALLOWANCE + pic),
+        picture_inr: pic,
+        basis: `${r.basis} + one picture`,
+      });
+      continue;
+    }
     lines.push({
       idx,
       route: s.route,
@@ -184,15 +233,24 @@ export async function estimateEpisode(
     });
   }
 
+  // Hero-object sheets (engineered): one image each, made once per episode before the pictures.
+  let sheets_inr: number | null = 0;
+  if (input.objectSheets && input.objectSheets > 0) {
+    const rate = await currentRate(db, { ...STILL_RATE_KEY });
+    sheets_inr = rate.found ? round2(rate.rate.unitCostUsd * fx * input.objectSheets) : null;
+    if (sheets_inr === null) unpriced.push(`object sheets: ${rate.found ? '' : rate.detail}`);
+  }
+
   const voiceRate = await currentRate(db, { ...TTS_RATE_KEY });
   const voice_inr = voiceRate.found ? input.voChars * voiceRate.rate.unitCostUsd * fx : null;
   if (voice_inr === null) unpriced.push(`voice: ${voiceRate.found ? '' : voiceRate.detail}`);
 
-  const priced_inr = lines.reduce((n, l) => n + (l.planned_inr ?? 0), 0) + (voice_inr ?? 0);
+  const priced_inr = lines.reduce((n, l) => n + (l.planned_inr ?? 0), 0) + (voice_inr ?? 0) + (sheets_inr ?? 0);
   return {
     total_inr: unpriced.length ? null : round2(priced_inr),
     priced_inr: round2(priced_inr),
     voice_inr: voice_inr === null ? null : round2(voice_inr),
+    sheets_inr,
     shots: lines,
     unpriced,
     usd_inr_rate: fx,
@@ -210,7 +268,8 @@ export interface FitPolicy {
 
 export interface FitResult {
   shots: PlannedShot[];
-  swaps: { idx: number; from: PlannedShot['route']; reason: string }[];
+  /** `to` is set when the shot went somewhere other than the overlay (a picture clip → its picture). */
+  swaps: { idx: number; from: PlannedShot['route']; reason: string; to?: PlannedShot['route'] }[];
 }
 
 /**
@@ -235,6 +294,16 @@ export function fitToCap(shots: PlannedShot[], est: EpisodeEstimate, p: FitPolic
   const swaps: FitResult['swaps'] = [];
   const swap = (i: number, reason: string) => {
     if (out[i].route === 'overlay') return;
+    // A picture clip's floor is its own picture (0052): the picture is planned either way, and
+    // dropping to the chalk overlay would throw away the format. Only when the picture is
+    // unpriced too does it fall to the overlay.
+    const pic = est.shots[i]?.picture_inr;
+    if (out[i].route === 'picture_clip' && pic !== null && pic !== undefined) {
+      swaps.push({ idx: i, from: out[i].route, reason, to: 'still' });
+      out[i] = { ...out[i], route: 'still' };
+      cost[i] = pic;
+      return;
+    }
     swaps.push({ idx: i, from: out[i].route, reason });
     out[i] = { ...out[i], route: 'overlay', realistic: false };
     cost[i] = 0;
@@ -266,7 +335,7 @@ export function fitToCap(shots: PlannedShot[], est: EpisodeEstimate, p: FitPolic
     swap(longest.i, `overlay share under ${Math.round(p.overlayMinShare * 100)}%`);
   }
 
-  const total = () => cost.reduce<number>((n, c) => n + (c ?? 0), 0) + (est.voice_inr ?? 0);
+  const total = () => cost.reduce<number>((n, c) => n + (c ?? 0), 0) + (est.voice_inr ?? 0) + (est.sheets_inr ?? 0);
   while (total() > p.capInr) {
     const priciest = cost.map((c, i) => ({ c: c ?? 0, i })).filter((x) => out[x.i].route !== 'overlay').sort((a, b) => b.c - a.c)[0];
     if (!priciest || priciest.c === 0) break;

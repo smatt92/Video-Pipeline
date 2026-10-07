@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "channel": "built-like-that",
+  "world": {
+    "name": "Built Like That",
+    "premise": "How everyday engineering works and why it is built that way: every Short shows the attempts that failed, then the design that finally worked, as clean 3D renders with the mechanism drawn on top.",
+    "palette": {
+      "paper": "#0E1726",
+      "grid": "#22324D",
+      "chalk": "#F2F4F7"
+    },
+    "style_rules": [
+      "Clean photoreal 3D renders of real engineered objects: studio-clean, soft daylight, white test objects with yellow-and-black target decals; dark navy lab backdrop for cutaways.",
+      "Every label, number and verdict is a graphic drawn by the editor, never painted into a picture.",
+      "No brands, no logos, no real living people, no franchise designs.",
+      "Adult and precise, never kid-coded: no toys, no nursery colours, no classroom framing."
+    ],
+    "negative_prompt": "text, letters, numbers, labels, captions, logos, brand names, watermark, cartoon, line drawing, anime, human faces",
+    "still_style": "Clean photoreal 3D render, studio CG rather than a photograph: white test objects with yellow-and-black target decals, spotless studio-clean surfaces, soft even daylight, gentle contact shadows, crisp detail."
+  },
+  "publishing": {
+    "hashtags": ["engineering", "howitworks", "BuiltLikeThat", "science", "design"],
+    "tags": ["how it works", "engineering", "explained", "3D animation", "design history"],
+    "category": "Science & Technology"
+  },
+  "characters": [
+    {
+      "id": "narrator",
+      "name": "Narrator",
+      "role": "the off-screen narrator",
+      "desk": "main",
+      "on_screen": false,
+      "season_introduced": 1,
+      "personality": "Brisk, curious and a little dry; talks to the viewer as someone who would have made the same mistake as the first engineer.",
+      "speech_rules": [
+        "Short lines, one idea each; second person where it fits.",
+        "Every measured number is a numeral and hedged unless it is the sourced fact's own figure.",
+        "Names the part, never the brand."
+      ],
+      "catchphrase": { "text": "Built like that.", "max_per_week": 1 },
+      "accent_hex": "#FFD23F",
+      "visual_lock": {
+        "line": "never drawn — an off-screen voice",
+        "props": [],
+        "head_body_ratio": "n/a",
+        "line_weight": "n/a",
+        "silhouette": "never drawn — an off-screen voice"
+      },
+      "reference_frame_ids": [],
+      "voice": { "provider": "runway", "preset_id": "James" },
+      "elevenlabs_voice_id": null,
+      "voice_brief": "A clear, brisk, warm male explainer voice; confident, never shouty, never sing-song.",
+      "never_do": ["Appears on screen.", "Names a brand or a living person."]
+    }
+  ]
+}

@@ -60,7 +60,7 @@ export async function updateSlotAction(channelId: string, input: { slotTime: str
   return asApprover((actor) => updateSlot(serverClient(), actor, channelId, input), '/settings/publishing');
 }
 
-export async function updateSeriesDefaultsAction(channelId: string, seriesId: string, input: { visual_format?: string; voice_pace?: string }) {
+export async function updateSeriesDefaultsAction(channelId: string, seriesId: string, input: { visual_format?: string; voice_pace?: string; motion?: string }) {
   return asApprover((actor) => updateSeriesDefaults(serverClient(), actor, channelId, seriesId, input as never), '/settings/generation');
 }
 

@@ -1,27 +1,13 @@
-import type { Readable } from 'node:stream';
-
 import { currentRate } from '../cost/rate-card';
 import type { Db } from '../db/server';
 import type { Json } from '../db/types';
-import {
-  STILL_HEIGHT,
-  STILL_MODEL,
-  STILL_PROMPT_MAX,
-  STILL_PROVIDER,
-  STILL_RATE_KEY,
-  STILL_RATIO,
-  STILL_REFERENCE_MAX_BYTES,
-  STILL_WIDTH,
-  type StillOutcome,
-  type StillSubmitted,
-} from '../drivers/still-image';
-import type { CredentialRefusal } from '../integrations/verify';
+import { STILL_PROMPT_MAX, STILL_RATE_KEY, STILL_RATIO, STILL_REFERENCE_MAX_BYTES } from '../drivers/still-image';
 import { lockReferenceFrame } from '../channels/bible-admin';
 import { SHEET_PROMPT_REF, sheetPrompt } from '../prompts/22-character-sheet.v3';
 import { getBible, STORAGE_REF_PREFIX, type ChannelBible } from './bible';
-import { fits, headroom } from './caps';
 import { requireApprover } from './control';
 import { isObjectOnly, lockedSheet, sheetTag } from './picture-cast';
+import { makeSheetImage, type SheetDeps, type SheetResult } from './sheet-core';
 import type { BureauToken } from './tokens';
 
 /**
@@ -52,19 +38,7 @@ export const SHEET_STAGE = '05-sheet';
 /** A sheet in flight longer than this is treated as abandoned, so a new one may be asked for. */
 export const SHEET_STALE_MS = 15 * 60_000;
 
-export interface SheetDeps {
-  usdInrRate: number;
-  apiKey(): Promise<{ ok: true; value: string } | CredentialRefusal>;
-  submit(input: { prompt: string; apiKey: string; seed: number }): Promise<StillSubmitted>;
-  wait(input: { apiKey: string; taskId: string }): Promise<StillOutcome>;
-  fetchBytes(url: string): Promise<Buffer>;
-  putBytes(key: string, body: Readable): Promise<number>;
-  log?: { info(m: string, d?: unknown): void; error(m: string, d?: unknown): void };
-}
-
-export type SheetResult =
-  | { ok: true; generationId: string; storageKey: string; costInr: number; prompt: string; reused: boolean }
-  | { ok: false; reason: string; spent: boolean };
+export type { SheetDeps, SheetResult };
 
 interface SheetPayload {
   purpose: typeof SHEET_PURPOSE;
@@ -80,15 +54,6 @@ interface SheetPayload {
 function isSheetPayload(p: unknown): p is SheetPayload {
   return !!p && typeof p === 'object' && (p as Record<string, unknown>).purpose === SHEET_PURPOSE;
 }
-
-function sniff(bytes: Buffer): { ext: 'png' | 'jpg' | 'webp' | null; type: string } {
-  if (bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return { ext: 'png', type: 'image/png' };
-  if (bytes[0] === 0xff && bytes[1] === 0xd8) return { ext: 'jpg', type: 'image/jpeg' };
-  if (bytes.subarray(0, 4).toString('latin1') === 'RIFF' && bytes.subarray(8, 12).toString('latin1') === 'WEBP') return { ext: 'webp', type: 'image/webp' };
-  return { ext: null, type: 'application/octet-stream' };
-}
-
-const seedOf = (s: string) => Math.abs([...s].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) | 0, 17)) % 2_000_000_000;
 
 /** The sheet prompt for a character of a channel's bible, or why not. Pure. */
 export function sheetPromptFor(cb: Pick<ChannelBible, 'bible'>, slug: string, note?: string | null) {
@@ -120,103 +85,24 @@ export async function generateCharacterSheet(db: Db, input: { channelId: string;
   const p = sheetPrompt(c, cb.bible.world, note ?? undefined, STILL_PROMPT_MAX);
   if (!p.ok) return { ok: false, reason: p.reason, spent: false };
 
-  const rate = await currentRate(db, { ...STILL_RATE_KEY });
-  if (!rate.found) return { ok: false, reason: `unpriced: ${rate.detail}`, spent: false };
-  const costUsd = rate.rate.unitCostUsd;
-  const costInr = costUsd * deps.usdInrRate;
-  const h = await headroom(db, input.channelId, 'short');
-  if (!fits(h, costInr)) return { ok: false, reason: `over the spend cap (daily headroom ${h.dailyInr === null ? 'unknown' : `₹${h.dailyInr.toFixed(0)}`})`, spent: false };
-  const cred = await deps.apiKey();
-  if (!cred.ok) return { ok: false, reason: `${cred.code}: ${cred.reason}`, spent: false };
-
-  // ── The money, before the call (rules 5 and 6) ────────────────────────────
+  // ── The money, the call and the bytes: the shared sheet path (sheet-core.ts) ──
   const payload: SheetPayload = { purpose: SHEET_PURPOSE, channel_id: input.channelId, character: c.id, request_id: input.requestId, note, prompt: p.prompt, prompt_ref: SHEET_PROMPT_REF, ratio: STILL_RATIO };
-  const { data: gen, error: gErr } = await db
-    .from('generations')
-    .insert({ shot_id: null, kind: 'image', driver: STILL_PROVIDER, model: STILL_MODEL, attempt: 0, request_payload: payload as unknown as Json, idempotency_key: key, status: 'submitting', origin: 'pipeline' })
-    .select('id')
-    .single();
-  if (gErr || !gen) return { ok: false, reason: `generation row could not be written: ${gErr?.message}`, spent: false };
-  const { error: lErr } = await db.from('cost_ledger').insert({
-    generation_id: gen.id,
-    channel_id: input.channelId,
-    driver: STILL_PROVIDER,
-    entry_kind: 'estimate',
-    cost_source: 'rate_card',
-    unit: STILL_RATE_KEY.unit,
-    quantity: 1,
-    cost_usd: costUsd,
-    cost_inr: costInr,
-    usd_inr_rate: deps.usdInrRate,
-    idempotency_key: `${key}:estimate`,
-    stage: SHEET_STAGE,
-  });
-  const failGen = async (code: string, detail: string) => {
-    await db.from('generations').update({ status: 'failed', error_code: code, error_detail: detail.slice(0, 1000), completed_at: new Date().toISOString() }).eq('id', gen.id);
-  };
-  if (lErr) {
-    await failGen('ledger', lErr.message);
-    return { ok: false, reason: `refusing to submit without a ledger row: ${lErr.message}`, spent: false };
-  }
-
-  const started = await deps.submit({ prompt: p.prompt, apiKey: cred.value, seed: seedOf(key) });
-  if (!started.ok) {
-    await failGen(started.code, started.detail);
-    return { ok: false, reason: `the vendor refused the sheet: ${started.code} ${started.detail}`, spent: true };
-  }
-  await db.from('generations').update({ external_job_id: started.taskId, status: 'queued', submitted_at: new Date().toISOString() }).eq('id', gen.id);
-
-  const done = await deps.wait({ apiKey: cred.value, taskId: started.taskId });
-  if (done.charged) {
-    const { error } = await db.from('cost_ledger').insert({
-      generation_id: gen.id,
-      channel_id: input.channelId,
-      driver: STILL_PROVIDER,
-      entry_kind: 'reconcile',
-      cost_source: 'measured',
-      unit: done.charged.unit,
-      quantity: done.charged.quantity,
-      cost_usd: done.charged.usd,
-      cost_inr: done.charged.usd * deps.usdInrRate,
-      usd_inr_rate: deps.usdInrRate,
-      idempotency_key: `${key}:reconcile`,
+  const r = await makeSheetImage(
+    db,
+    {
+      key,
+      channelId: input.channelId,
+      prompt: p.prompt,
+      payload: payload as unknown as Record<string, unknown>,
       stage: SHEET_STAGE,
-    });
-    if (error && !/duplicate key|unique/i.test(error.message)) deps.log?.error('sheet reconcile row not written', { error: error.message });
-  }
-  if (done.state === 'failed') {
-    await failGen(done.code, done.detail);
-    return { ok: false, reason: `the sheet did not come back: ${done.code} ${done.detail}`, spent: true };
-  }
-
-  // ── Bytes: vendor → worker → bucket (rule 2) ─────────────────────────────
-  let bytes: Buffer;
-  try {
-    bytes = await deps.fetchBytes(done.outputUrl);
-  } catch (err) {
-    await failGen('download', err instanceof Error ? err.message : String(err));
-    return { ok: false, reason: `the sheet could not be downloaded: ${err instanceof Error ? err.message : String(err)}`, spent: true };
-  }
-  const kind = sniff(bytes);
-  if (!kind.ext) {
-    await failGen('not_an_image', `${bytes.length} bytes that are not png, jpeg or webp`);
-    return { ok: false, reason: 'the vendor returned something that is not an image', spent: true };
-  }
-  const storageKey = `characters/${c.id}/sheet-${gen.id.slice(0, 8)}.${kind.ext}`;
-  const { Readable: R } = await import('node:stream');
-  const stored = await deps.putBytes(storageKey, R.from(bytes));
-  const { error: aErr } = await db
-    .from('assets')
-    .insert({ kind: 'image', storage_key: storageKey, bytes: stored, width: STILL_WIDTH, height: STILL_HEIGHT, generation_id: gen.id, meta: { purpose: SHEET_PURPOSE, character: c.id, content_type: kind.type, prompt_ref: SHEET_PROMPT_REF } as Json })
-    .select('id')
-    .single();
-  if (aErr) {
-    await failGen('asset', aErr.message);
-    return { ok: false, reason: `the sheet was stored but its asset row was not: ${aErr.message}`, spent: true };
-  }
-  await db.from('generations').update({ status: 'succeeded', confirmed_at: new Date().toISOString(), completed_at: new Date().toISOString() }).eq('id', gen.id);
-  deps.log?.info('sheet made', { character: c.id, storageKey });
-  return { ok: true, generationId: gen.id, storageKey, costInr, prompt: p.prompt, reused: false };
+      storageKeyFor: (genId, ext) => `characters/${c.id}/sheet-${genId.slice(0, 8)}.${ext}`,
+      assetMeta: { purpose: SHEET_PURPOSE, character: c.id, prompt_ref: SHEET_PROMPT_REF },
+      noun: 'sheet',
+    },
+    deps,
+  );
+  if (r.ok) deps.log?.info('sheet made', { character: c.id, storageKey: r.storageKey });
+  return r;
 }
 
 export interface SheetRow {

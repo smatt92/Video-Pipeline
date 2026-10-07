@@ -1,0 +1,105 @@
+{
+  "id": "inside",
+  "name": "The Machine Inside",
+  "day": "Fri",
+  "lead": [
+    "narrator"
+  ],
+  "template": "The everyday object → what would go wrong without it → the rule → the attempts at the hidden part → the part that works, opened up step by step → loop back",
+  "runtime_s": {
+    "min": 38,
+    "target": 45,
+    "max": 55
+  },
+  "beat_sheet": [
+    {
+      "id": "hook",
+      "start_s": 0,
+      "end_s": 3,
+      "purpose": "The danger, in the second person, shown as a see-through or dramatic scene.",
+      "loop_anchor": true
+    },
+    {
+      "id": "question",
+      "start_s": 3,
+      "end_s": 6,
+      "purpose": "The plain question the viewer now has."
+    },
+    {
+      "id": "rule",
+      "start_s": 6,
+      "end_s": 10,
+      "purpose": "The one physical rule that makes the problem hard, with a callout on the key part."
+    },
+    {
+      "id": "attempts",
+      "start_s": 10,
+      "end_s": 30,
+      "purpose": "Numbered attempts, each with a badge and a verdict; each fails in a new way until the last."
+    },
+    {
+      "id": "mechanism",
+      "start_s": 30,
+      "end_s": 42,
+      "purpose": "The design that worked, step by step in cutaways, with one or two hedged figures on meters."
+    },
+    {
+      "id": "loop",
+      "start_s": 42,
+      "end_s": 45,
+      "purpose": "A last line that returns to the opening picture.",
+      "loop_line": true
+    }
+  ],
+  "structure_variants": [
+    {
+      "id": "inside_open_up",
+      "shape": "Start outside the object and open it layer by layer to the hidden part."
+    },
+    {
+      "id": "inside_without_it",
+      "shape": "Show the object with the part removed, then the attempts to put something in its place."
+    },
+    {
+      "id": "inside_one_second",
+      "shape": "Slow one second of the object working, attempt by attempt, until the real part does it."
+    }
+  ],
+  "ending_types": [
+    "loop_back",
+    "quiet_reveal",
+    "callback_to_hook"
+  ],
+  "premise_types": [
+    "hidden_failsafe",
+    "why_this_part",
+    "what_happens_in_one_second"
+  ],
+  "desks": [
+    "vehicles",
+    "buildings",
+    "rail",
+    "household",
+    "electrical",
+    "safety"
+  ],
+  "music_bed_pool": [
+    "bed_workshop_pulse",
+    "bed_clean_synth_tick",
+    "bed_lab_drone_minimal",
+    "bed_steel_percussion",
+    "bed_bright_pluck_motion"
+  ],
+  "music_policy": "Original beds only, rendered in-house or generated with commercial rights. No licensed or library music.",
+  "serialised": false,
+  "comment_sourced": false,
+  "money_shot_allowed": false,
+  "rules": [
+    "The hidden part is the hero object; it stays the same object in every picture.",
+    "Numbers are sourced or hedged; the part is named, never the brand.",
+    "Never copy another video's script, topic order or wording."
+  ],
+  "visual_format": "engineered",
+  "motion": "key",
+  "voice_pace": "brisk"
+}

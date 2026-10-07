@@ -31,7 +31,7 @@ import { submitGeneration } from './video-submit';
  * silent success. Model ids come from prompt recipes, never from this file. 0008 §B1.
  */
 
-export type RenderRoute = 'overlay' | 'character_beat' | 'acted_beat' | 'money_shot';
+export type RenderRoute = 'overlay' | 'picture_clip' | 'character_beat' | 'acted_beat' | 'money_shot';
 type GeneratedRoute = Exclude<RenderRoute, 'overlay'>;
 
 /**
@@ -44,6 +44,9 @@ type GeneratedRoute = Exclude<RenderRoute, 'overlay'>;
  * route ever names them.
  */
 export const ROUTE_PROVIDERS: Record<GeneratedRoute, { primary: string; failover: readonly string[] }> = {
+  // A clip animated from the shot's own picture (0052, the engineered format). No failover:
+  // the dormant providers were never wired for a first-frame clip of an arbitrary picture.
+  picture_clip: { primary: 'runway', failover: [] },
   character_beat: { primary: 'runway', failover: ['higgsfield', 'fal'] },
   acted_beat: { primary: 'runway', failover: [] },
   money_shot: { primary: 'runway', failover: ['gemini'] },

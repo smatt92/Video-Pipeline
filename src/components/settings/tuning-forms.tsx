@@ -197,6 +197,8 @@ export function SeriesDefaultsRow({
   formats,
   paces,
   editable,
+  motion,
+  motions,
 }: {
   channelId: string;
   seriesId: string;
@@ -205,9 +207,13 @@ export function SeriesDefaultsRow({
   formats: { value: string; label: string }[];
   paces: { value: string; label: string }[];
   editable: boolean;
+  /** The 3D explainer's motion default (0052). Shown with that video type only. */
+  motion?: string;
+  motions?: { value: string; label: string }[];
 }) {
   const [f, setF] = useState(format);
   const [p, setP] = useState(pace);
+  const [m, setM] = useState(motion ?? 'key');
   const [result, setResult] = useState<Result>(null);
   const [pending, start] = useTransition();
   const router = useRouter();
@@ -228,13 +234,22 @@ export function SeriesDefaultsRow({
             </option>
           ))}
         </select>
+        {f === 'engineered' && motions && (
+          <select aria-label="Motion" className="input" style={{ width: 'auto' }} value={m} disabled={!editable} onChange={(e) => setM(e.target.value)}>
+            {motions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        )}
         <button
           type="button"
           className="btn sm"
-          disabled={!editable || pending || (f === format && p === pace)}
+          disabled={!editable || pending || (f === format && p === pace && m === (motion ?? 'key'))}
           onClick={() =>
             start(async () => {
-              const r = await updateSeriesDefaultsAction(channelId, seriesId, { ...(f !== format ? { visual_format: f } : {}), ...(p !== pace ? { voice_pace: p } : {}) });
+              const r = await updateSeriesDefaultsAction(channelId, seriesId, { ...(f !== format ? { visual_format: f } : {}), ...(p !== pace ? { voice_pace: p } : {}), ...(m !== (motion ?? 'key') && f === 'engineered' ? { motion: m } : {}) });
               setResult(r);
               if (r.ok) router.refresh();
             })

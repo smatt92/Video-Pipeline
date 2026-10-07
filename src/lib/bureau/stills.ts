@@ -24,6 +24,8 @@ import { usability } from '../integrations/verify';
 import { routed } from '../llm/router';
 import { STILL_NEGATIVE, STILL_PROMPT_REF, STILL_SYSTEM, stillUserMessage } from '../prompts/21-still.v4';
 import { STILL_CAST_PROMPT_REF, STILL_CAST_SYSTEM, stillCastNegative, stillCastUserMessage } from '../prompts/21-still.v5';
+import { engineeredObjectClause, STILL_ENGINEERED_PROMPT_REF, STILL_ENGINEERED_SYSTEM, stillEngineeredUserMessage } from '../prompts/21-still.v6';
+import type { EngineeredLook } from './engineered';
 import { normaliseOverlay } from '../../remotion/bureau/overlay-scene';
 import type { Bible } from './bible';
 import { fits, headroom } from './caps';
@@ -140,14 +142,80 @@ export function withoutTags(text: string, refs: readonly PictureRef[]): string {
 
 export type StillPrompt = { ok: true; prompt: string; scene: string; model: string | null; promptRef: string } | { ok: false; reason: string };
 
+/** A 3D-explainer picture (0052): the beat's view and the hero objects passed as tagged references. */
+export interface EngineeredPicture {
+  look: EngineeredLook;
+  view: 'scene' | 'cutaway' | 'diagram';
+  action: boolean;
+  /** The locked hero-object sheets this picture shows (object-sheets.ts `objectRefs`), ≤ 3. */
+  objects: { tag: string; name: string; ref: string }[];
+  /** Every hero object of the episode, so a tag with no sheet here is said as its name, never left dangling. */
+  known: { tag: string; name: string }[];
+}
+
+/** `@Tag`s that are not referenced in this picture, said as the object's name instead. Pure. */
+export function untagUnreferenced(text: string, referenced: readonly { tag: string }[], known: readonly { tag: string; name: string }[]): string {
+  return text.replace(/@([A-Za-z][A-Za-z0-9_]*)/g, (m, t: string) => (referenced.some((r) => r.tag === t) ? m : (known.find((k) => k.tag === t)?.name ?? t)));
+}
+
+/**
+ * Scene + the object clause + the look for this view + the format's negatives. Pure. The
+ * channel's own `negative_prompt` is NOT appended: it is written for the channel's default look
+ * (the Bureau's forbids "photorealism, 3D plastic"), which is the opposite of this format's —
+ * the format's negatives live in the look (`engineeredLook`), which a channel may override.
+ */
+export function composeEngineeredPrompt(input: { scene: string; engineered: Pick<EngineeredPicture, 'look' | 'view' | 'objects'> }): string {
+  const scene = input.scene.trim().replace(/[.\s]+$/, '');
+  const e = input.engineered;
+  const clause = engineeredObjectClause(e.objects);
+  return `${scene}. ${clause ? `${clause} ` : ''}${e.look[e.view]} Avoid: ${e.look.negative}.`;
+}
+
+/** The text with every `@Tag` of the given objects removed — what the cast-name check reads. */
+function withoutObjectTags(text: string, objects: readonly { tag: string }[]): string {
+  let out = text;
+  for (const o of objects) out = out.replace(new RegExp(`@${escape(o.tag)}(?![A-Za-z0-9_])`, 'g'), ' ');
+  return out;
+}
+
 /**
  * The full still prompt for one shot, or why not. The model rewrites; code checks and composes.
  */
 export async function stillPromptFor(
-  input: { description: string; premise: string; cast: readonly { id: string; name: string }[]; world: Bible['world']; accent: string; narration?: string; part?: { index: number; of: number }; direction?: string; refs?: readonly PictureRef[] },
+  input: { description: string; premise: string; cast: readonly { id: string; name: string }[]; world: Bible['world']; accent: string; narration?: string; part?: { index: number; of: number }; direction?: string; refs?: readonly PictureRef[]; engineered?: EngineeredPicture },
   deps: { db: Db; apiKey: string | null; usdInrRate: number; subject: LlmCostSubject; client?: Pick<Anthropic, 'messages'> },
 ): Promise<StillPrompt> {
   if (!deps.apiKey) return { ok: false, reason: 'no model key to rewrite the shot without its cast' };
+  if (input.engineered) {
+    // The 3D explainer (0052): v6 rewrite; objects only through their tags; the look for this
+    // beat's view and the negatives appended by code. Nobody from the cast is ever drawn.
+    const e = input.engineered;
+    let scene: string;
+    let model: string;
+    try {
+      const r = await routed(
+        {
+          task: 'still_prompt',
+          system: STILL_ENGINEERED_SYSTEM,
+          user: stillEngineeredUserMessage({ picture: untagUnreferenced(input.description, e.objects, e.known), narration: input.narration, view: e.view, action: e.action, objects: e.objects.map((o) => ({ tag: o.tag, name: o.name })), cast: input.cast.map((c) => c.name), premise: input.premise, direction: input.direction }),
+          schema: z.object({ scene: z.string().min(3).max(600) }),
+          maxTokens: 300,
+        },
+        { db: deps.db, apiKey: deps.apiKey, usdInrRate: deps.usdInrRate, subject: deps.subject, client: deps.client },
+      );
+      scene = r.data.scene;
+      model = r.model;
+    } catch (err) {
+      return { ok: false, reason: `the rewrite failed: ${err instanceof Error ? err.message : String(err)}` };
+    }
+    // A tag the rewrite used for an object with no sheet in this picture would point at nothing.
+    scene = untagUnreferenced(scene, e.objects, e.known);
+    const named = castNamesIn(withoutObjectTags(scene, e.objects), input.cast);
+    if (named.length) return { ok: false, reason: `the rewrite names ${named.join(', ')} — refused, the narrator is never drawn` };
+    const prompt = composeEngineeredPrompt({ scene, engineered: e });
+    if (prompt.length > STILL_PROMPT_MAX) return { ok: false, reason: `the 3D picture prompt is ${prompt.length} characters; the limit is ${STILL_PROMPT_MAX}` };
+    return { ok: true, prompt, scene, model, promptRef: STILL_ENGINEERED_PROMPT_REF };
+  }
   const refs = input.refs ?? [];
   const withCast = refs.length > 0;
   let scene: string;
@@ -242,6 +310,8 @@ export async function generateStillForShot(
     direction?: string;
     /** 'characters' format: who is drawn in this picture from their locked sheets, and who was left out (picture-cast.ts). */
     pictureCast?: PictureCast;
+    /** 'engineered' format (0052): the view, the look and the hero-object references. */
+    engineered?: EngineeredPicture;
   },
   deps: StillDeps,
 ): Promise<StillResult> {
@@ -254,6 +324,13 @@ export async function generateStillForShot(
     excluded.push(...refs.map((r) => ({ slug: r.slug, reason: 'this run cannot read character sheets — drawn with nobody in it' })));
     refs = [];
   }
+  // Hero objects (engineered): the same rule — a sheet the run cannot read is not passed, and
+  // the object is named by its description instead (the tag would point at nothing).
+  let engineered = ctx.engineered;
+  if (engineered?.objects.length && !deps.resolveRef) {
+    excluded.push(...engineered.objects.map((o) => ({ slug: `@${o.tag}`, reason: 'this run cannot read object sheets — described instead of referenced' })));
+    engineered = { ...engineered, objects: [] };
+  }
   const part = ctx.part?.index ?? 0;
   // Attempts count per picture: a shot's second picture starts at attempt 0 too.
   const { data: prior } = await db.from('generations').select('request_payload').eq('shot_id', shot.id).eq('kind', 'image');
@@ -262,7 +339,7 @@ export async function generateStillForShot(
   const key = part === 0 ? `still:${shot.id}:${attempt}` : `still:${shot.id}:p${part}:${attempt}`;
 
   const p = await stillPromptFor(
-    { description: shot.description, premise: ctx.premise, cast: ctx.cast, world: ctx.world, accent: refs[0]?.accent ?? ctx.accent, narration: ctx.part?.narration || undefined, part: ctx.part ? { index: ctx.part.index, of: ctx.part.of } : undefined, direction: ctx.direction, refs },
+    { description: shot.description, premise: ctx.premise, cast: ctx.cast, world: ctx.world, accent: refs[0]?.accent ?? ctx.accent, narration: ctx.part?.narration || undefined, part: ctx.part ? { index: ctx.part.index, of: ctx.part.of } : undefined, direction: ctx.direction, refs, engineered },
     { db, apiKey: deps.llmKey, usdInrRate: deps.usdInrRate, client: deps.llmClient, subject: { kind: 'channel', channelId: ctx.channelId, idempotencyKey: `${key}:prompt`, stage: '20-still-prompt' } },
   );
   if (!p.ok) return { ok: false, reason: p.reason, spent: false };
@@ -282,9 +359,9 @@ export async function generateStillForShot(
   // the picture here, unpaid, rather than reaching the vendor without it.
   let references: { uri: string; tag: string }[] = [];
   try {
-    references = await Promise.all(refs.map(async (r) => ({ uri: await deps.resolveRef!(r.ref), tag: r.tag })));
+    references = await Promise.all([...refs, ...(engineered?.objects ?? [])].map(async (r) => ({ uri: await deps.resolveRef!(r.ref), tag: r.tag })));
   } catch (err) {
-    return { ok: false, reason: `a character sheet could not be read: ${err instanceof Error ? err.message : String(err)}`, spent: false };
+    return { ok: false, reason: `a ${engineered ? 'reference' : 'character'} sheet could not be read: ${err instanceof Error ? err.message : String(err)}`, spent: false };
   }
 
   // ── The money, before the call ────────────────────────────────────────────
@@ -296,7 +373,7 @@ export async function generateStillForShot(
       driver: STILL_PROVIDER,
       model: STILL_MODEL,
       attempt,
-      request_payload: { prompt: p.prompt, scene: p.scene, prompt_ref: p.promptRef, rewrite_model: p.model, cast: refs.map((r) => ({ slug: r.slug, tag: r.tag, ref: r.ref, foreground: r.foreground })), cast_excluded: excluded, ratio: STILL_RATIO, source_description: shot.description, part, parts: ctx.part?.of ?? 1, narration: ctx.part?.narration ?? null, direction: ctx.direction ?? null } as Json,
+      request_payload: { prompt: p.prompt, scene: p.scene, prompt_ref: p.promptRef, rewrite_model: p.model, cast: refs.map((r) => ({ slug: r.slug, tag: r.tag, ref: r.ref, foreground: r.foreground })), ...(engineered ? { objects: engineered.objects.map((o) => ({ tag: o.tag, ref: o.ref })), view: engineered.view } : {}), cast_excluded: excluded, ratio: STILL_RATIO, source_description: shot.description, part, parts: ctx.part?.of ?? 1, narration: ctx.part?.narration ?? null, direction: ctx.direction ?? null } as Json,
       idempotency_key: key,
       status: 'submitting',
       origin: 'pipeline',
@@ -423,7 +500,8 @@ export async function stillsByPart(db: Db, shotId: string): Promise<Map<number, 
  */
 export async function fallBackToOverlay(db: Db, episodeId: string, shot: { id: string; idx: number }, accent: string, reason: string): Promise<void> {
   const { data: row } = await db.from('shots').select('render_route, overlay_spec').eq('id', shot.id).single();
-  if (row?.render_route === 'still') {
+  // A picture clip with no picture has nothing to animate either (0052): the overlay, too.
+  if (row?.render_route === 'still' || row?.render_route === 'picture_clip') {
     await db
       .from('shots')
       .update({ render_route: 'overlay', overlay_spec: (row.overlay_spec ?? normaliseOverlay({}, accent, shot.idx + 1)) as unknown as Json, status: 'ready' })
@@ -432,7 +510,8 @@ export async function fallBackToOverlay(db: Db, episodeId: string, shot: { id: s
   const { data: e } = await db.from('episodes').select('qc').eq('id', episodeId).single();
   const qc = (e?.qc ?? {}) as { plan?: { swaps?: { idx: number; from: string; reason: string; to?: string }[] } & Record<string, unknown> } & Record<string, unknown>;
   const swaps = qc.plan?.swaps ?? [];
-  if (swaps.some((s) => s.idx === shot.idx && s.from === 'still')) return;
-  const next = { ...qc, plan: { ...(qc.plan ?? {}), swaps: [...swaps, { idx: shot.idx, from: 'still', to: 'overlay', reason }] } };
+  const from = row?.render_route === 'picture_clip' ? 'picture_clip' : 'still';
+  if (swaps.some((s) => s.idx === shot.idx && (s.from === 'still' || s.from === 'picture_clip') && s.to === 'overlay')) return;
+  const next = { ...qc, plan: { ...(qc.plan ?? {}), swaps: [...swaps, { idx: shot.idx, from, to: 'overlay', reason }] } };
   await db.from('episodes').update({ qc: next as unknown as Json, updated_at: new Date().toISOString() }).eq('id', episodeId);
 }

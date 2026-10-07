@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { CutControls, RegenerateButton } from '@/components/bureau/cut-controls';
 import { LiveRefresh, LiveStatus } from '@/components/bureau/live-status';
 import { RecutForm } from '@/components/bureau/recut-form';
+import { ObjectSheetCard } from '@/components/bureau/object-sheet-card';
 import { RedrawPicture } from '@/components/bureau/redraw-picture';
 import { ScreenHeader } from '@/components/shell/screen-header';
 import { inr, Note } from '@/components/ui/card';
@@ -10,7 +11,9 @@ import { Icon } from '@/components/ui/icon';
 import { Player } from '@/components/ui/player';
 import { Basis, EpisodeStatePill, Gate } from '@/components/ui/tags';
 import { isVideoRoute } from '@/lib/bureau/estimate';
-import { FORMAT_INFO, VisualFormatSchema, type FormatSource, type VisualFormat } from '@/lib/bureau/formats';
+import { FORMAT_INFO, MOTION_INFO, MotionLevelSchema, VisualFormatSchema, type FormatSource, type VisualFormat } from '@/lib/bureau/formats';
+import { heroObjectsOf } from '@/lib/bureau/engineered';
+import type { LockedObject } from '@/lib/bureau/object-sheets';
 import { channelGeneration, episodeClips } from '@/lib/bureau/overlay-only';
 import { recutOptions } from '@/lib/bureau/recut';
 import { pictureSpansFor } from '@/lib/bureau/episode-steps';
@@ -28,7 +31,7 @@ export const metadata = { title: 'Cuts' };
 
 type Clip = { shot_idx: number; passed: boolean; reasons: string[]; action: string };
 
-const ROUTE_LABEL: Record<string, string> = { overlay: 'overlay', still: 'scene still', character_beat: 'character beat', money_shot: 'money shot' };
+const ROUTE_LABEL: Record<string, string> = { overlay: 'overlay', still: 'scene still', picture_clip: 'picture clip', character_beat: 'character beat', money_shot: 'money shot' };
 
 /**
  * Cuts (canvas: Cuts, Cuts-m) — the second gate. The composite in the 9:16 player with a scrub
@@ -52,7 +55,7 @@ export default async function CutsPage({ searchParams }: { searchParams: Promise
   ]);
   const list = eps ?? [];
   const briefIds = list.map((e) => e.brief_id);
-  const briefs = briefIds.length ? (await db.from('briefs').select('id, premise, policy').in('id', briefIds)).data ?? [] : [];
+  const briefs = briefIds.length ? (await db.from('briefs').select('*').in('id', briefIds)).data ?? [] : [];
   const briefOf = new Map(briefs.map((b) => [b.id, b]));
 
   const header = (sub: string, extra?: React.ReactNode) => (
@@ -84,6 +87,24 @@ export default async function CutsPage({ searchParams }: { searchParams: Promise
   // Cartoon characters: why it fell back, and who was drawn in / left out of each picture (picture-cast.ts).
   const planObj = ((e.qc ?? {}) as { plan?: { format?: { requested?: string; fallback_reason?: string }; cast?: { idx: number; part: number; drawn: string[]; excluded: { slug: string; reason: string }[] }[] } }).plan;
   const castFallback = planObj?.format?.requested === 'characters' ? planObj.format.fallback_reason ?? 'no locked character sheets' : null;
+  const engineeredFallback = planObj?.format?.requested === 'engineered' ? planObj.format.fallback_reason ?? 'the 3D explainer was unavailable' : null;
+  // 3D explainer (0052): the motion the plan used, and each hero object's locked sheet.
+  const ePlan = (planObj ?? {}) as { motion?: { motion?: unknown }; objects?: LockedObject[]; objects_missing?: { tag: string; reason: string }[] };
+  const planMotion = MotionLevelSchema.safeParse(ePlan.motion?.motion);
+  const heroCards =
+    planFormat?.format === 'engineered'
+      ? await Promise.all(
+          heroObjectsOf((brief as { hero_objects?: unknown } | undefined)?.hero_objects).map(async (o) => {
+            const locked = (ePlan.objects ?? []).find((x) => x.tag === o.tag);
+            return {
+              tag: o.tag,
+              name: o.name,
+              url: locked ? await storage().presignGet({ key: locked.storage_key, expiresIn: 3600 }).then((p) => p.url).catch(() => null) : null,
+              missing: (ePlan.objects_missing ?? []).find((x) => x.tag === o.tag)?.reason ?? null,
+            };
+          }),
+        )
+      : [];
   const castByShot = new Map<number, { part: number; drawn: string[]; excluded: { slug: string; reason: string }[] }[]>();
   for (const c of planObj?.cast ?? []) castByShot.set(c.idx, [...(castByShot.get(c.idx) ?? []), c]);
   let url: string | null = null;
@@ -198,6 +219,7 @@ export default async function CutsPage({ searchParams }: { searchParams: Promise
       )}
 
       {castFallback && <Note>Cartoon characters was picked, but this episode was made as Illustrated: {castFallback}.</Note>}
+      {engineeredFallback && <Note>3D explainer was picked, but this episode was made as Illustrated: {engineeredFallback}.</Note>}
       {readiness.summary && planFormat?.format === 'cinematic' && <Note>{readiness.summary} Those shots are drawn as pictures or diagrams instead; nothing is spent on video.</Note>}
 
       <div className="split">
@@ -228,11 +250,24 @@ export default async function CutsPage({ searchParams }: { searchParams: Promise
               {gen.swaps.length > 0 && <span className="xs t3"> {gen.swaps.join(' · ')}</span>}
             </Note>
           )}
+          {heroCards.length > 0 && (
+            <section className="card" aria-label="Hero objects">
+              <div className="card-h">
+                <h2 className="h3">Hero objects</h2>
+                <span className="xs t3">The sheet every picture was given · locked automatically</span>
+              </div>
+              <div className="card-b col" style={{ gap: 12 }}>
+                {heroCards.map((h) => (
+                  <ObjectSheetCard key={h.tag} episodeId={e.id} tag={h.tag} name={h.name} url={h.url} missing={h.missing} disabled={e.status === 'awaiting_cut' ? holdCut : 'only while the cut waits for your call'} />
+                ))}
+              </div>
+            </section>
+          )}
           <section className="card" aria-label="Shot list">
             <div className="card-h">
               <h2 className="h3">Shot list</h2>
               <span className="mono xs t3">
-                {planFormat ? `${FORMAT_INFO[planFormat.format].label}${planFormat.source === 'episode' ? ' (picked at approval)' : ''} · ` : ''}
+                {planFormat ? `${FORMAT_INFO[planFormat.format].label}${planFormat.format === 'engineered' && planMotion.success ? ` · ${MOTION_INFO[planMotion.data].label}` : ''}${planFormat.source === 'episode' ? ' (picked at approval)' : ''} · ` : ''}
                 {shots.length} shots · {totalS.toFixed(2)} s{routes.length === 1 ? ` · all ${ROUTE_LABEL[routes[0]!] ?? routes[0]}` : ''}
               </span>
             </div>

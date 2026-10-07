@@ -7,7 +7,8 @@ import { bureauSeries, hookPattern } from '../db/enums';
 import { getBible, type ChannelBible } from './bible';
 import type { Embedder } from './embed';
 import { estimateEpisode, PlannedShotSchema } from './estimate';
-import { formatOf, routesForFormat } from './formats';
+import { HeroObjectsSchema } from './engineered';
+import { formatOf, motionOf, routesForFormat } from './formats';
 import { stillsAvailability } from './stills';
 import { classifySource, FactSchema, policyLint, type LintResult } from './policy-lint';
 import { airedMasters, longFormScript, SegmentSchema, validateSegments } from './longform';
@@ -68,6 +69,8 @@ const BriefShape = z
     source_comment_id: z.uuid().nullish(),
     /** Long-form only: aired Shorts and new scenes in running order (see longform.ts). */
     segments: z.array(SegmentSchema).optional(),
+    /** 3D explainer only (0052): the 1–3 objects kept consistent in every picture. */
+    hero_objects: HeroObjectsSchema.default([]),
   });
 
 /**
@@ -205,8 +208,10 @@ export async function createBriefs(rawBriefs: unknown[], deps: CreateDeps): Prom
     // Priced in the series' default format; the approver can pick another on Approvals, which
     // re-prices it there (formats.ts).
     const seriesFormat = formatOf({ seriesFormat: cb.seriesFor(b.series).visual_format }).format;
-    const pricedShots = b.series === 'long_form' ? b.shot_list : routesForFormat(b.shot_list, seriesFormat, stills.available).shots;
-    const estimate = usdInrRate === null ? null : await estimateEpisode(db, { shots: pricedShots, voChars, usdInrRate, channelId: token.channelId });
+    const seriesMotion = motionOf({ seriesMotion: cb.seriesFor(b.series).motion }).motion;
+    const pricedShots = b.series === 'long_form' ? b.shot_list : routesForFormat(b.shot_list, seriesFormat, stills.available, seriesMotion).shots;
+    const objectSheets = seriesFormat === 'engineered' ? b.hero_objects.length : 0;
+    const estimate = usdInrRate === null ? null : await estimateEpisode(db, { shots: pricedShots, voChars, usdInrRate, channelId: token.channelId, objectSheets });
 
     const flagReasons = [
       ...b.flag_reasons,
@@ -258,6 +263,9 @@ export async function createBriefs(rawBriefs: unknown[], deps: CreateDeps): Prom
         embedding_model: embedding && embedding.ok ? embedding.model : null,
         source_comment_id: b.source_comment_id ?? null,
         segments: (b.segments ?? null) as unknown as Json,
+        // Only written when there are any: before 0052 the column does not exist, and every
+        // brief that is not a 3D explainer has none.
+        ...(b.hero_objects.length ? { hero_objects: b.hero_objects as unknown as Json } : {}),
         created_by: token.scope,
         created_by_token: token.id ?? null,
       })
