@@ -130,7 +130,8 @@ export async function restartHaltedEpisode(db: Db, token: BureauToken, effects: 
   const { data: ep, error } = await db.from('episodes').select('id, status, updated_at').eq('id', input.episode_id).maybeSingle();
   if (error) throw dbError(error.message);
   if (!ep) throw new Error('No such episode.');
-  if (ep.status !== 'halted') throw new Error(`Episode is ${ep.status}, not halted — nothing to restart.`);
+  // 'failed' too: a crash after a fix (S001's render, 07-Oct) needs the same way back as a refusal.
+  if (ep.status !== 'halted' && ep.status !== 'failed') throw new Error(`Episode is ${ep.status}, not halted or failed — nothing to restart.`);
   try {
     const runId = await effects.startEpisode(ep.id, `restart:${new Date(ep.updated_at).getTime()}`);
     // Back to 'queued' with the new run: a second click now finds it not halted and is refused,
