@@ -72,7 +72,7 @@ export default async function CharactersPage() {
         {screen.cards.map((c, i) => {
           const lockedUrl = lockedUrls[i];
           return (
-            <article className="card card-b col" style={{ gap: 12 }} key={c.slug}>
+            <article className="card card-b col" style={{ gap: 12, minWidth: 0 }} key={c.slug}>
               <div className="row" style={{ gap: 14, flexWrap: 'nowrap' }}>
                 <Bust slug={c.slug} accent={c.accent} size="md" />
                 <div className="col grow" style={{ gap: 4, minWidth: 0 }}>
@@ -81,7 +81,15 @@ export default async function CharactersPage() {
                     {c.role} · tag <span className="mono">@{c.tag}</span>
                     {c.objectOnly ? ' · drawn only as its object, never a body' : ''}
                   </span>
-                  {c.locked ? <LockTag>sheet locked</LockTag> : <span className="pill s-blk">no locked sheet — left out of pictures</span>}
+                  {/* Short pill + a wrapping line: the long label ran past the card at seven across (07-Oct). */}
+                  {c.locked ? (
+                    <LockTag>sheet locked</LockTag>
+                  ) : (
+                    <>
+                      <span className="pill s-blk" style={{ alignSelf: 'flex-start' }}>no locked sheet</span>
+                      <span className="xs t3">left out of pictures until one is locked</span>
+                    </>
+                  )}
                 </div>
               </div>
 
