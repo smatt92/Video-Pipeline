@@ -1,7 +1,7 @@
 import { BureauNav } from '@/components/bureau/bureau-nav';
 import { LiveRefresh, LiveStatus } from '@/components/bureau/live-status';
 import { channelGeneration, episodeClips } from '@/lib/bureau/overlay-only';
-import { isRunning } from '@/lib/bureau/running';
+import { isRunning, stalled } from '@/lib/bureau/running';
 import { StartRun } from '@/components/bureau/start-run';
 import { requireChannel } from '@/lib/channels/active';
 import { serverClient } from '@/lib/db/server';
@@ -45,7 +45,7 @@ export default async function BureauBoardPage() {
         {COLUMNS.map((c) => {
           const items = c.key === 'approval'
             ? (pending ?? []).map((b) => ({ id: b.id, slot: b.slot_id, line: b.premise, detail: b.flagged ? 'flagged' : null, startable: false, restartable: false, status: 'pending', updatedAt: null as string | null }))
-            : (eps ?? []).filter((e) => c.statuses.includes(e.status)).map((e) => ({ id: e.id, slot: e.slot_id, line: `${e.kind === 'long_form' ? 'long-form · ' : ''}${e.status}`, detail: e.status_detail, startable: e.status === 'queued' && !e.run_id, restartable: e.status === 'halted' || e.status === 'failed', status: e.status as string, updatedAt: e.updated_at as string | null }));
+            : (eps ?? []).filter((e) => c.statuses.includes(e.status)).map((e) => ({ id: e.id, slot: e.slot_id, line: `${e.kind === 'long_form' ? 'long-form · ' : ''}${e.status}`, detail: e.status_detail, startable: e.status === 'queued' && !e.run_id, restartable: e.status === 'halted' || e.status === 'failed' || stalled(e.status, e.updated_at), status: e.status as string, updatedAt: e.updated_at as string | null }));
           return (
             <section key={c.key} className="min-w-[180px] rounded-md border p-2" style={{ borderColor: 'var(--border-default)' }}>
               <h2 className="flex justify-between text-sm font-medium">

@@ -482,13 +482,21 @@ try {
   check(keys[0] === `restart:${Date.parse('2026-10-06T17:33:56Z')}`, 'the key is derived from the halt it restarts, so two clicks on one halt dedupe', String(keys[0]));
   let refusedNotHalted = null;
   try { await restartHaltedEpisode(db, approverTok, runner, { episode_id: ep2 }); } catch (err) { refusedNotHalted = err.message; }
-  check(/not halted or failed/.test(refusedNotHalted ?? '') && keys.length === 1, 'an episode that is not halted is refused, and nothing is started', refusedNotHalted);
+  check(/not halted, failed or stalled/.test(refusedNotHalted ?? '') && keys.length === 1, 'an episode that is not halted is refused, and nothing is started', refusedNotHalted);
   await client.query(`update episodes set status = 'halted', updated_at = '2026-10-07T02:00:00Z' where id = $1`, [ep2]);
   let refusedAgent = null;
   try { await restartHaltedEpisode(db, { ...approverTok, scope: 'agent' }, runner, { episode_id: ep2 }); } catch (err) { refusedAgent = err.message; }
   check(/approver scope/.test(refusedAgent ?? '') && keys.length === 1, 'an agent token cannot restart a run', refusedAgent);
+  await client.query(`update episodes set status = 'assembling', updated_at = now() - interval '31 minutes' where id = $1`, [ep2]);
+  const rStall = await restartHaltedEpisode(db, approverTok, runner, { episode_id: ep2 });
+  check(rStall.ok && keys.length === 2, 'a run silent for 30 min while assembling is restartable (the worker died without a status)', JSON.stringify(keys));
+  await client.query(`update episodes set status = 'generating', updated_at = now() - interval '2 hours' where id = $1`, [ep2]);
+  let refusedGen = null;
+  try { await restartHaltedEpisode(db, approverTok, runner, { episode_id: ep2 }); } catch (err) { refusedGen = err.message; }
+  check(/not halted, failed or stalled/.test(refusedGen ?? '') && keys.length === 2, 'a long vendor wait while generating is not mistaken for a stall', refusedGen);
+  await client.query(`update episodes set status = 'halted', updated_at = '2026-10-07T03:00:00Z' where id = $1`, [ep2]);
   const r2 = await restartHaltedEpisode(db, approverTok, runner, { episode_id: ep2 });
-  check(r2.ok && keys[1] !== keys[0], 'a later halt restarts under a new key', JSON.stringify(keys));
+  check(r2.ok && keys[2] !== keys[0] && keys[2] !== keys[1], 'a later halt restarts under a new key', JSON.stringify(keys));
   const { rows: blk1 } = await client.query('select blocker from v_pipeline_blockers where script_id = $1', [script1.scriptId]);
   check(blk1[0]?.blocker === null, 'and for the episode that went through, the view says nothing blocks it', String(blk1[0]?.blocker));
 } catch (err) {
