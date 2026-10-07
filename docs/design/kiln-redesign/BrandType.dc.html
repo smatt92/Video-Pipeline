@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln type and icons</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.icg{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px}
+.icc{display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 4px;border-radius:10px;background:var(--in);border:1px solid var(--b1);color:var(--t1)}
+.icc .ic{width:24px;height:24px}
+.icc span{font:400 10.5px var(--mono);color:var(--t3)}
+</style>
+</helmet>
+<div class="k" style="width: 1440px; height: 1200px; padding: 56px 72px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 20px; align-content: start; overflow: hidden">
+  <div style="grid-column: span 12" class="col"><span class="lbl">Type & iconography</span><h1 class="h1">Geist reads, Geist Mono counts</h1></div>
+
+  <section class="card" style="grid-column: span 7; padding: 22px; display: flex; flex-direction: column; gap: 4px">
+    <div class="row sb" style="margin-bottom: 8px"><h2 class="h3">Scale</h2><span class="mono xs t3">kept · now named</span></div>
+    <table class="tbl">
+      <thead><tr><th>Role</th><th>Spec</th><th>Sample</th></tr></thead>
+      <tbody>
+        <tr><td class="sm t2">Display</td><td class="mono xs t3">Geist 600 · 40 · −3.5%</td><td><span style="font-size: 40px; font-weight: 600; letter-spacing: -0.035em; line-height: 1">Fire the brief.</span></td></tr>
+        <tr><td class="sm t2">Onboarding title</td><td class="mono xs t3">600 · 28 · −2.5%</td><td><span class="ob-h">Name your first channel</span></td></tr>
+        <tr><td class="sm t2">Page title</td><td class="mono xs t3">600 · 24 · −2.2%</td><td><span class="h1">Approvals</span></td></tr>
+        <tr><td class="sm t2">Section</td><td class="mono xs t3">600 · 17 · −1.2%</td><td><span class="h2">Episodes in production</span></td></tr>
+        <tr><td class="sm t2">Body</td><td class="mono xs t3">400 · 14 / 1.45</td><td>The render worker crashed before any shot was made.</td></tr>
+        <tr><td class="sm t2">Label</td><td class="mono xs t3">500 · 11 · +7% caps</td><td><span class="lbl">Spend today</span></td></tr>
+        <tr><td class="sm t2">Numerals</td><td class="mono xs t3">Geist Mono 500 · tabular</td><td><span class="tv">₹1,500.00</span></td></tr>
+        <tr><td class="sm t2">Wordmark</td><td class="mono xs t3">Geist 600 · −5% · lowercase</td><td><span class="wm" style="font-size: 32px">k<span class="i">ı</span>ln</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card" style="grid-column: span 5; padding: 22px; display: flex; flex-direction: column; gap: 12px">
+    <h2 class="h3">Why keep Geist</h2>
+    <p class="sm t2">I looked at replacing it with something warmer to match the clay. I'd keep Geist:</p>
+    <div class="col" style="gap: 10px">
+      <div class="inset" style="padding: 12px"><span class="sm"><b>Narrow and calm.</b> Dense tables and long copy stay readable at 13 px on a phone.</span></div>
+      <div class="inset" style="padding: 12px"><span class="sm"><b>A true mono twin.</b> Ids, ₹ and timestamps line up in columns; Geist Mono shares metrics, so mixing in one line doesn't jump.</span></div>
+      <div class="inset" style="padding: 12px"><span class="sm"><b>Personality lives elsewhere.</b> The clay, chalk and cast colours already carry warmth; a characterful UI face would fight them.</span></div>
+      <div class="inset" style="padding: 12px"><span class="sm"><b>Free, on Google Fonts</b>, already loaded on every screen. Check ₹ and dotless ı render in Geist before shipping; fall back to Geist Mono's ₹ if not.</span></div>
+    </div>
+    <p class="xs t3">Considered: IBM Plex Sans (wider, busier tables), Söhne (licence cost), Inter (generic).</p>
+  </section>
+
+  <section class="card" style="grid-column: span 12; padding: 22px; display: flex; flex-direction: column; gap: 14px">
+    <div class="row sb"><h2 class="h3">Icons</h2><span class="mono xs t3">24 grid · 2 px padding · 1.6 stroke · round caps and joins · no fills</span></div>
+    <div class="icg">
+      <div class="icc"><svg class="ic" viewBox="0 0 24 24"><path d="M4 21V12a8 8 0 0 1 16 0v9zM9.5 21v-4a2.5 2.5 0 0 1 5 0v4"></path></svg><span>kiln</span></div>
+      <div class="icc"><svg class="ic" viewBox="0 0 24 24"><path d="M9 20l3-16 3 16zM6 20h12"></path></svg><span>cone</span></div>
+      <div class="icc"><svg class="ic" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"></path></svg><span>home</span></div>
+      <div class="icc"><svg class="ic" viewBox="0 0 24 24"><path d="M9 11l3 3 8-8M20 12v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h11"></path></svg><span>approve</span></div>
+      <div class="icc"><svg class="ic" viewBox="0 0 24 24"><path d="M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12"></path></svg><span>cut</span></div>
+      <div class="icc"><svg class="ic" viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"></path></svg><span>ready</span></div>
+      <div class="icc"><svg class="ic" viewBox="0 0 24 24"><path d="M4 4h4v16H4zM10 4h4v10h-4zM16 4h4v13h-4z"></path></svg><span>board</span></div>
+      <div class="icc"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"></path></svg><span>calendar</span></div>
+      <div class="icc"><svg class="ic" viewBox="0 0 24 24"><path d="M15 7a4 4 0 1 1-3.5 6L4 20.5V17h3v-3h3l1.5-1.5A4 4 0 0 1 15 7zM16 9.5h.01"></path></svg><span>key</span></div>
+      <div class="icc"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM8 9l3 3-3 3M13 15h3"></path></svg><span>environment</span></div>
+      <div class="icc"><svg class="ic" viewBox="0 0 24 24"><path d="M3 3l18 18M10.6 6.1A10 10 0 0 1 12 6c5 0 9 6 9 6a17 17 0 0 1-2.5 3.2M6.6 6.6C4.3 8.1 3 12 3 12s4 6 9 6a9 9 0 0 0 4.4-1.1M9.9 9.9a3 3 0 0 0 4.2 4.2"></path></svg><span>secret</span></div>
+      <div class="icc"><svg class="ic" viewBox="0 0 24 24"><path d="M6 11h12v9H6zM8 11V8a4 4 0 0 1 8 0v3"></path></svg><span>lock</span></div>
+      <div class="icc"><svg class="ic" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"></path></svg><span>restart</span></div>
+      <div class="icc"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"></path></svg><span>regenerate</span></div>
+      <div class="icc"><svg class="ic" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"></path></svg><span>download</span></div>
+      <div class="icc"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3v9M6.4 6.4a8 8 0 1 0 11.2 0"></path></svg><span>kill switch</span></div>
+    </div>
+    <div class="row" style="gap: 24px"><span class="xs t3">16 px in rows and buttons · 20 px in headers · 22 px in the tab bar</span><span class="xs t3">Colour = text colour; teal only when the item is active</span><span class="xs t3">No emoji, no filled glyph sets, no brand logos as icons</span></div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1200}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

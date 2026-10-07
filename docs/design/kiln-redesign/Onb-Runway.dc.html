@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln setup — Runway</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:oklch(0.150 0.006 70)}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+code{font:500 12.5px var(--mono);background:var(--in);border:1px solid var(--b1);padding:2px 6px;border-radius:5px}
+</style>
+</helmet>
+<div class="k ob">
+  <div class="ob-spine"><dc-import name="OnbSpine" step="3" hint-size="100%,1100px"></dc-import></div>
+  <main class="ob-main">
+    <div class="ob-col">
+      <div class="col" style="gap: 8px"><span class="ob-step">Studio · step 3 of 10</span><h1 class="ob-h">Runway — video and voices</h1><p class="t2">One key covers both. Kiln checks the key and your credit balance; it never generates a clip just to test.</p></div>
+
+      <section class="card card-b col" style="gap: 14px">
+        <div class="row sb"><span class="h3">Key</span><span class="{{ pillCls }}">{{ pillText }}</span></div>
+        <sc-if value="{{ missing }}" hint-placeholder-val="{{ true }}">
+          <div class="col" style="gap: 12px">
+            <div class="env miss"><span class="envdot"></span><div class="col" style="gap: 2px"><span class="var">RUNWAYML_API_SECRET</span><span class="sub">missing from environment</span></div><span class="xs" style="color: oklch(0.78 0.15 25)">blocks step</span></div>
+            <ol class="sm t2" style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px">
+              <li>Create a key in your Runway developer settings.</li>
+              <li>Add it as <code>RUNWAYML_API_SECRET</code> where you host Kiln, then redeploy.</li>
+              <li>Come back and press Save and test. Kiln never asks you to paste the key here.</li>
+            </ol>
+          </div>
+        </sc-if>
+        <sc-if value="{{ found }}" hint-placeholder-val="{{ false }}">
+          <div class="env"><span class="envdot"></span><div class="col" style="gap: 2px"><span class="var">RUNWAYML_API_SECRET</span><span class="sub">found in environment · <span class="sec">••••a91F</span> · {{ foundSub }}</span></div><span class="lock">last 4 only</span></div>
+        </sc-if>
+        <sc-if value="{{ testing }}" hint-placeholder-val="{{ false }}"><div class="fire"><i style="width: 55%"></i></div></sc-if>
+      </section>
+
+      <div class="grid ga-300">
+        <section class="card card-b col" style="gap: 12px">
+          <div class="row sb"><span class="h3">Generation · video</span><span class="{{ capCls }}">{{ capText }}</span></div>
+          <div class="field"><label for="vm">Video model</label><select id="vm" class="input mono" disabled="{{ notOk }}"><option>[pick after test]</option></select></div>
+          <div class="field"><label for="vs">Default clip length</label><select id="vs" class="input" disabled="{{ notOk }}"><option>5 s</option><option>10 s</option></select></div>
+          <span class="xs t3">Used for character beats and B-roll. Overlay shots render in-house.</span>
+        </section>
+        <section class="card card-b col" style="gap: 12px">
+          <div class="row sb"><span class="h3">Voiceover · voices</span><span class="{{ capCls }}">{{ capText }}</span></div>
+          <div class="field"><label for="vv">Voice model</label><select id="vv" class="input mono" disabled="{{ notOk }}"><option>[pick after test]</option></select></div>
+          <span class="xs t3">{{ voiceNote }}</span>
+        </section>
+      </div>
+
+      <div class="ob-foot">
+        <a class="btn ghost" href="Onb-Models.dc.html">Back</a>
+        <span class="grow"></span>
+        <button class="btn" type="button" onClick="{{ test }}">{{ testLabel }}</button>
+        <a class="btn pri" href="Onb-Rates.dc.html">Next · Rate card</a>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { t: 'missing' }; }
+  componentWillUnmount() { clearTimeout(this.to); }
+  renderVals() {
+    const t = this.state.t;
+    const ok = t === 'ok';
+    return {
+      missing: t === 'missing', found: t !== 'missing', testing: t === 'testing',
+      foundSub: ok ? 'tested just now · credits available' : 'testing…',
+      pillCls: 'pill ' + (ok ? 's-live' : t === 'testing' ? 's-gen' : 's-blk'),
+      pillText: ok ? 'verified' : t === 'testing' ? 'testing' : 'missing',
+      capCls: 'pill nodot ' + (ok ? 's-live' : 's-draft'),
+      capText: ok ? 'ready' : 'waiting on key',
+      notOk: !ok,
+      voiceNote: ok ? 'Voices loaded. You’ll audition and lock them per character in Cast & voices.' : 'Voices load after the key verifies.',
+      testLabel: t === 'missing' ? 'I added it · Save and test' : 'Save and test',
+      test: () => { this.setState({ t: 'testing' }); clearTimeout(this.to); this.to = setTimeout(() => this.setState({ t: 'ok' }), 1500); }
+    };
+  }
+}
+</script>
+</body>
+</html>

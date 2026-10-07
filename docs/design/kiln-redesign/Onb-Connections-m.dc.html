@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln setup — optional connections (mobile)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.oc{display:flex;flex-direction:column;gap:8px;padding:14px;border-bottom:1px solid var(--b1)}
+.oc:last-child{border-bottom:0}
+</style>
+</helmet>
+<div class="k ph-onb" style="height: 1400px">
+  <div class="top">
+    <div class="row sb"><a class="btn icon" href="Onb-ChCaps-m.dc.html" aria-label="Back" style="width: 40px; height: 40px"><svg class="ic" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"></path></svg></a><span class="mono xs t3">Optional · 9 of 10</span><span class="xs t3">nothing blocks</span></div>
+    <div class="segbar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="d"></span><span class="d"></span><span class="d"></span><span class="d"></span><span class="d"></span><span class="c"></span><span></span></div>
+  </div>
+  <div class="body">
+    <h1 class="ob-h" style="font-size: 24px">Optional connections</h1>
+    <p class="sm t2">Skip any. Each turns a "—" into a real number or saves a manual step.</p>
+    <section class="card">
+      <div class="oc"><div class="row sb"><span style="font-weight: 600">Phone alerts</span><span class="pill s-blk">missing</span></div><span class="xs t3">Without it: you find out when you open Kiln.</span><button class="btn pri full" type="button" style="height: 46px">Allow on this phone</button></div>
+      <div class="oc"><div class="row sb"><span style="font-weight: 600">YouTube Analytics</span><span class="pill s-blk">missing</span></div><span class="xs t3">Without it: every metric stays "—".</span><button class="btn full" type="button" style="height: 46px">Connect</button></div>
+      <div class="oc"><div class="row sb"><span style="font-weight: 600">YouTube Data API</span><span class="pill s-rev">unverified</span></div><span class="xs t3">Without it: Kiln can't confirm scheduled links.</span><button class="btn full" type="button" style="height: 46px">Save and test</button></div>
+      <div class="oc"><div class="row sb"><span style="font-weight: 600">Higgsfield</span><span class="pill s-blk">missing</span></div><span class="mono xs t3">HIGGSFIELD_API_KEY · not in environment</span><span class="xs t3">Without it: character beats render as overlay.</span></div>
+      <div class="oc"><div class="row sb"><span style="font-weight: 600">Instagram Reels</span><span class="pill s-rev">unverified</span></div><span class="xs t3">Manual posting until Meta app review clears.</span></div>
+    </section>
+  </div>
+  <div class="act"><a class="btn lg" href="Onb-Finish-m.dc.html">Skip all</a><a class="btn lg pri" href="Onb-Finish-m.dc.html" style="flex: 1">Next</a></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1400}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

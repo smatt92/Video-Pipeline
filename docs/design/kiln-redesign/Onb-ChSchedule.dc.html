@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln setup — series and slots</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:oklch(0.150 0.006 70)}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.wk{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.wk .d{display:flex;flex-direction:column;gap:6px}
+</style>
+</helmet>
+<div class="k ob">
+  <div class="ob-spine"><dc-import name="OnbSpine" step="7" hint-size="100%,1150px"></dc-import></div>
+  <main class="ob-main">
+    <div class="ob-col" style="max-width: 980px">
+      <div class="col" style="gap: 8px"><span class="ob-step">Channel · step 7 of 10 · Bureau of Reality</span><h1 class="ob-h">Series and publish slots</h1><p class="t2">A slot is a promise: one Short at a fixed time. Kiln drafts briefs for slots, never the other way round.</p></div>
+
+      <section class="card">
+        <div class="card-h"><span class="h3">Series</span><button class="btn sm ghost" type="button"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg>Add series</button></div>
+        <div class="scroll-x"><table class="tbl">
+          <thead><tr><th>Series</th><th>Lead</th><th>Day</th><th>Format</th></tr></thead>
+          <tbody>
+            <tr><td><span class="slot sr-incident" style="flex-direction: row; padding: 3px 8px; display: inline-flex"><span class="sid"><span class="sdot"></span>Incident Report</span></span></td><td><span class="cast c-pip" style="height: 24px"><i style="width: 18px; height: 18px"></i>Pip + Marlo</span></td><td class="mono sm">Mon</td><td class="xs t3">what-if, consequences</td></tr>
+            <tr><td><span class="slot sr-desk" style="flex-direction: row; padding: 3px 8px; display: inline-flex"><span class="sid"><span class="sdot"></span>Desk Tour</span></span></td><td class="sm t2">rotating desk head</td><td class="mono sm">Tue</td><td class="xs t3">one desk, one fact</td></tr>
+            <tr><td><span class="slot sr-pip" style="flex-direction: row; padding: 3px 8px; display: inline-flex"><span class="sid"><span class="sdot"></span>Pip's First Year</span></span></td><td><span class="cast c-pip" style="height: 24px"><i style="width: 18px; height: 18px"></i>Pip</span></td><td class="mono sm">Wed</td><td class="xs t3">numbered S1E#</td></tr>
+            <tr><td><span class="slot sr-archive" style="flex-direction: row; padding: 3px 8px; display: inline-flex"><span class="sid"><span class="sdot"></span>The Archive</span></span></td><td><span class="cast c-nib" style="height: 24px"><i style="width: 18px; height: 18px"></i>Nib</span></td><td class="mono sm">Thu</td><td class="xs t3">history case files</td></tr>
+            <tr><td><span class="slot sr-myth" style="flex-direction: row; padding: 3px 8px; display: inline-flex"><span class="sid"><span class="sdot"></span>Myth Desk</span></span></td><td><span class="cast c-kaz" style="height: 24px"><i style="width: 18px; height: 18px"></i>Kaz</span></td><td class="mono sm">Fri</td><td class="xs t3">popular interpretations</td></tr>
+            <tr><td><span class="slot sr-deep" style="flex-direction: row; padding: 3px 8px; display: inline-flex"><span class="sid"><span class="sdot"></span>Deep Desk</span></span></td><td class="sm t2">Marlo or Mrs. Iyer</td><td class="mono sm">Sat</td><td class="xs t3">space, deep sea</td></tr>
+            <tr><td><span class="slot sr-complaint" style="flex-direction: row; padding: 3px 8px; display: inline-flex"><span class="sid"><span class="sdot"></span>Complaint Box</span></span></td><td><span class="cast c-box" style="height: 24px"><i style="width: 18px; height: 18px"></i>Complaint Box</span></td><td class="mono sm">Sun</td><td class="xs t3">viewer questions</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <div class="grid ga-300">
+        <section class="card card-b col" style="gap: 14px">
+          <span class="h3">When</span>
+          <div class="grid" style="grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+            <div class="field"><label for="pt">Publish time</label><input id="pt" class="input mono" value="18:00"></div>
+            <div class="field"><label for="ptz">Channel timezone</label><select id="ptz" class="input"><option>Asia/Kolkata · IST</option></select></div>
+          </div>
+          <div class="field"><label for="lf">Long-form (L##)</label><select id="lf" class="input"><option>Occasional — I'll place them</option><option>Every 4th Sunday</option></select></div>
+          <div class="field"><label for="bank">Plan ahead</label><select id="bank" class="input"><option>Keep 16 open slots in the bank</option></select></div>
+          <div class="row" style="gap: 6px"><span class="xs t3">Seasonal tags from</span><span class="chip on">India</span><span class="chip on">US</span><span class="chip">UK</span></div>
+        </section>
+        <section class="card card-b col" style="gap: 10px">
+          <div class="row sb"><span class="h3">First week preview</span><span class="mono xs t3">ids are assigned once and never reused</span></div>
+          <div class="wk">
+            <div class="d"><span class="mono xs t3">Mon 19</span><span class="slot sr-incident"><span class="sid">S001</span></span></div>
+            <div class="d"><span class="mono xs t3">Tue 20</span><span class="slot sr-desk"><span class="sid">S002</span></span><span class="stag">Dussehra</span></div>
+            <div class="d"><span class="mono xs t3">Wed 21</span><span class="slot sr-pip"><span class="sid">S003</span></span></div>
+            <div class="d"><span class="mono xs t3">Thu 22</span><span class="slot sr-archive"><span class="sid">S004</span></span></div>
+            <div class="d"><span class="mono xs t3">Fri 23</span><span class="slot sr-myth"><span class="sid">S005</span></span></div>
+            <div class="d"><span class="mono xs t3">Sat 24</span><span class="slot sr-deep"><span class="sid">S006</span></span></div>
+            <div class="d"><span class="mono xs t3">Sun 25</span><span class="slot sr-complaint"><span class="sid">S007</span></span><span class="slot sr-long"><span class="sid">L01</span></span></div>
+          </div>
+          <span class="xs t3">First slot Mon 19 Oct at 18:00 IST. Change the start date and every id shifts until the first brief is approved.</span>
+        </section>
+      </div>
+
+      <div class="ob-foot">
+        <a class="btn ghost" href="Onb-ChCast.dc.html">Back</a>
+        <span class="grow"></span>
+        <button class="btn" type="button">Save</button>
+        <a class="btn pri" href="Onb-ChCaps.dc.html">Next · Caps &amp; trends</a>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1150}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln setup — resume (mobile)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.door-glow{filter:drop-shadow(0 0 8px oklch(0.83 0.12 182 / .9))}
+.blr{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-bottom:1px solid var(--b1);text-decoration:none;color:var(--t1);font-size:13.5px;min-height:52px}
+.blr:last-child{border-bottom:0}
+.blr i{width:7px;height:7px;border-radius:50%;background:var(--blk);margin-top:6px;flex:none}
+</style>
+</helmet>
+<div class="k ph-onb" style="height: 1100px">
+  <div class="top">
+    <div class="row sb"><div class="lockup" style="font-size: 17px"><svg class="kmark" viewBox="0 0 32 32" width="18" height="18" aria-hidden="true"><path class="arch" d="M5 29V15a11 11 0 0 1 22 0v14z"></path><path class="door" d="M12.5 29v-6.5a3.5 3.5 0 0 1 7 0V29z"></path></svg><span class="wm">k<span class="i">ı</span>ln</span></div><span class="mono xs t3">3 of 10 done</span></div>
+    <div class="segbar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="c"></span><span></span><span></span><span></span><span></span><span class="o"></span><span></span></div>
+  </div>
+  <div class="body">
+    <section class="card bp" style="border-color: rgba(242,239,232,.14); padding: 20px; display: flex; flex-direction: column; gap: 12px; align-items: center; text-align: center">
+      <svg viewBox="80 20 160 200" width="120" aria-hidden="true">
+        <defs>
+          <linearGradient id="koB" x1="0" x2="1"><stop offset="0" class="k6"></stop><stop offset=".35" class="k1"></stop><stop offset=".7" class="k3"></stop><stop offset="1" class="k6"></stop></linearGradient>
+          <radialGradient id="koD" cx=".5" cy=".9" r=".9"><stop offset="0" style="stop-color: #E6FFFB"></stop><stop offset=".4" style="stop-color: #45DCC8"></stop><stop offset="1" style="stop-color: #0B5F58"></stop></radialGradient>
+        </defs>
+        <ellipse cx="160" cy="206" rx="80" ry="16" fill="#16273F" stroke="#F2EFE8" stroke-opacity=".5"></ellipse>
+        <rect x="149" y="32" width="22" height="26" rx="3" fill="url(#koB)" stroke="#F2EFE8" stroke-width="1.4"></rect><path d="M92 204V124a68 68 0 0 1 136 0v80z" fill="url(#koB)" stroke="#F2EFE8" stroke-width="1.6"></path><path d="M140 204v-30a20 20 0 0 1 40 0v30z" fill="url(#koD)" stroke="#F2EFE8" stroke-width="1.4" class="door-glow"></path>
+      </svg>
+      <span style="color: var(--chalk); font-size: 22px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2">Welcome back. You stopped at the rate card.</span>
+      <span class="sm" style="color: rgba(242,239,232,.8)">Two prices missing, then your first channel.</span>
+    </section>
+    <span class="lbl" style="margin-top: 4px">Blocks your first video · 5</span>
+    <section class="card">
+      <a class="blr" href="Onb-Rates-m.dc.html"><i></i><span>Runway video has no verified price, so the per-video cap can't be checked.</span></a>
+      <a class="blr" href="Onb-ChBasics-m.dc.html"><i></i><span>No channel yet, so there's nowhere to publish.</span></a>
+      <a class="blr" href="Onb-ChCast-m.dc.html"><i></i><span>No locked voices, so no line can be recorded.</span></a>
+      <a class="blr" href="Onb-ChSchedule-m.dc.html"><i></i><span>No publish slot, so there's nothing to fill.</span></a>
+      <a class="blr" href="Onb-ChCaps-m.dc.html"><i></i><span>No spend caps, so Kiln won't start a paid run.</span></a>
+    </section>
+    <p class="xs t3">Keys stay in your hosting environment. Kiln shows only their last 4 characters.</p>
+  </div>
+  <div class="act"><a class="btn lg pri" href="Onb-Rates-m.dc.html" style="flex: 1">Resume at Rate card</a></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1100}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

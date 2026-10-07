@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln setup — channel basics</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:oklch(0.150 0.006 70)}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.plat{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:14px;border-radius:12px;border:1px solid var(--b2);background:var(--s1)}
+.plat input{width:18px;height:18px;accent-color:oklch(0.79 0.12 182)}
+</style>
+</helmet>
+<div class="k ob">
+  <div class="ob-spine"><dc-import name="OnbSpine" step="5" hint-size="100%,1100px"></dc-import></div>
+  <main class="ob-main">
+    <div class="ob-col">
+      <div class="col" style="gap: 8px"><span class="ob-step">Channel · step 5 of 10 · repeatable from + Add channel</span><h1 class="ob-h">Your first channel</h1><p class="t2">Everything from here on belongs to this channel only: its cast, slots, caps and accent.</p></div>
+
+      <section class="card card-b col" style="gap: 14px">
+        <div class="grid ga-220">
+          <div class="field"><label for="cn">Channel name</label><input id="cn" class="input" value="Bureau of Reality"></div>
+          <div class="field"><label for="ch">Handle</label><input id="ch" class="input mono" value="@BureauofReality"></div>
+        </div>
+      </section>
+
+      <section class="card card-b col" style="gap: 12px">
+        <span class="h3">Where it publishes</span>
+        <label class="plat"><input type="checkbox" checked><div class="col" style="gap: 2px"><span style="font-weight: 500">YouTube Shorts</span><span class="xs t3">You still upload and schedule; Kiln prepares the bundle and checks the link.</span></div><span class="row" style="gap: 8px"><span class="pill s-rev">unverified</span><a class="btn sm" href="#connect-youtube">Connect YouTube</a></span></label>
+        <label class="plat"><input type="checkbox" checked><div class="col" style="gap: 2px"><span style="font-weight: 500">Instagram Reels</span><span class="xs t3">Same bundle, 9:16, captions burned in.</span></div><span class="pill s-rev nodot">manual posting until Meta app review clears</span></label>
+      </section>
+
+      <section class="card card-b col" style="gap: 14px">
+        <div class="row sb"><span class="h3">Channel accent</span><span class="xs t3">Shown as a square on cards, calendar slots and chart lines</span></div>
+        <div class="row" style="gap: 10px">
+          <sc-for list="{{ sw }}" as="s" hint-placeholder-count="5"><button class="{{ s.cls }}" type="button" aria-label="{{ s.name }}" onClick="{{ s.pick }}" style="background: {{ s.c }}"></button></sc-for>
+          <span class="mono xs t3" style="margin-left: 8px">{{ name }}</span>
+        </div>
+        <div class="inset" style="padding: 14px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center">
+          <div class="row" style="gap: 10px; flex-wrap: nowrap"><div style="position: relative; width: 34px; height: 34px; border-radius: 9px; background: var(--navy); display: grid; place-items: center; font: 600 11px var(--mono); color: var(--chalk)">BR<span style="position: absolute; right: -2px; bottom: -2px; width: 9px; height: 9px; border-radius: 2px; background: {{ cur }}; box-shadow: 0 0 0 2px var(--in)"></span></div><div class="col" style="gap: 0"><span class="sm" style="font-weight: 600">Bureau of Reality</span><span class="mono xs t3">@BureauofReality</span></div></div>
+          <div class="slot sr-incident" style="min-width: 150px"><span class="sid"><span style="width: 7px; height: 7px; border-radius: 2px; background: {{ cur }}"></span>S001</span><span class="tt">What if the Moon vanished</span></div>
+          <svg viewBox="0 0 160 40" width="160" height="40" aria-hidden="true"><path d="M2 34 L30 26 L58 30 L86 14 L114 18 L158 6" fill="none" stroke="{{ cur }}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </div>
+        <sc-if value="{{ clash }}" hint-placeholder-val="{{ false }}"><div class="note"><svg class="ic" viewBox="0 0 24 24"><path d="M12 8v5M12 16h.01M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z"></path></svg><span>Another channel already uses this accent. Pick a different one so the All channels view stays readable.</span></div></sc-if>
+      </section>
+
+      <div class="ob-foot">
+        <a class="btn ghost" href="Onb-Rates.dc.html">Back</a>
+        <span class="grow"></span>
+        <a class="btn pri" href="Onb-ChCast.dc.html">Next · Cast &amp; voices</a>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { pick: 'teal' }; }
+  renderVals() {
+    const S = [['teal', 'oklch(0.79 0.12 182)'], ['lime', 'oklch(0.84 0.15 125)'], ['ochre', 'oklch(0.80 0.12 60)'], ['orchid', 'oklch(0.76 0.13 340)'], ['chalk', 'oklch(0.90 0.02 85)']];
+    const p = this.state.pick;
+    const cur = S.find(s => s[0] === p)[1];
+    return {
+      sw: S.map(([name, c]) => ({ name, c, cls: 'swatch' + (name === p ? ' on' : ''), pick: () => this.setState({ pick: name }) })),
+      cur, name: p, clash: false
+    };
+  }
+}
+</script>
+</body>
+</html>

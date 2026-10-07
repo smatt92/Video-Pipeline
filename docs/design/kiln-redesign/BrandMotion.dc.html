@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln motion</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.curve{stroke:var(--ac);stroke-width:2.5;fill:none;stroke-linecap:round}
+.ax2{stroke:var(--b2);stroke-width:1}
+.big .cone svg{width:44px;height:62px}
+.big .cone span{font-size:11.5px}
+</style>
+</helmet>
+<div class="k" style="width: 1440px; height: 1200px; padding: 56px 72px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 20px; align-content: start; overflow: hidden">
+  <div style="grid-column: span 12" class="row sb"><div class="col" style="gap: 6px"><span class="lbl">Motion</span><h1 class="h1">Heat, not bounce</h1></div><span class="mono xs t3">prefers-reduced-motion: cones freeze, labels stay</span></div>
+
+  <section class="card bp" style="grid-column: span 12; padding: 28px; border-color: rgba(242,239,232,.14); display: flex; flex-wrap: wrap; gap: 32px; align-items: center">
+    <div class="col" style="gap: 10px; flex: 1 1 320px">
+      <span class="lbl" style="color: rgba(242,239,232,.7)">Firing motif · a run</span>
+      <span style="color: var(--chalk); font-size: 22px; font-weight: 600; letter-spacing: -0.02em">Pyrometric cones show how far a run has fired.</span>
+      <span class="sm" style="color: rgba(242,239,232,.75)">Upright = waiting. Violet glow = firing now. Bent = done. Slumped red = blocked, with the one-sentence reason underneath.</span>
+      <div class="row" style="gap: 8px; margin-top: 6px"><button class="btn pri" type="button" onClick="{{ fire }}">{{ fireLabel }}</button><button class="btn" type="button" onClick="{{ toggleBlk }}">{{ blkLabel }}</button></div>
+    </div>
+    <div class="col" style="gap: 14px; flex: 1 1 420px">
+      <div class="cones big" style="gap: 26px">
+        <sc-for list="{{ cones }}" as="c" hint-placeholder-count="4"><div class="{{ c.cls }}"><svg viewBox="0 0 20 28"><path class="c" d="{{ c.d }}"></path><rect class="base" x="2" y="26" width="16" height="2" rx="1"></rect></svg><span style="color: rgba(242,239,232,.8)">{{ c.label }}</span></div></sc-for>
+      </div>
+      <div class="fire" style="background: rgba(242,239,232,.12)"><i style="width: {{ pct }}"></i></div>
+      <span class="mono xs" style="color: rgba(242,239,232,.75)">{{ status }}</span>
+    </div>
+  </section>
+
+  <section class="card" style="grid-column: span 7; padding: 22px; display: flex; flex-direction: column; gap: 14px">
+    <h2 class="h3">Easing</h2>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px">
+      <div class="col" style="gap: 8px"><svg viewBox="0 0 100 100" style="width: 100%; height: auto" class="inset" aria-hidden="true"><path class="ax2" d="M10 90H90M10 90V10"></path><path class="curve" d="M10 90C26 26 26 10 90 10"></path></svg><span class="mono xs">--e-out</span><span class="xs t3">cubic-bezier(.2,.8,.2,1) · things arriving: panels, menus, toasts</span></div>
+      <div class="col" style="gap: 8px"><svg viewBox="0 0 100 100" style="width: 100%; height: auto" class="inset" aria-hidden="true"><path class="ax2" d="M10 90H90M10 90V10"></path><path class="curve" d="M10 90C58 90 26 10 90 10"></path></svg><span class="mono xs">--e-io</span><span class="xs t3">cubic-bezier(.6,0,.2,1) · things moving between places, the firing pulse</span></div>
+      <div class="col" style="gap: 8px"><svg viewBox="0 0 100 100" style="width: 100%; height: auto" class="inset" aria-hidden="true"><path class="ax2" d="M10 90H90M10 90V10"></path><path class="curve" d="M10 90C42 90 18 10 90 10"></path></svg><span class="mono xs">--e-fire</span><span class="xs t3">cubic-bezier(.4,0,.1,1) · a cone bending: slow start, settles</span></div>
+    </div>
+  </section>
+
+  <section class="card" style="grid-column: span 5; padding: 22px; display: flex; flex-direction: column; gap: 6px">
+    <h2 class="h3" style="margin-bottom: 8px">Durations</h2>
+    <table class="tbl">
+      <tbody>
+        <tr><td class="mono">--d1 · 120 ms</td><td class="sm t2">hover, press, toggle</td></tr>
+        <tr><td class="mono">--d2 · 200 ms</td><td class="sm t2">pills, menus, picker selection</td></tr>
+        <tr><td class="mono">--d3 · 320 ms</td><td class="sm t2">sheets, drawers, page change</td></tr>
+        <tr><td class="mono">--d4 · 600 ms</td><td class="sm t2">cone bends, onboarding step done</td></tr>
+        <tr><td class="mono">1.6 s loop</td><td class="sm t2">generating pulse (only loop in the UI)</td></tr>
+        <tr><td class="mono">5 s drift</td><td class="sm t2">3D objects, 5 px, splash and hero only</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card" style="grid-column: span 12; padding: 22px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px">
+    <div class="col" style="gap: 6px"><span class="lbl">1 · Motion says what changed</span><span class="sm t2">A cone bends because a stage finished. Nothing moves just to look alive.</span></div>
+    <div class="col" style="gap: 6px"><span class="lbl">2 · Only work in progress loops</span><span class="sm t2">The generating pulse is the only repeating animation. Blocked never animates — it waits for you.</span></div>
+    <div class="col" style="gap: 6px"><span class="lbl">3 · Numbers don't roll</span><span class="sm t2">₹ and counts swap instantly. Animated counters make estimates look measured.</span></div>
+    <div class="col" style="gap: 6px"><span class="lbl">4 · Reduced motion</span><span class="sm t2">Pulse and drift stop; cones keep their shape and labels, so state is never motion-only.</span></div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1200}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { step: 2, blk: false, running: false }; }
+  componentWillUnmount() { clearInterval(this.t); }
+  renderVals() {
+    const U = 'M6 26L10 4l4 22z', B = 'M6 26C7 18 8 12 11 9c2-2 5-2 6 0-2 1-4 3-3 17z', S = 'M5 26c1-4 5-6 11-5 2 .5 2 2 0 2l-2 3z';
+    const L = ['script', 'voice', 'shots', 'cut'];
+    const st = this.state.step, blk = this.state.blk;
+    const cones = L.map((label, i) => {
+      let cls = 'cone', d = U;
+      if (i < st) { cls = 'cone done'; d = B; }
+      else if (i === st && st < 4) { if (blk && i === 2) { cls = 'cone blk'; d = S; } else { cls = 'cone act'; } }
+      return { label, cls, d };
+    });
+    const status = st >= 4 ? 'Fired · cut is waiting for your review' : (blk && st === 2 ? 'Blocked at shots · The render worker crashed on a code error.' : 'Firing ' + L[st] + ' · stage ' + (st + 1) + ' of 4');
+    return {
+      cones, status, pct: Math.min(100, st * 25 + (st < 4 ? 12 : 0)) + '%',
+      fireLabel: this.state.running ? 'Firing…' : 'Fire a run',
+      blkLabel: blk ? 'Clear blocker' : 'Simulate blocker',
+      toggleBlk: () => this.setState({ blk: !this.state.blk }),
+      fire: () => {
+        clearInterval(this.t);
+        this.setState({ step: 0, running: true });
+        this.t = setInterval(() => {
+          const s = this.state.step;
+          if (this.state.blk && s === 2) { clearInterval(this.t); this.setState({ running: false }); return; }
+          if (s >= 4) { clearInterval(this.t); this.setState({ running: false }); return; }
+          this.setState({ step: s + 1 });
+        }, 1200);
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

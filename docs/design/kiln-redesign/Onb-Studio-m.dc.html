@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln setup — profile and storage (mobile)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.input{height:46px;font-size:15px}
+</style>
+</helmet>
+<div class="k ph-onb" style="height: 1300px">
+  <div class="top">
+    <div class="row sb"><a class="btn icon" href="Onb-Start-m.dc.html" aria-label="Back" style="width: 40px; height: 40px"><svg class="ic" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"></path></svg></a><span class="mono xs t3">Studio · 1 of 10</span><a class="xs" href="Onb-Start-m.dc.html">5 blockers</a></div>
+    <div class="segbar"><span class="c"></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span class="o"></span><span></span></div>
+  </div>
+  <div class="body">
+    <h1 class="ob-h" style="font-size: 24px">You and where the files go</h1>
+    <div class="field"><label for="nm">Your name</label><input id="nm" class="input" value="Sahil"></div>
+    <div class="field"><label for="tz">Timezone</label><select id="tz" class="input"><option>Asia/Kolkata · IST</option></select></div>
+    <div class="field"><label for="fx">1 USD in INR</label><input id="fx" class="input mono" value="88.00" inputmode="decimal"><span class="xs t3">Turns dollar prices into ₹ estimates.</span></div>
+    <div class="row sb" style="margin-top: 8px"><span class="h3">Storage · Supabase</span><span class="pill s-live">verified</span></div>
+    <div class="env"><span class="envdot"></span><div class="col" style="gap: 2px; min-width: 0"><span class="var">SUPABASE_URL</span><span class="sub">found · …supabase.co</span></div><span></span></div>
+    <div class="env"><span class="envdot"></span><div class="col" style="gap: 2px; min-width: 0"><span class="var" style="overflow: hidden; text-overflow: ellipsis">SUPABASE_SERVICE_ROLE_KEY</span><span class="sub">found · <span class="sec">••••3kQe</span></span></div><span></span></div>
+    <div class="field"><label for="bk">Media bucket</label><input id="bk" class="input mono" value="media"></div>
+    <div class="row sm" style="gap: 8px; color: var(--live)"><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>Test file written and deleted · 318 ms</div>
+  </div>
+  <div class="act"><button class="btn lg" type="button">Save and test</button><a class="btn lg pri" href="Onb-Models-m.dc.html" style="flex: 1">Next</a></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1300}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

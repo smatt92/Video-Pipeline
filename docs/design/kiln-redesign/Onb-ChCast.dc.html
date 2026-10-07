@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln setup — cast and voices</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:oklch(0.150 0.006 70)}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.cr{display:grid;grid-template-columns:40px 1fr auto;gap:12px;align-items:center;padding:8px 10px;border-radius:12px;border:1px solid transparent;background:transparent;color:var(--t1);font:inherit;text-align:left;cursor:pointer;width:100%}
+.cr:hover{background:var(--s2)}
+.cr.on{background:var(--s2);border-color:var(--b2)}
+.aud{display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center;padding:12px;border-radius:12px;border:1px solid var(--b2);background:var(--s1)}
+.aud.on{border-color:oklch(0.79 0.12 182 / .7);box-shadow:0 0 0 3px oklch(0.79 0.12 182 / .12)}
+.wv{display:flex;align-items:center;gap:2px;height:20px}
+.wv i{width:3px;border-radius:2px;background:var(--s3);height:30%}
+.wv.on i{background:var(--c);animation:kw .9s ease-in-out infinite}
+.wv.on i:nth-child(2n){animation-delay:.15s}.wv.on i:nth-child(3n){animation-delay:.3s}
+@keyframes kw{0%,100%{height:25%}50%{height:95%}}
+.pb{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--b2);background:var(--s2);color:var(--t1);cursor:pointer}
+.pb.on{background:var(--ac);color:var(--ac-ink);border-color:transparent}
+</style>
+</helmet>
+<div class="k ob">
+  <div class="ob-spine"><dc-import name="OnbSpine" step="6" hint-size="100%,1300px"></dc-import></div>
+  <main class="ob-main">
+    <div class="ob-col" style="max-width: 1000px">
+      <div class="col" style="gap: 8px"><span class="ob-step">Channel · step 6 of 10 · Bureau of Reality</span><h1 class="ob-h">Cast and voices</h1><p class="t2">Each character gets an accent and one locked voice. Audition three presets, pick one, lock it. A locked voice is used for every line, every episode.</p></div>
+
+      <div class="split">
+        <section class="card" style="flex: 1 1 320px; padding: 8px; display: flex; flex-direction: column; gap: 2px">
+          <sc-for list="{{ cast }}" as="c" hint-placeholder-count="9">
+            <button class="{{ c.rcls }}" type="button" onClick="{{ c.sel }}">
+              <div class="{{ c.bust }}"><div class="gl"></div><div class="sh"></div><div class="cl"></div><div class="hd"></div></div>
+              <span class="col" style="gap: 1px"><span style="font-weight: 500">{{ c.name }}</span><span class="xs t3">{{ c.role }}</span></span>
+              <span class="{{ c.pcls }}">{{ c.ptxt }}</span>
+            </button>
+          </sc-for>
+          <button class="btn ghost" type="button" style="justify-content: flex-start; margin-top: 4px"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg>Add character</button>
+        </section>
+
+        <section class="card card-b" style="flex: 999 1 420px; display: flex; flex-direction: column; gap: 14px">
+          <div class="row" style="gap: 14px; flex-wrap: nowrap">
+            <div class="{{ selBust }}"><div class="gl"></div><div class="sh"></div><div class="cl"></div><div class="hd"></div></div>
+            <div class="col grow" style="gap: 6px"><span class="h2">{{ selName }}</span><div class="row" style="gap: 8px"><span class="xs t3">Accent</span><span style="width: 14px; height: 14px; border-radius: 50%; background: {{ selC }}; box-shadow: 0 0 0 1px rgba(242,239,232,.5)"></span><span class="mono xs t3">{{ selC }}</span></div></div>
+            <span class="{{ selPill }}">{{ selState }}</span>
+          </div>
+          <div class="inset" style="padding: 12px 14px"><span class="lbl">Audition line</span><p class="sm" style="margin-top: 4px">"{{ selLine }}"</p></div>
+          <div class="{{ selRow }}" style="display: flex; flex-direction: column; gap: 10px">
+            <sc-for list="{{ auds }}" as="a" hint-placeholder-count="3">
+              <div class="{{ a.cls }}">
+                <button class="{{ a.pcls }}" type="button" onClick="{{ a.play }}" aria-label="{{ a.aria }}"><svg class="ic" viewBox="0 0 24 24"><path d="{{ a.icon }}"></path></svg></button>
+                <div class="col" style="gap: 6px"><span style="font-weight: 500">{{ a.name }}</span><div class="{{ a.wv }}"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><span class="xs t3">{{ a.desc }}</span></div>
+                <button class="{{ a.kcls }}" type="button" onClick="{{ a.pick }}">{{ a.ktxt }}</button>
+              </div>
+            </sc-for>
+          </div>
+          <sc-if value="{{ needLock }}" hint-placeholder-val="{{ true }}"><div class="blocker"><svg class="ic" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg><p>{{ selName }}'s voice isn't locked, so their lines can't be recorded.</p><button class="btn sm pri" type="button" onClick="{{ lock }}">Lock voice</button></div></sc-if>
+          <sc-if value="{{ isLocked }}" hint-placeholder-val="{{ false }}"><div class="row sm" style="gap: 8px; color: var(--live)"><svg class="ic" viewBox="0 0 24 24"><path d="M6 11h12v9H6zM8 11V8a4 4 0 0 1 8 0v3"></path></svg>Locked. Changing it later needs the approver token and re-voices nothing already approved.</div></sc-if>
+        </section>
+      </div>
+
+      <div class="ob-foot">
+        <a class="btn ghost" href="Onb-ChBasics.dc.html">Back</a>
+        <span class="xs t3">{{ lockedCount }} of 9 voices locked · you can finish with only the cast your first week uses</span>
+        <span class="grow"></span>
+        <a class="btn pri" href="Onb-ChSchedule.dc.html">Next · Series &amp; slots</a>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1300}}'>
+class Component extends DCLogic {
+  constructor(p) {
+    super(p);
+    this.state = { sel: 'pip', playing: null, pick: { pip: 'B', marlo: 'A', iyer: 'C', nib: 'A' }, locked: { marlo: true, iyer: true, nib: true } };
+  }
+  renderVals() {
+    const C = [
+      ['host', 'Host · narrator', 'Cold opens, case-file reads', '#F2EFE8', 'bust sm bp c-nib', 'Case file opened. Reality, as filed.'],
+      ['pip', 'Pip', 'Intern · lead', '#22D3EE', 'bust sm bp pip c-pip', 'Welcome to the Bureau of Reality. Please don’t touch the gravity.'],
+      ['marlo', 'Marlo', 'Desk Four', '#F59E0B', 'bust sm bp c-marlo', 'Pip. Where is the Moon.'],
+      ['iyer', 'Mrs. Iyer', 'Chemistry Desk', '#E0409C', 'bust sm bp c-iyer', 'Every firework colour is a different metal, burning loud.'],
+      ['nib', 'Nib', 'The Archive', '#9CA3AF', 'bust sm bp c-nib', 'Case reopened.'],
+      ['kaz', 'Kaz', 'Myth Desk', '#FDBA4D', 'bust sm bp c-kaz', 'Ten heads, one king.'],
+      ['ohm', 'Director Ohm', 'Runs the Bureau', '#C9A227', 'bust sm bp ohm c-ohm', 'Light up a billion homes. Don’t blow a fuse.'],
+      ['box', 'Complaint Box', 'Viewer complaints', '#B7793F', 'bust sm bp box c-box', 'A viewer says their phone dies every winter.'],
+      ['aud', 'The Auditor', 'Fact checks', '#EF4444', 'bust sm bp aud c-aud', 'Source, please.']
+    ];
+    const st = this.state, sel = st.sel;
+    const stateOf = k => st.locked[k] ? 'locked' : st.pick[k] ? 'picked' : 'none';
+    const pc = { locked: 'pill s-live nodot', picked: 'pill s-blk nodot', none: 'pill s-draft nodot' };
+    const pt = { locked: 'locked', picked: 'not locked', none: 'no voice' };
+    const cur = C.find(c => c[0] === sel);
+    const s = stateOf(sel);
+    const A = [['A', 'Preset A', 'bright · quick · young'], ['B', 'Preset B', 'warm · mid · steady'], ['C', 'Preset C', 'dry · low · slow']];
+    return {
+      cast: C.map(([k, name, role, c, bust]) => ({ name, role, bust, rcls: 'cr' + (k === sel ? ' on' : ''), pcls: pc[stateOf(k)], ptxt: pt[stateOf(k)], sel: () => this.setState({ sel: k, playing: null }) })),
+      selName: cur[1], selC: cur[3], selBust: cur[4].replace('bust sm', 'bust md'), selLine: cur[5], selRow: cur[4].split(' ').pop(),
+      selPill: pc[s], selState: pt[s],
+      auds: A.map(([id, name, desc]) => {
+        const picked = st.pick[sel] === id;
+        const playing = st.playing === id;
+        return {
+          name, desc,
+          cls: 'aud' + (picked ? ' on' : ''),
+          pcls: 'pb' + (playing ? ' on' : ''),
+          icon: playing ? 'M8 5v14M16 5v14' : 'M7 5l12 7-12 7z',
+          aria: (playing ? 'Pause ' : 'Play ') + name,
+          wv: 'wv' + (playing ? ' on' : ''),
+          play: () => this.setState({ playing: playing ? null : id }),
+          kcls: 'btn sm' + (picked ? ' pri' : ''),
+          ktxt: picked ? (st.locked[sel] ? 'Locked' : 'Picked') : 'Pick',
+          pick: () => { if (st.locked[sel]) return; this.setState({ pick: { ...st.pick, [sel]: id } }); }
+        };
+      }),
+      needLock: s === 'picked', isLocked: s === 'locked',
+      lock: () => this.setState({ locked: { ...st.locked, [sel]: true } }),
+      lockedCount: Object.keys(st.locked).length
+    };
+  }
+}
+</script>
+</body>
+</html>

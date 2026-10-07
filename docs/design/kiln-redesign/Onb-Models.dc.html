@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln setup — writing and embeddings</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:oklch(0.150 0.006 70)}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+</style>
+</helmet>
+<div class="k ob">
+  <div class="ob-spine"><dc-import name="OnbSpine" step="2" hint-size="100%,1100px"></dc-import></div>
+  <main class="ob-main">
+    <div class="ob-col">
+      <div class="col" style="gap: 8px"><span class="ob-step">Studio · step 2 of 10</span><h1 class="ob-h">Writing and repetition checks</h1><p class="t2">Anthropic drafts briefs and scripts. Gemini embeddings stop the channel from repeating itself.</p></div>
+
+      <section class="card card-b col" style="gap: 14px">
+        <div class="row sb"><div class="col" style="gap: 2px"><span class="h3">Anthropic · writing model</span><span class="xs t3">Briefs, beat sheets, scripts, titles</span></div><span class="pill s-live">verified</span></div>
+        <div class="env"><span class="envdot"></span><div class="col" style="gap: 2px"><span class="var">ANTHROPIC_API_KEY</span><span class="sub">found in environment · <span class="sec">••••Q7c2</span> · tested 09:12 IST</span></div><button class="btn sm ghost" type="button">Test again</button></div>
+        <div class="grid ga-220">
+          <div class="field"><label for="wm">Writing model</label><select id="wm" class="input mono"><option>[pick from your account's models]</option></select><span class="xs t3">List comes from the key after a test.</span></div>
+          <div class="field"><label for="wt">Draft how far ahead</label><select id="wt" class="input"><option>7 days of slots</option><option>14 days</option></select></div>
+        </div>
+      </section>
+
+      <section class="card card-b col" style="gap: 14px; border-color: oklch(0.69 0.19 25 / .35)">
+        <div class="row sb"><div class="col" style="gap: 2px"><span class="h3">Gemini · embeddings</span><span class="xs t3">Compares each new brief with the last 90 days</span></div><span class="pill s-rev">unverified</span></div>
+        <div class="env warn"><span class="envdot"></span><div class="col" style="gap: 2px"><span class="var">GEMINI_API_KEY</span><span class="sub">found in environment · <span class="sec">••••m0Xa</span></span></div><span class="xs t3">test failed</span></div>
+        <div class="blocker"><svg class="ic" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg><p>Google rejected the key ending ••m0Xa because the Generative Language API isn't enabled for its project. <span>Enable it, then test again.</span></p><button class="btn sm" type="button">Test again</button></div>
+        <div class="field"><label>Flag briefs that are too close to an earlier one</label><div class="seg"><button type="button">Loose</button><button class="on" type="button">Normal</button><button type="button">Strict</button></div></div>
+        <p class="xs t3">Until Gemini is verified, repetition checks are off and every brief shows "Repetition — not checked".</p>
+      </section>
+
+      <div class="ob-foot">
+        <a class="btn ghost" href="Onb-Studio.dc.html">Back</a>
+        <span class="grow"></span>
+        <button class="btn" type="button">Save and test</button>
+        <a class="btn pri" href="Onb-Runway.dc.html">Next · Runway</a>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln setup — caps and trends</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:oklch(0.150 0.006 70)}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.cap{display:flex;flex-direction:column;gap:6px}
+.cap .in{display:flex;align-items:center;gap:8px;height:44px;padding:0 12px;border-radius:10px;border:1px solid var(--b2);background:var(--in)}
+.cap .in span{font:500 15px var(--mono);color:var(--t3)}
+.cap .in input{flex:1;min-width:0;border:0;background:transparent;color:var(--t1);font:500 18px var(--mono);outline:0}
+.tg{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 6px 0 10px;border-radius:8px;background:var(--s2);border:1px solid var(--b2);font:500 12.5px var(--mono)}
+.tg button{width:22px;height:22px;border-radius:6px;border:0;background:transparent;color:var(--t3);cursor:pointer}
+</style>
+</helmet>
+<div class="k ob">
+  <div class="ob-spine"><dc-import name="OnbSpine" step="8" hint-size="100%,1150px"></dc-import></div>
+  <main class="ob-main">
+    <div class="ob-col">
+      <div class="col" style="gap: 8px"><span class="ob-step">Channel · step 8 of 10 · Bureau of Reality</span><h1 class="ob-h">Spend caps and trend sources</h1><p class="t2">Kiln won't start a paid run without caps. When a cap is hit, runs pause and you get one push.</p></div>
+
+      <section class="card card-b col" style="gap: 16px">
+        <div class="row sb"><span class="h3">Caps · this channel only</span><span class="lock"><svg class="ic" viewBox="0 0 24 24" style="width: 12px; height: 12px"><path d="M6 11h12v9H6zM8 11V8a4 4 0 0 1 8 0v3"></path></svg>approver token to change later</span></div>
+        <div class="grid ga-160">
+          <div class="cap"><label class="xs t2" for="cd">Daily</label><div class="in"><span>₹</span><input id="cd" value="{{ d }}" onChange="{{ onD }}"></div></div>
+          <div class="cap"><label class="xs t2" for="cm">Monthly</label><div class="in"><span>₹</span><input id="cm" value="{{ m }}" onChange="{{ onM }}"></div></div>
+          <div class="cap"><label class="xs t2" for="cv">Per Short</label><div class="in"><span>₹</span><input id="cv" value="{{ v }}" onChange="{{ onV }}"></div></div>
+          <div class="cap"><label class="xs t2" for="cl">Long-form day</label><div class="in"><span>₹</span><input id="cl" value="1500"></div></div>
+        </div>
+        <div class="inset" style="padding: 12px 14px; display: flex; flex-direction: column; gap: 8px">
+          <div class="row sb sm"><span class="t2">One Short at today's rate card</span><span class="mono">₹9.13 – ₹9.40 <span class="basis est">estimate</span></span></div>
+          <div class="row sb sm"><span class="t2">Video clips (Runway)</span><span class="mono t3">— <span class="xs">rate missing</span></span></div>
+          <div class="row sb sm"><span class="t2">Daily cap × 31 days</span><span class="mono">₹{{ month31 }}</span></div>
+        </div>
+        <sc-if value="{{ over }}" hint-placeholder-val="{{ true }}"><div class="note"><svg class="ic" viewBox="0 0 24 24"><path d="M12 8v5M12 16h.01M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z"></path></svg><span>Your daily cap allows more than your monthly cap over a full month. That's fine — Kiln stops at whichever cap is hit first.</span></div></sc-if>
+        <sc-if value="{{ bad }}" hint-placeholder-val="{{ false }}"><div class="blocker"><svg class="ic" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg><p>The per-Short cap is above the daily cap, so a single Short could use the whole day.</p></div></sc-if>
+      </section>
+
+      <section class="card card-b col" style="gap: 14px">
+        <div class="row sb"><span class="h3">Trend sources</span><span class="xs t3">suggest topics only — nothing is drafted without a slot</span></div>
+        <div class="col" style="gap: 8px"><span class="lbl">Subreddits</span>
+          <div class="row" style="gap: 6px"><span class="tg">r/askscience<button type="button" aria-label="Remove r/askscience">×</button></span><span class="tg">r/todayilearned<button type="button" aria-label="Remove r/todayilearned">×</button></span><span class="tg">r/space<button type="button" aria-label="Remove r/space">×</button></span><span class="tg">r/explainlikeimfive<button type="button" aria-label="Remove r/explainlikeimfive">×</button></span><label for="sr" style="position: absolute; left: -9999px">Add subreddit</label><input id="sr" class="input mono" placeholder="r/…" style="width: 160px; height: 30px"></div>
+        </div>
+        <div class="col" style="gap: 8px"><span class="lbl">YouTube categories</span>
+          <div class="row" style="gap: 6px"><span class="chip on">Science &amp; Technology</span><span class="chip on">Education</span><span class="chip">Entertainment</span><span class="chip">Comedy</span><span class="chip">Film &amp; Animation</span></div>
+        </div>
+      </section>
+
+      <div class="ob-foot">
+        <a class="btn ghost" href="Onb-ChSchedule.dc.html">Back</a>
+        <span class="grow"></span>
+        <button class="btn" type="button">Save</button>
+        <a class="btn pri" href="Onb-Connections.dc.html">Next · Optional connections</a>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1150}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { d: '600', m: '15000', v: '150' }; }
+  renderVals() {
+    const d = parseFloat(this.state.d) || 0, m = parseFloat(this.state.m) || 0, v = parseFloat(this.state.v) || 0;
+    return {
+      d: this.state.d, m: this.state.m, v: this.state.v,
+      onD: e => this.setState({ d: e.target.value }),
+      onM: e => this.setState({ m: e.target.value }),
+      onV: e => this.setState({ v: e.target.value }),
+      month31: (d * 31).toLocaleString('en-IN'),
+      over: d * 31 > m, bad: v > d
+    };
+  }
+}
+</script>
+</body>
+</html>

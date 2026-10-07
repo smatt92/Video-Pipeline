@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln setup — first episode</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:oklch(0.150 0.006 70)}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.door-glow{filter:drop-shadow(0 0 8px oklch(0.83 0.12 182 / .9))}
+.wt{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.wt button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 6px;border-radius:12px;border:1px solid var(--b1);background:var(--s1);color:var(--t2);font:500 12.5px var(--sans);cursor:pointer}
+.wt button.on{border-color:oklch(0.79 0.12 182 / .6);color:var(--t1);background:var(--s2)}
+</style>
+</helmet>
+<div class="k ob">
+  <div class="ob-spine"><dc-import name="OnbSpine" step="10" hint-size="100%,1250px"></dc-import></div>
+  <main class="ob-main">
+    <div class="ob-col" style="max-width: 900px">
+      <section class="card bp" style="border-color: rgba(242,239,232,.14); padding: 24px 28px; display: flex; flex-wrap: wrap; gap: 22px; align-items: center">
+        <svg viewBox="40 20 240 210" width="200" aria-hidden="true" style="flex: none">
+          <defs>
+            <linearGradient id="koB" x1="0" x2="1"><stop offset="0" class="k6"></stop><stop offset=".35" class="k1"></stop><stop offset=".7" class="k3"></stop><stop offset="1" class="k6"></stop></linearGradient>
+            <radialGradient id="koD" cx=".5" cy=".9" r=".9"><stop offset="0" style="stop-color: #E6FFFB"></stop><stop offset=".4" style="stop-color: #45DCC8"></stop><stop offset="1" style="stop-color: #0B5F58"></stop></radialGradient>
+          </defs>
+          <ellipse cx="160" cy="206" rx="110" ry="22" fill="#16273F" stroke="#F2EFE8" stroke-opacity=".5"></ellipse>
+          <ellipse cx="160" cy="212" rx="44" ry="8" fill="#45DCC8" opacity=".4" style="filter: blur(6px)"></ellipse>
+          <g style="animation: kfloat 5s ease-in-out infinite"><rect x="149" y="32" width="22" height="26" rx="3" fill="url(#koB)" stroke="#F2EFE8" stroke-width="1.4"></rect><path d="M92 204V124a68 68 0 0 1 136 0v80z" fill="url(#koB)" stroke="#F2EFE8" stroke-width="1.6"></path><path d="M140 204v-30a20 20 0 0 1 40 0v30z" fill="url(#koD)" stroke="#F2EFE8" stroke-width="1.4" class="door-glow"></path></g>
+          <path d="M246 196l18-6 14 6-18 6z" fill="#E6E1D8" stroke="#F2EFE8"></path><path d="M246 196v5l14 6v-5zM260 202v5l18-6v-5z" fill="#A9A194" stroke="#F2EFE8" stroke-width=".8"></path><path d="M246 196l18-6 14 6-18 6z" fill="none" stroke="#45DCC8" stroke-width="1.2"></path>
+        </svg>
+        <div class="col" style="gap: 8px; flex: 1 1 300px">
+          <span class="lbl" style="color: rgba(242,239,232,.7)">Step 10 of 10 · nothing blocks your first video</span>
+          <h1 class="ob-h" style="color: var(--chalk)">The kiln is hot. Fire your first episode.</h1>
+          <p class="sm" style="color: rgba(242,239,232,.8)">Four steps, all yours. Kiln never publishes — you upload and schedule.</p>
+        </div>
+      </section>
+
+      <div class="wt" role="tablist">
+        <sc-for list="{{ steps }}" as="s" hint-placeholder-count="4">
+          <button class="{{ s.bcls }}" type="button" role="tab" onClick="{{ s.go }}"><span class="{{ s.ccls }}"><svg viewBox="0 0 20 28" style="width: 18px; height: 26px"><path class="c" d="{{ s.d }}"></path><rect class="base" x="2" y="26" width="16" height="2" rx="1"></rect></svg></span><span>{{ s.label }}</span></button>
+        </sc-for>
+      </div>
+
+      <section class="card card-b col" style="gap: 14px; min-height: 300px">
+        <sc-if value="{{ s1 }}" hint-placeholder-val="{{ true }}">
+          <div class="col" style="gap: 12px">
+            <div class="row sb"><span class="h3"><span class="mono">S002</span> · Why fireworks have colours</span><span class="stag">Dussehra</span></div>
+            <button class="pick" type="button"><span class="key">A</span><span class="txt">Pip asks which metal makes the loud ones. Mrs. Iyer: "That's not a metal, Pip. That's you."</span></button>
+            <button class="pick on" type="button"><span class="key">B</span><span class="txt">Blue is the hardest colour to burn. Copper keeps calling in sick.</span></button>
+            <button class="pick" type="button"><span class="key">C</span><span class="txt">Nib stamps the file: "Celebration approved. Ears not consulted."</span></button>
+            <div class="row" style="gap: 10px"><button class="btn pri" type="button" onClick="{{ next }}">Approve with B</button><span class="xs t3">This is the real S002 brief. Approving it starts a real run.</span></div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ s2 }}" hint-placeholder-val="{{ false }}">
+          <div class="row" style="gap: 20px; align-items: flex-start; flex-wrap: wrap">
+            <div class="player bp" style="width: 180px; flex: none"><div class="hud"><span class="mono xs" style="color: rgba(242,239,232,.85)">S002 · 0:00</span></div><div class="cap" style="font-size: 12px">Every firework colour is a metal.</div><div class="ctl"><div class="scrub"><i style="width: 8%"></i></div></div></div>
+            <div class="col grow" style="gap: 10px; min-width: 240px">
+              <span class="h3">Watch it with sound on</span>
+              <div class="cones">
+                <div class="cone done"><svg viewBox="0 0 20 28"><path class="c" d="M6 26C7 18 8 12 11 9c2-2 5-2 6 0-2 1-4 3-3 17z"></path><rect class="base" x="2" y="26" width="16" height="2" rx="1"></rect></svg><span>script</span></div>
+                <div class="cone done"><svg viewBox="0 0 20 28"><path class="c" d="M6 26C7 18 8 12 11 9c2-2 5-2 6 0-2 1-4 3-3 17z"></path><rect class="base" x="2" y="26" width="16" height="2" rx="1"></rect></svg><span>voice</span></div>
+                <div class="cone done"><svg viewBox="0 0 20 28"><path class="c" d="M6 26C7 18 8 12 11 9c2-2 5-2 6 0-2 1-4 3-3 17z"></path><rect class="base" x="2" y="26" width="16" height="2" rx="1"></rect></svg><span>shots</span></div>
+                <div class="cone done"><svg viewBox="0 0 20 28"><path class="c" d="M6 26C7 18 8 12 11 9c2-2 5-2 6 0-2 1-4 3-3 17z"></path><rect class="base" x="2" y="26" width="16" height="2" rx="1"></rect></svg><span>cut</span></div>
+              </div>
+              <span class="sm t2">QC checks loudness, captions and policy. You check whether it's funny and true.</span>
+              <button class="btn pri" type="button" onClick="{{ next }}" style="align-self: flex-start">I watched it</button>
+            </div>
+          </div>
+        </sc-if>
+        <sc-if value="{{ s3 }}" hint-placeholder-val="{{ false }}">
+          <div class="col" style="gap: 12px">
+            <span class="h3">Approve the cut — or send it back</span>
+            <label class="row sm" style="gap: 10px"><input type="checkbox" checked> I listened to every line</label>
+            <div class="row" style="gap: 10px"><button class="btn pri" type="button" onClick="{{ next }}">Approve cut</button><button class="btn" type="button">Send back with a note</button></div>
+            <span class="xs t3">There's no skip. A cut you haven't approved can't reach Ready.</span>
+          </div>
+        </sc-if>
+        <sc-if value="{{ s4 }}" hint-placeholder-val="{{ false }}">
+          <div class="col" style="gap: 12px">
+            <span class="h3">Download the bundle, then schedule it yourself</span>
+            <div class="row" style="gap: 8px"><button class="btn" type="button">Video · MP4</button><button class="btn" type="button">Thumbnail · PNG</button><button class="btn" type="button">Captions · SRT</button><button class="btn pri" type="button">Whole bundle · ZIP</button></div>
+            <span class="sm t2">Upload to YouTube Studio for Tue 20 Oct 18:00 IST, paste the link back into Ready, and S002 moves to Scheduled.</span>
+          </div>
+        </sc-if>
+      </section>
+
+      <section class="card card-b col" style="gap: 10px">
+        <div class="row sb"><span class="h3">What S002 should cost</span><span class="basis est">estimate</span></div>
+        <div class="row sb sm"><span class="t2">Voice · 412 characters at ₹17.60 per 1k</span><span class="mono">₹7.25</span></div>
+        <div class="row sb sm"><span class="t2">Script and brief · Anthropic + Gemini</span><span class="mono">≈ ₹2.15</span></div>
+        <div class="row sb sm"><span class="t2">4 overlay shots · render worker</span><span class="mono t3">— not ledgered</span></div>
+        <div class="row sb sm"><span class="t2">2 character beats · routed to overlay</span><span class="mono t3">—</span></div>
+        <div class="hr"></div>
+        <div class="row sb"><span>Estimate</span><span class="mono" style="font-size: 18px">₹9.40</span></div>
+        <span class="xs t3">Measured cost shows "—" until vendors bill. Cap for this Short: ₹150.</span>
+      </section>
+
+      <div class="ob-foot"><a class="btn ghost" href="Onb-Connections.dc.html">Back</a><span class="grow"></span><a class="btn" href="Home.dc.html">Go to Home</a></div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1250}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { s: 1 }; }
+  renderVals() {
+    const U = 'M6 26L10 4l4 22z', B = 'M6 26C7 18 8 12 11 9c2-2 5-2 6 0-2 1-4 3-3 17z';
+    const L = ['Approve a brief', 'Watch the cut', 'Approve the cut', 'Download the bundle'];
+    const s = this.state.s;
+    return {
+      steps: L.map((label, i) => ({ label, bcls: i + 1 === s ? 'on' : '', ccls: 'cone ' + (i + 1 < s ? 'done' : i + 1 === s ? 'act' : ''), d: i + 1 < s ? B : U, go: () => this.setState({ s: i + 1 }) })),
+      s1: s === 1, s2: s === 2, s3: s === 3, s4: s === 4,
+      next: () => this.setState({ s: Math.min(4, s + 1) })
+    };
+  }
+}
+</script>
+</body>
+</html>

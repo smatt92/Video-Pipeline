@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln colour</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.rs{display:flex;flex-direction:column;gap:6px}
+.rs .sq{height:88px;border-radius:12px;display:flex;align-items:flex-end;padding:10px;font:500 11px var(--mono)}
+.tag{font:500 10px var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:4px}
+.tag.new{color:var(--ac);background:var(--ac-t)}.tag.keep{color:var(--t3);border:1px solid var(--b2)}
+</style>
+</helmet>
+<div class="k" style="width: 1440px; height: 1400px; padding: 56px 72px; display: flex; flex-direction: column; gap: 22px; overflow: hidden">
+  <div class="row sb"><div class="col" style="gap: 6px"><span class="lbl">Colour</span><h1 class="h1">Warm dark, one teal, honest states</h1></div><span class="mono xs t3">contrast measured against surface-0 #0D0B09</span></div>
+
+  <section class="card" style="padding: 22px; display: flex; flex-direction: column; gap: 14px">
+    <div class="row sb"><h2 class="h3">Teal ramp</h2><span class="tag new">new</span></div>
+    <div style="display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px">
+      <div class="rs"><div class="sq" style="background: var(--ac-100); color: var(--ac-900)">100</div><span class="mono xs t3">#D6F7F0</span><span class="xs t3">tint on paper</span></div>
+      <div class="rs"><div class="sq" style="background: var(--ac-200); color: var(--ac-900)">200</div><span class="mono xs t3">#AEEDE1</span><span class="xs t3">—</span></div>
+      <div class="rs"><div class="sq" style="background: var(--ac-300); color: var(--ac-900)">300 · hi</div><span class="mono xs t3">#82E2D2</span><span class="xs t3">hover on dark</span></div>
+      <div class="rs"><div class="sq" style="background: var(--ac-500); color: var(--ac-ink); box-shadow: 0 0 0 2px var(--s0), 0 0 0 3px var(--t1)">500 · accent</div><span class="mono xs t3">#4BD3C0 · 10.7:1</span><span class="xs t3">primary, focus — kept</span></div>
+      <div class="rs"><div class="sq" style="background: var(--ac-600); color: var(--ac-ink)">600 · lo</div><span class="mono xs t3">#2EB5A4</span><span class="xs t3">pressed</span></div>
+      <div class="rs"><div class="sq" style="background: var(--ac-700); color: #fff">700</div><span class="mono xs t3">#148D7F</span><span class="xs t3">—</span></div>
+      <div class="rs"><div class="sq" style="background: var(--ac-800); color: #fff">800 · on paper</div><span class="mono xs t3">#026359</span><span class="xs t3">links, light logo door</span></div>
+      <div class="rs"><div class="sq" style="background: var(--ac-900); color: var(--ac-100)">900 · ink</div><span class="mono xs t3">#003730</span><span class="xs t3">text on teal</span></div>
+    </div>
+  </section>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px">
+    <section class="card" style="padding: 22px; display: flex; flex-direction: column; gap: 12px">
+      <div class="row sb"><h2 class="h3">Dark set — the app</h2><span class="tag keep">kept</span></div>
+      <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px">
+        <div class="rs"><div class="sq" style="height: 60px; background: var(--in); border: 1px solid var(--b2)"></div><span class="mono xs t3">inset</span></div>
+        <div class="rs"><div class="sq" style="height: 60px; background: var(--s0); border: 1px solid var(--b2)"></div><span class="mono xs t3">s0</span></div>
+        <div class="rs"><div class="sq" style="height: 60px; background: var(--s1); border: 1px solid var(--b2)"></div><span class="mono xs t3">s1</span></div>
+        <div class="rs"><div class="sq" style="height: 60px; background: var(--s2); border: 1px solid var(--b2)"></div><span class="mono xs t3">s2</span></div>
+        <div class="rs"><div class="sq" style="height: 60px; background: var(--s3); border: 1px solid var(--b2)"></div><span class="mono xs t3">s3</span></div>
+      </div>
+      <table class="tbl" style="font-size: 12.5px">
+        <tbody>
+          <tr><td style="color: var(--t1)">Primary text</td><td class="mono r">#F5F3F0</td><td class="mono r">17.8:1</td></tr>
+          <tr><td style="color: var(--t2)">Secondary</td><td class="mono r">#C0BDB9</td><td class="mono r">10.5:1</td></tr>
+          <tr><td style="color: var(--t3)">Muted — labels, reasons</td><td class="mono r">#95928D</td><td class="mono r">6.3:1</td></tr>
+          <tr><td style="color: var(--t4)">Faint — separators only</td><td class="mono r">#6B6864</td><td class="mono r">3.6:1 · never body text</td></tr>
+        </tbody>
+      </table>
+    </section>
+    <section class="card" style="padding: 22px; display: flex; flex-direction: column; gap: 12px; background: var(--paper); border-color: var(--paper-b)">
+      <div class="row sb"><h2 class="h3" style="color: var(--ink)">Paper set — email, PDF, light logo</h2><span class="tag new">new</span></div>
+      <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px">
+        <div class="rs"><div class="sq" style="height: 60px; background: var(--paper); border: 1px solid var(--paper-b)"></div><span class="mono xs" style="color: var(--ink-2)">paper</span></div>
+        <div class="rs"><div class="sq" style="height: 60px; background: var(--paper-2)"></div><span class="mono xs" style="color: var(--ink-2)">paper-2</span></div>
+        <div class="rs"><div class="sq" style="height: 60px; background: var(--ink)"></div><span class="mono xs" style="color: var(--ink-2)">ink</span></div>
+        <div class="rs"><div class="sq" style="height: 60px; background: var(--ink-2)"></div><span class="mono xs" style="color: var(--ink-2)">ink-2</span></div>
+        <div class="rs"><div class="sq" style="height: 60px; background: var(--ac-on-paper)"></div><span class="mono xs" style="color: var(--ink-2)">teal on paper</span></div>
+      </div>
+      <table class="tbl" style="font-size: 12.5px; color: var(--ink)">
+        <tbody>
+          <tr><td style="border-color: var(--paper-b)">Ink on paper</td><td class="mono r" style="border-color: var(--paper-b)">#181512</td><td class="mono r" style="border-color: var(--paper-b)">16.8:1</td></tr>
+          <tr><td style="border-color: var(--paper-b); color: var(--ink-2)">Ink-2 on paper</td><td class="mono r" style="border-color: var(--paper-b)">#534F4B</td><td class="mono r" style="border-color: var(--paper-b)">7.6:1</td></tr>
+          <tr><td style="color: var(--ac-on-paper)">Teal on paper</td><td class="mono r">#007467</td><td class="mono r">5.3:1</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px">
+    <section class="card" style="padding: 22px; display: flex; flex-direction: column; gap: 12px">
+      <div class="row sb"><h2 class="h3">Pipeline states</h2><span class="tag keep">kept</span></div>
+      <table class="tbl" style="font-size: 12.5px">
+        <tbody>
+          <tr><td><span class="pill s-draft">Drafting</span></td><td class="mono r">0.74 0.01 80</td><td class="mono r">—</td></tr>
+          <tr><td><span class="pill s-gen">Generating</span></td><td class="mono r">#B296FF</td><td class="mono r">8.1:1</td></tr>
+          <tr><td><span class="pill s-rev">Review</span></td><td class="mono r">#F6B84D</td><td class="mono r">11.1:1</td></tr>
+          <tr><td><span class="pill s-blk">Blocked</span></td><td class="mono r">#FB605C</td><td class="mono r">6.5:1</td></tr>
+          <tr><td><span class="pill s-rdy">Ready</span></td><td class="mono r">#63B1F9</td><td class="mono r">8.6:1</td></tr>
+          <tr><td><span class="pill s-live">Live</span></td><td class="mono r">#60DB89</td><td class="mono r">11.2:1</td></tr>
+        </tbody>
+      </table>
+    </section>
+    <section class="card" style="padding: 22px; display: flex; flex-direction: column; gap: 14px">
+      <div class="row sb"><h2 class="h3">Who owns which colour</h2><span class="tag keep">kept</span></div>
+      <div class="row" style="gap: 10px; flex-wrap: nowrap"><span class="chm" style="width: 16px; height: 16px"></span><span class="sm grow"><b>Channel</b> — one accent each, drawn as a square. Bureau = teal.</span></div>
+      <div class="row" style="gap: 10px; flex-wrap: nowrap"><span class="dot" style="width: 12px; height: 12px; background: var(--gen)"></span><span class="sm grow"><b>State</b> — dots and pills only. Never decorative.</span></div>
+      <div class="row" style="gap: 10px; flex-wrap: nowrap"><span class="cast c-pip" style="padding-right: 3px"><i></i></span><span class="sm grow"><b>Cast</b> — spheres, busts and chips. Never on UI chrome.</span></div>
+      <div class="row" style="gap: 10px; flex-wrap: nowrap"><span style="width: 16px; height: 16px; border-radius: 4px; background: var(--navy); box-shadow: inset 0 0 0 1px rgba(242,239,232,.3)"></span><span class="sm grow"><b>Blueprint navy + chalk</b> — the world of the videos and 3D objects only.</span></div>
+      <div class="row" style="gap: 10px; flex-wrap: nowrap"><span style="width: 16px; height: 16px; border-radius: 4px; background: var(--ac)"></span><span class="sm grow"><b>Teal</b> — Kiln itself: primary action, focus, the kiln door.</span></div>
+      <p class="xs t3">If a new channel picks teal, Kiln's own accent doesn't change; that channel's square just shows teal.</p>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1400}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

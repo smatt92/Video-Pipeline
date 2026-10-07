@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Onboarding states (mobile)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.em{display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:12px;border:1px dashed var(--b2);font-size:14px;color:var(--t2)}
+.st .blocker{flex-direction:column;align-items:stretch;gap:10px}
+.st .blocker .btn{height:46px}
+</style>
+</helmet>
+<div class="k ph-onb st" style="height: 1800px">
+  <div class="top"><div class="row sb"><span class="h3">States · mobile</span><span class="mono xs t3">one per step type</span></div></div>
+  <div class="body" style="padding-bottom: 40px">
+    <span class="lbl">Key missing</span>
+    <div class="env miss"><span class="envdot"></span><div class="col" style="gap: 2px"><span class="var">RUNWAYML_API_SECRET</span><span class="sub">missing from environment</span></div><span></span></div>
+    <div class="em"><span>Add it where you host Kiln and redeploy. Kiln never asks you to paste a key here.</span><button class="btn full" type="button" style="height: 46px">I added it · Save and test</button></div>
+
+    <span class="lbl" style="margin-top: 8px">Verify failed</span>
+    <div class="blocker"><svg class="ic" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg><p>Anthropic rejected the key ending ••Q7c2. It may have been revoked.</p><button class="btn full" type="button">Test again</button></div>
+
+    <span class="lbl" style="margin-top: 8px">Rate missing</span>
+    <div class="blocker"><svg class="ic" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg><p>Runway video has no verified price, so the per-video cap can't be checked.</p><button class="btn full" type="button">Add price</button></div>
+
+    <span class="lbl" style="margin-top: 8px">Voice not locked</span>
+    <div class="blocker"><svg class="ic" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg><p>Pip's voice isn't locked, so his lines can't be recorded.</p><button class="btn full pri" type="button">Lock Preset B</button></div>
+
+    <span class="lbl" style="margin-top: 8px">Empty channel</span>
+    <div class="em"><svg viewBox="0 0 120 70" width="140" aria-hidden="true" style="align-self: center"><path d="M14 60h92M20 60V40h80v20M20 40l10-12h60l10 12" fill="none" stroke="#F2EFE8" stroke-opacity=".7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M44 54h12v-8H44zM64 54h12v-8H64z" fill="none" stroke="#F2EFE8" stroke-opacity=".4" stroke-width="1.5" stroke-dasharray="4 5"></path></svg><span>No channel yet. Name it and pick an accent — YouTube can come later.</span><button class="btn full pri" type="button" style="height: 46px">Add your first channel</button></div>
+
+    <span class="lbl" style="margin-top: 8px">Resume</span>
+    <div class="card card-b col" style="gap: 10px"><div class="row sb"><span class="h3">Welcome back</span><span class="pill s-gen">Resuming</span></div><span class="sm t2">You stopped at step 6, Cast & voices. 3 voices locked, Pip picked but not locked.</span><button class="btn full pri" type="button" style="height: 46px">Resume at Cast &amp; voices</button></div>
+
+    <span class="lbl" style="margin-top: 8px">Skipped optional</span>
+    <div class="em"><span>Phone alerts skipped. You'll find out when you open Kiln. Turn on any time in Settings.</span></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1800}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

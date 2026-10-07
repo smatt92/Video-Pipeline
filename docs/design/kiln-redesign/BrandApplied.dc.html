@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln brand applied</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.door-glow{filter:drop-shadow(0 0 8px oklch(0.83 0.12 182 / .9))}
+.cap{font:500 11px var(--mono);color:var(--t3);letter-spacing:.04em;text-transform:uppercase}
+</style>
+</helmet>
+<div class="k" style="width: 1440px; height: 1700px; padding: 56px 72px; display: grid; grid-template-columns: 248px minmax(0, 1fr); gap: 24px; align-content: start; overflow: hidden">
+  <div style="grid-column: span 2" class="row sb"><div class="col" style="gap: 6px"><span class="lbl">Brand, applied</span><h1 class="h1">Same product, now it has a face</h1></div><span class="mono xs t3">rail · splash · tile · blocker · bundle · email</span></div>
+
+  <div class="col" style="gap: 8px">
+    <span class="cap">Rail</span>
+    <div style="height: 760px; overflow: hidden; border-radius: 14px; border: 1px solid var(--b1)"><dc-import name="Rail" active="home" channel="bureau" hint-size="248px,760px"></dc-import></div>
+  </div>
+
+  <div class="col" style="gap: 8px">
+    <span class="cap">Splash · sign in</span>
+    <div class="bp" style="height: 760px; border-radius: 14px; border: 1px solid rgba(242,239,232,.14); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; position: relative; overflow: hidden">
+      <svg viewBox="40 20 240 210" width="320" role="img" aria-label="The Kiln object">
+        <defs>
+          <linearGradient id="koB" x1="0" x2="1"><stop offset="0" class="k6"></stop><stop offset=".35" class="k1"></stop><stop offset=".7" class="k3"></stop><stop offset="1" class="k6"></stop></linearGradient>
+          <radialGradient id="koD" cx=".5" cy=".9" r=".9"><stop offset="0" style="stop-color: #E6FFFB"></stop><stop offset=".4" style="stop-color: #45DCC8"></stop><stop offset="1" style="stop-color: #0B5F58"></stop></radialGradient>
+        </defs>
+        <ellipse cx="160" cy="206" rx="110" ry="24" fill="#16273F" stroke="#F2EFE8" stroke-opacity=".5"></ellipse>
+        <ellipse cx="160" cy="214" rx="44" ry="8" fill="#45DCC8" opacity=".35" style="filter: blur(6px)"></ellipse>
+        <g style="animation: kfloat 5s ease-in-out infinite">
+          <rect x="149" y="32" width="22" height="26" rx="3" fill="url(#koB)" stroke="#F2EFE8" stroke-width="1.4"></rect>
+          <path d="M92 204V124a68 68 0 0 1 136 0v80z" fill="url(#koB)" stroke="#F2EFE8" stroke-width="1.6"></path>
+          <path d="M96 160q64-12 128 0M104 112q56-12 112 0" fill="none" stroke="#F2EFE8" stroke-opacity=".3"></path>
+          <path d="M140 204v-30a20 20 0 0 1 40 0v30z" fill="url(#koD)" stroke="#F2EFE8" stroke-width="1.4" class="door-glow"></path>
+        </g>
+      </svg>
+      <div class="lockup" style="font-size: 44px"><svg class="kmark" viewBox="0 0 32 32" width="44" height="44" aria-hidden="true"><path class="arch" d="M5 29V15a11 11 0 0 1 22 0v14z"></path><path class="door" d="M12.5 29v-6.5a3.5 3.5 0 0 1 7 0V29z"></path></svg><span class="wm" style="color: var(--chalk)">k<span class="i">ı</span>ln</span></div>
+      <span style="color: rgba(242,239,232,.75)">Private studio. One operator.</span>
+      <button class="btn pri lg" type="button" style="min-width: 300px"><svg class="ic" viewBox="0 0 24 24"><path d="M15 7a4 4 0 1 1-3.5 6L4 20.5V17h3v-3h3l1.5-1.5A4 4 0 0 1 15 7zM16 9.5h.01"></path></svg>Sign in with passkey</button>
+      <span class="mono xs" style="color: rgba(242,239,232,.5); position: absolute; bottom: 20px">kiln · v2 · 1 channel connected</span>
+    </div>
+  </div>
+
+  <div style="grid-column: span 2; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px">
+    <div class="col" style="gap: 8px">
+      <span class="cap">Stat tile · firing</span>
+      <div class="card tile" style="gap: 14px">
+        <div class="row sb"><span class="lbl">S001 · run</span><span class="pill s-gen">Generating</span></div>
+        <div class="cones">
+          <div class="cone done"><svg viewBox="0 0 20 28"><path class="c" d="M6 26C7 18 8 12 11 9c2-2 5-2 6 0-2 1-4 3-3 17z"></path><rect class="base" x="2" y="26" width="16" height="2" rx="1"></rect></svg><span>script</span></div>
+          <div class="cone done"><svg viewBox="0 0 20 28"><path class="c" d="M6 26C7 18 8 12 11 9c2-2 5-2 6 0-2 1-4 3-3 17z"></path><rect class="base" x="2" y="26" width="16" height="2" rx="1"></rect></svg><span>voice</span></div>
+          <div class="cone act"><svg viewBox="0 0 20 28"><path class="c" d="M6 26L10 4l4 22z"></path><rect class="base" x="2" y="26" width="16" height="2" rx="1"></rect></svg><span>shots</span></div>
+          <div class="cone"><svg viewBox="0 0 20 28"><path class="c" d="M6 26L10 4l4 22z"></path><rect class="base" x="2" y="26" width="16" height="2" rx="1"></rect></svg><span>cut</span></div>
+          <span class="mono" style="margin-left: auto; font-size: 22px">3<span class="t3">/7</span></span>
+        </div>
+        <div class="row sb xs"><span class="t3">shots rendered</span><span class="mono">₹8.89 <span class="basis est">est</span></span></div>
+      </div>
+    </div>
+    <div class="col" style="gap: 8px">
+      <span class="cap">Blocker</span>
+      <div class="card card-b col" style="gap: 12px">
+        <div class="row" style="gap: 12px; flex-wrap: nowrap; align-items: flex-start">
+          <div class="cone blk"><svg viewBox="0 0 20 28"><path class="c" d="M5 26c1-4 5-6 11-5 2 .5 2 2 0 2l-2 3z"></path><rect class="base" x="2" y="26" width="16" height="2" rx="1"></rect></svg></div>
+          <div class="col" style="gap: 4px"><span class="mono xs t3">S003 · scripting</span><span>The approved punchline is not in the script.</span></div>
+        </div>
+        <button class="btn full" type="button">Regenerate script</button>
+      </div>
+    </div>
+    <div class="col" style="gap: 8px">
+      <span class="cap">Publish bundle</span>
+      <div class="card card-b col" style="gap: 12px">
+        <div class="row sb"><span class="row" style="gap: 8px"><span class="chm"></span><span class="mono" style="font-weight: 600">S001</span></span><span class="pill s-rdy">Ready</span></div>
+        <span>What if the Moon vanished?</span>
+        <div class="row" style="gap: 6px"><span class="chip">#Shorts</span><span class="chip">#Moon</span><span class="chip">#BureauOfReality</span></div>
+        <div class="row" style="gap: 8px"><button class="btn sm" type="button">Copy all</button><button class="btn sm" type="button">Bundle · ZIP</button><button class="btn sm pri" type="button" disabled>Mark scheduled</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="grid-column: span 2; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px">
+    <div class="col" style="gap: 8px">
+      <span class="cap">Email · paper set</span>
+      <div style="background: var(--paper-2); border-radius: 14px; padding: 28px; display: flex; justify-content: center">
+        <div style="width: 100%; max-width: 520px; background: var(--paper); border: 1px solid var(--paper-b); border-radius: 12px; padding: 28px; display: flex; flex-direction: column; gap: 16px; color: var(--ink)">
+          <div class="row sb"><div class="lockup" style="font-size: 22px"><svg class="kmark light" viewBox="0 0 32 32" width="22" height="22" aria-hidden="true"><path class="arch" d="M5 29V15a11 11 0 0 1 22 0v14z"></path><path class="door" d="M12.5 29v-6.5a3.5 3.5 0 0 1 7 0V29z"></path></svg><span class="wm light">k<span class="i">ı</span>ln</span></div><span class="mono xs" style="color: var(--ink-2)">Bureau of Reality</span></div>
+          <span style="font-size: 22px; font-weight: 600; letter-spacing: -0.02em">S002 brief is ready — pick a punchline.</span>
+          <span class="sm" style="color: var(--ink-2)">Why fireworks have colours · Tue 20 Oct · 18:00 IST · Desk Tour. Nothing renders until you approve.</span>
+          <div style="border: 1px solid var(--paper-b); border-radius: 8px; padding: 12px 14px; display: flex; justify-content: space-between; font-size: 13px"><span style="color: var(--ink-2)">Estimate</span><span class="mono">₹9.40 · estimate</span></div>
+          <a href="#approve" style="align-self: flex-start; background: var(--ac-800); color: #fff; text-decoration: none; padding: 12px 18px; border-radius: 9px; font-weight: 500">Open brief</a>
+          <span class="xs" style="color: var(--ink-2)">Sent because a brief needs you. You get at most one email per brief.</span>
+        </div>
+      </div>
+    </div>
+    <div class="col" style="gap: 8px">
+      <span class="cap">Bundle cover · PDF</span>
+      <div style="background: var(--paper-2); border-radius: 14px; padding: 28px; display: flex; justify-content: center">
+        <div style="width: 330px; aspect-ratio: 210/297; background: var(--paper); border: 1px solid var(--paper-b); border-radius: 4px; padding: 26px; display: flex; flex-direction: column; gap: 12px; color: var(--ink); box-shadow: 0 8px 24px rgba(0,0,0,.12)">
+          <div class="lockup" style="font-size: 16px"><svg class="kmark light" viewBox="0 0 32 32" width="16" height="16" aria-hidden="true"><path class="arch" d="M5 29V15a11 11 0 0 1 22 0v14z"></path><path class="door" d="M12.5 29v-6.5a3.5 3.5 0 0 1 7 0V29z"></path></svg><span class="wm light">k<span class="i">ı</span>ln</span></div>
+          <span class="mono xs" style="color: var(--ink-2); margin-top: 18px">PUBLISH BUNDLE · S001</span>
+          <span style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2">What if the Moon vanished?</span>
+          <div style="height: 1px; background: var(--paper-b)"></div>
+          <div class="kv xs" style="color: var(--ink)"><dt style="color: var(--ink-2)">Channel</dt><dd>Bureau of Reality</dd><dt style="color: var(--ink-2)">Slot</dt><dd class="mono">Mon 19 Oct · 18:00 IST</dd><dt style="color: var(--ink-2)">Length</dt><dd class="mono">51.1 s</dd><dt style="color: var(--ink-2)">Cost</dt><dd class="mono">₹8.89 estimate</dd><dt style="color: var(--ink-2)">Cut review</dt><dd>approved by Sahil</dd></div>
+          <span class="xs" style="color: var(--ink-2); margin-top: auto">Inside: video, thumbnail, captions, title, description, hashtags, pinned comment.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1700}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
