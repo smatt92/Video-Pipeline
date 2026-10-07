@@ -47,7 +47,7 @@ export function Fork({ signedIn }: { signedIn: boolean }) {
   return (
     <div className="mx-auto w-full max-w-[760px] px-6 py-10">
       <h1 className="text-xl font-medium tracking-tight">That is Kiln.</h1>
-      <p className="mt-2 max-w-[58ch] text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+      <p className="mt-2 max-w-[58ch] text-sm leading-relaxed" style={{ color: 'var(--t3)' }}>
         {signedIn ? 'Two ways in.' : 'Sign in, then pick one of two ways in.'} Both open the
         app — the difference is only whether you connect your accounts now or later.
       </p>
@@ -77,7 +77,7 @@ export function Fork({ signedIn }: { signedIn: boolean }) {
 
       {/* Under both, not under Skip. Attaching it to one choice would make that the choice
           with a caveat, which is the asymmetry this screen is avoiding. */}
-      <p className="mt-8 max-w-[62ch] text-xs leading-relaxed" style={{ color: 'var(--text-faint)' }}>
+      <p className="mt-8 max-w-[62ch] text-xs leading-relaxed" style={{ color: 'var(--t3)' }}>
         You can change your mind at any point — setup lives in Settings, and a checklist in the
         sidebar picks up wherever you left it.
       </p>
@@ -115,27 +115,27 @@ function Choice({
       href={href}
       className="flex flex-col rounded-md border p-5 transition-colors"
       style={{
-        background: 'var(--surface-1)',
-        borderColor: 'var(--border-default)',
-        transitionDuration: 'var(--duration-fast)',
+        background: 'var(--s1)',
+        borderColor: 'var(--b2)',
+        transitionDuration: 'var(--d1)',
         minHeight: 'var(--hit-primary)',
       }}
     >
       <span className="text-md font-medium">{heading}</span>
       <span
         className="mt-1 font-mono text-2xs uppercase tracking-[0.09em]"
-        style={{ color: 'var(--text-faint)' }}
+        style={{ color: 'var(--t3)' }}
       >
         {time}
       </span>
 
-      <p className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+      <p className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--t2)' }}>
         {lead}
       </p>
-      <p className="mt-2 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+      <p className="mt-2 text-xs leading-relaxed" style={{ color: 'var(--t3)' }}>
         {body}
       </p>
-      <p className="mt-3 text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+      <p className="mt-3 text-xs leading-relaxed" style={{ color: 'var(--t2)' }}>
         {closing}
       </p>
     </Link>

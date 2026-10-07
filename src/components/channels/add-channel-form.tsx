@@ -5,7 +5,7 @@ import { useActionState } from 'react';
 import { addChannelAction, type AddChannelState } from '@/lib/channels/actions';
 
 const field = 'w-full rounded-sm border px-2 py-1 text-sm';
-const fieldStyle = { background: 'var(--surface-2)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' } as const;
+const fieldStyle = { background: 'var(--s2)', borderColor: 'var(--b2)', color: 'var(--t1)' } as const;
 
 export function AddChannelForm() {
   const [state, action, pending] = useActionState<AddChannelState, FormData>(addChannelAction, { status: 'idle' });
@@ -31,19 +31,19 @@ export function AddChannelForm() {
         Accent colour (optional — the host&apos;s accent)
         <input name="accent_hex" className={field} style={fieldStyle} placeholder="hex colour, six digits after the hash" />
       </label>
-      <fieldset className="grid gap-2 rounded-sm border p-3 text-sm" style={{ borderColor: 'var(--border-default)' }}>
-        <legend className="px-1 text-2xs" style={{ color: 'var(--text-muted)' }}>Platform accounts</legend>
+      <fieldset className="grid gap-2 rounded-sm border p-3 text-sm" style={{ borderColor: 'var(--b2)' }}>
+        <legend className="px-1 text-2xs" style={{ color: 'var(--t3)' }}>Platform accounts</legend>
         <label className="flex items-center gap-2"><input type="checkbox" name="targets" value="youtube" defaultChecked /> YouTube</label>
         <input name="youtube_channel_id" className={field} style={fieldStyle} placeholder="YouTube channel id (UC…)" />
         <label className="flex items-center gap-2"><input type="checkbox" name="targets" value="instagram" defaultChecked /> Instagram (Reels, manual posting)</label>
         <input name="instagram_account_id" className={field} style={fieldStyle} placeholder="Instagram professional account id (digits)" />
         <input name="instagram_handle" className={field} style={fieldStyle} placeholder="@instagram_handle" />
       </fieldset>
-      <button type="submit" disabled={pending} className="justify-self-start rounded-sm border px-3 py-1 text-sm" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-primary)' }}>
+      <button type="submit" disabled={pending} className="justify-self-start rounded-sm border px-3 py-1 text-sm" style={{ borderColor: 'var(--b3)', color: 'var(--t1)' }}>
         {pending ? 'Adding…' : 'Add channel'}
       </button>
       {state.status !== 'idle' && (
-        <p className="text-sm" style={{ color: state.status === 'ok' ? 'var(--text-secondary)' : 'var(--danger)' }}>{state.message}</p>
+        <p className="text-sm" style={{ color: state.status === 'ok' ? 'var(--t2)' : 'var(--blk-text)' }}>{state.message}</p>
       )}
     </form>
   );

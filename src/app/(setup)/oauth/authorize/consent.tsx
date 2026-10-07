@@ -10,6 +10,7 @@ import { DOORS, originFromHeaders, type McpDoor } from '@/lib/oauth/policy';
 import { AUTHORIZE_PARAM_NAMES, authorizeParamsFrom, checkAuthorize } from '@/lib/oauth/flow';
 
 import { decideAgentAction, decideOwnerAction } from './actions';
+import { Lockup } from '@/components/ui/logo';
 
 /**
  * The consent screen for a Claude connector (decision 0016).
@@ -40,9 +41,8 @@ const SCOPE_COPY: Record<'approver' | 'agent', { title: string; body: string }> 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[480px] flex-col justify-center px-6 py-12">
-      <div className="mb-7 flex items-center gap-2">
-        <span aria-hidden className="size-[7px] rounded-full" style={{ background: 'var(--brand-mark)' }} />
-        <span className="text-sm font-medium tracking-tight">Kiln</span>
+      <div className="mb-7">
+        <Lockup fontSize={18} />
       </div>
       {children}
     </div>
@@ -53,10 +53,10 @@ function Refusal({ title, detail }: { title: string; detail: string }) {
   return (
     <Shell>
       <h1 className="mb-2 text-xl font-medium tracking-tight">{title}</h1>
-      <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+      <p className="text-sm leading-relaxed" style={{ color: 'var(--t2)' }}>
         {detail}
       </p>
-      <p className="mt-4 text-xs" style={{ color: 'var(--text-faint)' }}>
+      <p className="mt-4 text-xs" style={{ color: 'var(--t3)' }}>
         Nothing was sent to the client. Close this tab and try connecting again from Claude.
       </p>
     </Shell>
@@ -111,24 +111,24 @@ export async function ConsentPage({
   return (
     <Shell>
       <h1 className="mb-2 text-xl font-medium tracking-tight">Connect {client.clientName} to Kiln?</h1>
-      <p className="mb-6 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+      <p className="mb-6 text-sm leading-relaxed" style={{ color: 'var(--t2)' }}>
         It will be able to use Kiln&apos;s Bureau tools as you, with the scope you choose below. You can revoke it at
         any time on Settings → MCP tokens.
       </p>
 
       <dl
         className="mb-6 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 rounded-sm border px-3 py-3 text-xs"
-        style={{ borderColor: 'var(--border-subtle)', background: 'var(--surface-inset)' }}
+        style={{ borderColor: 'var(--b1)', background: 'var(--in)' }}
       >
-        <dt style={{ color: 'var(--text-muted)' }}>Client</dt>
+        <dt style={{ color: 'var(--t3)' }}>Client</dt>
         <dd className="break-all">{client.clientName}</dd>
-        <dt style={{ color: 'var(--text-muted)' }}>Client ID</dt>
+        <dt style={{ color: 'var(--t3)' }}>Client ID</dt>
         <dd className="break-all font-mono">{client.clientId}</dd>
-        <dt style={{ color: 'var(--text-muted)' }}>Sends you back to</dt>
+        <dt style={{ color: 'var(--t3)' }}>Sends you back to</dt>
         <dd className="break-all font-mono">{redirectUri}</dd>
-        <dt style={{ color: 'var(--text-muted)' }}>Signed in as</dt>
+        <dt style={{ color: 'var(--t3)' }}>Signed in as</dt>
         <dd className="break-all">{user.email}</dd>
-        <dt style={{ color: 'var(--text-muted)' }}>Channel</dt>
+        <dt style={{ color: 'var(--t3)' }}>Channel</dt>
         <dd className="break-all">
           {channel ? `${channel.name}${channel.handle ? ` (${channel.handle})` : ''} — the active channel; switch it in Kiln's sidebar to connect another` : 'none — add a channel in Kiln first'}
         </dd>
@@ -146,10 +146,10 @@ export async function ConsentPage({
           <div className="flex flex-col gap-2">
             <p className="text-sm font-medium">Scope: {SCOPE_COPY.agent.title}</p>
             <input type="hidden" name="grant_scope" value="agent" />
-            <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+            <p className="text-xs leading-relaxed" style={{ color: 'var(--t3)' }}>
               {SCOPE_COPY.agent.body}
             </p>
-            <p className="text-xs leading-relaxed" style={{ color: 'var(--text-faint)' }}>
+            <p className="text-xs leading-relaxed" style={{ color: 'var(--t3)' }}>
               This is the agent connector ({DOORS.agent.mcpPath}). It can only ever be agent — this is the one your
               Claude scheduled tasks use. Your own approver connection is a separate connector on{' '}
               {DOORS.owner.mcpPath}.
@@ -163,12 +163,12 @@ export async function ConsentPage({
                 <label
                   key={s}
                   className="flex cursor-pointer gap-3 rounded-sm border px-3 py-2"
-                  style={{ borderColor: 'var(--border-subtle)' }}
+                  style={{ borderColor: 'var(--b1)' }}
                 >
                   <input type="radio" name="grant_scope" value={s} defaultChecked={s === suggestedScope} className="mt-1" />
                   <span>
                     <span className="block text-sm font-medium">{SCOPE_COPY[s].title}</span>
-                    <span className="block text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                    <span className="block text-xs leading-relaxed" style={{ color: 'var(--t3)' }}>
                       {SCOPE_COPY[s].body}
                     </span>
                   </span>
@@ -176,7 +176,7 @@ export async function ConsentPage({
               ))}
             </fieldset>
 
-            <p className="text-xs leading-relaxed" style={{ color: 'var(--text-faint)' }}>
+            <p className="text-xs leading-relaxed" style={{ color: 'var(--t3)' }}>
               A connector on Claude is visible to every scheduled task on your Claude account. For the scheduled tasks,
               add a separate connector on {DOORS.agent.mcpPath} — it can only ever be agent.
             </p>
@@ -189,7 +189,7 @@ export async function ConsentPage({
             name="decision"
             value="approve"
             className="rounded-sm px-4 py-2 text-sm font-medium"
-            style={{ background: 'var(--accent)', color: 'var(--text-on-accent)' }}
+            style={{ background: 'var(--ac)', color: 'var(--ac-ink)' }}
           >
             Approve
           </button>
@@ -198,7 +198,7 @@ export async function ConsentPage({
             name="decision"
             value="deny"
             className="rounded-sm border px-4 py-2 text-sm"
-            style={{ borderColor: 'var(--border-strong)' }}
+            style={{ borderColor: 'var(--b3)' }}
           >
             Deny
           </button>

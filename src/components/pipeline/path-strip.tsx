@@ -22,11 +22,11 @@ import { PATH, type PathPosition, type StageState } from '@/lib/pipeline/path';
  */
 
 const STATE_STYLE: Record<StageState, { dot: string; text: string }> = {
-  done: { dot: 'var(--state-live)', text: 'var(--text-muted)' },
-  current: { dot: 'var(--accent)', text: 'var(--text-primary)' },
-  blocked: { dot: 'var(--state-blocked)', text: 'var(--text-primary)' },
-  waiting_on_you: { dot: 'var(--state-review)', text: 'var(--text-primary)' },
-  ahead: { dot: 'var(--border-strong)', text: 'var(--text-faint)' },
+  done: { dot: 'var(--live)', text: 'var(--t3)' },
+  current: { dot: 'var(--ac)', text: 'var(--t1)' },
+  blocked: { dot: 'var(--blk)', text: 'var(--t1)' },
+  waiting_on_you: { dot: 'var(--rev)', text: 'var(--t1)' },
+  ahead: { dot: 'var(--b3)', text: 'var(--t3)' },
 };
 
 export function PathStrip({ position }: { position: PathPosition }) {
@@ -35,11 +35,11 @@ export function PathStrip({ position }: { position: PathPosition }) {
   return (
     <div
       className="rounded-md border px-4 py-3"
-      style={{ borderColor: 'var(--border-subtle)', background: 'var(--surface-1)' }}
+      style={{ borderColor: 'var(--b1)', background: 'var(--s1)' }}
     >
       <div className="mb-2 flex items-baseline gap-3">
         <span className="truncate text-sm">{position.title}</span>
-        <span className="text-2xs" style={{ color: 'var(--text-faint)' }}>
+        <span className="text-2xs" style={{ color: 'var(--t3)' }}>
           {position.awaitingPilotApproval
             ? 'waiting on you'
             : position.blocker
@@ -70,7 +70,7 @@ export function PathStrip({ position }: { position: PathPosition }) {
                       color: style.text,
                       // The counterintuitive step is marked in the path itself rather than
                       // in prose nobody reads: voice before videos is the thing to notice.
-                      borderBottom: stage.whyHere ? '1px dotted var(--border-strong)' : undefined,
+                      borderBottom: stage.whyHere ? '1px dotted var(--b3)' : undefined,
                     }}
                   >
                     {stage.label}
@@ -78,7 +78,7 @@ export function PathStrip({ position }: { position: PathPosition }) {
                 </span>
               </Hint>
               {i < PATH.length - 1 && (
-                <span className="mx-0.5 text-2xs" style={{ color: 'var(--border-strong)' }}>
+                <span className="mx-0.5 text-2xs" style={{ color: 'var(--b3)' }}>
                   ›
                 </span>
               )}
@@ -91,7 +91,7 @@ export function PathStrip({ position }: { position: PathPosition }) {
         <p
           className="mt-2 text-2xs"
           style={{
-            color: position.awaitingPilotApproval ? 'var(--state-review)' : 'var(--state-blocked)',
+            color: position.awaitingPilotApproval ? 'var(--rev)' : 'var(--blk)',
           }}
         >
           {position.blocker}

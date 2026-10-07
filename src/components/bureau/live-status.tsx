@@ -45,11 +45,11 @@ export function LiveStatus({ status, detail, updatedAt }: { status: string; deta
     <div className="mt-1 flex flex-wrap items-center gap-2 text-2xs" role="status" aria-live="polite">
       <span
         className="inline-block h-2 w-2 rounded-full motion-safe:animate-pulse"
-        style={{ background: stale ? 'var(--state-review)' : 'var(--state-generating)' }}
+        style={{ background: stale ? 'var(--rev)' : 'var(--gen)' }}
         aria-hidden
       />
-      <span style={{ color: 'var(--text-secondary)' }}>{detail ?? `${status}…`}</span>
-      <span className="font-mono" style={{ color: stale ? 'var(--state-review)' : 'var(--text-muted)' }}>
+      <span style={{ color: 'var(--t2)' }}>{detail ?? `${status}…`}</span>
+      <span className="font-mono" style={{ color: stale ? 'var(--rev)' : 'var(--t3)' }}>
         last update {ago(updatedAt, now)}
         {stale ? ' — no progress for 10+ min; after 30 the Board offers Restart run' : ''}
       </span>

@@ -17,11 +17,11 @@ import { serverClient } from '@/lib/db/server';
 export const dynamic = 'force-dynamic';
 
 const STATE_TOKEN: Record<string, string> = {
-  pending: 'var(--state-drafting)',
-  generating: 'var(--state-generating)',
-  ready: 'var(--state-live)',
-  failed: 'var(--state-blocked)',
-  reshoot: 'var(--state-review)',
+  pending: 'var(--draft)',
+  generating: 'var(--gen)',
+  ready: 'var(--live)',
+  failed: 'var(--blk)',
+  reshoot: 'var(--rev)',
 };
 
 export default async function ConceptPage({ params }: { params: Promise<{ id: string }> }) {
@@ -81,7 +81,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
 
       {!script ? (
         <Panel>
-          <p className="px-4 py-4 text-sm" style={{ color: 'var(--text-muted)' }}>
+          <p className="px-4 py-4 text-sm" style={{ color: 'var(--t3)' }}>
             No script yet. Stage 3 drafts one from this concept and its angle.
           </p>
         </Panel>
@@ -90,17 +90,17 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
           <Panel className="mb-6">
             <div
               className="flex flex-wrap items-baseline gap-3 border-b px-4 py-3"
-              style={{ borderColor: 'var(--border-subtle)' }}
+              style={{ borderColor: 'var(--b1)' }}
             >
               <span className="text-md font-medium">Script v{script.version}</span>
-              <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+              <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
                 {script.structure_hash.slice(0, 12)}…
               </span>
               <span
                 className="font-mono text-2xs"
                 style={{
                   color:
-                    script.human_edit_count > 0 ? 'var(--state-live)' : 'var(--state-review)',
+                    script.human_edit_count > 0 ? 'var(--live)' : 'var(--rev)',
                 }}
               >
                 {script.human_edit_count} human edit{script.human_edit_count === 1 ? '' : 's'}
@@ -113,10 +113,10 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
           <Panel>
             <div
               className="flex flex-wrap items-baseline gap-3 border-b px-4 py-3"
-              style={{ borderColor: 'var(--border-subtle)' }}
+              style={{ borderColor: 'var(--b1)' }}
             >
               <span className="text-md font-medium">Shots</span>
-              <span className="ml-auto font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+              <span className="ml-auto font-mono text-2xs" style={{ color: 'var(--t3)' }}>
                 {(generations ?? []).length === 0
                   ? '— no generations yet'
                   : anyUnpriced
@@ -126,7 +126,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
             </div>
 
             {(shots ?? []).length === 0 ? (
-              <p className="px-4 py-4 text-sm" style={{ color: 'var(--text-muted)' }}>
+              <p className="px-4 py-4 text-sm" style={{ color: 'var(--t3)' }}>
                 No shots yet. Stage 4 breaks the script into them.
               </p>
             ) : (
@@ -139,34 +139,34 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
                   <div
                     key={shot.id}
                     className="border-b px-4 py-3 last:border-b-0"
-                    style={{ borderColor: 'var(--border-subtle)' }}
+                    style={{ borderColor: 'var(--b1)' }}
                   >
                     <div className="flex flex-wrap items-baseline gap-2 text-xs">
                       <span
                         aria-hidden
                         className="inline-block size-[7px] shrink-0 rounded-full"
-                        style={{ background: STATE_TOKEN[shot.status] ?? 'var(--state-drafting)' }}
+                        style={{ background: STATE_TOKEN[shot.status] ?? 'var(--draft)' }}
                       />
-                      <span className="font-mono" style={{ color: 'var(--text-faint)' }}>
+                      <span className="font-mono" style={{ color: 'var(--t3)' }}>
                         {shot.idx} · {shot.shot_kind ?? 'no kind'} · {Number(shot.duration_s)}s
                       </span>
                       {/* An estimated duration is not the same as a measured one, and video
                           generated against a guess is what the audio-first ordering exists
                           to prevent. Labelled rather than rendered identically. */}
                       {estimated && (
-                        <span style={{ color: 'var(--state-review)' }}>estimated, not measured</span>
+                        <span style={{ color: 'var(--rev)' }}>estimated, not measured</span>
                       )}
-                      <span className="ml-auto font-mono" style={{ color: 'var(--text-faint)' }}>
+                      <span className="ml-auto font-mono" style={{ color: 'var(--t3)' }}>
                         {shot.status}
                       </span>
                     </div>
 
-                    <p className="mt-1 max-w-[80ch] text-xs" style={{ color: 'var(--text-secondary)' }}>
+                    <p className="mt-1 max-w-[80ch] text-xs" style={{ color: 'var(--t2)' }}>
                       {shot.description}
                     </p>
 
                     {!generatable && (
-                      <p className="mt-1 max-w-[80ch] text-2xs" style={{ color: 'var(--text-faint)' }}>
+                      <p className="mt-1 max-w-[80ch] text-2xs" style={{ color: 'var(--t3)' }}>
                         {shot.compile_note ?? 'Not compiled — no library recipe.'}
                       </p>
                     )}
@@ -175,7 +175,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
                       <p
                         key={g.id}
                         className="mt-1 font-mono text-2xs"
-                        style={{ color: 'var(--text-faint)' }}
+                        style={{ color: 'var(--t3)' }}
                       >
                         {g.kind} · {g.status}
                         {g.parent_generation_id ? ' · chained from a still' : ''}
@@ -199,7 +199,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
             )}
           </Panel>
 
-          <p className="mt-4 max-w-[80ch] text-xs leading-relaxed" style={{ color: 'var(--text-faint)' }}>
+          <p className="mt-4 max-w-[80ch] text-xs leading-relaxed" style={{ color: 'var(--t3)' }}>
             Regenerating a shot happens on its render, on the{' '}
             <Link href="/review" className="underline">
               Review

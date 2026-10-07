@@ -121,7 +121,7 @@ export function Waveform({ audioUrl, cues, currentTimeS, onSeek, shotBoundariesS
   if (!audioUrl) {
     return (
       <Shell>
-        <p className="px-3 py-4 text-xs" style={{ color: 'var(--text-muted)' }}>
+        <p className="px-3 py-4 text-xs" style={{ color: 'var(--t3)' }}>
           No voiceover asset. Shot durations on this script are the shotlist estimate rather
           than measured speech, so nothing here can say whether the cut is timed correctly —
           run stage 6 first.
@@ -149,7 +149,7 @@ export function Waveform({ audioUrl, cues, currentTimeS, onSeek, shotBoundariesS
                 style={{
                   left: `${(cue.startS / span) * 100}%`,
                   width: `${((cue.endS - cue.startS) / span) * 100}%`,
-                  borderColor: 'var(--border-strong)',
+                  borderColor: 'var(--b3)',
                   background:
                     i % 2 === 0 ? WAVEFORM_PAINT.regionEven : WAVEFORM_PAINT.regionOdd,
                 }}
@@ -164,7 +164,7 @@ export function Waveform({ audioUrl, cues, currentTimeS, onSeek, shotBoundariesS
               <div
                 key={t}
                 className="absolute top-0 h-full w-px"
-                style={{ left: `${(t / span) * 100}%`, background: 'var(--state-review)' }}
+                style={{ left: `${(t / span) * 100}%`, background: 'var(--rev)' }}
               />
             ))}
           </div>
@@ -172,16 +172,16 @@ export function Waveform({ audioUrl, cues, currentTimeS, onSeek, shotBoundariesS
       </div>
 
       <div className="flex items-baseline gap-3 px-3 pb-2 pt-1">
-        <span className="font-mono text-3xs" style={{ color: 'var(--text-faint)' }}>
+        <span className="font-mono text-3xs" style={{ color: 'var(--t3)' }}>
           {state === 'loading' ? 'loading…' : `${cues.length} caption regions`}
         </span>
         {state === 'ready' && (
-          <span className="font-mono text-3xs" style={{ color: 'var(--text-faint)' }}>
+          <span className="font-mono text-3xs" style={{ color: 'var(--t3)' }}>
             VO {durationS.toFixed(2)}s
           </span>
         )}
         {state === 'failed' && (
-          <span className="font-mono text-3xs" style={{ color: 'var(--state-blocked)' }}>
+          <span className="font-mono text-3xs" style={{ color: 'var(--blk)' }}>
             waveform failed — {error}
           </span>
         )}
@@ -194,7 +194,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div
       className="rounded-md border"
-      style={{ background: 'var(--surface-1)', borderColor: 'var(--border-subtle)' }}
+      style={{ background: 'var(--s1)', borderColor: 'var(--b1)' }}
     >
       {children}
     </div>

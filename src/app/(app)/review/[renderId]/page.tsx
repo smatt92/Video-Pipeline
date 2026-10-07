@@ -78,17 +78,17 @@ export default async function ReviewPage({ params }: { params: Promise<{ renderI
             <h2 className="truncate text-lg font-medium tracking-tight">
               {render.conceptTitle}
             </h2>
-            <span className="font-mono text-3xs uppercase tracking-[0.09em]" style={{ color: 'var(--text-faint)' }}>
+            <span className="font-mono text-3xs uppercase tracking-[0.09em]" style={{ color: 'var(--t3)' }}>
               {render.kind} · {render.variantLabel}
             </span>
           </div>
-          <p className="mt-1 font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+          <p className="mt-1 font-mono text-2xs" style={{ color: 'var(--t3)' }}>
             {render.width}×{render.height} · picture {timeline.pictureDurationS.toFixed(2)}s ·
             voice {timeline.voDurationS.toFixed(2)}s
             {render.durationS !== null && ` · rendered ${render.durationS.toFixed(2)}s`}
           </p>
         </div>
-        <Link href="/review" className="ml-auto shrink-0 text-xs" style={{ color: 'var(--text-muted)' }}>
+        <Link href="/review" className="ml-auto shrink-0 text-xs" style={{ color: 'var(--t3)' }}>
           ← queue
         </Link>
       </header>
@@ -101,7 +101,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ renderI
         Math.abs(render.durationS - timeline.pictureDurationS) > 0.5 && (
           <div
             className="mb-5 rounded-md border px-4 py-3"
-            style={{ background: 'var(--surface-1)', borderColor: 'var(--state-blocked)' }}
+            style={{ background: 'var(--s1)', borderColor: 'var(--blk)' }}
           >
             <p className="text-sm leading-relaxed">
               This render is {render.durationS.toFixed(2)}s but its shots now sum to{' '}
@@ -133,11 +133,11 @@ export default async function ReviewPage({ params }: { params: Promise<{ renderI
 
       {history.length > 1 && (
         <div className="mt-6">
-          <h3 className="mb-2 font-mono text-3xs uppercase tracking-[0.09em]" style={{ color: 'var(--text-faint)' }}>
+          <h3 className="mb-2 font-mono text-3xs uppercase tracking-[0.09em]" style={{ color: 'var(--t3)' }}>
             Earlier decisions
           </h3>
           {history.slice(1).map((h) => (
-            <div key={h.id} className="flex items-baseline gap-3 py-[3px] font-mono text-2xs" style={{ color: 'var(--text-muted)' }}>
+            <div key={h.id} className="flex items-baseline gap-3 py-[3px] font-mono text-2xs" style={{ color: 'var(--t3)' }}>
               <span>{h.createdAt.slice(0, 19).replace('T', ' ')}</span>
               <span>{h.decision}</span>
               {h.notes && <span className="truncate">{h.notes}</span>}
@@ -152,10 +152,10 @@ export default async function ReviewPage({ params }: { params: Promise<{ renderI
 function Broken({ headline, detail }: { headline: string; detail: string }) {
   return (
     <div className="mx-auto w-full max-w-[900px] px-6 py-8">
-      <p className="text-sm" style={{ color: 'var(--state-blocked)' }}>
+      <p className="text-sm" style={{ color: 'var(--blk)' }}>
         {headline}
       </p>
-      <p className="mt-1 font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+      <p className="mt-1 font-mono text-2xs" style={{ color: 'var(--t3)' }}>
         {detail}
       </p>
     </div>

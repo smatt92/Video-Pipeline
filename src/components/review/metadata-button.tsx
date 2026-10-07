@@ -43,7 +43,7 @@ export function MetadataButton({ renderId, prior }: { renderId: string; prior: M
       : `last one cost ₹${prior.lastCostInr.toFixed(2)}`;
 
   return (
-    <div className="border-t px-4 py-3" style={{ borderColor: 'var(--border-subtle)' }}>
+    <div className="border-t px-4 py-3" style={{ borderColor: 'var(--b1)' }}>
       <button
         type="button"
         disabled={pending || prior.refusal !== null}
@@ -58,7 +58,7 @@ export function MetadataButton({ renderId, prior }: { renderId: string; prior: M
           })
         }
         className="rounded-sm border px-3 py-[7px] text-sm disabled:opacity-40"
-        style={{ borderColor: 'var(--border-strong)' }}
+        style={{ borderColor: 'var(--b3)' }}
       >
         {/* Names the consequence, not the verb: what it produces, that it costs money, and
             what money looked like the last time. "Request metadata" said none of the three. */}
@@ -66,13 +66,13 @@ export function MetadataButton({ renderId, prior }: { renderId: string; prior: M
       </button>
 
       {prior.refusal !== null && (
-        <p className="mt-2 text-2xs" style={{ color: 'var(--state-blocked)' }}>
+        <p className="mt-2 text-2xs" style={{ color: 'var(--blk)' }}>
           {prior.refusal}
         </p>
       )}
 
       {result !== null && (
-        <p className="mt-2 text-2xs" style={{ color: 'var(--text-muted)' }}>
+        <p className="mt-2 text-2xs" style={{ color: 'var(--t3)' }}>
           {result}
         </p>
       )}
@@ -81,17 +81,17 @@ export function MetadataButton({ renderId, prior }: { renderId: string; prior: M
           looked for, and a sentence of reasoning in front of it buries the thing the
           operator opened the screen to see. */}
       {prior.lastAt === null ? (
-        <p className="mt-2 text-2xs" style={{ color: 'var(--text-faint)' }}>
+        <p className="mt-2 text-2xs" style={{ color: 'var(--t3)' }}>
           No metadata draft has ever been charged on this workspace, so there is no prior to
           show — that is unknown, not free.
         </p>
       ) : (
         <>
-          <p className="mt-2 text-2xs" style={{ color: 'var(--text-muted)' }}>
+          <p className="mt-2 text-2xs" style={{ color: 'var(--t3)' }}>
             Last drafted {prior.lastAt.slice(0, 10)}
             {prior.lastCostInr === null ? '.' : `, cost ₹${prior.lastCostInr.toFixed(2)}.`}
           </p>
-          <p className="text-2xs" style={{ color: 'var(--text-faint)' }}>
+          <p className="text-2xs" style={{ color: 'var(--t3)' }}>
             This is what the last draft cost, not a forecast — an LLM call is priced on
             tokens that don&rsquo;t exist until it returns.
           </p>

@@ -321,10 +321,10 @@ export function ReviewScreen(props: ReviewScreenProps) {
       <div className="flex min-w-0 flex-col gap-4">
         <div
           className="overflow-hidden rounded-md border"
-          style={{ background: VIDEO_PAINT.background, borderColor: 'var(--border-subtle)' }}
+          style={{ background: VIDEO_PAINT.background, borderColor: 'var(--b1)' }}
         >
           {localSpans.length === 0 ? (
-            <p className="px-4 py-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
+            <p className="px-4 py-10 text-center text-sm" style={{ color: 'var(--t3)' }}>
               This render&apos;s script has no shots, so there is nothing to play.
             </p>
           ) : (
@@ -391,7 +391,7 @@ export function ReviewScreen(props: ReviewScreenProps) {
         {message.status !== 'idle' && message.message && (
           <p
             className="text-xs leading-relaxed"
-            style={{ color: message.status === 'ok' ? 'var(--state-live)' : 'var(--state-blocked)' }}
+            style={{ color: message.status === 'ok' ? 'var(--live)' : 'var(--blk)' }}
           >
             {message.message}
           </p>
@@ -401,7 +401,7 @@ export function ReviewScreen(props: ReviewScreenProps) {
           type="button"
           onClick={() => setShowHelp((v) => !v)}
           className="self-start font-mono text-3xs uppercase tracking-[0.09em]"
-          style={{ color: 'var(--text-faint)' }}
+          style={{ color: 'var(--t3)' }}
         >
           {showHelp ? 'hide' : 'show'} keyboard map (?)
         </button>
@@ -440,11 +440,11 @@ function DecisionPanel({
   return (
     <div
       className="rounded-md border"
-      style={{ background: 'var(--surface-1)', borderColor: 'var(--border-subtle)' }}
+      style={{ background: 'var(--s1)', borderColor: 'var(--b1)' }}
     >
       <div
         className="border-b px-4 py-3 text-sm font-medium"
-        style={{ borderColor: 'var(--border-subtle)' }}
+        style={{ borderColor: 'var(--b1)' }}
       >
         Decision
       </div>
@@ -502,27 +502,27 @@ function DecisionPanel({
           placeholder="What you saw, and why. This is the editorial record."
           className="w-full resize-y rounded-sm border px-2 py-[7px] text-sm leading-relaxed outline-none"
           style={{
-            background: 'var(--surface-inset)',
-            borderColor: 'var(--border-subtle)',
-            color: 'var(--text-primary)',
+            background: 'var(--in)',
+            borderColor: 'var(--b1)',
+            color: 'var(--t1)',
           }}
         />
       </div>
 
       {dirty && (
-        <p className="px-4 pb-2 text-xs" style={{ color: 'var(--state-review)' }}>
+        <p className="px-4 pb-2 text-xs" style={{ color: 'var(--rev)' }}>
           The shot order on screen is not saved. A decision recorded now is about the order in
           the database, not the one you are looking at.
         </p>
       )}
 
-      <div className="flex gap-2 border-t px-4 py-3" style={{ borderColor: 'var(--border-subtle)' }}>
+      <div className="flex gap-2 border-t px-4 py-3" style={{ borderColor: 'var(--b1)' }}>
         <button
           type="button"
           disabled={pending}
           onClick={() => onSubmit('pass', notes)}
           className="rounded-sm px-3 py-[7px] text-sm font-medium disabled:opacity-60"
-          style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}
+          style={{ background: 'var(--ac)', color: 'var(--ac-ink)' }}
         >
           Pass
         </button>
@@ -532,7 +532,7 @@ function DecisionPanel({
           onClick={() => onSubmit('reshoot', notes)}
           title={marks.size === 0 ? 'Mark the shots to reshoot first — press m on a shot.' : undefined}
           className="rounded-sm border px-3 py-[7px] text-sm disabled:opacity-40"
-          style={{ borderColor: 'var(--border-strong)' }}
+          style={{ borderColor: 'var(--b3)' }}
         >
           Reshoot {marks.size > 0 && `(${marks.size})`}
         </button>
@@ -542,7 +542,7 @@ function DecisionPanel({
             warning goes where it can be read without being a paint job on a target. */}
         <span
           className="ml-auto self-center font-mono text-3xs uppercase tracking-[0.09em]"
-          style={{ color: 'var(--state-blocked)' }}
+          style={{ color: 'var(--blk)' }}
         >
           destructive
         </span>
@@ -551,7 +551,7 @@ function DecisionPanel({
           disabled={pending}
           onClick={() => onSubmit('kill', notes)}
           className="rounded-sm border px-3 py-[7px] text-sm disabled:opacity-60"
-          style={{ borderColor: 'var(--border-strong)' }}
+          style={{ borderColor: 'var(--b3)' }}
         >
           Kill
         </button>
@@ -560,7 +560,7 @@ function DecisionPanel({
       {current && (
         <p
           className="border-t px-4 py-2 font-mono text-2xs"
-          style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-faint)' }}
+          style={{ borderColor: 'var(--b1)', color: 'var(--t3)' }}
         >
           current decision: {current.decision}
         </p>
@@ -582,13 +582,13 @@ function Evidence({
 }) {
   return (
     <div className="flex items-baseline gap-2">
-      <span className="w-[110px] shrink-0 text-xs" style={{ color: 'var(--text-muted)' }}>
+      <span className="w-[110px] shrink-0 text-xs" style={{ color: 'var(--t3)' }}>
         {label}
       </span>
-      <span className="font-mono text-xs" style={{ color: `var(--state-${tone})` }}>
+      <span className="font-mono text-xs" style={{ color: { live: 'var(--live)', review: 'var(--rev)', blocked: 'var(--blk)' }[tone] }}>
         {value}
       </span>
-      <span className="ml-auto max-w-[210px] text-right text-2xs leading-snug" style={{ color: 'var(--text-faint)' }}>
+      <span className="ml-auto max-w-[210px] text-right text-2xs leading-snug" style={{ color: 'var(--t3)' }}>
         {help}
       </span>
     </div>

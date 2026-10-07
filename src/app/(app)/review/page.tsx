@@ -18,9 +18,9 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Kiln — review' };
 
 const DECISION_TONE: Record<string, string> = {
-  pass: 'var(--state-live)',
-  reshoot: 'var(--state-review)',
-  kill: 'var(--state-blocked)',
+  pass: 'var(--live)',
+  reshoot: 'var(--rev)',
+  kill: 'var(--blk)',
 };
 
 /**
@@ -47,17 +47,17 @@ function QueueSummary({ queue }: { queue: Extract<QueueRead, { ok: true }> }) {
     oldest === null ? null : Math.floor((Date.now() - Date.parse(oldest)) / 86_400_000);
 
   return (
-    <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+    <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
       {queue.rows.length}
       {queue.truncated && (
         <Hint content={`Only the most recent ${queue.limit} are shown. The count is a floor, not a total — a list that caps silently reports the same number whatever is behind it.`}>
-          <span style={{ color: 'var(--state-review)' }}>+</span>
+          <span style={{ color: 'var(--rev)' }}>+</span>
         </Hint>
       )}
       {waiting.length > 0 && (
         <>
           {' · '}
-          <span style={{ color: 'var(--state-review)' }}>{waiting.length} awaiting you</span>
+          <span style={{ color: 'var(--rev)' }}>{waiting.length} awaiting you</span>
           {waitingDays !== null && waitingDays > 0 && (
             <span>
               {', oldest '}
@@ -83,7 +83,7 @@ export default async function ReviewQueuePage() {
       <Panel>
         <div
           className="flex items-baseline gap-3 border-b px-4 py-3"
-          style={{ borderColor: 'var(--border-subtle)' }}
+          style={{ borderColor: 'var(--b1)' }}
         >
           <span className="text-md font-medium">Renders</span>
           {queue.ok && <QueueSummary queue={queue} />}
@@ -91,19 +91,19 @@ export default async function ReviewQueuePage() {
 
         {!queue.ok ? (
           <div className="px-4 py-4">
-            <p className="text-sm" style={{ color: 'var(--state-blocked)' }}>
+            <p className="text-sm" style={{ color: 'var(--blk)' }}>
               The queue could not be read.
             </p>
-            <p className="mt-1 font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+            <p className="mt-1 font-mono text-2xs" style={{ color: 'var(--t3)' }}>
               {queue.detail}
             </p>
-            <p className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+            <p className="mt-2 text-xs" style={{ color: 'var(--t3)' }}>
               If this names a missing relation, migration 0018 has not been applied. Run{' '}
               <code>pnpm db:doctor</code>.
             </p>
           </div>
         ) : queue.rows.length === 0 ? (
-          <p className="px-4 py-4 text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+          <p className="px-4 py-4 text-sm leading-relaxed" style={{ color: 'var(--t3)' }}>
             No renders yet. A rough cut appears here once stage 7 has assembled one — which
             needs every shot generated and normalised first, so an empty queue usually means
             the generation stage has not run rather than that assembly is broken.
@@ -113,30 +113,30 @@ export default async function ReviewQueuePage() {
             <Link
               key={row.renderId}
               href={`/review/${row.renderId}`}
-              className="grid items-baseline gap-3 border-b px-4 py-3 last:border-b-0 hover:bg-[var(--surface-2)]"
+              className="grid items-baseline gap-3 border-b px-4 py-3 last:border-b-0 hover:bg-[var(--s2)]"
               style={{
                 gridTemplateColumns: 'minmax(0,1fr) 90px 80px 80px',
-                borderColor: 'var(--border-subtle)',
+                borderColor: 'var(--b1)',
               }}
             >
               <div className="min-w-0">
                 <div className="truncate text-sm">{row.conceptTitle}</div>
-                <div className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+                <div className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
                   {row.kind} · {row.variantLabel}
                 </div>
               </div>
               <span
                 className="font-mono text-2xs"
-                style={{ color: row.status === 'ready' ? 'var(--state-live)' : 'var(--state-blocked)' }}
+                style={{ color: row.status === 'ready' ? 'var(--live)' : 'var(--blk)' }}
               >
                 {row.status}
               </span>
-              <span className="font-mono text-2xs" style={{ color: 'var(--text-muted)' }}>
+              <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
                 {row.durationS === null ? '—' : `${row.durationS.toFixed(1)}s`}
               </span>
               <span
                 className="font-mono text-2xs"
-                style={{ color: row.decision ? DECISION_TONE[row.decision] : 'var(--text-faint)' }}
+                style={{ color: row.decision ? DECISION_TONE[row.decision] : 'var(--t3)' }}
               >
                 {row.decision ?? 'unreviewed'}
               </span>

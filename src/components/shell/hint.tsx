@@ -49,9 +49,9 @@ export function Hint({
           <Tooltip.Popup
             className="max-w-[280px] rounded-sm border px-2 py-[5px] text-xs leading-snug"
             style={{
-              background: 'var(--surface-3)',
-              borderColor: 'var(--border-strong)',
-              color: 'var(--text-secondary)',
+              background: 'var(--s3)',
+              borderColor: 'var(--b3)',
+              color: 'var(--t2)',
               boxShadow: 'var(--shadow-raised)',
             }}
           >

@@ -51,7 +51,7 @@ export default async function PublishPage() {
     <main className={`${MAX_W} px-6 py-8`}>
       <header>
         <h1 className="text-lg font-medium">Publish</h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
+        <p className="mt-1 text-sm" style={{ color: 'var(--t3)' }}>
           Stage 10, YouTube. Uploads run on a worker and never through a route — a finished
           render is far past what a serverless function may carry. Every upload declares
           altered content; the publish gate is a database trigger and has no override.
@@ -61,14 +61,14 @@ export default async function PublishPage() {
       {board.unreadable.length > 0 && (
         <div
           className="mt-6 rounded-md border px-4 py-3 text-sm"
-          style={{ borderColor: 'var(--state-blocked)', background: 'var(--state-blocked-bg)' }}
+          style={{ borderColor: 'var(--blk)', background: 'var(--blk-wash)' }}
         >
           <div className="font-medium">Part of this screen could not be read.</div>
-          <p className="mt-1" style={{ color: 'var(--text-muted)' }}>
+          <p className="mt-1" style={{ color: 'var(--t3)' }}>
             A failed read, not an empty queue. Usually migration 0035 has not been applied —
             run <code className="font-mono">pnpm db:doctor</code>.
           </p>
-          <ul className="mt-2 font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+          <ul className="mt-2 font-mono text-2xs" style={{ color: 'var(--t3)' }}>
             {board.unreadable.map((u) => (
               <li key={u}>{u}</li>
             ))}
@@ -105,7 +105,7 @@ export default async function PublishPage() {
       </section>
 
       {board.quota && (
-        <p className="mt-3 text-xs" style={{ color: 'var(--text-muted)' }}>
+        <p className="mt-3 text-xs" style={{ color: 'var(--t3)' }}>
           {board.quota.unitsUsed.toLocaleString('en-IN')} units used across{' '}
           {board.quota.callsMade} call{board.quota.callsMade === 1 ? '' : 's'} this window
           {board.quota.unitsWasted > 0 && (
@@ -130,7 +130,7 @@ export default async function PublishPage() {
 
       {/* A visible cap. The whole point of counting in the database. */}
       {capped && (
-        <p className="mt-3 text-xs" style={{ color: 'var(--state-warn)' }}>
+        <p className="mt-3 text-xs" style={{ color: 'var(--rev)' }}>
           Showing the first {shown} of {board.queueTotal}. This page caps at {QUEUE_PAGE}, and
           says so rather than looking complete — a display cap nobody can see is how a queue
           renders the same at two scales.
@@ -141,7 +141,7 @@ export default async function PublishPage() {
       <section className="mt-8">
         <h2 className="text-sm font-medium">Credential</h2>
         {board.credentials.length === 0 ? (
-          <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>
+          <p className="mt-2 text-sm" style={{ color: 'var(--t3)' }}>
             No active channel. Nothing to publish to yet.
           </p>
         ) : (
@@ -151,13 +151,13 @@ export default async function PublishPage() {
                 <span className="font-medium">{c.name}</span>{' '}
                 {/* "Last confirmed", never "expires". A refresh token's expiry is not
                     knowable; that it worked eight minutes ago is a fact. */}
-                <span style={{ color: 'var(--text-muted)' }}>
+                <span style={{ color: 'var(--t3)' }}>
                   {c.lastRefreshedAt
                     ? `last confirmed working ${new Date(c.lastRefreshedAt).toLocaleString()}`
                     : 'never confirmed — no refresh has succeeded yet, which is not the same as broken'}
                 </span>
                 {c.consecutiveFailures > 0 && (
-                  <span style={{ color: 'var(--state-blocked)' }}>
+                  <span style={{ color: 'var(--blk)' }}>
                     {' '}
                     · {c.consecutiveFailures} consecutive failure
                     {c.consecutiveFailures === 1 ? '' : 's'}
@@ -174,7 +174,7 @@ export default async function PublishPage() {
       <section className="mt-8">
         <h2 className="text-sm font-medium">Queue</h2>
         {board.rows.length === 0 ? (
-          <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>
+          <p className="mt-2 text-sm" style={{ color: 'var(--t3)' }}>
             {board.liveTotal > 0
               ? 'Nothing waiting — everything reviewed has been published.'
               : 'Nothing has reached a passing review yet. This is an empty queue, not a broken one.'}
@@ -182,7 +182,7 @@ export default async function PublishPage() {
         ) : (
           <table className="mt-3 w-full text-xs">
             <thead>
-              <tr style={{ color: 'var(--text-faint)' }}>
+              <tr style={{ color: 'var(--t3)' }}>
                 <Th>Title</Th>
                 <Th>Status</Th>
                 <Th>Attempts</Th>
@@ -195,19 +195,19 @@ export default async function PublishPage() {
                 <tr
                   key={r.publicationId}
                   className="border-t"
-                  style={{ borderColor: 'var(--border-subtle)' }}
+                  style={{ borderColor: 'var(--b1)' }}
                 >
                   <Td>{r.title}</Td>
                   <Td>
                     {r.status}
                     {r.blocker && (
-                      <span style={{ color: 'var(--text-faint)' }}>
+                      <span style={{ color: 'var(--t3)' }}>
                         {' '}
                         — {BLOCKER_COPY[r.blocker] ?? r.blocker}
                       </span>
                     )}
                     {r.errorDetail && (
-                      <span style={{ color: 'var(--state-blocked)' }}> — {r.errorDetail}</span>
+                      <span style={{ color: 'var(--blk)' }}> — {r.errorDetail}</span>
                     )}
                   </Td>
                   <Td>{r.uploadAttempts}</Td>
@@ -217,7 +217,7 @@ export default async function PublishPage() {
                     {r.alteredContentDisclosed ? (
                       'yes'
                     ) : (
-                      <span style={{ color: 'var(--state-blocked)' }}>not set</span>
+                      <span style={{ color: 'var(--blk)' }}>not set</span>
                     )}
                   </Td>
                   <Td>
@@ -252,16 +252,16 @@ function Figure({
     <div
       className="rounded-md border px-4 py-3"
       style={{
-        borderColor: emphasis ? 'var(--border-strong)' : 'var(--border-subtle)',
-        background: 'var(--surface-1)',
+        borderColor: emphasis ? 'var(--b3)' : 'var(--b1)',
+        background: 'var(--s1)',
       }}
     >
-      <div className="text-2xs uppercase" style={{ color: 'var(--text-faint)' }}>
+      <div className="text-2xs uppercase" style={{ color: 'var(--t3)' }}>
         {label}
       </div>
       <div className={emphasis ? 'mt-1 text-xl' : 'mt-1 text-lg'}>{value}</div>
       {sub && (
-        <div className="mt-1 text-2xs" style={{ color: 'var(--text-muted)' }}>
+        <div className="mt-1 text-2xs" style={{ color: 'var(--t3)' }}>
           {sub}
         </div>
       )}

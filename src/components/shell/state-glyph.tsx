@@ -13,13 +13,13 @@ import type { VideoState } from '@/lib/fixtures/pipeline';
  */
 
 const GLYPH: Record<VideoState, { shape: string; token: string }> = {
-  drafting: { shape: 'ring-dashed', token: 'var(--state-drafting)' },
-  generating: { shape: 'pulse', token: 'var(--state-generating)' },
-  needs_review: { shape: 'ring', token: 'var(--state-review)' },
-  blocked: { shape: 'square', token: 'var(--state-blocked)' },
-  ready: { shape: 'dot', token: 'var(--state-ready)' },
-  live: { shape: 'dot', token: 'var(--state-live)' },
-  killed: { shape: 'slash', token: 'var(--state-killed)' },
+  drafting: { shape: 'ring-dashed', token: 'var(--draft)' },
+  generating: { shape: 'pulse', token: 'var(--gen)' },
+  needs_review: { shape: 'ring', token: 'var(--rev)' },
+  blocked: { shape: 'square', token: 'var(--blk)' },
+  ready: { shape: 'dot', token: 'var(--rdy)' },
+  live: { shape: 'dot', token: 'var(--live)' },
+  killed: { shape: 'slash', token: 'var(--t4)' },
 };
 
 export function StateGlyph({ state, size = 9 }: { state: VideoState; size?: number }) {
@@ -84,7 +84,7 @@ export function StateGlyph({ state, size = 9 }: { state: VideoState; size?: numb
         // The single animated element in the product, and only for the one state where
         // motion carries meaning: something is happening right now. Killed entirely under
         // prefers-reduced-motion by the block in tokens.css.
-        animation: shape === 'pulse' ? 'k-pulse 1.8s var(--ease-in-out) infinite' : undefined,
+        animation: shape === 'pulse' ? 'k-pulse 1.8s var(--e-io) infinite' : undefined,
       }}
     />
   );

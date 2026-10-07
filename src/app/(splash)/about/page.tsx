@@ -66,7 +66,7 @@ export default function AboutPage() {
         <p>
           It does not read, modify or delete anything else on YouTube or in the owner&apos;s Google account, and it
           never accesses any other person&apos;s channel or data. Details are in the{' '}
-          <Link href="/privacy" className="underline underline-offset-4" style={{ color: 'var(--accent)' }}>
+          <Link href="/privacy" className="underline underline-offset-4" style={{ color: 'var(--ac)' }}>
             privacy policy
           </Link>
           .
@@ -76,12 +76,12 @@ export default function AboutPage() {
       <Section title="Policies">
         <ul className="list-disc pl-5">
           <li>
-            <Link href="/privacy" className="underline underline-offset-4" style={{ color: 'var(--accent)' }}>
+            <Link href="/privacy" className="underline underline-offset-4" style={{ color: 'var(--ac)' }}>
               Kiln privacy policy
             </Link>
           </li>
           <li>
-            <Link href="/terms" className="underline underline-offset-4" style={{ color: 'var(--accent)' }}>
+            <Link href="/terms" className="underline underline-offset-4" style={{ color: 'var(--ac)' }}>
               Kiln terms of service
             </Link>
           </li>

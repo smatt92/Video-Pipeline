@@ -5,7 +5,7 @@ import { useActionState } from 'react';
 import { setPublishTargetAction, type AddChannelState } from '@/lib/channels/actions';
 
 const field = 'rounded-sm border px-2 py-1 text-sm';
-const fieldStyle = { background: 'var(--surface-2)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' } as const;
+const fieldStyle = { background: 'var(--s2)', borderColor: 'var(--b2)', color: 'var(--t1)' } as const;
 
 export function TargetForm(props: { channelId: string; platform: 'youtube' | 'instagram'; enabled: boolean; handle: string | null; externalId: string | null }) {
   const [state, action, pending] = useActionState<AddChannelState, FormData>(setPublishTargetAction, { status: 'idle' });
@@ -17,8 +17,8 @@ export function TargetForm(props: { channelId: string; platform: 'youtube' | 'in
       <label className="flex items-center gap-1"><input type="checkbox" name="enabled" defaultChecked={props.enabled} /> on</label>
       <input name="handle" defaultValue={props.handle ?? ''} placeholder="@handle" className={field} style={fieldStyle} />
       <input name="external_id" defaultValue={props.externalId ?? ''} placeholder={props.platform === 'youtube' ? 'UC… channel id' : 'account id (digits)'} className={field} style={fieldStyle} />
-      <button type="submit" disabled={pending} className="rounded-sm border px-2 py-1" style={{ borderColor: 'var(--border-strong)' }}>{pending ? 'Saving…' : 'Save'}</button>
-      {state.status !== 'idle' && <span style={{ color: state.status === 'ok' ? 'var(--text-secondary)' : 'var(--danger)' }}>{state.message}</span>}
+      <button type="submit" disabled={pending} className="rounded-sm border px-2 py-1" style={{ borderColor: 'var(--b3)' }}>{pending ? 'Saving…' : 'Save'}</button>
+      {state.status !== 'idle' && <span style={{ color: state.status === 'ok' ? 'var(--t2)' : 'var(--blk-text)' }}>{state.message}</span>}
     </form>
   );
 }

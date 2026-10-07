@@ -25,9 +25,9 @@ function Save({ label }: { label: string }) {
       disabled={pending}
       className="rounded-sm px-[10px] py-[5px] text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
       style={{
-        background: 'var(--accent)',
-        color: 'var(--accent-contrast)',
-        transitionDuration: 'var(--duration-fast)',
+        background: 'var(--ac)',
+        color: 'var(--ac-ink)',
+        transitionDuration: 'var(--d1)',
       }}
     >
       {pending ? 'Saving…' : label}
@@ -54,7 +54,7 @@ function Small({
     <label className="flex flex-col gap-[3px]">
       <span
         className="font-mono text-3xs uppercase tracking-[0.08em]"
-        style={{ color: 'var(--text-faint)' }}
+        style={{ color: 'var(--t3)' }}
       >
         {label}
       </span>
@@ -64,7 +64,7 @@ function Small({
         placeholder={placeholder}
         defaultValue={defaultValue}
         className={`${width} rounded-sm border bg-transparent px-2 py-[5px] font-mono text-xs outline-none`}
-        style={{ borderColor: 'var(--border-default)', color: 'var(--text-primary)' }}
+        style={{ borderColor: 'var(--b2)', color: 'var(--t1)' }}
       />
     </label>
   );
@@ -75,7 +75,7 @@ function Result({ state }: { state: StepState }) {
   return (
     <p
       className="mt-2 max-w-[62ch] text-xs leading-relaxed"
-      style={{ color: state.status === 'ok' ? 'var(--state-live)' : 'var(--state-blocked)' }}
+      style={{ color: state.status === 'ok' ? 'var(--live)' : 'var(--blk)' }}
     >
       {state.message}
     </p>
@@ -120,12 +120,12 @@ export function CreditsPanel({
   // "this is happening".
   const tone =
     days === null
-      ? 'var(--text-faint)'
+      ? 'var(--t3)'
       : days <= 7
-        ? 'var(--state-blocked)'
+        ? 'var(--blk)'
         : days <= 21
-          ? 'var(--state-review)'
-          : 'var(--state-live)';
+          ? 'var(--rev)'
+          : 'var(--live)';
 
   return (
     <>
@@ -135,10 +135,10 @@ export function CreditsPanel({
       >
         <div className="flex flex-col gap-2">
           <div className="flex items-baseline gap-4">
-            <span className="font-mono text-lg" style={{ color: 'var(--text-primary)' }}>
+            <span className="font-mono text-lg" style={{ color: 'var(--t1)' }}>
               {position.creditsUnexpired.toLocaleString()}
             </span>
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            <span className="text-xs" style={{ color: 'var(--t3)' }}>
               unexpired
             </span>
             {days !== null && (
@@ -147,14 +147,14 @@ export function CreditsPanel({
               </span>
             )}
             {days === null && (
-              <span className="text-xs" style={{ color: 'var(--text-faint)' }}>
+              <span className="text-xs" style={{ color: 'var(--t3)' }}>
                 no purchase recorded — nothing is watching the clock
               </span>
             )}
           </div>
 
           {position.creditsExpired > 0 && (
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            <p className="text-xs" style={{ color: 'var(--t3)' }}>
               {position.creditsExpired.toLocaleString()} credits have already expired. That
               never appears in the cost ledger — nothing is billed when credits evaporate —
               which is the whole reason this panel exists.
@@ -164,7 +164,7 @@ export function CreditsPanel({
           {position.purchases.length > 0 && (
             <table className="mt-1 w-full max-w-[520px] text-xs">
               <thead>
-                <tr style={{ color: 'var(--text-faint)' }}>
+                <tr style={{ color: 'var(--t3)' }}>
                   <th className="pb-1 text-left font-mono text-3xs font-normal uppercase tracking-[0.08em]">
                     credits
                   </th>
@@ -185,7 +185,7 @@ export function CreditsPanel({
                   return (
                     <tr
                       key={p.id}
-                      style={{ color: dead ? 'var(--text-faint)' : 'var(--text-secondary)' }}
+                      style={{ color: dead ? 'var(--t3)' : 'var(--t2)' }}
                     >
                       <td className="py-[2px] font-mono">{p.credits.toLocaleString()}</td>
                       <td className="py-[2px] font-mono">{p.purchasedAt}</td>
@@ -261,21 +261,21 @@ export function ConcurrencyPanel({
     >
       <div className="flex flex-col gap-2">
         <div className="flex items-baseline gap-3">
-          <span className="font-mono text-lg" style={{ color: 'var(--text-primary)' }}>
+          <span className="font-mono text-lg" style={{ color: 'var(--t1)' }}>
             {effective}
           </span>
           <span
             className="rounded-xs px-[6px] py-[2px] font-mono text-3xs uppercase"
             style={{
-              background: 'var(--surface-2)',
-              color: source === 'default' ? 'var(--state-review)' : 'var(--text-muted)',
+              background: 'var(--s2)',
+              color: source === 'default' ? 'var(--rev)' : 'var(--t3)',
             }}
           >
             {source === 'default' ? 'assumed' : source}
           </span>
         </div>
 
-        <p className="max-w-[62ch] text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+        <p className="max-w-[62ch] text-xs leading-relaxed" style={{ color: 'var(--t3)' }}>
           {explanation[source] ?? explanation.default}
         </p>
 
@@ -287,7 +287,7 @@ export function ConcurrencyPanel({
             width="w-[90px]"
           />
           <Save label="Set" />
-          <span className="pb-[6px] text-2xs" style={{ color: 'var(--text-faint)' }}>
+          <span className="pb-[6px] text-2xs" style={{ color: 'var(--t3)' }}>
             blank clears the override
           </span>
         </form>

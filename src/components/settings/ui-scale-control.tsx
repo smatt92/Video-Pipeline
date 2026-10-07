@@ -67,10 +67,10 @@ export function UiScaleControl({ current }: { current: UiScale }) {
               style={{
                 // The floor is not scaled, so the control stays a legal target at 90%.
                 minHeight: 'var(--hit-min)',
-                background: active ? 'var(--accent)' : 'var(--surface-inset)',
-                color: active ? 'var(--accent-contrast)' : 'var(--text-secondary)',
-                borderColor: active ? 'var(--accent)' : 'var(--border-subtle)',
-                transitionDuration: 'var(--duration-fast)',
+                background: active ? 'var(--ac)' : 'var(--in)',
+                color: active ? 'var(--ac-ink)' : 'var(--t2)',
+                borderColor: active ? 'var(--ac)' : 'var(--b1)',
+                transitionDuration: 'var(--d1)',
               }}
             >
               {labelFor(scale)}
@@ -82,7 +82,7 @@ export function UiScaleControl({ current }: { current: UiScale }) {
       {state.status !== 'idle' && state.message && (
         <p
           className="text-xs leading-snug"
-          style={{ color: state.status === 'ok' ? 'var(--state-live)' : 'var(--state-blocked)' }}
+          style={{ color: state.status === 'ok' ? 'var(--live)' : 'var(--blk)' }}
         >
           {state.message}
         </p>

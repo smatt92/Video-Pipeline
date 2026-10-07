@@ -87,8 +87,8 @@ const GRID = '1fr 130px 150px 120px';
 
 const rowStyle = {
   gridTemplateColumns: GRID,
-  borderColor: 'var(--border-subtle)',
-  transitionDuration: 'var(--duration-fast)',
+  borderColor: 'var(--b1)',
+  transitionDuration: 'var(--d1)',
 } as const;
 
 function formatInr(n: number): string {
@@ -117,7 +117,7 @@ function Row({ row, activeChannelId }: { row: BoardRow; activeChannelId: string 
 
       <span
         className="flex items-center gap-2 text-xs"
-        style={{ color: 'var(--text-secondary)' }}
+        style={{ color: 'var(--t2)' }}
       >
         <StateGlyph state={GLYPH[row.state]} size={8} />
         {/* The reason, on the row, not behind a click. A stalled concept is one whose
@@ -125,7 +125,7 @@ function Row({ row, activeChannelId }: { row: BoardRow; activeChannelId: string 
             away would preserve exactly the silence this state exists to break. */}
         {row.blocker ? (
           <Hint content={row.blocker}>
-            <span style={{ borderBottom: '1px dotted var(--border-strong)' }}>
+            <span style={{ borderBottom: '1px dotted var(--b3)' }}>
               {STATE_LABEL[row.state]}
             </span>
           </Hint>
@@ -134,21 +134,21 @@ function Row({ row, activeChannelId }: { row: BoardRow; activeChannelId: string 
         )}
       </span>
 
-      <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+      <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
         {row.scripts} script · {row.shots} shot · {row.generations} gen
       </span>
 
-      <span className="text-right font-mono text-xs" style={{ color: 'var(--text-muted)' }}>
+      <span className="text-right font-mono text-xs" style={{ color: 'var(--t3)' }}>
         {row.costInr === null ? (
           <Hint content="No priced call has been recorded against this concept. Not zero — unknown. A submit that cannot be priced refuses rather than proceeding uncosted.">
-            <span style={{ color: 'var(--text-faint)' }}>—</span>
+            <span style={{ color: 'var(--t3)' }}>—</span>
           </Hint>
         ) : (
           <>
             {formatInr(row.costInr)}
             {row.unpricedCalls > 0 && (
               <Hint content="Some calls against this concept could not be priced, so this total is knowingly incomplete rather than wrong.">
-                <span style={{ color: 'var(--text-faint)' }}> ·{row.unpricedCalls}?</span>
+                <span style={{ color: 'var(--t3)' }}> ·{row.unpricedCalls}?</span>
               </Hint>
             )}
           </>
@@ -173,20 +173,20 @@ async function Board() {
         <div
           className="rounded-sm border px-4 py-3 text-sm leading-relaxed"
           style={{
-            borderColor: 'var(--border-strong)',
-            background: 'var(--surface-inset)',
-            color: 'var(--state-review)',
+            borderColor: 'var(--b3)',
+            background: 'var(--in)',
+            color: 'var(--rev)',
           }}
           data-board="error"
         >
           <strong className="font-medium">This board could not be read.</strong>
-          <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>
+          <p className="mt-1" style={{ color: 'var(--t2)' }}>
             {result.hint}
           </p>
-          <p className="mt-2 font-mono text-xs" style={{ color: 'var(--text-muted)' }}>
+          <p className="mt-2 font-mono text-xs" style={{ color: 'var(--t3)' }}>
             {result.error}
           </p>
-          <p className="mt-2" style={{ color: 'var(--text-muted)' }}>
+          <p className="mt-2" style={{ color: 'var(--t3)' }}>
             This is <em>not</em> an empty database — that renders a different message saying
             so. If you are seeing this, the read itself failed.
           </p>
@@ -201,13 +201,13 @@ async function Board() {
 
     return (
       <div className={`${MAX_W} px-5 py-10`} data-board="empty">
-        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+        <p className="text-sm" style={{ color: 'var(--t2)' }}>
           No concepts yet. The database is reachable and this query succeeded — there is
           simply nothing in it.
         </p>
         <p
           className="mt-2 max-w-[62ch] text-sm leading-relaxed"
-          style={{ color: 'var(--text-muted)' }}
+          style={{ color: 'var(--t3)' }}
         >
           A concept appears here as soon as one exists. Stage 3 gives it a script, stage 4 a
           shotlist, stage 5 generations — each moves the row up this list without anything
@@ -230,12 +230,12 @@ async function Board() {
           <div
             className="mt-5 max-w-[62ch] rounded-sm border px-3 py-2 text-xs leading-relaxed"
             style={{
-              borderColor: 'var(--border-strong)',
-              background: 'var(--surface-inset)',
-              color: 'var(--text-muted)',
+              borderColor: 'var(--b3)',
+              background: 'var(--in)',
+              color: 'var(--t3)',
             }}
           >
-            <strong className="font-medium" style={{ color: 'var(--state-review)' }}>
+            <strong className="font-medium" style={{ color: 'var(--rev)' }}>
               Some of that will not happen yet.
             </strong>
             {videoInert && <p className="mt-1">{videoInert}</p>}
@@ -268,11 +268,11 @@ async function Board() {
       {result.workspaceBlocker && (
         <div
           className="border-b px-5 py-3 text-sm"
-          style={{ borderColor: 'var(--state-blocked)', background: 'var(--state-blocked-bg)' }}
+          style={{ borderColor: 'var(--blk)', background: 'var(--blk-wash)' }}
         >
           <div className={MAX_W}>
             <span className="font-medium">Nothing here can generate yet.</span>{' '}
-            <span style={{ color: 'var(--text-muted)' }}>{result.workspaceBlocker}</span>{' '}
+            <span style={{ color: 'var(--t3)' }}>{result.workspaceBlocker}</span>{' '}
             <Link href="/settings/integrations" className="underline">
               Settings → Integrations
             </Link>
@@ -280,7 +280,7 @@ async function Board() {
         </div>
       )}
 
-      <div className="border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+      <div className="border-b" style={{ borderColor: 'var(--b1)' }}>
         <div className={`${MAX_W} flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4`}>
           {STATE_ORDER.map((state) => ({
             state,
@@ -290,7 +290,7 @@ async function Board() {
             .map(({ state, n }) => (
               <div key={state} className="flex items-center gap-2">
                 <StateGlyph state={GLYPH[state]} size={8} />
-                <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                <span className="text-xs" style={{ color: 'var(--t2)' }}>
                   {n} {STATE_LABEL[state].toLowerCase()}
                 </span>
               </div>
@@ -298,18 +298,18 @@ async function Board() {
 
           <div
             className="ml-auto flex items-baseline gap-2 font-mono text-xs"
-            style={{ color: 'var(--text-muted)' }}
+            style={{ color: 'var(--t3)' }}
           >
-            <span style={{ color: 'var(--text-primary)' }}>{formatInr(total)}</span>
+            <span style={{ color: 'var(--t1)' }}>{formatInr(total)}</span>
             <span>across {priced.length}</span>
             {result.truncated && (
               <Hint content={`Only the most recent ${result.limit} concepts are read, so both the state counts and this total are floors rather than totals. A capped list that renders its own length reports the same number whatever is behind it.`}>
-                <span style={{ color: 'var(--state-review)' }}>· capped at {result.limit}</span>
+                <span style={{ color: 'var(--rev)' }}>· capped at {result.limit}</span>
               </Hint>
             )}
             {unpriced > 0 && (
               <Hint content="These have no priced call recorded, so their cost is genuinely unknown — not zero. A total that silently excludes rows is the kind of number that gets quoted.">
-                <span style={{ color: 'var(--text-faint)' }}>· {unpriced} unpriced</span>
+                <span style={{ color: 'var(--t3)' }}>· {unpriced} unpriced</span>
               </Hint>
             )}
           </div>
@@ -330,11 +330,11 @@ async function Board() {
         <div className={`${MAX_W} px-5 py-4`}>
           <div
             className="rounded-md border px-4 py-3 text-sm"
-            style={{ borderColor: 'var(--state-blocked)', background: 'var(--state-blocked-bg)' }}
+            style={{ borderColor: 'var(--blk)', background: 'var(--blk-wash)' }}
           >
             <div>Limits and credits could not be read.</div>
-            <div className="mt-1" style={{ color: 'var(--text-muted)' }}>{limits.hint}</div>
-            <div className="mt-1 font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+            <div className="mt-1" style={{ color: 'var(--t3)' }}>{limits.hint}</div>
+            <div className="mt-1 font-mono text-2xs" style={{ color: 'var(--t3)' }}>
               {limits.error}
             </div>
           </div>
@@ -353,20 +353,20 @@ async function Board() {
             <PathStrip key={p.conceptId} position={p} />
           ))}
           {path.positions.length > 4 && (
-            <p className="text-2xs" style={{ color: 'var(--text-faint)' }}>
+            <p className="text-2xs" style={{ color: 'var(--t3)' }}>
               {path.positions.length - 4} more below, in the list.
             </p>
           )}
         </div>
       )}
 
-      <div style={{ background: 'var(--surface-inset)' }}>
+      <div style={{ background: 'var(--in)' }}>
         <div
           className={`${MAX_W} grid gap-5 border-b px-5 py-2 font-mono text-3xs uppercase tracking-[0.09em]`}
           style={{
             gridTemplateColumns: GRID,
-            borderColor: 'var(--border-subtle)',
-            color: 'var(--text-faint)',
+            borderColor: 'var(--b1)',
+            color: 'var(--t3)',
           }}
         >
           <span>Concept</span>
@@ -388,7 +388,7 @@ async function Board() {
 export default function PipelineBoard() {
   return (
     <div className="flex min-h-full flex-col">
-      <header className="border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+      <header className="border-b" style={{ borderColor: 'var(--b1)' }}>
         <div
           className={`${MAX_W} flex items-center gap-3 px-5`}
           style={{ height: 'var(--topbar-height)' }}
@@ -406,9 +406,9 @@ export default function PipelineBoard() {
               href="/concepts"
               className="rounded-sm px-[10px] py-[6px] text-xs font-medium transition-colors"
               style={{
-                background: 'var(--accent)',
-                color: 'var(--accent-contrast)',
-                transitionDuration: 'var(--duration-fast)',
+                background: 'var(--ac)',
+                color: 'var(--ac-ink)',
+                transitionDuration: 'var(--d1)',
               }}
             >
               New concept
@@ -423,7 +423,7 @@ export default function PipelineBoard() {
         fallback={
           <div
             className={`${MAX_W} px-5 py-10 text-sm`}
-            style={{ color: 'var(--text-faint)' }}
+            style={{ color: 'var(--t3)' }}
           >
             Reading the pipeline…
           </div>

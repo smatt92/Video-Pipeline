@@ -37,7 +37,7 @@ export default async function WorkspacePage() {
           label="Text size"
           help="Kiln's type is set in rem and scales with your browser's font-size setting as well. Browser zoom and this control compose — use whichever is closer to hand."
         >
-          <p className="text-xs leading-snug" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-xs leading-snug" style={{ color: 'var(--t3)' }}>
             Nothing to set here. It follows the browser.
           </p>
         </Row>
@@ -46,7 +46,7 @@ export default async function WorkspacePage() {
           label="Not built yet"
           help="This section will also hold the workspace name, the default channel and the USD→INR rate. None of those exist yet; the FX rate currently comes from the environment and onboarding step 1."
         >
-          <p className="text-xs leading-snug" style={{ color: 'var(--text-faint)' }}>
+          <p className="text-xs leading-snug" style={{ color: 'var(--t3)' }}>
             Listed so the gap is visible rather than implied by an empty page.
           </p>
         </Row>

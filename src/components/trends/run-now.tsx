@@ -20,12 +20,12 @@ export function RunNow({ channelId }: { channelId: string }) {
         disabled={pending}
         onClick={() => start(async () => setState(await runTrendsNowAction(channelId)))}
         className="rounded-sm border px-3 py-1 text-xs"
-        style={{ borderColor: 'var(--border-default)', color: 'var(--accent)' }}
+        style={{ borderColor: 'var(--b2)', color: 'var(--ac)' }}
       >
         {pending ? 'Starting…' : 'Run now'}
       </button>
       {state.status !== 'idle' && state.message && (
-        <p className="mt-1 text-2xs" style={{ color: state.status === 'ok' ? 'var(--text-muted)' : 'var(--state-blocked)' }}>
+        <p className="mt-1 text-2xs" style={{ color: state.status === 'ok' ? 'var(--t3)' : 'var(--blk)' }}>
           {state.message}
           {state.runId ? ` Run ${state.runId}.` : ''}
         </p>

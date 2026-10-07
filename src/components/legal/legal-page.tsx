@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { KilnMark, Wordmark } from '@/components/ui/logo';
 
 /**
  * The frame for Kiln's three public pages: /about, /privacy, /terms.
@@ -25,7 +26,7 @@ export const LINKS = {
 
 export function Ext({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <a href={href} className="underline underline-offset-4" style={{ color: 'var(--accent)' }} rel="noopener noreferrer">
+    <a href={href} className="underline underline-offset-4" style={{ color: 'var(--ac)' }} rel="noopener noreferrer">
       {children}
     </a>
   );
@@ -35,7 +36,7 @@ export function Section({ title, children }: { title: string; children: React.Re
   return (
     <section className="mb-8">
       <h2 className="mb-3 text-lg font-medium tracking-tight">{title}</h2>
-      <div className="flex flex-col gap-3 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+      <div className="flex flex-col gap-3 text-sm leading-relaxed" style={{ color: 'var(--t2)' }}>
         {children}
       </div>
     </section>
@@ -46,28 +47,28 @@ export function LegalPage({ title, lead, children }: { title: string; lead?: str
   return (
     <div className="mx-auto w-full max-w-[720px] px-6 py-12">
       <nav className="mb-10 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm" aria-label="Kiln">
-        <Link href="/about" className="flex items-center gap-2 font-medium tracking-tight">
-          <span aria-hidden className="size-[7px] rounded-full" style={{ background: 'var(--brand-mark)' }} />
-          Kiln
+        <Link href="/about" className="lockup" style={{ fontSize: 18, textDecoration: 'none' }} aria-label="Kiln">
+          <KilnMark size={20} />
+          <Wordmark />
         </Link>
-        <Link href="/privacy" style={{ color: 'var(--text-muted)' }}>
+        <Link href="/privacy" style={{ color: 'var(--t3)' }}>
           Privacy
         </Link>
-        <Link href="/terms" style={{ color: 'var(--text-muted)' }}>
+        <Link href="/terms" style={{ color: 'var(--t3)' }}>
           Terms
         </Link>
       </nav>
 
       <h1 className="mb-3 text-2xl font-medium tracking-tight">{title}</h1>
       {lead && (
-        <p className="mb-10 text-md leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+        <p className="mb-10 text-md leading-relaxed" style={{ color: 'var(--t2)' }}>
           {lead}
         </p>
       )}
 
       {children}
 
-      <footer className="mt-12 border-t pt-6 text-xs leading-relaxed" style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-faint)' }}>
+      <footer className="mt-12 border-t pt-6 text-xs leading-relaxed" style={{ borderColor: 'var(--b1)', color: 'var(--t3)' }}>
         Kiln is operated by {OPERATOR}. Contact: <Ext href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</Ext>. ·{' '}
         <Link href="/privacy" className="underline underline-offset-4">Privacy policy</Link> ·{' '}
         <Link href="/terms" className="underline underline-offset-4">Terms of service</Link>

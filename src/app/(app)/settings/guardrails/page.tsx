@@ -29,11 +29,11 @@ export default function GuardrailsPage() {
           <Row key={g.key} label={g.label} help={g.kind === 'none' ? g.why : g.help}>
             <div className="flex items-baseline gap-3">
               {g.kind === 'none' ? (
-                <span className="font-mono text-sm" style={{ color: 'var(--state-killed)' }}>
+                <span className="font-mono text-sm" style={{ color: 'var(--t4)' }}>
                   not enforced
                 </span>
               ) : g.kind === 'runtime' ? (
-                <span className="font-mono text-sm" style={{ color: 'var(--text-faint)' }}>
+                <span className="font-mono text-sm" style={{ color: 'var(--t3)' }}>
                   —
                 </span>
               ) : (
@@ -43,7 +43,7 @@ export default function GuardrailsPage() {
                     : `${g.value} ${g.unit}`}
                 </span>
               )}
-              <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+              <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
                 {g.kind === 'none' ? 'nothing reads this' : g.site}
               </span>
             </div>

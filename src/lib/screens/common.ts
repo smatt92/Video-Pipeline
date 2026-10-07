@@ -187,12 +187,18 @@ export interface SpendRow {
 }
 
 export async function channelSpend(db: Db, channelId: string): Promise<SpendRow | null> {
-  const { data } = await db.from('v_channel_spend').select('*').eq('channel_id', channelId).maybeSingle();
+  const [{ data }, rows] = await Promise.all([
+    db.from('v_channel_spend').select('*').eq('channel_id', channelId).maybeSingle(),
+    db.from('cost_ledger').select('id', { count: 'exact', head: true }).eq('channel_id', channelId),
+  ]);
   if (!data) return null;
   const n = (v: unknown) => (v === null || v === undefined ? null : Number(v));
+  // v_channel_spend coalesces to 0. A channel whose ledger has never had a row has not spent
+  // ₹0 — it has no spend to report — so the figure is withheld (null → em dash on screen).
+  const never = !rows.error && rows.count === 0;
   return {
-    todayInr: n(data.today_inr),
-    monthInr: n(data.month_inr),
+    todayInr: never ? null : n(data.today_inr),
+    monthInr: never ? null : n(data.month_inr),
     dailyCap: n(data.daily_cap_inr),
     monthlyCap: n(data.monthly_cap_effective_inr),
     perShortCap: n(data.per_short_cap_inr),

@@ -62,7 +62,7 @@ export default async function AnalyticsPage() {
     <main className={`${MAX_W} px-6 py-8`}>
       <header>
         <h1 className="text-lg font-medium">Analytics</h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--text-muted)' }}>
+        <p className="mt-1 text-sm" style={{ color: 'var(--t3)' }}>
           Stage 11. 3-second retention is the hook metric; everything else is secondary.
           Figures are typed from the platform&rsquo;s own dashboard — Phase 1 has no
           analytics credential — and every row records that it was.
@@ -72,14 +72,14 @@ export default async function AnalyticsPage() {
       {board.unreadable.length > 0 && (
         <div
           className="mt-6 rounded-md border px-4 py-3 text-sm"
-          style={{ borderColor: 'var(--state-blocked)', background: 'var(--state-blocked-bg)' }}
+          style={{ borderColor: 'var(--blk)', background: 'var(--blk-wash)' }}
         >
           <div className="font-medium">Part of this screen could not be read.</div>
-          <p className="mt-1" style={{ color: 'var(--text-muted)' }}>
+          <p className="mt-1" style={{ color: 'var(--t3)' }}>
             This is a failed read, not an empty result. Usually migration 0034 has not been
             applied — run <code className="font-mono">pnpm db:doctor</code>.
           </p>
-          <ul className="mt-2 font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+          <ul className="mt-2 font-mono text-2xs" style={{ color: 'var(--t3)' }}>
             {board.unreadable.map((u) => (
               <li key={u}>{u}</li>
             ))}
@@ -112,7 +112,7 @@ export default async function AnalyticsPage() {
       </section>
 
       {board.publicationsLive === 0 && (
-        <p className="mt-3 text-sm" style={{ color: 'var(--text-muted)' }}>
+        <p className="mt-3 text-sm" style={{ color: 'var(--t3)' }}>
           No video has been published, so nothing is due and every rate on this page is
           undefined rather than zero. It becomes a number the first time a publication goes
           live and its six-hour mark passes.
@@ -123,7 +123,7 @@ export default async function AnalyticsPage() {
       {outstanding.length > 0 && (
         <section className="mt-8">
           <h2 className="text-sm font-medium">Outstanding — {outstanding.length} to read</h2>
-          <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+          <p className="mt-1 text-xs" style={{ color: 'var(--t3)' }}>
             Leave a field blank when the platform withholds it. A blank stays blank; a typed
             0 is a measurement, and there is no way to tell the two apart afterwards.
           </p>
@@ -138,13 +138,13 @@ export default async function AnalyticsPage() {
       {/* ── Hooks, which is the point of the stage ──────────────────────────── */}
       <section className="mt-8">
         <h2 className="text-sm font-medium">Hook shapes at {HEADLINE_BUCKET}</h2>
-        <p className="mt-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+        <p className="mt-1 text-xs" style={{ color: 'var(--t3)' }}>
           Grouped by the shape of the hook rather than its words, because every hook is
           unique and grouping on the text scores one video per group.
         </p>
 
         {board.unclassifiedHooks > 0 && (
-          <p className="mt-2 text-xs" style={{ color: 'var(--state-warn)' }}>
+          <p className="mt-2 text-xs" style={{ color: 'var(--rev)' }}>
             {board.unclassifiedHooks} live video
             {board.unclassifiedHooks === 1 ? '' : 's'} contribute to no row below — their
             hook has no pattern, so this table is complete about a narrower set than the one
@@ -156,13 +156,13 @@ export default async function AnalyticsPage() {
         )}
 
         {board.hooks.length === 0 ? (
-          <p className="mt-3 text-sm" style={{ color: 'var(--text-muted)' }}>
+          <p className="mt-3 text-sm" style={{ color: 'var(--t3)' }}>
             Nothing measured yet. This is an empty table, not a finding about hooks.
           </p>
         ) : (
           <table className="mt-3 w-full text-xs">
             <thead>
-              <tr style={{ color: 'var(--text-faint)' }}>
+              <tr style={{ color: 'var(--t3)' }}>
                 <Th>Shape</Th>
                 <Th>Videos</Th>
                 <Th>With retention</Th>
@@ -177,7 +177,7 @@ export default async function AnalyticsPage() {
                 <tr
                   key={h.hookPattern}
                   className="border-t"
-                  style={{ borderColor: 'var(--border-subtle)' }}
+                  style={{ borderColor: 'var(--b1)' }}
                 >
                   <Td>{h.hookPattern.replace(/_/g, ' ')}</Td>
                   <Td>{h.videosMeasured}</Td>
@@ -203,13 +203,13 @@ export default async function AnalyticsPage() {
       <section className="mt-8">
         <h2 className="text-sm font-medium">Cost per 1,000 views at {HEADLINE_BUCKET}</h2>
         {board.costPerK.length === 0 ? (
-          <p className="mt-3 text-sm" style={{ color: 'var(--text-muted)' }}>
+          <p className="mt-3 text-sm" style={{ color: 'var(--t3)' }}>
             No live video has a {HEADLINE_BUCKET} snapshot yet.
           </p>
         ) : (
           <table className="mt-3 w-full text-xs">
             <thead>
-              <tr style={{ color: 'var(--text-faint)' }}>
+              <tr style={{ color: 'var(--t3)' }}>
                 <Th>Video</Th>
                 <Th>Views</Th>
                 <Th>Per 1k</Th>
@@ -221,7 +221,7 @@ export default async function AnalyticsPage() {
                 <tr
                   key={r.publicationId}
                   className="border-t"
-                  style={{ borderColor: 'var(--border-subtle)' }}
+                  style={{ borderColor: 'var(--b1)' }}
                 >
                   <Td>{r.title}</Td>
                   <Td>{r.views === null ? '—' : r.views.toLocaleString('en-IN')}</Td>
@@ -265,16 +265,16 @@ function Figure({
     <div
       className="rounded-md border px-4 py-3"
       style={{
-        borderColor: emphasis ? 'var(--border-strong)' : 'var(--border-subtle)',
-        background: 'var(--surface-1)',
+        borderColor: emphasis ? 'var(--b3)' : 'var(--b1)',
+        background: 'var(--s1)',
       }}
     >
-      <div className="text-2xs uppercase" style={{ color: 'var(--text-faint)' }}>
+      <div className="text-2xs uppercase" style={{ color: 'var(--t3)' }}>
         {label}
       </div>
       <div className={emphasis ? 'mt-1 text-xl' : 'mt-1 text-lg'}>{value}</div>
       {sub && (
-        <div className="mt-1 text-2xs" style={{ color: 'var(--text-muted)' }}>
+        <div className="mt-1 text-2xs" style={{ color: 'var(--t3)' }}>
           {sub}
         </div>
       )}

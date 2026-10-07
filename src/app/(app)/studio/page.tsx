@@ -45,11 +45,11 @@ function SessionSummaryLine({ list }: { list: Extract<SessionList, { ok: true }>
   const capped = list.sessions.filter((s) => /cap/i.test(s.stoppedReason ?? '')).length;
 
   return (
-    <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+    <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
       {list.sessions.length}
       {list.truncated && (
         <Hint content={`Only the most recent ${list.limit} are shown, so this count is a floor rather than a total.`}>
-          <span style={{ color: 'var(--state-review)' }}>+</span>
+          <span style={{ color: 'var(--rev)' }}>+</span>
         </Hint>
       )}
       {list.sessions.length > 0 && (
@@ -57,7 +57,7 @@ function SessionSummaryLine({ list }: { list: Extract<SessionList, { ok: true }>
           {' · '}₹{totalInr.toFixed(2)} spent
           {capped > 0 && (
             <Hint content="A cap that stops sessions regularly is either set too low or the loop is going in circles. Neither is visible from a session count.">
-              <span style={{ color: 'var(--state-review)' }}>{` · ${capped} hit the cap`}</span>
+              <span style={{ color: 'var(--rev)' }}>{` · ${capped} hit the cap`}</span>
             </Hint>
           )}
         </>
@@ -79,7 +79,7 @@ export default async function StudioPage() {
       <Panel className="mb-6">
         <div
           className="border-b px-4 py-3 text-md font-medium"
-          style={{ borderColor: 'var(--border-subtle)' }}
+          style={{ borderColor: 'var(--b1)' }}
         >
           New session
         </div>
@@ -91,7 +91,7 @@ export default async function StudioPage() {
       <Panel>
         <div
           className="flex items-baseline gap-3 border-b px-4 py-3"
-          style={{ borderColor: 'var(--border-subtle)' }}
+          style={{ borderColor: 'var(--b1)' }}
         >
           <span className="text-md font-medium">Sessions</span>
           {list.ok && (
@@ -101,19 +101,19 @@ export default async function StudioPage() {
 
         {!list.ok ? (
           <div className="px-4 py-4">
-            <p className="text-sm" style={{ color: 'var(--state-blocked)' }}>
+            <p className="text-sm" style={{ color: 'var(--blk)' }}>
               The session list could not be read.
             </p>
-            <p className="mt-1 font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+            <p className="mt-1 font-mono text-2xs" style={{ color: 'var(--t3)' }}>
               {list.detail}
             </p>
-            <p className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+            <p className="mt-2 text-xs" style={{ color: 'var(--t3)' }}>
               If this names a missing relation, migration 0017 has not been applied. Run{' '}
               <code>pnpm db:doctor</code>.
             </p>
           </div>
         ) : list.sessions.length === 0 ? (
-          <p className="px-4 py-4 text-sm" style={{ color: 'var(--text-muted)' }}>
+          <p className="px-4 py-4 text-sm" style={{ color: 'var(--t3)' }}>
             No sessions yet. A session that decides not to make anything is the lane working
             correctly — it still records what it cost.
           </p>
@@ -123,10 +123,10 @@ export default async function StudioPage() {
               <Link
                 key={s.id}
                 href={`/studio/${s.id}`}
-                className="grid items-baseline gap-3 border-b px-4 py-3 last:border-b-0 hover:bg-[var(--surface-2)]"
+                className="grid items-baseline gap-3 border-b px-4 py-3 last:border-b-0 hover:bg-[var(--s2)]"
                 style={{
                   gridTemplateColumns: 'minmax(0,1fr) 90px 130px 90px',
-                  borderColor: 'var(--border-subtle)',
+                  borderColor: 'var(--b1)',
                 }}
               >
                 <div className="min-w-0">
@@ -134,7 +134,7 @@ export default async function StudioPage() {
                   {s.stoppedReason && (
                     <div
                       className="truncate text-xs"
-                      style={{ color: 'var(--text-faint)' }}
+                      style={{ color: 'var(--t3)' }}
                     >
                       {s.stoppedReason}
                     </div>
@@ -143,16 +143,16 @@ export default async function StudioPage() {
                 <span
                   className="font-mono text-2xs"
                   style={{
-                    color: s.status === 'active' ? 'var(--state-live)' : 'var(--text-faint)',
+                    color: s.status === 'active' ? 'var(--live)' : 'var(--t3)',
                   }}
                 >
                   {s.status}
                 </span>
-                <span className="font-mono text-2xs" style={{ color: 'var(--text-muted)' }}>
+                <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
                   ₹{s.costInr.toFixed(2)}
                   {s.spendCapInr !== null && ` / ₹${s.spendCapInr.toFixed(0)}`}
                 </span>
-                <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+                <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
                   {s.turns} turn{s.turns === 1 ? '' : 's'}
                 </span>
               </Link>

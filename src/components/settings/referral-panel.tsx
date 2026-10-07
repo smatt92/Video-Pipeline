@@ -49,7 +49,7 @@ export async function ReferralPanel() {
   if (error) {
     return (
       <Frame>
-        <span style={{ color: 'var(--state-blocked)' }}>
+        <span style={{ color: 'var(--blk)' }}>
           Could not read referral attribution: {error.message}
         </span>
       </Frame>
@@ -76,7 +76,7 @@ export async function ReferralPanel() {
   return (
     <Frame>
       <div className="mb-2">
-        <strong style={{ color: 'var(--text-primary)' }}>
+        <strong style={{ color: 'var(--t1)' }}>
           {total} connected · {verified} verified
         </strong>{' '}
         through referral links. The second number is the honest one: a connection that never
@@ -85,7 +85,7 @@ export async function ReferralPanel() {
 
       <table className="w-full text-2xs">
         <thead>
-          <tr style={{ color: 'var(--text-faint)' }}>
+          <tr style={{ color: 'var(--t3)' }}>
             <th className="pb-1 text-left font-normal">Vendor</th>
             <th className="pb-1 text-left font-normal">From</th>
             <th className="pb-1 text-left font-normal">Month</th>
@@ -114,9 +114,9 @@ function Frame({ children }: { children: React.ReactNode }) {
     <div
       className="mt-6 rounded-sm border px-3 py-2 text-xs leading-relaxed"
       style={{
-        borderColor: 'var(--border-subtle)',
-        background: 'var(--surface-inset)',
-        color: 'var(--text-muted)',
+        borderColor: 'var(--b1)',
+        background: 'var(--in)',
+        color: 'var(--t3)',
       }}
     >
       {children}

@@ -92,9 +92,9 @@ export default async function VoicePage() {
           className="grid gap-3 border-b px-4 py-2 font-mono text-3xs uppercase tracking-[0.09em]"
           style={{
             gridTemplateColumns: '132px 78px minmax(0,1fr)',
-            borderColor: 'var(--border-subtle)',
-            color: 'var(--text-faint)',
-            background: 'var(--surface-inset)',
+            borderColor: 'var(--b1)',
+            color: 'var(--t3)',
+            background: 'var(--in)',
           }}
         >
           <span>Written</span>
@@ -105,7 +105,7 @@ export default async function VoicePage() {
           <div
             key={p.grapheme}
             className="grid items-center gap-3 border-b px-4 py-[10px] last:border-b-0"
-            style={{ gridTemplateColumns: '132px 78px minmax(0,1fr)', borderColor: 'var(--border-subtle)' }}
+            style={{ gridTemplateColumns: '132px 78px minmax(0,1fr)', borderColor: 'var(--b1)' }}
           >
             <span className="text-sm">{p.grapheme}</span>
             <Hint
@@ -117,7 +117,7 @@ export default async function VoicePage() {
             >
               <span
                 className="rounded-xs px-[6px] py-[2px] font-mono text-2xs"
-                style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}
+                style={{ background: 'var(--s2)', color: 'var(--t3)' }}
               >
                 {p.kind}
               </span>
@@ -125,7 +125,7 @@ export default async function VoicePage() {
             <span className="min-w-0">
               <span className="block truncate font-mono text-xs">{p.replacement}</span>
               {p.note && (
-                <span className="block truncate text-2xs" style={{ color: 'var(--text-faint)' }}>
+                <span className="block truncate text-2xs" style={{ color: 'var(--t3)' }}>
                   {p.note}
                 </span>
               )}
@@ -153,14 +153,14 @@ export default async function VoicePage() {
         <Panel>
           <div className="px-4 py-3 text-sm">
             <div>{status.hint}</div>
-            <div className="mt-1 font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+            <div className="mt-1 font-mono text-2xs" style={{ color: 'var(--t3)' }}>
               {status.error}
             </div>
           </div>
         </Panel>
       ) : status.noScripts ? (
         <Panel>
-          <div className="px-4 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>
+          <div className="px-4 py-3 text-sm" style={{ color: 'var(--t3)' }}>
             No scripts yet, so the voice stage has had nothing to run on. This is an empty
             workspace, not a stuck one — every script will appear here from the moment stage 3
             writes it.
@@ -175,12 +175,12 @@ export default async function VoicePage() {
                 style={{
                   color:
                     d.n === 0
-                      ? 'var(--text-faint)'
+                      ? 'var(--t3)'
                       : d.state === 'timed'
-                        ? 'var(--state-live)'
+                        ? 'var(--live)'
                         : d.state === 'stitched_untimed' || d.state === 'takes_unstitched'
-                          ? 'var(--state-blocked)'
-                          : 'var(--text-muted)',
+                          ? 'var(--blk)'
+                          : 'var(--t3)',
                 }}
               >
                 {d.n === 0 ? '—' : `${d.n} script${d.n === 1 ? '' : 's'}`}

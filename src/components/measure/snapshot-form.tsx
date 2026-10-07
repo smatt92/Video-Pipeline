@@ -71,12 +71,12 @@ export function SnapshotForm({ row, onDone }: { row: DueRow; onDone?: () => void
   return (
     <form
       className="rounded-md border p-3"
-      style={{ borderColor: 'var(--border-subtle)', background: 'var(--surface-1)' }}
+      style={{ borderColor: 'var(--b1)', background: 'var(--s1)' }}
       action={(fd) => submit(fd, 'measured')}
     >
       <div className="flex flex-wrap items-baseline gap-2">
         <span className="font-medium text-sm">{row.title}</span>
-        <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+        <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
           {row.ageBucket} · due {new Date(row.dueAt).toLocaleDateString()}
         </span>
       </div>
@@ -84,7 +84,7 @@ export function SnapshotForm({ row, onDone }: { row: DueRow; onDone?: () => void
       <div className="mt-3 grid gap-2 sm:grid-cols-4">
         {FIELDS.map((f) => (
           <label key={f.name} className="flex flex-col gap-1">
-            <span className="text-2xs" style={{ color: 'var(--text-muted)' }}>
+            <span className="text-2xs" style={{ color: 'var(--t3)' }}>
               {f.label}
               {'required' in f && f.required ? ' *' : ''}
             </span>
@@ -97,7 +97,7 @@ export function SnapshotForm({ row, onDone }: { row: DueRow; onDone?: () => void
               // note above on why a zero here is unrecoverable.
               placeholder={'hint' in f && f.hint ? f.hint : ''}
               className="rounded-xs border px-2 py-1 font-mono text-xs"
-              style={{ borderColor: 'var(--border-subtle)', background: 'var(--surface-2)' }}
+              style={{ borderColor: 'var(--b1)', background: 'var(--s2)' }}
             />
           </label>
         ))}
@@ -108,7 +108,7 @@ export function SnapshotForm({ row, onDone }: { row: DueRow; onDone?: () => void
           type="submit"
           disabled={pending}
           className="rounded-xs px-3 py-1 text-xs"
-          style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
+          style={{ background: 'var(--ac)', color: 'var(--ac-ink)' }}
         >
           Record
         </button>
@@ -117,7 +117,7 @@ export function SnapshotForm({ row, onDone }: { row: DueRow; onDone?: () => void
           name="unavailableReason"
           placeholder="…or say why it could not be read"
           className="min-w-[220px] flex-1 rounded-xs border px-2 py-1 text-xs"
-          style={{ borderColor: 'var(--border-subtle)', background: 'var(--surface-2)' }}
+          style={{ borderColor: 'var(--b1)', background: 'var(--s2)' }}
         />
         <button
           type="submit"
@@ -130,7 +130,7 @@ export function SnapshotForm({ row, onDone }: { row: DueRow; onDone?: () => void
             if (form) submit(new FormData(form), 'unavailable');
           }}
           className="rounded-xs border px-3 py-1 text-xs"
-          style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-muted)' }}
+          style={{ borderColor: 'var(--b1)', color: 'var(--t3)' }}
         >
           Not available
         </button>
@@ -139,7 +139,7 @@ export function SnapshotForm({ row, onDone }: { row: DueRow; onDone?: () => void
       {message && (
         <p
           className="mt-2 text-2xs"
-          style={{ color: message.ok ? 'var(--state-live)' : 'var(--state-blocked)' }}
+          style={{ color: message.ok ? 'var(--live)' : 'var(--blk)' }}
         >
           {message.text}
         </p>

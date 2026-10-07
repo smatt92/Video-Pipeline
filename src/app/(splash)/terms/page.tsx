@@ -36,7 +36,7 @@ export default function TermsPage() {
           <Ext href={LINKS.youtubeTerms}>YouTube Terms of Service</Ext>, and Kiln is bound by the{' '}
           <Ext href={LINKS.apiServicesTerms}>YouTube API Services Terms of Service</Ext>. Google&apos;s handling of data
           is described in the <Ext href={LINKS.googlePrivacy}>Google Privacy Policy</Ext>; Kiln&apos;s is in its{' '}
-          <Link href="/privacy" className="underline underline-offset-4" style={{ color: 'var(--accent)' }}>
+          <Link href="/privacy" className="underline underline-offset-4" style={{ color: 'var(--ac)' }}>
             privacy policy
           </Link>
           .

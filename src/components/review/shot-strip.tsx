@@ -90,14 +90,14 @@ export function ShotStrip(props: ShotStripProps) {
   return (
     <div
       className="rounded-md border"
-      style={{ background: 'var(--surface-1)', borderColor: 'var(--border-subtle)' }}
+      style={{ background: 'var(--s1)', borderColor: 'var(--b1)' }}
     >
       <div
         className="flex items-baseline gap-2 border-b px-4 py-3"
-        style={{ borderColor: 'var(--border-subtle)' }}
+        style={{ borderColor: 'var(--b1)' }}
       >
         <span className="text-sm font-medium">Shots</span>
-        <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+        <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
           {spans.length}
         </span>
         {dirty && (
@@ -106,7 +106,7 @@ export function ShotStrip(props: ShotStripProps) {
             disabled={pending}
             onClick={props.onSaveOrder}
             className="ml-auto rounded-sm px-2 py-[4px] text-xs font-medium disabled:opacity-60"
-            style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}
+            style={{ background: 'var(--ac)', color: 'var(--ac-ink)' }}
           >
             Save order
           </button>
@@ -143,11 +143,11 @@ export function ShotStrip(props: ShotStripProps) {
               style={{
                 height: rowHeight,
                 gridTemplateColumns: '26px minmax(0,1fr) 74px 58px',
-                borderColor: 'var(--border-subtle)',
+                borderColor: 'var(--b1)',
                 background: selected
-                  ? 'var(--surface-2)'
+                  ? 'var(--s2)'
                   : dropAt === i && dragId
-                    ? 'var(--surface-inset)'
+                    ? 'var(--in)'
                     : 'transparent',
                 opacity: dragId === span.shot.id ? 0.5 : 1,
               }}
@@ -160,26 +160,26 @@ export function ShotStrip(props: ShotStripProps) {
                 <span
                   aria-hidden
                   className="absolute inset-y-0 left-0 w-[2px]"
-                  style={{ background: 'var(--state-ready)' }}
+                  style={{ background: 'var(--rdy)' }}
                 />
               )}
-              <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+              <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
                 {String(span.shot.idx).padStart(2, '0')}
               </span>
 
               <div className="min-w-0">
                 <div className="truncate text-xs">
                   {marked && (
-                    <span className="mr-1 font-mono text-3xs" style={{ color: 'var(--state-review)' }}>
+                    <span className="mr-1 font-mono text-3xs" style={{ color: 'var(--rev)' }}>
                       ↻
                     </span>
                   )}
                   {span.shot.description}
                 </div>
-                <div className="flex items-baseline gap-2 font-mono text-3xs" style={{ color: 'var(--text-faint)' }}>
+                <div className="flex items-baseline gap-2 font-mono text-3xs" style={{ color: 'var(--t3)' }}>
                   <span>{span.startS.toFixed(2)}s</span>
                   {span.shot.trimInS !== null && (
-                    <span style={{ color: 'var(--state-review)' }}>
+                    <span style={{ color: 'var(--rev)' }}>
                       trim {span.shot.trimInS}–{span.shot.trimOutS}
                     </span>
                   )}
@@ -189,10 +189,10 @@ export function ShotStrip(props: ShotStripProps) {
                     </span>
                   )}
                   {!span.shot.assetKey && (
-                    <span style={{ color: 'var(--state-blocked)' }}>no clip</span>
+                    <span style={{ color: 'var(--blk)' }}>no clip</span>
                   )}
                   {span.shot.assetKey && !span.shot.normalised && (
-                    <span style={{ color: 'var(--state-blocked)' }}>unnormalised</span>
+                    <span style={{ color: 'var(--blk)' }}>unnormalised</span>
                   )}
                 </div>
               </div>
@@ -238,7 +238,7 @@ export function ShotStrip(props: ShotStripProps) {
 
               <span
                 className="text-right font-mono text-2xs"
-                style={{ color: drifted ? 'var(--state-blocked)' : 'var(--text-faint)' }}
+                style={{ color: drifted ? 'var(--blk)' : 'var(--t3)' }}
                 title={
                   span.driftS === null
                     ? 'This shot covers no speech, so there is nothing to be out of sync with.'
@@ -252,7 +252,7 @@ export function ShotStrip(props: ShotStripProps) {
         })}
       </div>
 
-      <p className="px-4 py-2 text-2xs leading-snug" style={{ color: 'var(--text-faint)' }}>
+      <p className="px-4 py-2 text-2xs leading-snug" style={{ color: 'var(--t3)' }}>
         Drag to reorder, or Alt+↑/↓. The right column is how far the picture has drifted from
         the voice by the time each shot starts — anything over {DRIFT_TOLERANCE_S}s is words
         landing on the wrong images, in a file that plays perfectly.
@@ -277,7 +277,7 @@ function HandleButton({
       aria-label={title}
       onClick={onClick}
       className="rounded-sm border px-[6px] py-[2px] font-mono text-2xs"
-      style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-muted)' }}
+      style={{ borderColor: 'var(--b1)', color: 'var(--t3)' }}
     >
       {label}
     </button>

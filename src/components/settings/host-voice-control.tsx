@@ -56,8 +56,8 @@ export function HostVoiceControl({
           spellCheck={false}
           className="rounded-sm border px-3 font-mono text-xs"
           style={{
-            background: 'var(--surface-2)',
-            borderColor: 'var(--border-default)',
+            background: 'var(--s2)',
+            borderColor: 'var(--b2)',
             minHeight: 'var(--hit-primary)',
             minWidth: '22ch',
           }}
@@ -68,8 +68,8 @@ export function HostVoiceControl({
           disabled={pending || value === (current ?? '')}
           className="rounded-sm px-4 text-sm font-medium disabled:opacity-40"
           style={{
-            background: 'var(--accent)',
-            color: 'var(--accent-contrast)',
+            background: 'var(--ac)',
+            color: 'var(--ac-ink)',
             minHeight: 'var(--hit-primary)',
           }}
         >
@@ -81,7 +81,7 @@ export function HostVoiceControl({
         <p
           className="max-w-[62ch] text-xs leading-relaxed"
           style={{
-            color: state.status === 'error' ? 'var(--danger)' : 'var(--text-muted)',
+            color: state.status === 'error' ? 'var(--blk-text)' : 'var(--t3)',
           }}
           role={state.status === 'error' ? 'alert' : 'status'}
         >
@@ -92,7 +92,7 @@ export function HostVoiceControl({
       {/* Shown when unset, which is the state that matters. A field that is empty for a
           reason nobody can see is how the chain stayed inert. */}
       {!current && state.status !== 'ok' && (
-        <p className="max-w-[62ch] text-xs leading-relaxed" style={{ color: 'var(--text-faint)' }}>
+        <p className="max-w-[62ch] text-xs leading-relaxed" style={{ color: 'var(--t3)' }}>
           Until this is set, an approved concept produces a script and a shotlist and then
           stops — stage 6 needs a voice, and stage 5 will not generate video against a
           duration that was estimated rather than measured. The board shows it as blocked

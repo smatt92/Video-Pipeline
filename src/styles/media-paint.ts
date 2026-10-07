@@ -6,7 +6,7 @@
  *
  *   The review composition burns captions into video frames. Remotion renders it in a
  *   headless browser during a real render, where the app's stylesheet is not loaded at all,
- *   so `var(--surface-1)` resolves to nothing and the caption comes out transparent.
+ *   so `var(--s1)` resolves to nothing and the caption comes out transparent.
  *
  *   wavesurfer paints a `<canvas>`. `waveColor` is passed to a 2D context, which takes a
  *   colour string and has never heard of custom properties.

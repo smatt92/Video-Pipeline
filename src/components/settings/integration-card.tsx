@@ -42,16 +42,7 @@ import type { StepIntegrationView } from "@/lib/onboarding/step-view";
 function TestButton({ blocked }: { blocked: boolean }) {
   const { pending } = useFormStatus();
   return (
-    <button
-      type="submit"
-      disabled={blocked || pending}
-      className="rounded-sm px-[10px] py-[5px] text-xs font-medium transition-colors disabled:cursor-not-allowed"
-      style={{
-        background: blocked ? "var(--surface-2)" : "var(--accent)",
-        color: blocked ? "var(--text-faint)" : "var(--accent-contrast)",
-        transitionDuration: "var(--duration-fast)",
-      }}
-    >
+    <button type="submit" disabled={blocked || pending} className="btn sm pri">
       {pending ? "Calling…" : "Save and test"}
     </button>
   );
@@ -102,32 +93,20 @@ export function IntegrationCard({
   return (
     <Panel className="mb-4">
       <form action={action}>
-        <div
-          className="flex items-center gap-3 border-b px-4 py-3"
-          style={{ borderColor: "var(--border-subtle)" }}
-        >
-          <span className="text-md font-medium">{d.label}</span>
-          <span
-            className="font-mono text-2xs"
-            style={{ color: "var(--text-faint)" }}
-          >
-            {d.kind}
+        <div className="card-h">
+          <span className="row" style={{ gap: 10 }}>
+            <h3 className="h3">{d.label}</h3>
+            <span className="mono xs t3">{d.kind}</span>
           </span>
 
-          <span className="ml-auto flex items-center gap-3">
+          <span className="row" style={{ gap: 10 }}>
             <CheckPill passed={pill.passed} label={pill.label} />
             <TestButton blocked={blockedBy !== null} />
           </span>
         </div>
 
         {blockedBy && (
-          <div
-            className="border-b px-4 py-2 text-xs"
-            style={{
-              borderColor: "var(--border-subtle)",
-              color: "var(--text-faint)",
-            }}
-          >
+          <div className="card-b xs t3" style={{ borderBottom: "1px solid var(--b1)" }}>
             Blocked until {blockedBy} verifies — nothing can be stored until
             storage works, so verifying this first would prove nothing. The
             server enforces this too; the disabled button is a courtesy, not the
@@ -140,8 +119,9 @@ export function IntegrationCard({
           const inEnv = envFields.includes(f.key);
           return (
             <Row key={f.key} label={f.label} help={f.help}>
-              <div className="flex items-center gap-3">
+              <div className="row" style={{ gap: 10, flexWrap: "nowrap" }}>
                 <input
+                  aria-label={f.label}
                   name={f.key}
                   type="password"
                   placeholder={
@@ -153,11 +133,8 @@ export function IntegrationCard({
                   }
                   autoComplete="off"
                   spellCheck={false}
-                  className="w-[240px] rounded-sm border bg-transparent px-2 py-[5px] font-mono text-xs outline-none"
-                  style={{
-                    borderColor: "var(--border-default)",
-                    color: "var(--text-primary)",
-                  }}
+                  className="input mono"
+                  style={{ maxWidth: 280 }}
                 />
                 {configured ? (
                   <Mono>…{configured.last4}</Mono>
@@ -194,15 +171,7 @@ export function IntegrationCard({
 
         {result.status !== "idle" && result.message && (
           <Row label="Last run">
-            <p
-              className="max-w-[62ch] text-xs leading-relaxed whitespace-pre-line"
-              style={{
-                color:
-                  result.status === "ok"
-                    ? "var(--state-live)"
-                    : "var(--state-blocked)",
-              }}
-            >
+            <p className="xs" role="status" style={{ maxWidth: "62ch", whiteSpace: "pre-line", color: result.status === "ok" ? "var(--live)" : "var(--blk-text)" }}>
               {result.message}
             </p>
           </Row>
@@ -212,10 +181,7 @@ export function IntegrationCard({
           view.lastError &&
           result.status === "idle" && (
             <Row label="Last failure">
-              <p
-                className="max-w-[62ch] text-xs leading-relaxed"
-                style={{ color: "var(--state-blocked)" }}
-              >
+              <p className="xs" style={{ maxWidth: "62ch", color: "var(--blk-text)" }}>
                 {view.lastError}
               </p>
             </Row>
@@ -249,16 +215,7 @@ export function IntegrationCard({
                     key={t.tier}
                     content={t.note || `${t.concurrency} parallel requests`}
                   >
-                    <span
-                      className="rounded-xs px-[6px] py-[3px] font-mono text-2xs"
-                      style={{
-                        background: "var(--surface-2)",
-                        color:
-                          planTier === t.tier
-                            ? "var(--text-primary)"
-                            : "var(--text-muted)",
-                      }}
-                    >
+                    <span className={`chip mono${planTier === t.tier ? " on" : ""}`}>
                       {t.tier} · {t.concurrency}
                     </span>
                   </Hint>
@@ -273,11 +230,7 @@ export function IntegrationCard({
         <Row label="Known behaviour">
           <ul className="flex flex-col gap-1">
             {d.notes.map((n) => (
-              <li
-                key={n}
-                className="text-xs leading-snug"
-                style={{ color: "var(--text-faint)" }}
-              >
+              <li key={n} className="xs t3">
                 {n}
               </li>
             ))}

@@ -37,9 +37,9 @@ function Submit({ label, busy }: { label: string; busy: string }) {
       disabled={pending}
       className="rounded-sm px-3 py-[7px] text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
       style={{
-        background: 'var(--accent)',
-        color: 'var(--accent-contrast)',
-        transitionDuration: 'var(--duration-fast)',
+        background: 'var(--ac)',
+        color: 'var(--ac-ink)',
+        transitionDuration: 'var(--d1)',
       }}
     >
       {pending ? busy : label}
@@ -70,7 +70,7 @@ function Field({
     <label className="flex flex-col gap-[5px]">
       <span
         className="font-mono text-3xs uppercase tracking-[0.09em]"
-        style={{ color: 'var(--text-faint)' }}
+        style={{ color: 'var(--t3)' }}
       >
         {label}
         {required && <span aria-hidden> *</span>}
@@ -85,13 +85,13 @@ function Field({
         spellCheck={false}
         className="w-full rounded-sm border px-[10px] py-[7px] text-sm outline-none"
         style={{
-          background: 'var(--surface-inset)',
-          borderColor: 'var(--border-subtle)',
-          color: 'var(--text-primary)',
+          background: 'var(--in)',
+          borderColor: 'var(--b1)',
+          color: 'var(--t1)',
         }}
       />
       {help && (
-        <span className="text-xs leading-relaxed" style={{ color: 'var(--text-faint)' }}>
+        <span className="text-xs leading-relaxed" style={{ color: 'var(--t3)' }}>
           {help}
         </span>
       )}
@@ -103,7 +103,7 @@ function Field({
 function Outcome({ state }: { state: StepState }) {
   if (state.status === 'idle') return null;
 
-  const tone = state.status === 'ok' ? 'var(--state-live)' : 'var(--state-blocked)';
+  const tone = state.status === 'ok' ? 'var(--live)' : 'var(--blk)';
 
   return (
     <div className="flex flex-col gap-2">
@@ -125,14 +125,14 @@ function Outcome({ state }: { state: StepState }) {
                 className="mt-[5px] size-[7px] shrink-0 rounded-full"
                 style={{
                   background: c.passed
-                    ? 'var(--state-live)'
+                    ? 'var(--live)'
                     : c.required
-                      ? 'var(--state-blocked)'
-                      : 'var(--state-drafting)',
+                      ? 'var(--blk)'
+                      : 'var(--draft)',
                 }}
               />
-              <span style={{ color: 'var(--text-secondary)' }}>
-                <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+              <span style={{ color: 'var(--t2)' }}>
+                <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
                   {c.name}
                   {!c.required && ' · informational'}
                 </span>
@@ -168,7 +168,7 @@ export function ProfileForm({ email }: { email: string | null }) {
         />
       </div>
       {email && (
-        <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
+        <p className="text-xs" style={{ color: 'var(--t3)' }}>
           Signed in as {email}. The profile is written against this account.
         </p>
       )}
@@ -219,7 +219,7 @@ export function IntegrationStepForm({
         })}
       </div>
 
-      <p className="text-xs leading-relaxed" style={{ color: 'var(--text-faint)' }}>
+      <p className="text-xs leading-relaxed" style={{ color: 'var(--t3)' }}>
         {verification}
       </p>
 
@@ -271,13 +271,13 @@ export function ExistingChannelForm({
   return (
     <form action={action} className="flex flex-col gap-4">
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-        <dt style={{ color: 'var(--text-faint)' }}>Channel</dt>
+        <dt style={{ color: 'var(--t3)' }}>Channel</dt>
         <dd>{channel.name}</dd>
-        <dt style={{ color: 'var(--text-faint)' }}>Platform</dt>
+        <dt style={{ color: 'var(--t3)' }}>Platform</dt>
         <dd>{channel.platform}</dd>
-        <dt style={{ color: 'var(--text-faint)' }}>Niche</dt>
+        <dt style={{ color: 'var(--t3)' }}>Niche</dt>
         <dd>{channel.niche}</dd>
-        <dt style={{ color: 'var(--text-faint)' }}>Channel ID</dt>
+        <dt style={{ color: 'var(--t3)' }}>Channel ID</dt>
         <dd className="font-mono">{channel.external_id ?? '—'}</dd>
       </dl>
       <div className="max-w-[24rem]">

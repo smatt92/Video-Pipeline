@@ -20,12 +20,12 @@ export function BureauNav({ active }: { active: (typeof ITEMS)[number][0] }) {
           key={slug}
           href={`/bureau/${slug}`}
           className="whitespace-nowrap underline-offset-4"
-          style={{ color: slug === active ? 'var(--accent)' : 'var(--text-muted)', textDecoration: slug === active ? 'underline' : 'none' }}
+          style={{ color: slug === active ? 'var(--ac)' : 'var(--t3)', textDecoration: slug === active ? 'underline' : 'none' }}
         >
           {label}
         </Link>
       ))}
-      <Link href="/costs" className="whitespace-nowrap" style={{ color: 'var(--text-muted)' }}>
+      <Link href="/costs" className="whitespace-nowrap" style={{ color: 'var(--t3)' }}>
         Costs
       </Link>
     </nav>

@@ -150,59 +150,12 @@
   --lh-relaxed: 1.7;
 
   --rail-width: 248px;
+  --topbar-height: calc(3.25rem * var(--ui-scale));
   --tabbar-height: 84px;
 
   /* WCAG 2.5.8. --hit-min must NOT scale down; --hit-primary is the 44px mobile floor. */
   --hit-min: 24px;
   --hit-primary: max(2.75rem, calc(2.75rem * var(--ui-scale)));
-}
-
-/* ══ v1 ALIASES — the names every screen used before brand v2. ══════════════════
- * Pointed at the v2 tokens so an unmoved screen already wears the new palette. Delete this
- * block when `grep -rn "var(--surface-\|var(--text-\|var(--state-\|var(--accent" src` is
- * empty — not before, or an unmoved screen renders with no colour at all. */
-:root {
-  --surface-0: var(--s0);
-  --surface-1: var(--s1);
-  --surface-2: var(--s2);
-  --surface-3: var(--s3);
-  --surface-inset: var(--in);
-  --text-primary: var(--t1);
-  --text-secondary: var(--t2);
-  --text-muted: var(--t3);
-  --text-faint: var(--t3);
-  --text-on-accent: var(--ac-ink);
-  --on-accent: var(--ac-ink);
-  --border-subtle: var(--b1);
-  --border-default: var(--b2);
-  --border-strong: var(--b3);
-  --border-focus: var(--ac);
-  --accent: var(--ac);
-  --accent-hover: var(--ac-hi);
-  --accent-muted: var(--ac-t);
-  --accent-contrast: var(--ac-ink);
-  --brand-mark: var(--ac);
-  --state-drafting: var(--draft);
-  --state-generating: var(--gen);
-  --state-review: var(--rev);
-  --state-warn: var(--rev);
-  --state-blocked: var(--blk);
-  --state-blocked-bg: var(--blk-wash);
-  --state-ready: var(--rdy);
-  --state-live: var(--live);
-  --state-killed: var(--t4);
-  --danger: var(--blk-text);
-  --danger-muted: var(--blk-wash);
-  --duration-fast: var(--d1);
-  --duration-slow: var(--d3);
-  --ease-in-out: var(--e-io);
-  --ease-out: var(--e-out);
-  --overlay-scrim: var(--scrim);
-  --shadow-overlay: var(--shadow-raised);
-  --sidebar-bg: var(--in);
-  --sidebar-item-active-bg: var(--s2);
-  --sidebar-width: var(--rail-width);
-  --topbar-height: calc(3.25rem * var(--ui-scale));
 }
 
 @media (prefers-reduced-motion: reduce) {

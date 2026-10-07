@@ -113,7 +113,7 @@ export function TourScreen({
       <div className="flex items-baseline gap-3">
         <span
           className="font-mono text-2xs uppercase tracking-[0.09em]"
-          style={{ color: 'var(--text-faint)' }}
+          style={{ color: 'var(--t3)' }}
         >
           {replay ? 'replay' : 'what this is'} · {index + 1} of {steps.length}
         </span>
@@ -121,7 +121,7 @@ export function TourScreen({
           type="button"
           onClick={finish}
           className="ml-auto rounded-sm px-3 text-xs"
-          style={{ color: 'var(--text-muted)', minHeight: 'var(--hit-min)' }}
+          style={{ color: 'var(--t3)', minHeight: 'var(--hit-min)' }}
         >
           Skip
         </button>
@@ -133,7 +133,7 @@ export function TourScreen({
         </h1>
         <p
           className="mt-4 max-w-[62ch] text-md leading-relaxed"
-          style={{ color: 'var(--text-secondary)' }}
+          style={{ color: 'var(--t2)' }}
         >
           {step.body}
         </p>
@@ -155,8 +155,8 @@ export function TourScreen({
               height: 4,
               minHeight: 4,
               padding: 0,
-              background: i <= index ? 'var(--accent)' : 'var(--surface-3)',
-              transitionDuration: 'var(--duration-fast)',
+              background: i <= index ? 'var(--ac)' : 'var(--s3)',
+              transitionDuration: 'var(--d1)',
             }}
           />
         ))}
@@ -167,7 +167,7 @@ export function TourScreen({
               type="button"
               onClick={back}
               className="rounded-sm border px-4 text-sm"
-              style={{ borderColor: 'var(--border-strong)', minHeight: 'var(--hit-primary)' }}
+              style={{ borderColor: 'var(--b3)', minHeight: 'var(--hit-primary)' }}
             >
               Back
             </button>
@@ -177,8 +177,8 @@ export function TourScreen({
             onClick={next}
             className="rounded-sm px-4 text-sm font-medium"
             style={{
-              background: 'var(--accent)',
-              color: 'var(--accent-contrast)',
+              background: 'var(--ac)',
+              color: 'var(--ac-ink)',
               minHeight: 'var(--hit-primary)',
             }}
           >
@@ -192,7 +192,7 @@ export function TourScreen({
           what makes them legitimate rather than their size. Stated here because a reviewer
           measuring targets will otherwise flag them, correctly, and the answer is that they
           are redundant with a compliant control rather than that 4px is fine. */}
-      <p className="mt-6 text-2xs" style={{ color: 'var(--text-faint)' }}>
+      <p className="mt-6 text-2xs" style={{ color: 'var(--t3)' }}>
         ← → to move, Esc to skip.
       </p>
     </div>

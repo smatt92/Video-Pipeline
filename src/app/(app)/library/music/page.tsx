@@ -1,5 +1,6 @@
 import { BedUpload, SeriesDefaultForm } from '@/components/library/music-controls';
-import { Panel, SectionHeader } from '@/components/settings/parts';
+import { LibraryHeader } from '@/components/library/library-header';
+import { Panel } from '@/components/settings/parts';
 import { bibleOrNull, requireChannel } from '@/lib/channels/active';
 import { serverClient } from '@/lib/db/server';
 import { MUSIC_CONTENT_TYPES, MUSIC_MAX_BYTES, musicScreen } from '@/lib/library/music';
@@ -12,7 +13,7 @@ import { storage } from '@/lib/storage';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata = { title: 'Kiln — music' };
+export const metadata = { title: 'Music' };
 
 export default async function MusicPage() {
   const channel = await requireChannel();
@@ -20,14 +21,13 @@ export default async function MusicPage() {
 
   if (!cb) {
     return (
-      <div className="mx-auto w-full max-w-[1000px] px-6 py-8">
-        <SectionHeader title="Music" />
-        <Panel>
-          <p className="px-4 py-4 text-sm" style={{ color: 'var(--text-muted)' }}>
-            {channel.name} has no bible folder in this build, so it names no series and no beds.
-          </p>
-        </Panel>
-      </div>
+      <main className="main">
+        <LibraryHeader channel={channel} active="Music" sub="No series yet" />
+        <div className="empty" style={{ padding: 40 }}>
+          <span style={{ color: 'var(--t2)', fontWeight: 500 }}>{channel.name} has no series yet</span>
+          <span>Beds are named by a series&rsquo; music pool; a channel without a bible names none.</span>
+        </div>
+      </main>
     );
   }
 
@@ -45,32 +45,32 @@ export default async function MusicPage() {
   const uploaded = new Set(screen.beds.filter((b) => b.uploaded).map((b) => b.bedId));
 
   return (
-    <div className="mx-auto w-full max-w-[1000px] px-6 py-8">
-      <SectionHeader title="Music" hint={`${channel.name}: every bed named in a series' music_bed_pool, the audio uploaded for it, and each series' default.`} />
+    <main className="main">
+      <LibraryHeader channel={channel} active="Music" sub="Every bed named in a series’ music pool, the audio uploaded for it, and each series’ default." />
 
       {/* Said plainly, because an upload screen implies the uploads are used. */}
-      <p className="mb-4 rounded-sm border px-3 py-2 text-xs leading-relaxed" style={{ borderColor: 'var(--border-strong)', color: 'var(--text-muted)' }}>
+      <p className="mb-4 rounded-sm border px-3 py-2 text-xs leading-relaxed" style={{ borderColor: 'var(--b3)', color: 'var(--t3)' }}>
         The assembler does not mix a bed yet — the episode render passes no music track. Uploads and defaults are recorded for when it does.
       </p>
 
       {screen.tableMissing && (
-        <p className="mb-4 rounded-sm border px-3 py-2 text-xs" style={{ borderColor: 'var(--border-strong)', color: 'var(--state-review)' }}>
+        <p className="mb-4 rounded-sm border px-3 py-2 text-xs" style={{ borderColor: 'var(--b3)', color: 'var(--rev)' }}>
           Beds cannot be recorded: {screen.tableMissing}.
         </p>
       )}
 
       <Panel className="mb-6">
-        <div className="border-b px-4 py-3 text-md font-medium" style={{ borderColor: 'var(--border-subtle)' }}>
+        <div className="border-b px-4 py-3 text-md font-medium" style={{ borderColor: 'var(--b1)' }}>
           Beds
         </div>
         {screen.beds.map((b, i) => (
-          <div key={b.bedId} className="border-b px-4 py-3 last:border-b-0" style={{ borderColor: 'var(--border-subtle)' }}>
+          <div key={b.bedId} className="border-b px-4 py-3 last:border-b-0" style={{ borderColor: 'var(--b1)' }}>
             <div className="flex flex-wrap items-baseline gap-3">
               <span className="font-mono text-sm">{b.bedId}</span>
-              <span className="text-2xs" style={{ color: 'var(--text-faint)' }}>
+              <span className="text-2xs" style={{ color: 'var(--t3)' }}>
                 {b.series.join(', ')}
               </span>
-              <span className="ml-auto font-mono text-2xs" style={{ color: b.uploaded ? 'var(--state-review)' : 'var(--text-faint)' }}>
+              <span className="ml-auto font-mono text-2xs" style={{ color: b.uploaded ? 'var(--rev)' : 'var(--t3)' }}>
                 {b.uploaded
                   ? `uploaded ${b.uploaded.uploadedAt.slice(0, 10)} · unverified · ${b.uploaded.bytes === null ? '—' : `${(b.uploaded.bytes / 1024 / 1024).toFixed(1)} MB`}`
                   : 'not uploaded'}
@@ -81,7 +81,7 @@ export default async function MusicPage() {
                 (urls[i] ? (
                   <audio controls preload="none" src={urls[i]!} className="h-8 w-full max-w-[420px]" />
                 ) : (
-                  <span className="text-xs" style={{ color: 'var(--state-review)' }}>
+                  <span className="text-xs" style={{ color: 'var(--rev)' }}>
                     recorded at {b.uploaded.storageKey} but could not be presigned
                   </span>
                 ))}
@@ -89,25 +89,25 @@ export default async function MusicPage() {
             </div>
           </div>
         ))}
-        <p className="border-t px-4 py-3 text-2xs" style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-faint)' }}>
+        <p className="border-t px-4 py-3 text-2xs" style={{ borderColor: 'var(--b1)', color: 'var(--t3)' }}>
           Audio only ({Object.keys(MUSIC_CONTENT_TYPES).join(', ')}), up to {MUSIC_MAX_BYTES / 1024 / 1024} MB. &ldquo;Unverified&rdquo; is on every
           upload: the storage driver cannot check an object exists, so a row means the browser reported the PUT succeeded. Play it to be sure.
         </p>
       </Panel>
 
       <Panel>
-        <div className="border-b px-4 py-3 text-md font-medium" style={{ borderColor: 'var(--border-subtle)' }}>
+        <div className="border-b px-4 py-3 text-md font-medium" style={{ borderColor: 'var(--b1)' }}>
           Default bed per series
         </div>
         {screen.series.map((s) => (
-          <div key={s.id} className="flex flex-wrap items-center gap-3 border-b px-4 py-3 last:border-b-0" style={{ borderColor: 'var(--border-subtle)' }}>
+          <div key={s.id} className="flex flex-wrap items-center gap-3 border-b px-4 py-3 last:border-b-0" style={{ borderColor: 'var(--b1)' }}>
             <span className="w-[160px] text-sm">{s.name}</span>
-            <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+            <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
               {s.defaultBed ?? '—'}
             </span>
             <div className="ml-auto">
               {screen.tableMissing ? (
-                <span className="text-xs" style={{ color: 'var(--text-faint)' }}>
+                <span className="text-xs" style={{ color: 'var(--t3)' }}>
                   {screen.tableMissing}
                 </span>
               ) : (
@@ -117,6 +117,6 @@ export default async function MusicPage() {
           </div>
         ))}
       </Panel>
-    </div>
+    </main>
   );
 }

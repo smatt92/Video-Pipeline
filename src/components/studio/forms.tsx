@@ -17,9 +17,9 @@ import { sendTurnAction, startSessionAction, type StudioState } from '@/lib/stud
 const IDLE: StudioState = { status: 'idle' };
 
 function tone(status: StudioState['status']) {
-  if (status === 'ok') return 'var(--state-live)';
-  if (status === 'capped') return 'var(--state-blocked)';
-  return 'var(--state-blocked)';
+  if (status === 'ok') return 'var(--live)';
+  if (status === 'capped') return 'var(--blk)';
+  return 'var(--blk)';
 }
 
 function Submit({ label, busy }: { label: string; busy: string }) {
@@ -30,9 +30,9 @@ function Submit({ label, busy }: { label: string; busy: string }) {
       disabled={pending}
       className="rounded-sm px-3 py-[7px] text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
       style={{
-        background: 'var(--accent)',
-        color: 'var(--accent-contrast)',
-        transitionDuration: 'var(--duration-fast)',
+        background: 'var(--ac)',
+        color: 'var(--ac-ink)',
+        transitionDuration: 'var(--d1)',
       }}
     >
       {pending ? busy : label}
@@ -41,9 +41,9 @@ function Submit({ label, busy }: { label: string; busy: string }) {
 }
 
 const inputStyle = {
-  background: 'var(--surface-inset)',
-  borderColor: 'var(--border-subtle)',
-  color: 'var(--text-primary)',
+  background: 'var(--in)',
+  borderColor: 'var(--b1)',
+  color: 'var(--t1)',
 };
 
 export function StartSessionForm({ proposedCap }: { proposedCap: number | null }) {
@@ -59,7 +59,7 @@ export function StartSessionForm({ proposedCap }: { proposedCap: number | null }
       <div className="flex flex-col gap-1">
         <span
           className="font-mono text-3xs uppercase tracking-[0.09em]"
-          style={{ color: 'var(--text-faint)' }}
+          style={{ color: 'var(--t3)' }}
         >
           Working title
         </span>
@@ -74,7 +74,7 @@ export function StartSessionForm({ proposedCap }: { proposedCap: number | null }
       <div className="flex flex-col gap-1">
         <span
           className="font-mono text-3xs uppercase tracking-[0.09em]"
-          style={{ color: 'var(--text-faint)' }}
+          style={{ color: 'var(--t3)' }}
         >
           Spend cap for this session (₹)
         </span>
@@ -90,7 +90,7 @@ export function StartSessionForm({ proposedCap }: { proposedCap: number | null }
         />
         {/* Shown, not hidden behind a default. The cap stops the session dead when it is
             reached — it does not warn — so the number is worth a person's attention once. */}
-        <span className="text-xs leading-snug" style={{ color: 'var(--text-faint)' }}>
+        <span className="text-xs leading-snug" style={{ color: 'var(--t3)' }}>
           When this is reached the session stops accepting turns. Nothing is rolled back:
           the transcript, any script, and every cost row stay exactly as they were.
         </span>
@@ -120,7 +120,7 @@ export function Composer({ sessionId, disabled }: { sessionId: string; disabled:
 
   if (disabled) {
     return (
-      <p className="text-sm" style={{ color: 'var(--text-faint)' }}>
+      <p className="text-sm" style={{ color: 'var(--t3)' }}>
         This session has stopped. Open a new one to keep working — the transcript above is
         kept as it stands.
       </p>

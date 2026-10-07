@@ -14,7 +14,7 @@ import { WriteResult } from './voice-controls';
 
 const IDLE: LibraryWriteState = { status: 'idle' };
 
-const buttonStyle = { borderColor: 'var(--border-default)', color: 'var(--text-secondary)' };
+const buttonStyle = { borderColor: 'var(--b2)', color: 'var(--t2)' };
 
 /**
  * Upload one bed: presign (server) → PUT (browser → bucket, rule 2) → confirm (server).
@@ -72,7 +72,7 @@ export function SeriesDefaultForm({ series, choices, current }: { series: string
   const [state, action] = useActionState(setSeriesDefaultAction, IDLE);
   if (choices.length === 0) {
     return (
-      <span className="text-xs" style={{ color: 'var(--text-faint)' }}>
+      <span className="text-xs" style={{ color: 'var(--t3)' }}>
         no bed in this pool is uploaded yet
       </span>
     );
@@ -85,7 +85,7 @@ export function SeriesDefaultForm({ series, choices, current }: { series: string
           name="bed_id"
           defaultValue={current ?? choices[0]}
           className="rounded-sm border px-2 py-[4px] font-mono text-xs"
-          style={{ background: 'var(--surface-inset)', borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
+          style={{ background: 'var(--in)', borderColor: 'var(--b1)', color: 'var(--t1)' }}
         >
           {choices.map((c) => (
             <option key={c} value={c}>

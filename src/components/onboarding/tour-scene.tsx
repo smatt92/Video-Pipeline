@@ -378,7 +378,7 @@ export default function TourScene({ index, onContextLost }: TourSceneProps) {
       className="pointer-events-none fixed inset-0 -z-10"
       // Fades in rather than appearing. The chunk arrives after the words are already on
       // screen, and a backdrop that pops in reads as the page having reloaded.
-      style={{ animation: 'kiln-scene-in var(--duration-slow, 600ms) ease-out both' }}
+      style={{ animation: 'kiln-scene-in var(--d3, 600ms) ease-out both' }}
     />
   );
 }

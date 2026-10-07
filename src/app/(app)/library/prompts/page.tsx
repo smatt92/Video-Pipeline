@@ -1,5 +1,7 @@
 import { RecipeForm, RecipeRow } from '@/components/library/recipe-form';
-import { Panel, SectionHeader } from '@/components/settings/parts';
+import { LibraryHeader } from '@/components/library/library-header';
+import { Panel } from '@/components/settings/parts';
+import { currentChannel } from '@/lib/channels/active';
 import { serverClient } from '@/lib/db/server';
 import { INTEGRATION_CATALOG } from '@/lib/drivers/catalog';
 import {
@@ -23,10 +25,12 @@ import { shotKind } from '@/lib/shots/kinds';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata = { title: 'Kiln — prompt library' };
+export const metadata = { title: 'Prompts' };
 
 export default async function PromptLibraryPage() {
   const db = serverClient();
+  // Recipes are workspace-wide; the channel is only for the crumb.
+  const channel = (await currentChannel().catch(() => null))?.active ?? null;
   const [recipes, gaps, blocked, coverage] = await Promise.all([
     listRecipes(db),
     recipeGaps(db),
@@ -43,27 +47,28 @@ export default async function PromptLibraryPage() {
   const active = recipes.filter((r) => r.isActive).length;
 
   return (
-    <div className="mx-auto w-full max-w-[1000px] px-6 py-8">
-      <SectionHeader
-        title="Prompt library"
-        hint="Recipes proven in an exploratory session. Production selects from here and never improvises — a prompt that has never produced a watchable clip is a guess that costs credits to disprove."
+    <main className="main">
+      <LibraryHeader
+        channel={channel ?? { name: 'Workspace' }}
+        active="Prompts"
+        sub="Recipes proven in an exploratory session. Production selects from here and never improvises — a prompt that has never produced a watchable clip is a guess that costs credits to disprove."
       />
 
       {/* ── The worklist ─────────────────────────────────────────────────── */}
       <Panel className="mb-6">
         <div
           className="flex items-baseline gap-3 border-b px-4 py-3"
-          style={{ borderColor: 'var(--border-subtle)' }}
+          style={{ borderColor: 'var(--b1)' }}
         >
           <span className="text-md font-medium">What is blocked</span>
-          <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+          <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
             {blocked.length} shot{blocked.length === 1 ? '' : 's'} cannot compile · {active} active
             recipe{active === 1 ? '' : 's'}
           </span>
         </div>
 
         {gaps.length === 0 ? (
-          <p className="px-4 py-4 text-sm" style={{ color: 'var(--text-muted)' }}>
+          <p className="px-4 py-4 text-sm" style={{ color: 'var(--t3)' }}>
             {blocked.length === 0
               ? 'Nothing waiting. Every shot has compiled against a recipe.'
               : 'Shots are waiting, but none carries a shot kind — they were written before the vocabulary existed. Re-running stage 4 on their scripts assigns one.'}
@@ -71,7 +76,7 @@ export default async function PromptLibraryPage() {
         ) : (
           <table className="w-full text-xs">
             <thead>
-              <tr style={{ color: 'var(--text-faint)' }}>
+              <tr style={{ color: 'var(--t3)' }}>
                 {['shot kind', 'shots', 'scripts', 'seconds', 'recipes'].map((h, i) => (
                   <th
                     key={h}
@@ -89,18 +94,18 @@ export default async function PromptLibraryPage() {
                 const kind = shotKind(g.shotKind);
                 const unserved = g.activeRecipes === 0;
                 return (
-                  <tr key={g.shotKind} style={{ color: 'var(--text-secondary)' }}>
+                  <tr key={g.shotKind} style={{ color: 'var(--t2)' }}>
                     <td className="px-4 py-2 align-top">
                       <span
                         className="font-mono text-xs"
-                        style={{ color: 'var(--text-primary)' }}
+                        style={{ color: 'var(--t1)' }}
                       >
                         {g.shotKind}
                       </span>
                       {kind && (
                         <div
                           className="mt-[2px] max-w-[46ch] text-xs"
-                          style={{ color: 'var(--text-faint)' }}
+                          style={{ color: 'var(--t3)' }}
                         >
                           {kind.note}
                         </div>
@@ -113,7 +118,7 @@ export default async function PromptLibraryPage() {
                     </td>
                     <td
                       className="px-4 py-2 text-right align-top font-mono"
-                      style={{ color: unserved ? 'var(--state-blocked)' : 'var(--state-live)' }}
+                      style={{ color: unserved ? 'var(--blk)' : 'var(--live)' }}
                     >
                       {g.activeRecipes}
                     </td>
@@ -127,7 +132,7 @@ export default async function PromptLibraryPage() {
         {gaps.some((g) => g.activeRecipes === 0) && (
           <p
             className="border-t px-4 py-3 text-xs leading-relaxed"
-            style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-muted)' }}
+            style={{ borderColor: 'var(--b1)', color: 'var(--t3)' }}
           >
             A zero in the last column is a shot kind nothing serves yet, ordered by how much
             each is holding up. That is a queue for an exploratory session, not an error
@@ -140,12 +145,12 @@ export default async function PromptLibraryPage() {
       <Panel className="mb-6">
         <div
           className="flex items-baseline gap-3 border-b px-4 py-3"
-          style={{ borderColor: 'var(--border-subtle)' }}
+          style={{ borderColor: 'var(--b1)' }}
         >
           <span className="text-md font-medium">Coverage per shot kind</span>
           <span
             className="max-w-[62ch] text-xs leading-relaxed"
-            style={{ color: 'var(--text-faint)' }}
+            style={{ color: 'var(--t3)' }}
           >
             One recipe is a warning. Every shot of that kind, in every video, gets the same
             camera — and repeated camera moves are more legible to a policy reviewer than
@@ -155,7 +160,7 @@ export default async function PromptLibraryPage() {
 
         <table className="w-full text-xs">
           <thead>
-            <tr style={{ color: 'var(--text-faint)' }}>
+            <tr style={{ color: 'var(--t3)' }}>
               {['shot kind', 'recipes', 'compiled', 'shipped', 'top share'].map((h, i) => (
                 <th
                   key={h}
@@ -173,16 +178,16 @@ export default async function PromptLibraryPage() {
               // Nothing, one, or several. The middle case is the one that needs a colour.
               const tone =
                 c.activeRecipes === 0
-                  ? 'var(--text-faint)'
+                  ? 'var(--t3)'
                   : c.activeRecipes === 1
-                    ? 'var(--state-review)'
-                    : 'var(--state-live)';
+                    ? 'var(--rev)'
+                    : 'var(--live)';
               // Concentration only means something once there is a choice to concentrate.
               const concentrated =
                 c.activeRecipes > 1 && c.topRecipeShare !== null && c.topRecipeShare > 0.6;
 
               return (
-                <tr key={c.shotKind} style={{ color: 'var(--text-secondary)' }}>
+                <tr key={c.shotKind} style={{ color: 'var(--t2)' }}>
                   <td className="px-4 py-2 font-mono text-xs">{c.shotKind}</td>
                   <td className="px-4 py-2 text-right font-mono" style={{ color: tone }}>
                     {c.activeRecipes}
@@ -192,7 +197,7 @@ export default async function PromptLibraryPage() {
                   <td className="px-4 py-2 text-right font-mono">{c.ships}</td>
                   <td
                     className="px-4 py-2 text-right font-mono"
-                    style={{ color: concentrated ? 'var(--state-review)' : undefined }}
+                    style={{ color: concentrated ? 'var(--rev)' : undefined }}
                   >
                     {c.topRecipeShare === null ? '—' : `${(c.topRecipeShare * 100).toFixed(0)}%`}
                   </td>
@@ -204,7 +209,7 @@ export default async function PromptLibraryPage() {
 
         <p
           className="border-t px-4 py-3 text-xs leading-relaxed"
-          style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-muted)' }}
+          style={{ borderColor: 'var(--b1)', color: 'var(--t3)' }}
         >
           Top share is how much of a kind&rsquo;s use went to its busiest recipe. High with
           several recipes available means rotation is not spreading — which is a bug, not a
@@ -217,7 +222,7 @@ export default async function PromptLibraryPage() {
         <Panel className="mb-6">
           <div
             className="border-b px-4 py-3 text-md font-medium"
-            style={{ borderColor: 'var(--border-subtle)' }}
+            style={{ borderColor: 'var(--b1)' }}
           >
             Shots waiting on a recipe
           </div>
@@ -225,38 +230,38 @@ export default async function PromptLibraryPage() {
             <div
               key={s.shotId}
               className="border-b px-4 py-[10px] last:border-b-0"
-              style={{ borderColor: 'var(--border-subtle)' }}
+              style={{ borderColor: 'var(--b1)' }}
             >
               <div className="flex flex-wrap items-baseline gap-2 text-xs">
-                <span className="font-mono" style={{ color: 'var(--text-faint)' }}>
+                <span className="font-mono" style={{ color: 'var(--t3)' }}>
                   {s.channelName} · shot {s.idx} · {s.durationS}s
                 </span>
                 <span
                   className="rounded-xs px-[5px] py-[1px] font-mono text-2xs"
                   style={{
-                    background: 'var(--surface-2)',
-                    color: s.matchingRecipes > 0 ? 'var(--state-live)' : 'var(--state-blocked)',
+                    background: 'var(--s2)',
+                    color: s.matchingRecipes > 0 ? 'var(--live)' : 'var(--blk)',
                   }}
                 >
                   {s.shotKind ?? 'no kind'}
                 </span>
-                <span style={{ color: 'var(--text-faint)' }}>{s.conceptTitle}</span>
+                <span style={{ color: 'var(--t3)' }}>{s.conceptTitle}</span>
               </div>
               <p
                 className="mt-1 max-w-[80ch] text-xs"
-                style={{ color: 'var(--text-secondary)' }}
+                style={{ color: 'var(--t2)' }}
               >
                 {s.description}
               </p>
               {s.compileNote && (
-                <p className="mt-1 max-w-[80ch] text-2xs" style={{ color: 'var(--text-faint)' }}>
+                <p className="mt-1 max-w-[80ch] text-2xs" style={{ color: 'var(--t3)' }}>
                   {s.compileNote}
                 </p>
               )}
             </div>
           ))}
           {blocked.length > 20 && (
-            <p className="px-4 py-2 text-xs" style={{ color: 'var(--text-faint)' }}>
+            <p className="px-4 py-2 text-xs" style={{ color: 'var(--t3)' }}>
               {blocked.length - 20} more not shown.
             </p>
           )}
@@ -267,14 +272,14 @@ export default async function PromptLibraryPage() {
       <Panel className="mb-6">
         <div
           className="border-b px-4 py-3 text-md font-medium"
-          style={{ borderColor: 'var(--border-subtle)' }}
+          style={{ borderColor: 'var(--b1)' }}
         >
           Recipes
         </div>
         {recipes.length === 0 ? (
           <p
             className="max-w-[80ch] px-4 py-4 text-sm leading-relaxed"
-            style={{ color: 'var(--text-muted)' }}
+            style={{ color: 'var(--t3)' }}
           >
             Empty. Nothing downstream of stage 4 can run until something is here, and the
             only way something gets here is an exploratory session against the vendor,
@@ -297,7 +302,7 @@ export default async function PromptLibraryPage() {
       <Panel>
         <div
           className="border-b px-4 py-3 text-md font-medium"
-          style={{ borderColor: 'var(--border-subtle)' }}
+          style={{ borderColor: 'var(--b1)' }}
         >
           Record a recipe
         </div>
@@ -305,6 +310,6 @@ export default async function PromptLibraryPage() {
           <RecipeForm drivers={drivers} />
         </div>
       </Panel>
-    </div>
+    </main>
   );
 }

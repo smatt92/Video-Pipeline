@@ -18,9 +18,9 @@ function Submit({ label, busy }: { label: string; busy: string }) {
       disabled={pending}
       className="rounded-sm px-3 py-[7px] text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
       style={{
-        background: 'var(--accent)',
-        color: 'var(--accent-contrast)',
-        transitionDuration: 'var(--duration-fast)',
+        background: 'var(--ac)',
+        color: 'var(--ac-ink)',
+        transitionDuration: 'var(--d1)',
       }}
     >
       {pending ? busy : label}
@@ -30,7 +30,7 @@ function Submit({ label, busy }: { label: string; busy: string }) {
 
 function Result({ state }: { state: LibraryState }) {
   if (state.status === 'idle') return null;
-  const tone = state.status === 'ok' ? 'var(--state-live)' : 'var(--state-blocked)';
+  const tone = state.status === 'ok' ? 'var(--live)' : 'var(--blk)';
   return (
     <div className="flex flex-col gap-1">
       {state.message && (
@@ -39,7 +39,7 @@ function Result({ state }: { state: LibraryState }) {
         </p>
       )}
       {state.problems?.map((p) => (
-        <p key={p} className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+        <p key={p} className="text-xs leading-relaxed" style={{ color: 'var(--t3)' }}>
           · {p}
         </p>
       ))}
@@ -51,7 +51,7 @@ function Label({ children }: { children: React.ReactNode }) {
   return (
     <span
       className="font-mono text-3xs uppercase tracking-[0.09em]"
-      style={{ color: 'var(--text-faint)' }}
+      style={{ color: 'var(--t3)' }}
     >
       {children}
     </span>
@@ -59,9 +59,9 @@ function Label({ children }: { children: React.ReactNode }) {
 }
 
 const inputStyle = {
-  background: 'var(--surface-inset)',
-  borderColor: 'var(--border-subtle)',
-  color: 'var(--text-primary)',
+  background: 'var(--in)',
+  borderColor: 'var(--b1)',
+  color: 'var(--t1)',
 };
 
 /**
@@ -126,7 +126,7 @@ export function RecipeForm({ drivers }: { drivers: string[] }) {
           className="rounded-sm border px-[10px] py-[7px] font-mono text-sm outline-none"
           style={inputStyle}
         />
-        <span className="text-xs" style={{ color: 'var(--text-faint)' }}>
+        <span className="text-xs" style={{ color: 'var(--t3)' }}>
           {'Available: {{description}}, {{intent}}, {{duration}}. {{description}} is required — '}
           without it every shot sends the same prompt. An unfilled placeholder reaches the
           vendor verbatim and is billed as a clip of the literal words.
@@ -143,7 +143,7 @@ export function RecipeForm({ drivers }: { drivers: string[] }) {
           className="rounded-sm border px-[10px] py-[7px] font-mono text-xs outline-none"
           style={inputStyle}
         />
-        <span className="text-xs leading-relaxed" style={{ color: 'var(--text-faint)' }}>
+        <span className="text-xs leading-relaxed" style={{ color: 'var(--t3)' }}>
           Raw JSON, verbatim, not a summary. A typed form would drop any parameter it does
           not know about — which is exactly the one that made the recipe work. Refused if
           empty: a recipe that cannot reproduce its own sample is worse than no recipe.
@@ -158,12 +158,12 @@ export function RecipeForm({ drivers }: { drivers: string[] }) {
               <input type="checkbox" name="tags" value={k.key} className="mt-[3px]" />
               <span>
                 <span className="font-mono text-xs">{k.key}</span>
-                <span style={{ color: 'var(--text-faint)' }}> — {k.note}</span>
+                <span style={{ color: 'var(--t3)' }}> — {k.note}</span>
               </span>
             </label>
           ))}
         </div>
-        <span className="text-xs" style={{ color: 'var(--text-faint)' }}>
+        <span className="text-xs" style={{ color: 'var(--t3)' }}>
           At least one. This is the matching key — a recipe with no kinds matches no shot.
         </span>
       </fieldset>
@@ -172,7 +172,7 @@ export function RecipeForm({ drivers }: { drivers: string[] }) {
         <input type="checkbox" name="accepts_character_ref" className="mt-[3px]" />
         <span>
           Carries a character reference
-          <span className="block text-xs" style={{ color: 'var(--text-faint)' }}>
+          <span className="block text-xs" style={{ color: 'var(--t3)' }}>
             Only tick this if you watched the clip and the person was the right person.
             Compilation refuses to use a recipe without it for a shot that has a character,
             and a wrongly ticked box turns that refusal into a stranger in the video.
@@ -234,18 +234,18 @@ export function RecipeRow({
   return (
     <div
       className="border-b px-4 py-3"
-      style={{ borderColor: 'var(--border-subtle)', opacity: recipe.isActive ? 1 : 0.6 }}
+      style={{ borderColor: 'var(--b1)', opacity: recipe.isActive ? 1 : 0.6 }}
     >
       <div className="flex flex-wrap items-baseline gap-3">
         <span className="text-sm font-medium">{recipe.name}</span>
-        <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+        <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
           v{recipe.version} · {recipe.driver}/{recipe.model}
         </span>
         <span
           className="rounded-xs px-[6px] py-[2px] font-mono text-3xs uppercase"
           style={{
-            background: 'var(--surface-2)',
-            color: recipe.isActive ? 'var(--state-live)' : 'var(--text-faint)',
+            background: 'var(--s2)',
+            color: recipe.isActive ? 'var(--live)' : 'var(--t3)',
           }}
         >
           {recipe.isActive ? 'active' : 'retired'}
@@ -257,7 +257,7 @@ export function RecipeRow({
           when unmeasured rather than shown as 0%: a recipe nobody has measured has not
           retained nobody.
         */}
-        <span className="ml-auto font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+        <span className="ml-auto font-mono text-2xs" style={{ color: 'var(--t3)' }}>
           {recipe.shipRate === null
             ? 'never shipped'
             : `${(recipe.shipRate * 100).toFixed(0)}% shipped`}
@@ -275,7 +275,7 @@ export function RecipeRow({
           <span
             key={t}
             className="rounded-xs px-[6px] py-[2px] font-mono text-2xs"
-            style={{ background: 'var(--surface-2)', color: 'var(--text-muted)' }}
+            style={{ background: 'var(--s2)', color: 'var(--t3)' }}
           >
             {t}
           </span>
@@ -283,17 +283,17 @@ export function RecipeRow({
         {recipe.acceptsCharacterRef && (
           <span
             className="rounded-xs px-[6px] py-[2px] font-mono text-2xs"
-            style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+            style={{ background: 'var(--s2)', color: 'var(--t2)' }}
           >
             carries character ref
           </span>
         )}
-        <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+        <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
           {recipe.discoveredIn ?? 'provenance unrecorded'}
         </span>
       </div>
 
-      <p className="mt-2 font-mono text-2xs" style={{ color: rate.priced ? 'var(--text-muted)' : 'var(--state-review)' }}>
+      <p className="mt-2 font-mono text-2xs" style={{ color: rate.priced ? 'var(--t3)' : 'var(--rev)' }}>
         {rate.priced ? `bills at ${rate.label}` : `unpriced — ${rate.reason}`}
       </p>
       {recipe.sampleOutputUrl ? (
@@ -302,19 +302,19 @@ export function RecipeRow({
           target="_blank"
           rel="noreferrer"
           className="mt-1 inline-block text-2xs underline"
-          style={{ color: 'var(--text-muted)' }}
+          style={{ color: 'var(--t3)' }}
         >
           watched sample
         </a>
       ) : (
-        <p className="mt-1 text-2xs" style={{ color: 'var(--text-faint)' }}>
+        <p className="mt-1 text-2xs" style={{ color: 'var(--t3)' }}>
           no watched sample recorded
         </p>
       )}
 
       <pre
         className="mt-2 overflow-x-auto rounded-sm px-2 py-[6px] font-mono text-2xs leading-relaxed"
-        style={{ background: 'var(--surface-inset)', color: 'var(--text-secondary)' }}
+        style={{ background: 'var(--in)', color: 'var(--t2)' }}
       >
         {recipe.template}
         {'\n'}
@@ -322,7 +322,7 @@ export function RecipeRow({
       </pre>
 
       {recipe.retiredReason && (
-        <p className="mt-2 text-xs" style={{ color: 'var(--text-faint)' }}>
+        <p className="mt-2 text-xs" style={{ color: 'var(--t3)' }}>
           {recipe.retiredReason}
         </p>
       )}
@@ -334,12 +334,12 @@ export function RecipeRow({
               name="reason"
               placeholder="why retire it"
               className="w-[220px] rounded-sm border bg-transparent px-2 py-[4px] text-xs outline-none"
-              style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
+              style={{ borderColor: 'var(--b1)', color: 'var(--t1)' }}
             />
             <button
               type="submit"
               className="rounded-sm border px-[8px] py-[4px] text-xs"
-              style={{ borderColor: 'var(--border-default)', color: 'var(--text-muted)' }}
+              style={{ borderColor: 'var(--b2)', color: 'var(--t3)' }}
             >
               Retire
             </button>
@@ -352,13 +352,13 @@ export function RecipeRow({
                 required
                 placeholder="URL of the clip you watched"
                 className="w-[260px] rounded-sm border bg-transparent px-2 py-[4px] text-xs outline-none"
-                style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
+                style={{ borderColor: 'var(--b1)', color: 'var(--t1)' }}
               />
             )}
             <button
               type="submit"
               className="rounded-sm border px-[8px] py-[4px] text-xs"
-              style={{ borderColor: 'var(--border-default)', color: 'var(--text-muted)' }}
+              style={{ borderColor: 'var(--b2)', color: 'var(--t3)' }}
             >
               Reinstate
             </button>
@@ -367,7 +367,7 @@ export function RecipeRow({
         <Result state={retireState.status !== 'idle' ? retireState : reinstateState} />
       </div>
       {!recipe.isActive && activationBlocked && (
-        <p className="mt-1 text-2xs" style={{ color: 'var(--text-faint)' }}>
+        <p className="mt-1 text-2xs" style={{ color: 'var(--t3)' }}>
           Reinstating needs a watched clip: {activationBlocked}.
         </p>
       )}

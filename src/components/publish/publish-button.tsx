@@ -30,7 +30,7 @@ export function PublishButton({
 
   if (blocker) {
     return (
-      <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+      <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
         {blocker.replace(/_/g, ' ')}
       </span>
     );
@@ -52,17 +52,17 @@ export function PublishButton({
           })
         }
         className="rounded-xs px-3 py-1 text-xs"
-        style={{ background: 'var(--accent)', color: 'var(--on-accent)' }}
+        style={{ background: 'var(--ac)', color: 'var(--ac-ink)' }}
       >
         Publish
       </button>
-      <span className="font-mono text-3xs" style={{ color: 'var(--text-faint)' }}>
+      <span className="font-mono text-3xs" style={{ color: 'var(--t3)' }}>
         {/* Undefined rather than 0 when nothing is counting a quota — the two mean
             opposite things and only one of them should stop anybody clicking. */}
         1,600 units{unitsRemaining === null ? '' : ` · ${unitsRemaining.toLocaleString('en-IN')} left today`}
       </span>
       {result && (
-        <span className="text-2xs" style={{ color: 'var(--text-muted)' }}>
+        <span className="text-2xs" style={{ color: 'var(--t3)' }}>
           {result}
         </span>
       )}

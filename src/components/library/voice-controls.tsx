@@ -7,16 +7,10 @@ import { clearVoiceOverrideAction, setVoiceOverrideAction, type LibraryWriteStat
 
 const IDLE: LibraryWriteState = { status: 'idle' };
 
-const inputStyle = {
-  background: 'var(--surface-inset)',
-  borderColor: 'var(--border-subtle)',
-  color: 'var(--text-primary)',
-};
-
 export function WriteResult({ state }: { state: LibraryWriteState }) {
   if (state.status === 'idle' || !state.message) return null;
   return (
-    <p className="text-xs leading-relaxed" style={{ color: state.status === 'ok' ? 'var(--state-live)' : 'var(--state-blocked)' }}>
+    <p className="xs" role="status" style={{ color: state.status === 'ok' ? 'var(--live)' : 'var(--blk-text)' }}>
       {state.message}
     </p>
   );
@@ -28,8 +22,7 @@ function Submit({ label }: { label: string }) {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-sm border px-[8px] py-[4px] text-xs disabled:opacity-60"
-      style={{ borderColor: 'var(--border-default)', color: 'var(--text-secondary)' }}
+      className="btn sm"
     >
       {pending ? '…' : label}
     </button>
@@ -58,12 +51,12 @@ export function VoiceOverrideForm({
   const [clearState, clear] = useActionState(clearVoiceOverrideAction.bind(null, slug), IDLE);
 
   return (
-    <div className="flex flex-col gap-2">
-      <form action={action} className="flex flex-wrap items-end gap-2">
+    <div className="col" style={{ gap: 8 }}>
+      <form action={action} className="row" style={{ gap: 8, alignItems: 'flex-end' }}>
         <input type="hidden" name="slug" value={slug} />
-        <label className="flex flex-col gap-[3px] text-2xs" style={{ color: 'var(--text-faint)' }}>
+        <label className="field xs t3">
           provider
-          <select name="provider" defaultValue={current?.provider ?? providers[0]} className="rounded-sm border px-2 py-[4px] text-xs" style={inputStyle}>
+          <select name="provider" defaultValue={current?.provider ?? providers[0]} className="input">
             {providers.map((p) => (
               <option key={p} value={p}>
                 {p}
@@ -71,13 +64,12 @@ export function VoiceOverrideForm({
             ))}
           </select>
         </label>
-        <label className="flex flex-col gap-[3px] text-2xs" style={{ color: 'var(--text-faint)' }}>
+        <label className="field xs t3">
           preset ({providers[0]} only)
           <select
             name="preset_id"
             defaultValue={current && presets.includes(current.voiceId) ? current.voiceId : ''}
-            className="rounded-sm border px-2 py-[4px] text-xs"
-            style={inputStyle}
+            className="input"
           >
             <option value="">—</option>
             {presets.map((p) => (
@@ -87,13 +79,13 @@ export function VoiceOverrideForm({
             ))}
           </select>
         </label>
-        <label className="flex flex-col gap-[3px] text-2xs" style={{ color: 'var(--text-faint)' }}>
+        <label className="field xs t3">
           or voice id
-          <input name="voice_id" placeholder="overrides the preset" className="w-[180px] rounded-sm border px-2 py-[4px] font-mono text-xs" style={inputStyle} />
+          <input name="voice_id" placeholder="overrides the preset" className="input mono" />
         </label>
-        <label className="flex flex-col gap-[3px] text-2xs" style={{ color: 'var(--text-faint)' }}>
+        <label className="field xs t3">
           note
-          <input name="note" placeholder="why" className="w-[160px] rounded-sm border px-2 py-[4px] text-xs" style={inputStyle} />
+          <input name="note" placeholder="why" className="input" />
         </label>
         <Submit label="Change voice" />
       </form>

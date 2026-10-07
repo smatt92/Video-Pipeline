@@ -1,8 +1,8 @@
 /**
  * ESLint rule: the form rule.
  *
- *   --accent*  only on interactive surfaces — buttons, links, selection, focus.
- *   --state-*  only on non-interactive labels and glyphs.
+ *   --ac*      only on interactive surfaces — buttons, links, selection, focus.
+ *   states     (--draft --gen --rev --blk --rdy --live) only on non-interactive labels and glyphs.
  *   Never the reverse.
  *
  * Why a rule and not a convention: the two colour systems are not reliably separable by
@@ -31,8 +31,10 @@
  * form rule holds everywhere.
  */
 
-const ACCENT = /var\(\s*--accent/;
-const STATE = /var\(\s*--state-/;
+// Brand v2 names (tokens.css): the accent family is --ac / --ac-* / --glow; the state family
+// is the six pipeline states and their -text/-wash/-line variants.
+const ACCENT = /var\(\s*--(?:ac(?:-(?!ink)[a-z0-9]+)?|glow)\s*[),]/;
+const STATE = /var\(\s*--(?:draft|gen|rev|blk|rdy|live)(?:-[a-z]+)?\s*[),]/;
 
 /**
  * Functions whose return value is a token of a known family. Resolving a call is the

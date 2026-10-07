@@ -56,32 +56,32 @@ export function RateRow({ row }: { row: RateCardRow }) {
   return (
     <div
       className="border-b px-4 py-[10px] last:border-b-0"
-      style={{ borderColor: 'var(--border-subtle)' }}
+      style={{ borderColor: 'var(--b1)' }}
     >
       <div
         className="grid items-center gap-3"
         style={{ gridTemplateColumns: '108px minmax(0,1fr) 92px 78px 92px' }}
       >
-        <span className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>
+        <span className="font-mono text-xs" style={{ color: 'var(--t3)' }}>
           {row.driver}
         </span>
         <span className="min-w-0">
           <span className="block truncate text-sm">{row.model}</span>
-          <span className="block truncate font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+          <span className="block truncate font-mono text-2xs" style={{ color: 'var(--t3)' }}>
             {row.endpoint ?? 'no endpoint'}
             {row.revisions > 0 && ` · ${row.revisions} superseded`}
           </span>
         </span>
-        <span className="font-mono text-xs" style={{ color: 'var(--text-muted)' }}>
+        <span className="font-mono text-xs" style={{ color: 'var(--t3)' }}>
           {row.unit}
         </span>
-        <span className="text-right font-mono text-xs" style={{ color: 'var(--text-faint)' }}>
+        <span className="text-right font-mono text-xs" style={{ color: 'var(--t3)' }}>
           {/* Em dash, not 0. Zero is a claim about what something cost; this is the absence
               of a claim, and the board's `unpriced` column says the same thing the same way. */}
           {row.isVerified ? `${row.currency === 'USD' ? '$' : ''}${row.unitCost}` : '—'}
         </span>
         {/* ── Two elements, not one ────────────────────────────────────────────
-            The state and the control were the same button, tinted `--state-live` when
+            The state and the control were the same button, tinted `--live` when
             verified. `kiln/token-form-rule` refuses that and is right: the two colour
             systems are 40° apart in hue and not separable at a glance, so what carries the
             distinction is *form* — a pressable rectangle is never a state indicator. One
@@ -91,7 +91,7 @@ export function RateRow({ row }: { row: RateCardRow }) {
         <span className="flex items-center justify-end gap-2">
           <span
             className="font-mono text-2xs"
-            style={{ color: row.isVerified ? 'var(--state-live)' : 'var(--text-faint)' }}
+            style={{ color: row.isVerified ? 'var(--live)' : 'var(--t3)' }}
           >
             {row.isVerified ? 'verified' : 'unverified'}
           </span>
@@ -100,10 +100,10 @@ export function RateRow({ row }: { row: RateCardRow }) {
             onClick={() => setOpen((v) => !v)}
             className="rounded-xs px-[6px] py-[2px] font-mono text-2xs"
             style={{
-              // --accent-muted, not --accent-soft: the latter does not exist and would have
+              // --ac-t, not --accent-soft: the latter does not exist and would have
               // resolved to nothing, which is a transparent background rather than an error.
-              background: open ? 'var(--accent-muted)' : 'var(--surface-2)',
-              color: open ? 'var(--accent)' : 'var(--text-muted)',
+              background: open ? 'var(--ac-t)' : 'var(--s2)',
+              color: open ? 'var(--ac)' : 'var(--t3)',
               minHeight: 'var(--hit-min)',
             }}
             aria-expanded={open}
@@ -125,8 +125,8 @@ export function RateRow({ row }: { row: RateCardRow }) {
               aria-label={`Cost per ${row.unit} for ${row.model}`}
               className="rounded-sm border px-3 font-mono text-xs"
               style={{
-                background: 'var(--surface-2)',
-                borderColor: 'var(--border-default)',
+                background: 'var(--s2)',
+                borderColor: 'var(--b2)',
                 minHeight: 'var(--hit-primary)',
                 width: '14ch',
               }}
@@ -138,8 +138,8 @@ export function RateRow({ row }: { row: RateCardRow }) {
               aria-label="Source note"
               className="min-w-0 flex-1 rounded-sm border px-3 text-xs"
               style={{
-                background: 'var(--surface-2)',
-                borderColor: 'var(--border-default)',
+                background: 'var(--s2)',
+                borderColor: 'var(--b2)',
                 minHeight: 'var(--hit-primary)',
               }}
             />
@@ -149,8 +149,8 @@ export function RateRow({ row }: { row: RateCardRow }) {
               disabled={pending || cost.trim() === '' || note.trim() === ''}
               className="rounded-sm px-4 text-sm font-medium disabled:opacity-40"
               style={{
-                background: 'var(--accent)',
-                color: 'var(--accent-contrast)',
+                background: 'var(--ac)',
+                color: 'var(--ac-ink)',
                 minHeight: 'var(--hit-primary)',
               }}
             >
@@ -158,7 +158,7 @@ export function RateRow({ row }: { row: RateCardRow }) {
             </button>
           </div>
 
-          <p className="max-w-[68ch] text-2xs leading-relaxed" style={{ color: 'var(--text-faint)' }}>
+          <p className="max-w-[68ch] text-2xs leading-relaxed" style={{ color: 'var(--t3)' }}>
             Saving adds a row effective now and keeps the old one. No vendor publishes these
             — read the figure off your balance before and after a real call, and say which
             run in the note.
@@ -167,7 +167,7 @@ export function RateRow({ row }: { row: RateCardRow }) {
           {state.message && (
             <p
               className="max-w-[68ch] text-xs leading-relaxed"
-              style={{ color: state.status === 'error' ? 'var(--danger)' : 'var(--text-muted)' }}
+              style={{ color: state.status === 'error' ? 'var(--blk-text)' : 'var(--t3)' }}
               role={state.status === 'error' ? 'alert' : 'status'}
             >
               {state.message}

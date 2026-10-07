@@ -96,7 +96,7 @@ export function RegenerateDialog({
       <AlertDialog.Trigger
         data-no-drag
         className="rounded-sm border px-[6px] py-[2px] font-mono text-2xs"
-        style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-muted)' }}
+        style={{ borderColor: 'var(--b1)', color: 'var(--t3)' }}
         title="Regenerate this shot — spends credits"
       >
         ↻
@@ -105,13 +105,13 @@ export function RegenerateDialog({
       <AlertDialog.Portal>
         <AlertDialog.Backdrop
           className="fixed inset-0"
-          style={{ background: 'var(--overlay-scrim)' }}
+          style={{ background: 'var(--scrim)' }}
         />
         <AlertDialog.Popup
           className="fixed left-1/2 top-1/2 w-[min(560px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 rounded-md border p-5"
           style={{
-            background: 'var(--surface-2)',
-            borderColor: 'var(--border-strong)',
+            background: 'var(--s2)',
+            borderColor: 'var(--b3)',
             boxShadow: 'var(--shadow-raised)',
           }}
         >
@@ -120,7 +120,7 @@ export function RegenerateDialog({
           </AlertDialog.Title>
 
           {loading && (
-            <p className="mt-3 text-sm" style={{ color: 'var(--text-muted)' }}>
+            <p className="mt-3 text-sm" style={{ color: 'var(--t3)' }}>
               Pricing this against the rate card…
             </p>
           )}
@@ -136,11 +136,11 @@ export function RegenerateDialog({
               </AlertDialog.Description>
               {estimate.blockers.map((b) => (
                 <div key={b.code} className="mt-3">
-                  <div className="font-mono text-3xs" style={{ color: 'var(--state-blocked)' }}>
+                  <div className="font-mono text-3xs" style={{ color: 'var(--blk)' }}>
                     {b.code}
                   </div>
                   <p className="text-xs leading-snug">{b.detail}</p>
-                  <p className="text-xs leading-snug" style={{ color: 'var(--text-muted)' }}>
+                  <p className="text-xs leading-snug" style={{ color: 'var(--t3)' }}>
                     {b.remedy}
                   </p>
                 </div>
@@ -161,14 +161,14 @@ export function RegenerateDialog({
               <dl className="mt-4 flex flex-col gap-2">
                 <Line label="Estimated cost">
                   <span className="font-mono text-sm">₹{estimate.costInr.toFixed(2)}</span>
-                  <span className="font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
+                  <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
                     {estimate.quantity} {estimate.unit} × ${estimate.costUsd.toFixed(4)} @ ₹
                     {estimate.usdInrRate}/$
                   </span>
                 </Line>
 
                 {estimate.rateSourceNote && (
-                  <p className="text-2xs leading-snug" style={{ color: 'var(--text-faint)' }}>
+                  <p className="text-2xs leading-snug" style={{ color: 'var(--t3)' }}>
                     Rate: {estimate.rateSourceNote}
                   </p>
                 )}
@@ -176,7 +176,7 @@ export function RegenerateDialog({
                 {/* The sentence this dialog exists for. */}
                 <div
                   className="mt-1 rounded-sm border px-3 py-2"
-                  style={{ background: 'var(--surface-inset)', borderColor: 'var(--border-subtle)' }}
+                  style={{ background: 'var(--in)', borderColor: 'var(--b1)' }}
                 >
                   <p className="text-xs leading-relaxed">
                     This mints a <strong>new idempotency key</strong>, so it is a{' '}
@@ -184,9 +184,9 @@ export function RegenerateDialog({
                     Retrying a failed generation reuses its key and does not bill twice;
                     regenerating deliberately does not.
                   </p>
-                  <div className="mt-2 flex flex-col gap-[3px] font-mono text-3xs" style={{ color: 'var(--text-faint)' }}>
+                  <div className="mt-2 flex flex-col gap-[3px] font-mono text-3xs" style={{ color: 'var(--t3)' }}>
                     <span>was &nbsp;{estimate.previousKey ?? '— (never submitted)'}</span>
-                    <span style={{ color: 'var(--text-secondary)' }}>now &nbsp;{estimate.newKey}</span>
+                    <span style={{ color: 'var(--t2)' }}>now &nbsp;{estimate.newKey}</span>
                   </div>
                 </div>
               </dl>
@@ -196,7 +196,7 @@ export function RegenerateDialog({
           <div className="mt-5 flex items-center gap-2">
             <AlertDialog.Close
               className="rounded-sm border px-3 py-[7px] text-sm"
-              style={{ borderColor: 'var(--border-strong)' }}
+              style={{ borderColor: 'var(--b3)' }}
             >
               Cancel
             </AlertDialog.Close>
@@ -207,7 +207,7 @@ export function RegenerateDialog({
                 disabled={pending}
                 onClick={confirm}
                 className="rounded-sm px-3 py-[7px] text-sm font-medium disabled:opacity-60"
-                style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}
+                style={{ background: 'var(--ac)', color: 'var(--ac-ink)' }}
               >
                 {pending ? 'Queueing…' : `Spend ₹${estimate.costInr.toFixed(2)}`}
               </button>
@@ -222,7 +222,7 @@ export function RegenerateDialog({
 function Line({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-baseline gap-3">
-      <dt className="w-[120px] shrink-0 text-xs" style={{ color: 'var(--text-muted)' }}>
+      <dt className="w-[120px] shrink-0 text-xs" style={{ color: 'var(--t3)' }}>
         {label}
       </dt>
       <dd className="flex items-baseline gap-2">{children}</dd>

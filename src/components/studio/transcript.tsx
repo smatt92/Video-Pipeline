@@ -55,7 +55,7 @@ function refusalOf(content: unknown): { summary?: string; blockers?: { code: str
 export function Transcript({ entries }: { entries: TranscriptEntry[] }) {
   if (entries.length === 0) {
     return (
-      <p className="px-4 py-6 text-sm" style={{ color: 'var(--text-muted)' }}>
+      <p className="px-4 py-6 text-sm" style={{ color: 'var(--t3)' }}>
         Nothing yet. Describe what you are trying to make. The tools will refuse anything
         the workspace is not actually set up to do, and say what would change that.
       </p>
@@ -78,20 +78,20 @@ function TurnRow({ entry }: { entry: TranscriptEntry }) {
   return (
     <div
       className="border-b px-4 py-3 last:border-b-0"
-      style={{ borderColor: 'var(--border-subtle)' }}
+      style={{ borderColor: 'var(--b1)' }}
     >
       <div className="mb-1 flex items-baseline gap-2">
         <span
           className="font-mono text-3xs uppercase tracking-[0.09em]"
-          style={{ color: 'var(--text-faint)' }}
+          style={{ color: 'var(--t3)' }}
         >
           {isToolResults ? 'tool results' : entry.role}
         </span>
-        <span className="font-mono text-3xs" style={{ color: 'var(--text-faint)' }}>
+        <span className="font-mono text-3xs" style={{ color: 'var(--t3)' }}>
           {entry.at.slice(11, 19)}
         </span>
         {entry.stopReason && entry.stopReason !== 'end_turn' && (
-          <span className="font-mono text-3xs" style={{ color: 'var(--state-blocked)' }}>
+          <span className="font-mono text-3xs" style={{ color: 'var(--blk)' }}>
             {entry.stopReason}
           </span>
         )}
@@ -117,7 +117,7 @@ function BlockRow({ block }: { block: Block }) {
     case 'redacted_thinking':
       // Present but visually quiet. It is part of the record and it is not the argument.
       return (
-        <details className="text-xs" style={{ color: 'var(--text-faint)' }}>
+        <details className="text-xs" style={{ color: 'var(--t3)' }}>
           <summary className="cursor-pointer font-mono text-3xs uppercase tracking-[0.09em]">
             reasoning
           </summary>
@@ -132,12 +132,12 @@ function BlockRow({ block }: { block: Block }) {
       return (
         <div
           className="rounded-sm border px-2 py-[6px]"
-          style={{ background: 'var(--surface-inset)', borderColor: 'var(--border-subtle)' }}
+          style={{ background: 'var(--in)', borderColor: 'var(--b1)' }}
         >
           <div className="font-mono text-2xs">→ {block.name}</div>
           <pre
             className="mt-1 overflow-x-auto font-mono text-2xs leading-snug"
-            style={{ color: 'var(--text-faint)' }}
+            style={{ color: 'var(--t3)' }}
           >
             {JSON.stringify(block.input ?? {}, null, 2)}
           </pre>
@@ -155,9 +155,9 @@ function BlockRow({ block }: { block: Block }) {
         return (
           <div
             className="rounded-sm border px-2 py-[6px]"
-            style={{ background: 'var(--surface-inset)', borderColor: 'var(--border-subtle)' }}
+            style={{ background: 'var(--in)', borderColor: 'var(--b1)' }}
           >
-            <div className="font-mono text-2xs" style={{ color: 'var(--state-blocked)' }}>
+            <div className="font-mono text-2xs" style={{ color: 'var(--blk)' }}>
               ← refused
             </div>
             {refusal.summary && (
@@ -165,11 +165,11 @@ function BlockRow({ block }: { block: Block }) {
             )}
             {refusal.blockers?.map((b) => (
               <div key={b.code} className="mt-2">
-                <div className="font-mono text-3xs" style={{ color: 'var(--text-faint)' }}>
+                <div className="font-mono text-3xs" style={{ color: 'var(--t3)' }}>
                   {b.code}
                 </div>
                 <p className="text-xs leading-snug">{b.detail}</p>
-                <p className="text-xs leading-snug" style={{ color: 'var(--text-muted)' }}>
+                <p className="text-xs leading-snug" style={{ color: 'var(--t3)' }}>
                   {b.remedy}
                 </p>
               </div>
@@ -181,17 +181,17 @@ function BlockRow({ block }: { block: Block }) {
       return (
         <div
           className="rounded-sm border px-2 py-[6px]"
-          style={{ background: 'var(--surface-inset)', borderColor: 'var(--border-subtle)' }}
+          style={{ background: 'var(--in)', borderColor: 'var(--b1)' }}
         >
           <div
             className="font-mono text-2xs"
-            style={{ color: block.is_error ? 'var(--state-blocked)' : 'var(--text-secondary)' }}
+            style={{ color: block.is_error ? 'var(--blk)' : 'var(--t2)' }}
           >
             ← {block.is_error ? 'error' : 'result'}
           </div>
           <pre
             className="mt-1 max-h-[240px] overflow-auto font-mono text-2xs leading-snug"
-            style={{ color: 'var(--text-faint)' }}
+            style={{ color: 'var(--t3)' }}
           >
             {typeof block.content === 'string'
               ? block.content
@@ -205,7 +205,7 @@ function BlockRow({ block }: { block: Block }) {
       return (
         <pre
           className="overflow-x-auto font-mono text-2xs"
-          style={{ color: 'var(--text-faint)' }}
+          style={{ color: 'var(--t3)' }}
         >
           {JSON.stringify(block, null, 2)}
         </pre>

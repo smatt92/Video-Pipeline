@@ -14,7 +14,7 @@ export function SplashMark() {
   return (
     <div
       className="flex min-h-dvh items-center justify-center"
-      style={{ background: 'var(--surface-0)' }}
+      style={{ background: 'var(--s0)' }}
     >
       <svg width="72" height="72" viewBox="0 0 72 72" role="img" aria-label="Kiln">
         <title>Kiln</title>
@@ -28,9 +28,9 @@ export function SplashMark() {
             height={12 + (i % 3) * 12}
             rx="1.5"
             // Not the accent: the mark is a brand element, not something you can act on,
-            // and the rule that says so is right. --text-secondary reads as the wordmark it
+            // and the rule that says so is right. --t2 reads as the wordmark it
             // effectively is.
-            fill="var(--text-secondary)"
+            fill="var(--t2)"
             opacity={0.25 + (i / 11) * 0.75}
           />
         ))}

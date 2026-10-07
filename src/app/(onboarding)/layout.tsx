@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 export default function OnboardingLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" data-theme="dark" className={`${GeistSans.variable} ${GeistMono.variable}`}>
-      <body style={{ background: 'var(--surface-0)' }}>{children}</body>
+      <body style={{ background: 'var(--s0)' }}>{children}</body>
     </html>
   );
 }

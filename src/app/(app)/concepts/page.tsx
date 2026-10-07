@@ -26,13 +26,13 @@ export default async function ConceptsPage() {
       <SectionHeader title="Concepts" hint={`${channel.name}: the newest 100, with script, shots, spend and episode.`} />
       <Panel>
         {rows.length === 0 ? (
-          <p className="px-4 py-4 text-sm" style={{ color: 'var(--text-muted)' }}>
+          <p className="px-4 py-4 text-sm" style={{ color: 'var(--t3)' }}>
             No concepts on {channel.name} yet. Stage 2 proposes them from captured trends; a Bureau brief creates one when it is approved and scripted.
           </p>
         ) : (
           <table className="w-full text-xs">
             <thead>
-              <tr style={{ color: 'var(--text-faint)' }}>
+              <tr style={{ color: 'var(--t3)' }}>
                 {['concept', 'status', 'script', 'shots', 'settled', 'estimated', 'episode'].map((h, i) => (
                   <th key={h} className={`px-4 py-2 font-mono text-3xs font-normal uppercase tracking-[0.08em] ${i === 0 ? 'text-left' : 'text-right'}`}>
                     {h}
@@ -42,12 +42,12 @@ export default async function ConceptsPage() {
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.id} className="border-t" style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-secondary)' }}>
+                <tr key={r.id} className="border-t" style={{ borderColor: 'var(--b1)', color: 'var(--t2)' }}>
                   <td className="px-4 py-2 align-top">
-                    <Link href={`/concepts/${r.id}`} className="text-sm underline-offset-2 hover:underline" style={{ color: 'var(--text-primary)' }}>
+                    <Link href={`/concepts/${r.id}`} className="text-sm underline-offset-2 hover:underline" style={{ color: 'var(--t1)' }}>
                       {r.title}
                     </Link>
-                    <div className="mt-[2px] max-w-[52ch] truncate" style={{ color: 'var(--text-faint)' }}>
+                    <div className="mt-[2px] max-w-[52ch] truncate" style={{ color: 'var(--t3)' }}>
                       {r.angle}
                     </div>
                   </td>
@@ -58,7 +58,7 @@ export default async function ConceptsPage() {
                   <td className="px-4 py-2 text-right align-top font-mono">
                     {inr(r.cost.estimatedInr)}
                     {r.cost.unpricedRows > 0 && (
-                      <div style={{ color: 'var(--state-review)' }}>+ {r.cost.unpricedRows} unpriced</div>
+                      <div style={{ color: 'var(--rev)' }}>+ {r.cost.unpricedRows} unpriced</div>
                     )}
                   </td>
                   <td className="px-4 py-2 text-right align-top font-mono">
@@ -76,7 +76,7 @@ export default async function ConceptsPage() {
           </table>
         )}
       </Panel>
-      <p className="mt-3 max-w-[90ch] text-2xs leading-relaxed" style={{ color: 'var(--text-faint)' }}>
+      <p className="mt-3 max-w-[90ch] text-2xs leading-relaxed" style={{ color: 'var(--t3)' }}>
         Settled is what reconciled (and refunds); estimated is what was committed at submit. An estimate and its reconcile are two rows about one
         charge, so the two columns are not added together. Unpriced rows were written with no verified rate and carry no figure.
       </p>
