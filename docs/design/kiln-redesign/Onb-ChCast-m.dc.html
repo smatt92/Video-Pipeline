@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln setup — cast and voices (mobile)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.strip{display:flex;gap:10px;overflow-x:auto;margin:0 -16px;padding:2px 16px 6px;scrollbar-width:none}
+.chr{flex:none;display:flex;flex-direction:column;align-items:center;gap:6px;width:64px;font-size:11px;color:var(--t2);background:transparent;border:0;padding:0;cursor:pointer}
+.chr .bust{border-radius:14px}
+.chr.on .bust{box-shadow:0 0 0 2px var(--s0),0 0 0 4px var(--ac)}
+.chr .st{width:8px;height:8px;border-radius:50%}
+.aud{display:grid;grid-template-columns:48px 1fr auto;gap:12px;align-items:center;padding:12px;border-radius:14px;border:1px solid var(--b2);background:var(--s1);min-height:72px}
+.aud.on{border-color:oklch(0.79 0.12 182 / .7);box-shadow:0 0 0 3px oklch(0.79 0.12 182 / .12)}
+.pb{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--b2);background:var(--s2);color:var(--t1)}
+.pb.on{background:var(--ac);color:var(--ac-ink);border-color:transparent}
+</style>
+</helmet>
+<div class="k ph-onb" style="height: 1700px">
+  <div class="top">
+    <div class="row sb"><a class="btn icon" href="Onb-ChBasics-m.dc.html" aria-label="Back" style="width: 40px; height: 40px"><svg class="ic" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"></path></svg></a><span class="mono xs t3">Channel · 6 of 10</span><a class="xs" href="Onb-Start-m.dc.html">3 blockers</a></div>
+    <div class="segbar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="d"></span><span class="d"></span><span class="c"></span><span></span><span></span><span class="o"></span><span></span></div>
+  </div>
+  <div class="body" style="padding-bottom: 200px">
+    <h1 class="ob-h" style="font-size: 24px">Cast and voices</h1>
+    <div class="strip">
+      <button class="chr" type="button"><div class="bust md bp c-nib" style="width: 56px; height: 56px"><div class="gl"></div><div class="sh"></div><div class="cl"></div><div class="hd"></div></div><span>Host</span><span class="st" style="background: var(--t4)"></span></button>
+      <button class="chr on" type="button"><div class="bust md bp pip c-pip" style="width: 56px; height: 56px"><div class="gl"></div><div class="sh"></div><div class="cl"></div><div class="hd"></div></div><span>Pip</span><span class="st" style="background: var(--blk)"></span></button>
+      <button class="chr" type="button"><div class="bust md bp c-marlo" style="width: 56px; height: 56px"><div class="gl"></div><div class="sh"></div><div class="cl"></div><div class="hd"></div></div><span>Marlo</span><span class="st" style="background: var(--live)"></span></button>
+      <button class="chr" type="button"><div class="bust md bp c-iyer" style="width: 56px; height: 56px"><div class="gl"></div><div class="sh"></div><div class="cl"></div><div class="hd"></div></div><span>Mrs. Iyer</span><span class="st" style="background: var(--live)"></span></button>
+      <button class="chr" type="button"><div class="bust md bp c-nib" style="width: 56px; height: 56px"><div class="gl"></div><div class="sh"></div><div class="cl"></div><div class="hd"></div></div><span>Nib</span><span class="st" style="background: var(--live)"></span></button>
+      <button class="chr" type="button"><div class="bust md bp c-kaz" style="width: 56px; height: 56px"><div class="gl"></div><div class="sh"></div><div class="cl"></div><div class="hd"></div></div><span>Kaz</span><span class="st" style="background: var(--t4)"></span></button>
+    </div>
+    <div class="row sb"><span class="h2">Pip</span><span class="pill s-blk nodot">not locked</span></div>
+    <div class="inset" style="padding: 12px 14px"><span class="lbl">Audition line</span><p class="sm" style="margin-top: 4px">"Welcome to the Bureau of Reality. Please don't touch the gravity."</p></div>
+    <div class="aud"><button class="pb" type="button" aria-label="Play preset A"><svg class="ic" viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z"></path></svg></button><div class="col" style="gap: 2px"><span style="font-weight: 500">Preset A</span><span class="xs t3">bright · quick · young</span></div><button class="btn sm" type="button" style="height: 40px">Pick</button></div>
+    <div class="aud on"><button class="pb on" type="button" aria-label="Pause preset B"><svg class="ic" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"></path></svg></button><div class="col" style="gap: 2px"><span style="font-weight: 500">Preset B</span><span class="xs t3">warm · mid · steady</span></div><button class="btn sm pri" type="button" style="height: 40px">Picked</button></div>
+    <div class="aud"><button class="pb" type="button" aria-label="Play preset C"><svg class="ic" viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z"></path></svg></button><div class="col" style="gap: 2px"><span style="font-weight: 500">Preset C</span><span class="xs t3">dry · low · slow</span></div><button class="btn sm" type="button" style="height: 40px">Pick</button></div>
+    <div class="blocker" style="flex-direction: column; align-items: stretch"><p>Pip's voice isn't locked, so his lines can't be recorded.</p></div>
+  </div>
+  <div class="act"><button class="btn lg pri" type="button" style="flex: 1">Lock Preset B for Pip</button></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1700}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln on a phone</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.phn{width:330px;height:714px;border-radius:46px;padding:10px;background:#050505;box-shadow:0 0 0 1px var(--b2),0 30px 60px rgba(0,0,0,.5);flex:none}
+.scr{width:100%;height:100%;border-radius:37px;overflow:hidden;position:relative}
+.cap{font:500 11px var(--mono);color:var(--t3);letter-spacing:.04em;text-transform:uppercase}
+.nt{background:rgba(40,38,36,.78);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:20px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;color:#F5F3F0}
+.nt .hd{display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(245,243,240,.7)}
+.nt .ap{width:20px;height:20px;border-radius:5px;overflow:hidden;flex:none}
+.nt .acts{display:flex;gap:6px;margin-top:4px}
+.nt .acts a{flex:1;text-align:center;font-size:13px;font-weight:500;padding:9px;border-radius:10px;background:rgba(255,255,255,.1);color:#F5F3F0;text-decoration:none}
+.appg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:22px 14px;padding:70px 20px 0}
+.app{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px;color:rgba(255,255,255,.9)}
+.app i{width:58px;height:58px;border-radius:14px;display:block}
+.door-glow{filter:drop-shadow(0 0 6px oklch(0.83 0.12 182 / .9))}
+</style>
+</helmet>
+<div class="k" style="width: 1440px; height: 1100px; padding: 56px 72px; display: flex; flex-direction: column; gap: 28px; overflow: hidden">
+  <div class="row sb"><div class="col" style="gap: 6px"><span class="lbl">Brand, applied · phone</span><h1 class="h1">Splash, push, home screen</h1></div><span class="mono xs t3">device chrome omitted on purpose — the OS draws its own</span></div>
+  <div class="row" style="gap: 56px; justify-content: center; align-items: flex-start; flex-wrap: nowrap">
+
+    <div class="col" style="gap: 12px; align-items: center">
+      <div class="phn"><div class="scr bp" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px">
+        <svg viewBox="80 20 160 200" width="170" aria-hidden="true">
+          <defs>
+            <linearGradient id="koB" x1="0" x2="1"><stop offset="0" class="k6"></stop><stop offset=".35" class="k1"></stop><stop offset=".7" class="k3"></stop><stop offset="1" class="k6"></stop></linearGradient>
+            <radialGradient id="koD" cx=".5" cy=".9" r=".9"><stop offset="0" style="stop-color: #E6FFFB"></stop><stop offset=".4" style="stop-color: #45DCC8"></stop><stop offset="1" style="stop-color: #0B5F58"></stop></radialGradient>
+          </defs>
+          <ellipse cx="160" cy="206" rx="80" ry="16" fill="#16273F" stroke="#F2EFE8" stroke-opacity=".5"></ellipse>
+          <rect x="149" y="32" width="22" height="26" rx="3" fill="url(#koB)" stroke="#F2EFE8" stroke-width="1.4"></rect>
+          <path d="M92 204V124a68 68 0 0 1 136 0v80z" fill="url(#koB)" stroke="#F2EFE8" stroke-width="1.6"></path>
+          <path d="M140 204v-30a20 20 0 0 1 40 0v30z" fill="url(#koD)" stroke="#F2EFE8" stroke-width="1.4" class="door-glow"></path>
+        </svg>
+        <div class="lockup" style="font-size: 34px"><svg class="kmark" viewBox="0 0 32 32" width="34" height="34" aria-hidden="true"><path class="arch" d="M5 29V15a11 11 0 0 1 22 0v14z"></path><path class="door" d="M12.5 29v-6.5a3.5 3.5 0 0 1 7 0V29z"></path></svg><span class="wm" style="color: var(--chalk)">k<span class="i">ı</span>ln</span></div>
+        <div class="cones" style="margin-top: 10px">
+          <div class="cone done"><svg viewBox="0 0 20 28"><path class="c" d="M6 26C7 18 8 12 11 9c2-2 5-2 6 0-2 1-4 3-3 17z"></path><rect class="base" x="2" y="26" width="16" height="2" rx="1"></rect></svg></div>
+          <div class="cone act"><svg viewBox="0 0 20 28"><path class="c" d="M6 26L10 4l4 22z"></path><rect class="base" x="2" y="26" width="16" height="2" rx="1"></rect></svg></div>
+          <div class="cone"><svg viewBox="0 0 20 28"><path class="c" d="M6 26L10 4l4 22z"></path><rect class="base" x="2" y="26" width="16" height="2" rx="1"></rect></svg></div>
+        </div>
+        <span class="mono xs" style="color: rgba(242,239,232,.6)">Loading Bureau of Reality</span>
+        <button class="btn pri lg" type="button" style="position: absolute; left: 22px; right: 22px; bottom: 40px">Sign in with passkey</button>
+      </div></div>
+      <span class="cap">Splash · 390 × 844</span>
+    </div>
+
+    <div class="col" style="gap: 12px; align-items: center">
+      <div class="phn"><div class="scr" style="background: radial-gradient(120% 80% at 30% 10%, #22324A, #0B0F17 70%); padding: 120px 12px 0; display: flex; flex-direction: column; gap: 10px">
+        <div class="nt">
+          <div class="hd"><span class="ap"><svg viewBox="0 0 512 512" width="20" height="20"><rect width="512" height="512" rx="114" fill="#0F1B30"></rect><path d="M116 404V250a140 140 0 0 1 280 0v154z" fill="#E6E1D8"></path><path d="M212 404v-74a44 44 0 0 1 88 0v74z" fill="#45DCC8"></path></svg></span><span>KILN · BUREAU OF REALITY</span><span style="margin-left: auto">now</span></div>
+          <span style="font-weight: 600; font-size: 14px">S002 brief is ready</span>
+          <span style="font-size: 13.5px">Pick a punchline. Nothing renders until you approve.</span>
+          <div class="acts"><a href="Approvals-m.dc.html">Open brief</a></div>
+        </div>
+        <div class="nt">
+          <div class="hd"><span class="ap"><svg viewBox="0 0 512 512" width="20" height="20"><rect width="512" height="512" rx="114" fill="#0F1B30"></rect><path d="M116 404V250a140 140 0 0 1 280 0v154z" fill="#E6E1D8"></path><path d="M212 404v-74a44 44 0 0 1 88 0v74z" fill="#45DCC8"></path></svg></span><span>KILN · BUREAU OF REALITY</span><span style="margin-left: auto">08:26</span></div>
+          <span style="font-weight: 600; font-size: 14px">S001 blocked at shots</span>
+          <span style="font-size: 13.5px">The render worker crashed on a code error. Voice is kept.</span>
+          <div class="acts"><a href="Board-m.dc.html">Restart run</a><a href="Board-m.dc.html">Open</a></div>
+        </div>
+        <div class="nt" style="opacity: .85">
+          <div class="hd"><span class="ap"><svg viewBox="0 0 512 512" width="20" height="20"><rect width="512" height="512" rx="114" fill="#0F1B30"></rect><path d="M116 404V250a140 140 0 0 1 280 0v154z" fill="#E6E1D8"></path><path d="M212 404v-74a44 44 0 0 1 88 0v74z" fill="#45DCC8"></path></svg></span><span>KILN</span><span style="margin-left: auto">yesterday</span></div>
+          <span style="font-size: 13.5px">S001 cut is ready for review — listen to all 16 lines.</span>
+        </div>
+      </div></div>
+      <span class="cap">Push · one sentence, one action</span>
+    </div>
+
+    <div class="col" style="gap: 12px; align-items: center">
+      <div class="phn"><div class="scr" style="background: radial-gradient(120% 90% at 70% 0%, #3A3328, #12100D 70%)">
+        <div class="appg">
+          <div class="app"><i style="background: #3B4A5E"></i><span>App</span></div>
+          <div class="app"><i style="background: #5A4B3C"></i><span>App</span></div>
+          <div class="app"><i style="background: #2F5148"></i><span>App</span></div>
+          <div class="app"><i style="background: #4B3F55"></i><span>App</span></div>
+          <div class="app"><i style="background: #4E4E4E"></i><span>App</span></div>
+          <div class="app" style="position: relative">
+            <svg viewBox="0 0 512 512" width="58" height="58" aria-label="Kiln" role="img">
+              <defs>
+                <linearGradient id="aiA" x1="0" x2="1"><stop offset="0" class="k6"></stop><stop offset=".38" class="k1"></stop><stop offset="1" class="k5"></stop></linearGradient>
+                <radialGradient id="aiD" cx=".5" cy=".85" r=".8"><stop offset="0" style="stop-color: #CFFFF7"></stop><stop offset=".45" style="stop-color: #3FD8C4"></stop><stop offset="1" style="stop-color: #0E6E66"></stop></radialGradient>
+              </defs>
+              <rect width="512" height="512" rx="114" fill="#0F1B30"></rect>
+              <path d="M116 404V250a140 140 0 0 1 280 0v154z" fill="url(#aiA)" stroke="#F2EFE8" stroke-width="10"></path>
+              <path d="M212 404v-74a44 44 0 0 1 88 0v74z" fill="url(#aiD)" stroke="#F2EFE8" stroke-width="8"></path>
+            </svg>
+            <span style="position: absolute; top: -6px; right: 0; min-width: 20px; height: 20px; border-radius: 10px; background: #E5484D; color: #fff; font: 600 11px var(--sans); display: grid; place-items: center">1</span>
+            <span>Kiln</span>
+          </div>
+          <div class="app"><i style="background: #3E4B3A"></i><span>App</span></div>
+          <div class="app"><i style="background: #574038"></i><span>App</span></div>
+          <div class="app"><i style="background: #364457"></i><span>App</span></div>
+          <div class="app"><i style="background: #4A4A3A"></i><span>App</span></div>
+          <div class="app"><i style="background: #44394A"></i><span>App</span></div>
+          <div class="app"><i style="background: #3A4A4A"></i><span>App</span></div>
+        </div>
+      </div></div>
+      <span class="cap">App icon on a home screen</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

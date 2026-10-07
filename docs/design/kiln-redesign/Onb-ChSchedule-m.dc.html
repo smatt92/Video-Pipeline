@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln setup — series and slots (mobile)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.input{height:46px;font-size:15px}
+.sr{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--b1);min-height:56px}
+.sr:last-child{border-bottom:0}
+</style>
+</helmet>
+<div class="k ph-onb" style="height: 1500px">
+  <div class="top">
+    <div class="row sb"><a class="btn icon" href="Onb-ChCast-m.dc.html" aria-label="Back" style="width: 40px; height: 40px"><svg class="ic" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"></path></svg></a><span class="mono xs t3">Channel · 7 of 10</span><a class="xs" href="Onb-Start-m.dc.html">2 blockers</a></div>
+    <div class="segbar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="d"></span><span class="d"></span><span class="d"></span><span class="c"></span><span></span><span class="o"></span><span></span></div>
+  </div>
+  <div class="body">
+    <h1 class="ob-h" style="font-size: 24px">Series and slots</h1>
+    <div class="grid" style="grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+      <div class="field"><label for="pt">Publish at</label><input id="pt" class="input mono" value="18:00"></div>
+      <div class="field"><label for="tz">Timezone</label><select id="tz" class="input"><option>IST</option></select></div>
+    </div>
+    <span class="lbl" style="margin-top: 6px">Weekly rotation</span>
+    <section class="card">
+      <div class="sr"><span class="mono sm t3">Mon</span><span class="slot sr-incident" style="flex-direction: row; padding: 4px 8px"><span class="sid"><span class="sdot"></span>Incident Report</span></span><span class="xs t3">Pip + Marlo</span></div>
+      <div class="sr"><span class="mono sm t3">Tue</span><span class="slot sr-desk" style="flex-direction: row; padding: 4px 8px"><span class="sid"><span class="sdot"></span>Desk Tour</span></span><span class="xs t3">rotating</span></div>
+      <div class="sr"><span class="mono sm t3">Wed</span><span class="slot sr-pip" style="flex-direction: row; padding: 4px 8px"><span class="sid"><span class="sdot"></span>Pip's First Year</span></span><span class="xs t3">Pip</span></div>
+      <div class="sr"><span class="mono sm t3">Thu</span><span class="slot sr-archive" style="flex-direction: row; padding: 4px 8px"><span class="sid"><span class="sdot"></span>The Archive</span></span><span class="xs t3">Nib</span></div>
+      <div class="sr"><span class="mono sm t3">Fri</span><span class="slot sr-myth" style="flex-direction: row; padding: 4px 8px"><span class="sid"><span class="sdot"></span>Myth Desk</span></span><span class="xs t3">Kaz</span></div>
+      <div class="sr"><span class="mono sm t3">Sat</span><span class="slot sr-deep" style="flex-direction: row; padding: 4px 8px"><span class="sid"><span class="sdot"></span>Deep Desk</span></span><span class="xs t3">Marlo · Iyer</span></div>
+      <div class="sr"><span class="mono sm t3">Sun</span><span class="slot sr-complaint" style="flex-direction: row; padding: 4px 8px"><span class="sid"><span class="sdot"></span>Complaint Box</span></span><span class="xs t3">Box</span></div>
+    </section>
+    <div class="field"><label for="lf">Long-form</label><select id="lf" class="input"><option>Occasional — I'll place them</option></select></div>
+    <div class="inset" style="padding: 12px 14px"><span class="sm">First slot <span class="mono">S001 · Mon 19 Oct · 18:00 IST</span></span></div>
+  </div>
+  <div class="act"><a class="btn lg pri" href="Onb-ChCaps-m.dc.html" style="flex: 1">Save · Next</a></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

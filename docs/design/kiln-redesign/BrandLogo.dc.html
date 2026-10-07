@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln logo system</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.eo{fill-rule:evenodd}
+.tile{border-radius:16px;display:grid;place-items:center;position:relative;min-height:200px}
+.tile .cap{position:absolute;left:14px;bottom:12px;font:500 11px var(--mono)}
+.dont{position:relative;border-radius:12px;background:var(--s1);border:1px solid var(--b1);height:120px;display:grid;place-items:center}
+.dont::after{content:"";position:absolute;left:10%;right:10%;top:50%;height:2px;background:var(--blk);transform:rotate(-14deg);opacity:.85}
+.door-glow{filter:drop-shadow(0 0 6px oklch(0.83 0.12 182 / .9))}
+</style>
+</helmet>
+<div class="k" style="width: 1440px; height: 1400px; padding: 56px 72px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 20px; align-content: start; overflow: hidden">
+  <div style="grid-column: span 12" class="row sb"><div class="col" style="gap: 6px"><span class="lbl">Logo system</span><h1 class="h1">Mark, wordmark, lockup</h1></div><span class="mono xs t3">files: kiln-mark.svg · kiln-lockup-{dark,light,mono}.svg · icon-512.png · favicon-16/32.png</span></div>
+
+  <section class="card" style="grid-column: span 4; padding: 22px; display: flex; flex-direction: column; gap: 14px">
+    <h2 class="h3">Construction · 32 grid</h2>
+    <div class="inset" style="aspect-ratio: 1; display: grid; place-items: center; background-image: linear-gradient(var(--b1) 1px, transparent 1px), linear-gradient(90deg, var(--b1) 1px, transparent 1px); background-size: 10% 10%">
+      <svg viewBox="0 0 32 32" width="78%" height="78%" aria-hidden="true">
+        <circle cx="16" cy="15" r="11" fill="none" stroke="oklch(0.79 0.12 182 / .5)" stroke-width=".15" stroke-dasharray=".6 .6"></circle>
+        <circle cx="16" cy="22.5" r="3.5" fill="none" stroke="oklch(0.79 0.12 182 / .5)" stroke-width=".15" stroke-dasharray=".6 .6"></circle>
+        <path class="kmark" d="M5 29V15a11 11 0 0 1 22 0v14z" fill="#F2EFE8" fill-opacity=".9"></path>
+        <path d="M12.5 29v-6.5a3.5 3.5 0 0 1 7 0V29z" fill="oklch(0.79 0.12 182)"></path>
+        <path d="M0 29h32M5 0v32M27 0v32M16 0v32" stroke="oklch(0.79 0.12 182 / .45)" stroke-width=".12"></path>
+      </svg>
+    </div>
+    <span class="xs t3">Arch radius 11 on centre 16,15. Door radius 3.5, width = 1/3 of the arch, sitting on the baseline. All curves are circular arcs — no hand-drawn nodes.</span>
+  </section>
+
+  <section style="grid-column: span 8; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px">
+    <div class="tile bp"><div class="lockup" style="font-size: 64px"><svg class="kmark" viewBox="0 0 32 32" width="66" height="66" aria-hidden="true"><path class="arch" d="M5 29V15a11 11 0 0 1 22 0v14z"></path><path class="door" d="M12.5 29v-6.5a3.5 3.5 0 0 1 7 0V29z"></path></svg><span class="wm" style="color: var(--chalk)">k<span class="i">ı</span>ln</span></div><span class="cap" style="color: rgba(242,239,232,.6)">primary · dark (default)</span></div>
+    <div class="tile" style="background: var(--paper)"><div class="lockup" style="font-size: 64px"><svg class="kmark light" viewBox="0 0 32 32" width="66" height="66" aria-hidden="true"><path class="arch" d="M5 29V15a11 11 0 0 1 22 0v14z"></path><path class="door" d="M12.5 29v-6.5a3.5 3.5 0 0 1 7 0V29z"></path></svg><span class="wm light">k<span class="i">ı</span>ln</span></div><span class="cap" style="color: var(--ink-2)">primary · light</span></div>
+    <div class="tile" style="background: var(--s1); border: 1px solid var(--b1); color: #fff"><div class="lockup" style="font-size: 64px"><svg class="kmark mono" viewBox="0 0 32 32" width="66" height="66" aria-hidden="true"><path class="arch eo" d="M5 29V15a11 11 0 0 1 22 0v14zM12.5 29v-6.5a3.5 3.5 0 0 1 7 0V29z"></path></svg><span class="wm mono" style="color: #fff">k<span class="i">ı</span>ln</span></div><span class="cap t3">monochrome · white (door cut out)</span></div>
+    <div class="tile" style="background: #fff; color: #111"><div class="lockup" style="font-size: 64px"><svg class="kmark mono" viewBox="0 0 32 32" width="66" height="66" aria-hidden="true"><path class="arch eo" d="M5 29V15a11 11 0 0 1 22 0v14zM12.5 29v-6.5a3.5 3.5 0 0 1 7 0V29z"></path></svg><span class="wm mono" style="color: #111">k<span class="i">ı</span>ln</span></div><span class="cap" style="color: #555">monochrome · black (print, stamp)</span></div>
+  </section>
+
+  <section class="card" style="grid-column: span 5; padding: 22px; display: flex; flex-direction: column; gap: 16px">
+    <h2 class="h3">Sizes</h2>
+    <div class="row" style="gap: 22px; align-items: flex-end">
+      <div class="col" style="gap: 6px; align-items: center"><svg class="kmark" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path class="arch" d="M2 15V8a6 6 0 0 1 12 0v7z"></path><path class="door" d="M6.2 15v-2.8a1.8 1.8 0 0 1 3.6 0V15z"></path></svg><span class="mono xs t3">16 favicon</span></div>
+      <div class="col" style="gap: 6px; align-items: center"><svg class="kmark" viewBox="0 0 32 32" width="22" height="22" aria-hidden="true"><path class="arch" d="M5 29V15a11 11 0 0 1 22 0v14z"></path><path class="door" d="M12.5 29v-6.5a3.5 3.5 0 0 1 7 0V29z"></path></svg><span class="mono xs t3">22 rail</span></div>
+      <div class="col" style="gap: 6px; align-items: center"><svg class="kmark" viewBox="0 0 32 32" width="32" height="32" aria-hidden="true"><path class="arch" d="M5 29V15a11 11 0 0 1 22 0v14z"></path><path class="door" d="M12.5 29v-6.5a3.5 3.5 0 0 1 7 0V29z"></path></svg><span class="mono xs t3">32</span></div>
+      <div class="col" style="gap: 6px; align-items: center"><svg class="kmark" viewBox="0 0 32 32" width="64" height="64" aria-hidden="true"><path class="arch" d="M5 29V15a11 11 0 0 1 22 0v14z"></path><path class="door" d="M12.5 29v-6.5a3.5 3.5 0 0 1 7 0V29z"></path></svg><span class="mono xs t3">64</span></div>
+    </div>
+    <div class="row" style="gap: 14px; align-items: center; padding: 14px; border-radius: 10px; background: var(--in)">
+      <div style="width: 16px; height: 16px; display: grid; place-items: center; background: var(--s2); border-radius: 3px"><svg class="kmark" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path class="arch" d="M2 15V8a6 6 0 0 1 12 0v7z"></path><path class="door" d="M6.2 15v-2.8a1.8 1.8 0 0 1 3.6 0V15z"></path></svg></div>
+      <span class="sm t2">Kiln — Approvals</span><span class="xs t3" style="margin-left: auto">browser tab at 16 px</span>
+    </div>
+    <span class="xs t3">The 16 px mark is redrawn, not scaled: wider door, arch radius 6.</span>
+  </section>
+
+  <section class="card" style="grid-column: span 7; padding: 22px; display: flex; flex-direction: column; gap: 16px">
+    <div class="row sb"><h2 class="h3">App icon · 512 / PWA</h2><span class="mono xs t3">maskable safe zone 80%</span></div>
+    <div class="row" style="gap: 28px; align-items: flex-end">
+      <svg viewBox="0 0 512 512" width="200" height="200" role="img" aria-label="Kiln app icon, 512">
+        <defs>
+          <linearGradient id="aiA" x1="0" x2="1"><stop offset="0" class="k6"></stop><stop offset=".38" class="k1"></stop><stop offset="1" class="k5"></stop></linearGradient>
+          <radialGradient id="aiD" cx=".5" cy=".85" r=".8"><stop offset="0" style="stop-color: #CFFFF7"></stop><stop offset=".45" style="stop-color: #3FD8C4"></stop><stop offset="1" style="stop-color: #0E6E66"></stop></radialGradient>
+          <pattern id="aiG" width="32" height="32" patternUnits="userSpaceOnUse"><path d="M32 0H0V32" fill="none" stroke="#F2EFE8" stroke-opacity=".08" stroke-width="2"></path></pattern>
+        </defs>
+        <rect width="512" height="512" rx="114" fill="#0F1B30"></rect><rect width="512" height="512" rx="114" fill="url(#aiG)"></rect>
+        <ellipse cx="256" cy="414" rx="170" ry="30" fill="#000" opacity=".35"></ellipse>
+        <path d="M116 404V250a140 140 0 0 1 280 0v154z" fill="url(#aiA)" stroke="#F2EFE8" stroke-width="7"></path>
+        <path d="M212 404v-74a44 44 0 0 1 88 0v74z" fill="url(#aiD)" stroke="#F2EFE8" stroke-width="6" class="door-glow"></path>
+        <path d="M96 404h320" stroke="#F2EFE8" stroke-width="7" stroke-linecap="round"></path>
+        <rect x="51" y="51" width="410" height="410" rx="205" fill="none" stroke="oklch(0.82 0.14 78)" stroke-opacity=".7" stroke-width="3" stroke-dasharray="10 10"></rect>
+      </svg>
+      <div class="col" style="gap: 10px; align-items: center">
+        <svg viewBox="0 0 512 512" width="96" height="96" aria-label="Round mask" role="img"><defs><clipPath id="cr"><circle cx="256" cy="256" r="256"></circle></clipPath></defs><g clip-path="url(#cr)"><rect width="512" height="512" fill="#0F1B30"></rect><rect width="512" height="512" fill="url(#aiG)"></rect><path d="M116 404V250a140 140 0 0 1 280 0v154z" fill="url(#aiA)" stroke="#F2EFE8" stroke-width="7"></path><path d="M212 404v-74a44 44 0 0 1 88 0v74z" fill="url(#aiD)" stroke="#F2EFE8" stroke-width="6"></path></g></svg>
+        <span class="mono xs t3">Android round</span>
+      </div>
+      <div class="col" style="gap: 10px; align-items: center">
+        <svg viewBox="0 0 512 512" width="60" height="60" aria-label="Small app icon" role="img"><rect width="512" height="512" rx="114" fill="#0F1B30"></rect><path d="M116 404V250a140 140 0 0 1 280 0v154z" fill="url(#aiA)" stroke="#F2EFE8" stroke-width="10"></path><path d="M212 404v-74a44 44 0 0 1 88 0v74z" fill="url(#aiD)"></path></svg>
+        <span class="mono xs t3">60 home</span>
+      </div>
+      <p class="xs t3 grow" style="align-self: center">Icon is the only place the mark goes 3D: clay shading, chalk edge, glowing door, on the navy blueprint tile. Everywhere else the mark is flat.</p>
+    </div>
+  </section>
+
+  <section style="grid-column: span 12; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px">
+    <div class="card" style="padding: 18px; display: flex; flex-direction: column; gap: 10px; align-items: center; justify-content: center">
+      <div style="position: relative; padding: 22px; border: 1px dashed oklch(0.79 0.12 182 / .5); border-radius: 6px"><div class="lockup" style="font-size: 36px"><svg class="kmark" viewBox="0 0 32 32" width="38" height="38" aria-hidden="true"><path class="arch" d="M5 29V15a11 11 0 0 1 22 0v14z"></path><path class="door" d="M12.5 29v-6.5a3.5 3.5 0 0 1 7 0V29z"></path></svg><span class="wm">k<span class="i">ı</span>ln</span></div></div>
+      <span class="xs t3">Clearspace = door height on all sides</span>
+    </div>
+    <div class="dont"><div class="lockup" style="font-size: 34px; transform: scaleX(1.5)"><svg class="kmark" viewBox="0 0 32 32" width="34" height="34" aria-hidden="true"><path class="arch" d="M5 29V15a11 11 0 0 1 22 0v14z"></path><path class="door" d="M12.5 29v-6.5a3.5 3.5 0 0 1 7 0V29z"></path></svg><span class="wm">k<span class="i">ı</span>ln</span></div></div>
+    <div class="dont"><svg class="kmark" viewBox="0 0 32 32" width="56" height="56" aria-hidden="true"><path d="M5 29V15a11 11 0 0 1 22 0v14z" fill="none" stroke="#F2EFE8" stroke-width="1.2"></path><path class="door" d="M12.5 29v-6.5a3.5 3.5 0 0 1 7 0V29z"></path></svg></div>
+    <div class="dont"><svg class="kmark" viewBox="0 0 32 32" width="56" height="56" aria-hidden="true"><path class="arch" d="M5 29V15a11 11 0 0 1 22 0v14z"></path><path d="M12.5 29v-6.5a3.5 3.5 0 0 1 7 0V29z" fill="#E0409C"></path></svg></div>
+    <div class="dont"><svg class="kmark" viewBox="0 0 32 32" width="56" height="56" aria-hidden="true" style="transform: rotate(-18deg)"><path class="arch" d="M5 29V15a11 11 0 0 1 22 0v14z"></path><path class="door" d="M12.5 29v-6.5a3.5 3.5 0 0 1 7 0V29z"></path></svg></div>
+  </section>
+  <div style="grid-column: span 12; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; margin-top: -8px"><span></span><span class="xs t3">Don't stretch</span><span class="xs t3">Don't outline the arch</span><span class="xs t3">Don't recolour the door (cast colours belong to cast)</span><span class="xs t3">Don't rotate</span></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1400}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

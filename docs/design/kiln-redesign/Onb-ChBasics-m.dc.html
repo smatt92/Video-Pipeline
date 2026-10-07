@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln setup — channel basics (mobile)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.input{height:46px;font-size:15px}
+.plat{display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:12px;border:1px solid var(--b2);background:var(--s1)}
+.plat input{width:20px;height:20px;margin-top:2px;accent-color:oklch(0.79 0.12 182)}
+.swatch{width:44px;height:44px;border-radius:12px}
+</style>
+</helmet>
+<div class="k ph-onb" style="height: 1500px">
+  <div class="top">
+    <div class="row sb"><a class="btn icon" href="Onb-Rates-m.dc.html" aria-label="Back" style="width: 40px; height: 40px"><svg class="ic" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"></path></svg></a><span class="mono xs t3">Channel · 5 of 10</span><a class="xs" href="Onb-Start-m.dc.html">4 blockers</a></div>
+    <div class="segbar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="d"></span><span class="c"></span><span></span><span></span><span></span><span class="o"></span><span></span></div>
+  </div>
+  <div class="body">
+    <h1 class="ob-h" style="font-size: 24px">Your first channel</h1>
+    <div class="field"><label for="cn">Channel name</label><input id="cn" class="input" value="Bureau of Reality"></div>
+    <div class="field"><label for="ch">Handle</label><input id="ch" class="input mono" value="@BureauofReality"></div>
+    <span class="h3" style="margin-top: 6px">Where it publishes</span>
+    <label class="plat"><input type="checkbox" checked><div class="col grow" style="gap: 6px"><span style="font-weight: 500">YouTube Shorts</span><span class="pill s-rev" style="align-self: flex-start">unverified</span><a class="btn full" href="#connect-youtube" style="height: 44px">Connect YouTube</a></div></label>
+    <label class="plat"><input type="checkbox" checked><div class="col grow" style="gap: 6px"><span style="font-weight: 500">Instagram Reels</span><span class="xs" style="color: var(--rev)">Manual posting until Meta app review clears.</span></div></label>
+    <span class="h3" style="margin-top: 6px">Accent</span>
+    <div class="row" style="gap: 10px">
+      <button class="swatch on" type="button" aria-label="Teal" style="background: oklch(0.79 0.12 182)"></button>
+      <button class="swatch" type="button" aria-label="Lime" style="background: oklch(0.84 0.15 125)"></button>
+      <button class="swatch" type="button" aria-label="Ochre" style="background: oklch(0.80 0.12 60)"></button>
+      <button class="swatch" type="button" aria-label="Orchid" style="background: oklch(0.76 0.13 340)"></button>
+      <button class="swatch" type="button" aria-label="Chalk" style="background: oklch(0.90 0.02 85)"></button>
+    </div>
+    <div class="inset row" style="padding: 12px; gap: 10px; flex-wrap: nowrap"><div class="av">BR</div><div class="col" style="gap: 0"><span class="sm" style="font-weight: 600">Bureau of Reality</span><span class="mono xs t3">@BureauofReality</span></div></div>
+  </div>
+  <div class="act"><a class="btn lg pri" href="Onb-ChCast-m.dc.html" style="flex: 1">Next · Cast &amp; voices</a></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Onboarding spine</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.sp{display:flex;flex-direction:column;gap:20px;padding:24px 18px;min-height:100vh;background:var(--in);font-family:var(--sans);color:var(--t1)}
+.sg{display:flex;flex-direction:column;gap:2px}
+.si{display:grid;grid-template-columns:22px 1fr;gap:10px;align-items:start;padding:8px 10px;border-radius:9px;text-decoration:none;color:var(--t2)}
+.si:hover{background:var(--s1)}
+.si.cur{background:var(--s2);color:var(--t1);box-shadow:inset 0 0 0 1px var(--b2)}
+.si .mk{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font:600 10px var(--mono);border:1.5px solid var(--b3);color:var(--t3);margin-top:1px}
+.si.done .mk{background:var(--live);border-color:transparent;color:#0B2414}
+.si.cur .mk{border-color:var(--ac);color:var(--ac);box-shadow:0 0 0 3px oklch(0.79 0.12 182 / .15)}
+.si.opt .mk{border-style:dashed}
+.si.lock .mk{border-color:var(--b2)}
+.si .t{font-size:13.5px;line-height:1.3}
+.si .s{font-size:11.5px;color:var(--t3);line-height:1.3}
+.si.done .s{color:var(--t3)}
+.bl{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;line-height:1.35;padding:6px 0;text-decoration:none;color:var(--t1)}
+.bl i{width:6px;height:6px;border-radius:50%;background:var(--blk);margin-top:6px;flex:none}
+</style>
+</helmet>
+<nav class="sp" aria-label="Setup progress">
+  <div class="row sb">
+    <div class="lockup" style="font-size: 18px"><svg class="kmark" viewBox="0 0 32 32" width="20" height="20" aria-hidden="true"><path class="arch" d="M5 29V15a11 11 0 0 1 22 0v14z"></path><path class="door" d="M12.5 29v-6.5a3.5 3.5 0 0 1 7 0V29z"></path></svg><span class="wm">k<span class="i">ı</span>ln</span></div>
+    <span class="mono xs t3">{{ header }}</span>
+  </div>
+  <div class="col" style="gap: 6px">
+    <div class="segbar"><sc-for list="{{ items }}" as="it" hint-placeholder-count="10"><span class="{{ it.seg }}"></span></sc-for></div>
+    <span class="xs t3">Saved on every Save and test · resume any time</span>
+  </div>
+  <sc-for list="{{ groups }}" as="g" hint-placeholder-count="4">
+    <div class="sg">
+      <span class="lbl" style="padding: 0 10px 6px">{{ g.h }}</span>
+      <sc-for list="{{ g.items }}" as="it" hint-placeholder-count="4">
+        <a class="{{ it.cls }}" href="{{ it.href }}"><span class="mk">{{ it.mk }}</span><span class="col" style="gap: 1px"><span class="t">{{ it.label }}</span><span class="s">{{ it.sub }}</span></span></a>
+      </sc-for>
+    </div>
+  </sc-for>
+  <sc-if value="{{ hasBlk }}" hint-placeholder-val="{{ true }}">
+    <div class="card" style="padding: 12px 14px; border-color: oklch(0.69 0.19 25 / .3); background: oklch(0.69 0.19 25 / .05)">
+      <span class="lbl" style="color: oklch(0.78 0.15 25)">Blocks your first video · {{ blkCount }}</span>
+      <sc-for list="{{ blk }}" as="b" hint-placeholder-count="3"><a class="bl" href="{{ b.href }}"><i></i><span>{{ b.t }}</span></a></sc-for>
+      <sc-if value="{{ more }}" hint-placeholder-val="{{ false }}"><span class="xs t3">+ {{ moreN }} more after these</span></sc-if>
+    </div>
+  </sc-if>
+  <sc-if value="{{ noBlk }}" hint-placeholder-val="{{ false }}">
+    <div class="card" style="padding: 12px 14px; border-color: oklch(0.80 0.16 152 / .35)"><span class="sm">Nothing blocks your first video.</span></div>
+  </sc-if>
+</nav>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"step":{"editor":"int","min":0,"max":11,"default":4},"$preview":{"width":320,"height":1100}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const raw = this.props.step ?? 4;
+    const step = Number(raw);
+    const cur = step === 0 ? 4 : step;
+    const S = [
+      [1, 'Profile & storage', 'Onb-Studio.dc.html', 'Name, IST, ₹ rate, media storage', 'No timezone or exchange rate yet, so slots and ₹ can’t be worked out.', 'Studio'],
+      [2, 'Writing & embeddings', 'Onb-Models.dc.html', 'Anthropic + Gemini keys', 'No writing model, so no brief or script can be drafted.', 'Studio'],
+      [3, 'Runway', 'Onb-Runway.dc.html', 'Video + voices, one key', 'Runway isn’t verified, so nothing can be voiced or generated.', 'Studio'],
+      [4, 'Rate card', 'Onb-Rates.dc.html', 'Verified price per model', 'Runway video has no verified price, so the per-video cap can’t be checked.', 'Studio'],
+      [5, 'Basics', 'Onb-ChBasics.dc.html', 'Name, handle, platforms, accent', 'No channel yet, so there’s nowhere to publish.', 'Channel · Bureau of Reality'],
+      [6, 'Cast & voices', 'Onb-ChCast.dc.html', 'Characters, auditions, host voice', 'No locked voices, so no line can be recorded.', 'Channel · Bureau of Reality'],
+      [7, 'Series & slots', 'Onb-ChSchedule.dc.html', 'Series, publish slots, timezone', 'No publish slot, so there’s nothing to fill.', 'Channel · Bureau of Reality'],
+      [8, 'Caps & trends', 'Onb-ChCaps.dc.html', 'Spend caps, trend sources', 'No spend caps, so Kiln won’t start a paid run.', 'Channel · Bureau of Reality'],
+      [9, 'Connections', 'Onb-Connections.dc.html', 'Analytics, alerts, Instagram', null, 'Optional'],
+      [10, 'First episode', 'Onb-Finish.dc.html', 'Brief → cut → bundle', null, 'Finish']
+    ];
+    const items = S.map(([n, label, href, sub, why, g]) => {
+      let st = n < cur ? 'done' : n === cur ? 'cur' : 'todo';
+      if (n === 9 && n < cur) st = 'skip';
+      if (n === 10 && cur < 10) st = 'lock';
+      const cls = 'si ' + (st === 'done' ? 'done' : st === 'cur' ? 'cur' : '') + (n === 9 ? ' opt' : '') + (st === 'lock' ? ' lock' : '');
+      const mk = st === 'done' ? '✓' : String(n);
+      const s2 = st === 'skip' ? 'Skipped — add later in Settings' : st === 'lock' ? 'Opens when nothing blocks it' : (n === 9 ? 'Optional · ' + sub : sub);
+      const seg = st === 'done' ? 'd' : st === 'cur' ? 'c' : n === 9 ? 'o' : '';
+      return { n, label, href, sub: s2, why, g, cls, mk, seg, st };
+    });
+    const order = ['Studio', 'Channel · Bureau of Reality', 'Optional', 'Finish'];
+    const groups = order.map(h => ({ h, items: items.filter(i => i.g === h) }));
+    const pending = items.filter(i => i.why && i.st !== 'done');
+    return {
+      items, groups,
+      header: step === 0 ? 'resume' : step >= 11 ? 'done' : 'step ' + Math.min(step, 10) + ' of 10',
+      blk: pending.slice(0, 3).map(i => ({ t: i.why, href: i.href })),
+      blkCount: pending.length, hasBlk: pending.length > 0, noBlk: pending.length === 0,
+      more: pending.length > 3, moreN: pending.length - 3
+    };
+  }
+}
+</script>
+</body>
+</html>

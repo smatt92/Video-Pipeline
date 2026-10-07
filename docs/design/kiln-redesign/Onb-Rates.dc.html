@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln setup — rate card</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:oklch(0.150 0.006 70)}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.ph{font:500 12.5px var(--mono);color:var(--t3);border:1px dashed var(--b3);padding:2px 6px;border-radius:5px}
+.pin{height:32px;width:110px;padding:0 10px;border-radius:8px;border:1px solid oklch(0.69 0.19 25 / .5);background:var(--in);color:var(--t1);font:500 13px var(--mono)}
+</style>
+</helmet>
+<div class="k ob">
+  <div class="ob-spine"><dc-import name="OnbSpine" step="4" hint-size="100%,1050px"></dc-import></div>
+  <main class="ob-main">
+    <div class="ob-col" style="max-width: 920px">
+      <div class="col" style="gap: 8px"><span class="ob-step">Studio · step 4 of 10</span><h1 class="ob-h">Rate card</h1><p class="t2">Every ₹ estimate is price × quantity × your rate of ₹88 per dollar. A price counts as verified only after you check it against the provider's pricing page.</p></div>
+
+      <section class="card">
+        <div class="scroll-x"><table class="tbl">
+          <thead><tr><th>Provider · use</th><th>Unit</th><th class="r">USD</th><th class="r">₹ at 88</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Anthropic · writing, input</td><td class="mono xs t2">per 1M tokens</td><td class="r"><span class="ph">$[price]</span></td><td class="r mono t3">from USD</td><td><span class="pill s-live">verified</span></td></tr>
+            <tr><td>Anthropic · writing, output</td><td class="mono xs t2">per 1M tokens</td><td class="r"><span class="ph">$[price]</span></td><td class="r mono t3">from USD</td><td><span class="pill s-live">verified</span></td></tr>
+            <tr><td>Gemini · embeddings</td><td class="mono xs t2">per 1M tokens</td><td class="r"><span class="ph">$[price]</span></td><td class="r mono t3">from USD</td><td><span class="pill s-live">verified</span></td></tr>
+            <tr><td>Runway · voice</td><td class="mono xs t2">per 1k characters</td><td class="r mono">0.20</td><td class="r mono">17.60</td><td><span class="pill s-live">verified</span></td></tr>
+            <tr style="background: oklch(0.69 0.19 25 / .05)"><td>Runway · video</td><td class="mono xs t2">per second</td><td class="r"><label for="rv" style="position: absolute; left: -9999px">Runway video price per second in USD</label><input id="rv" class="pin" placeholder="0.00" value="{{ v }}" onChange="{{ onV }}"></td><td class="r mono">{{ inr }}</td><td><span class="{{ vCls }}">{{ vText }}</span></td></tr>
+            <tr><td class="t2">Higgsfield · character beat</td><td class="mono xs t2">per clip</td><td class="r mono t3">—</td><td class="r mono t3">—</td><td><span class="pill nodot s-draft">only if connected</span></td></tr>
+            <tr><td class="t2">Render worker · overlays</td><td class="mono xs t2">compute</td><td class="r mono t3">—</td><td class="r mono t3">—</td><td><span class="xs t3">not ledgered, by design</span></td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <sc-if value="{{ missing }}" hint-placeholder-val="{{ true }}">
+        <div class="blocker"><svg class="ic" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg><p>Runway video has no verified price, so the per-video cap can't be checked. <span>Until then any Short with a video clip shows ₹ — and won't start.</span></p><a class="btn sm" href="#rv">Add price</a></div>
+      </sc-if>
+      <div class="note"><svg class="ic" viewBox="0 0 24 24"><path d="M12 8v5M12 16h.01M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z"></path></svg><span>Runway voice at $0.20 per 1k characters matches your ledger: S001's 492 characters were estimated at ₹8.66.</span></div>
+      <label class="row sm" style="gap: 10px"><input type="checkbox"> I checked these prices against each provider's pricing page today</label>
+
+      <div class="ob-foot">
+        <a class="btn ghost" href="Onb-Runway.dc.html">Back</a>
+        <span class="grow"></span>
+        <button class="btn" type="button">Save and verify</button>
+        <a class="btn pri" href="Onb-ChBasics.dc.html">Next · Your first channel</a>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1050}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { v: '' }; }
+  renderVals() {
+    const n = parseFloat(this.state.v);
+    const ok = !isNaN(n) && n > 0;
+    return {
+      v: this.state.v,
+      onV: (e) => this.setState({ v: e.target.value }),
+      inr: ok ? (n * 88).toFixed(2) : '—',
+      missing: !ok,
+      vCls: 'pill ' + (ok ? 's-rev' : 's-blk'),
+      vText: ok ? 'save to verify' : 'rate missing'
+    };
+  }
+}
+</script>
+</body>
+</html>

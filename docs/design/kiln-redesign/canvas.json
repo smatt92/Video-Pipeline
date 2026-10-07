@@ -1,53 +1,943 @@
-{"v":3,"createdOnFiles":{"v":1,"at":"2026-10-07T04:00:00Z"},"title":"Kiln — Studio Redesign","launch":{"view":"canvas"},"pages":[],
-"boards":{
-"Main.dc.html":{"x":0,"y":0,"w":1440,"h":1700,"title":"Tokens"},
-"Components.dc.html":{"x":1520,"y":0,"w":1440,"h":2000,"title":"Components"},
-"Rail.dc.html":{"x":3040,"y":0,"w":248,"h":1000,"title":"Rail (component)"},
-"TabBar.dc.html":{"x":3368,"y":0,"w":390,"h":84,"title":"Tab bar (component)"},
-"Palette.dc.html":{"x":3368,"y":200,"w":760,"h":600,"title":"Command palette ⌘K"},
-"AllChannels.dc.html":{"x":0,"y":2360,"w":1440,"h":1100,"expand":"fill","is_interactive":true,"title":"All channels — desktop"},
-"AllChannels-m.dc.html":{"x":1520,"y":2360,"w":390,"h":1200,"is_interactive":true,"title":"All channels — mobile"},
-"More-m.dc.html":{"x":1990,"y":2360,"w":390,"h":1000,"is_interactive":true,"title":"More + channel switcher — mobile"},
-"Home.dc.html":{"x":0,"y":4120,"w":1440,"h":1600,"expand":"fill","is_interactive":true,"title":"Home — desktop"},
-"Home-m.dc.html":{"x":1520,"y":4120,"w":390,"h":2000,"is_interactive":true,"title":"Home — mobile"},
-"Approvals.dc.html":{"x":0,"y":6480,"w":1440,"h":1700,"expand":"fill","is_interactive":true,"title":"Approvals — desktop"},
-"Approvals-m.dc.html":{"x":1520,"y":6480,"w":390,"h":2050,"is_interactive":true,"title":"Approvals — mobile"},
-"Board.dc.html":{"x":0,"y":8890,"w":1440,"h":1060,"expand":"fill","is_interactive":true,"title":"Board — desktop"},
-"Board-m.dc.html":{"x":1520,"y":8890,"w":390,"h":1300,"is_interactive":true,"title":"Board — mobile"},
-"Cuts.dc.html":{"x":0,"y":10550,"w":1440,"h":1240,"expand":"fill","is_interactive":true,"title":"Cuts — desktop"},
-"Cuts-m.dc.html":{"x":1520,"y":10550,"w":390,"h":1700,"is_interactive":true,"title":"Cuts — mobile"},
-"Ready.dc.html":{"x":0,"y":12610,"w":1440,"h":1200,"expand":"fill","is_interactive":true,"title":"Ready to schedule — desktop"},
-"Ready-m.dc.html":{"x":1520,"y":12610,"w":390,"h":1500,"is_interactive":true,"title":"Ready to schedule — mobile"},
-"Calendar.dc.html":{"x":0,"y":14470,"w":1440,"h":1200,"expand":"fill","is_interactive":true,"title":"Calendar — desktop"},
-"Calendar-m.dc.html":{"x":1520,"y":14470,"w":390,"h":1300,"is_interactive":true,"title":"Calendar — mobile"},
-"Generation.dc.html":{"x":0,"y":16130,"w":1440,"h":1200,"expand":"fill","is_interactive":true,"title":"Generation monitor — desktop"},
-"Generation-m.dc.html":{"x":1520,"y":16130,"w":390,"h":1500,"is_interactive":true,"title":"Generation monitor — mobile"},
-"Metrics.dc.html":{"x":0,"y":17990,"w":1440,"h":1300,"expand":"fill","is_interactive":true,"title":"Metrics — desktop (post-launch sample)"},
-"Metrics-m.dc.html":{"x":1520,"y":17990,"w":390,"h":1500,"is_interactive":true,"title":"Metrics — mobile (today, pre-launch)"},
-"Costs.dc.html":{"x":0,"y":19850,"w":1440,"h":1150,"expand":"fill","is_interactive":true,"title":"Costs — desktop"},
-"Costs-m.dc.html":{"x":1520,"y":19850,"w":390,"h":1400,"is_interactive":true,"title":"Costs — mobile"},
-"Authorship.dc.html":{"x":0,"y":21610,"w":1440,"h":1000,"expand":"fill","is_interactive":true,"title":"Authorship log — desktop"},
-"Authorship-m.dc.html":{"x":1520,"y":21610,"w":390,"h":1200,"is_interactive":true,"title":"Authorship log — mobile"},
-"Integrations.dc.html":{"x":0,"y":23170,"w":1440,"h":1060,"expand":"fill","is_interactive":true,"title":"Settings · Integrations — desktop"},
-"Integrations-m.dc.html":{"x":1520,"y":23170,"w":390,"h":1300,"is_interactive":true,"title":"Settings · Integrations — mobile"},
-"Voices.dc.html":{"x":0,"y":24830,"w":1440,"h":1060,"expand":"fill","is_interactive":true,"title":"Voices — desktop"},
-"Voices-m.dc.html":{"x":1520,"y":24830,"w":390,"h":1400,"is_interactive":true,"title":"Voices — mobile"}
-},
-"order":["Main.dc.html","Components.dc.html","Rail.dc.html","TabBar.dc.html","Palette.dc.html","AllChannels.dc.html","AllChannels-m.dc.html","More-m.dc.html","Home.dc.html","Home-m.dc.html","Approvals.dc.html","Approvals-m.dc.html","Board.dc.html","Board-m.dc.html","Cuts.dc.html","Cuts-m.dc.html","Ready.dc.html","Ready-m.dc.html","Calendar.dc.html","Calendar-m.dc.html","Generation.dc.html","Generation-m.dc.html","Metrics.dc.html","Metrics-m.dc.html","Costs.dc.html","Costs-m.dc.html","Authorship.dc.html","Authorship-m.dc.html","Integrations.dc.html","Integrations-m.dc.html","Voices.dc.html","Voices-m.dc.html"],
-"notes":{
-"n0":{"x":0,"y":-260,"text":"Kiln — foundations","kind":"title1","maxW":4128},
-"n1":{"x":0,"y":2110,"text":"All channels","kind":"title1","maxW":2380},
-"n2":{"x":0,"y":3870,"text":"Home","kind":"title1","maxW":1910},
-"n3":{"x":0,"y":6230,"text":"Approvals","kind":"title1","maxW":1910},
-"n4":{"x":0,"y":8640,"text":"Board","kind":"title1","maxW":1910},
-"n5":{"x":0,"y":10300,"text":"Cuts","kind":"title1","maxW":1910},
-"n6":{"x":0,"y":12360,"text":"Ready to schedule","kind":"title1","maxW":1910},
-"n7":{"x":0,"y":14220,"text":"Calendar","kind":"title1","maxW":1910},
-"n8":{"x":0,"y":15880,"text":"Generation monitor","kind":"title1","maxW":1910},
-"n9":{"x":0,"y":17740,"text":"Metrics","kind":"title1","maxW":1910},
-"n10":{"x":0,"y":19600,"text":"Costs","kind":"title1","maxW":1910},
-"n11":{"x":0,"y":21360,"text":"Authorship log","kind":"title1","maxW":1910},
-"n12":{"x":0,"y":22920,"text":"Settings · Integrations","kind":"title1","maxW":1910},
-"n13":{"x":0,"y":24580,"text":"Library · Voices","kind":"title1","maxW":1910}
-},
-"designSystems":[]}
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "AllChannels-m.dc.html": {
+      "h": 1200,
+      "is_interactive": true,
+      "title": "All channels — mobile",
+      "w": 390,
+      "x": 1520,
+      "y": 2360
+    },
+    "AllChannels.dc.html": {
+      "expand": "fill",
+      "h": 1100,
+      "is_interactive": true,
+      "title": "All channels — desktop",
+      "w": 1440,
+      "x": 0,
+      "y": 2360
+    },
+    "Approvals-m.dc.html": {
+      "h": 2050,
+      "is_interactive": true,
+      "title": "Approvals — mobile",
+      "w": 390,
+      "x": 1520,
+      "y": 6480
+    },
+    "Approvals.dc.html": {
+      "expand": "fill",
+      "h": 1700,
+      "is_interactive": true,
+      "title": "Approvals — desktop",
+      "w": 1440,
+      "x": 0,
+      "y": 6480
+    },
+    "Authorship-m.dc.html": {
+      "h": 1200,
+      "is_interactive": true,
+      "title": "Authorship log — mobile",
+      "w": 390,
+      "x": 1520,
+      "y": 21610
+    },
+    "Authorship.dc.html": {
+      "expand": "fill",
+      "h": 1000,
+      "is_interactive": true,
+      "title": "Authorship log — desktop",
+      "w": 1440,
+      "x": 0,
+      "y": 21610
+    },
+    "Board-m.dc.html": {
+      "h": 1300,
+      "is_interactive": true,
+      "title": "Board — mobile",
+      "w": 390,
+      "x": 1520,
+      "y": 8890
+    },
+    "Board.dc.html": {
+      "expand": "fill",
+      "h": 1060,
+      "is_interactive": true,
+      "title": "Board — desktop",
+      "w": 1440,
+      "x": 0,
+      "y": 8890
+    },
+    "BrandApplied.dc.html": {
+      "h": 1700,
+      "page": "brand",
+      "title": "Applied — desktop",
+      "w": 1440,
+      "x": 0,
+      "y": 7240
+    },
+    "BrandAppliedMobile.dc.html": {
+      "h": 1100,
+      "page": "brand",
+      "title": "Applied — phone, push, app icon",
+      "w": 1440,
+      "x": 1520,
+      "y": 7240
+    },
+    "BrandChanges.dc.html": {
+      "h": 1200,
+      "page": "brand",
+      "title": "What changed",
+      "w": 1440,
+      "x": 1520,
+      "y": 0
+    },
+    "BrandColor.dc.html": {
+      "h": 1400,
+      "page": "brand",
+      "title": "Colour",
+      "w": 1440,
+      "x": 1520,
+      "y": 2360
+    },
+    "BrandLogo.dc.html": {
+      "h": 1400,
+      "page": "brand",
+      "title": "Logo system",
+      "w": 1440,
+      "x": 0,
+      "y": 2360
+    },
+    "BrandMotion.dc.html": {
+      "h": 1200,
+      "is_interactive": true,
+      "page": "brand",
+      "title": "Motion & firing",
+      "w": 1440,
+      "x": 1520,
+      "y": 4120
+    },
+    "BrandObject.dc.html": {
+      "h": 1200,
+      "page": "brand",
+      "title": "3D object & illustration",
+      "w": 1440,
+      "x": 0,
+      "y": 5680
+    },
+    "BrandSheet.dc.html": {
+      "h": 2000,
+      "page": "brand",
+      "title": "Brand sheet",
+      "w": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "BrandType.dc.html": {
+      "h": 1200,
+      "page": "brand",
+      "title": "Type & iconography",
+      "w": 1440,
+      "x": 0,
+      "y": 4120
+    },
+    "BrandVoice.dc.html": {
+      "h": 1200,
+      "page": "brand",
+      "title": "Voice & tone",
+      "w": 1440,
+      "x": 1520,
+      "y": 5680
+    },
+    "Calendar-m.dc.html": {
+      "h": 1300,
+      "is_interactive": true,
+      "title": "Calendar — mobile",
+      "w": 390,
+      "x": 1520,
+      "y": 14470
+    },
+    "Calendar.dc.html": {
+      "expand": "fill",
+      "h": 1200,
+      "is_interactive": true,
+      "title": "Calendar — desktop",
+      "w": 1440,
+      "x": 0,
+      "y": 14470
+    },
+    "Components.dc.html": {
+      "h": 2000,
+      "title": "Components",
+      "w": 1440,
+      "x": 1520,
+      "y": 0
+    },
+    "Costs-m.dc.html": {
+      "h": 1400,
+      "is_interactive": true,
+      "title": "Costs — mobile",
+      "w": 390,
+      "x": 1520,
+      "y": 19850
+    },
+    "Costs.dc.html": {
+      "expand": "fill",
+      "h": 1150,
+      "is_interactive": true,
+      "title": "Costs — desktop",
+      "w": 1440,
+      "x": 0,
+      "y": 19850
+    },
+    "Cuts-m.dc.html": {
+      "h": 1700,
+      "is_interactive": true,
+      "title": "Cuts — mobile",
+      "w": 390,
+      "x": 1520,
+      "y": 10550
+    },
+    "Cuts.dc.html": {
+      "expand": "fill",
+      "h": 1240,
+      "is_interactive": true,
+      "title": "Cuts — desktop",
+      "w": 1440,
+      "x": 0,
+      "y": 10550
+    },
+    "Generation-m.dc.html": {
+      "h": 1500,
+      "is_interactive": true,
+      "title": "Generation monitor — mobile",
+      "w": 390,
+      "x": 1520,
+      "y": 16130
+    },
+    "Generation.dc.html": {
+      "expand": "fill",
+      "h": 1200,
+      "is_interactive": true,
+      "title": "Generation monitor — desktop",
+      "w": 1440,
+      "x": 0,
+      "y": 16130
+    },
+    "Home-m.dc.html": {
+      "h": 2000,
+      "is_interactive": true,
+      "title": "Home — mobile",
+      "w": 390,
+      "x": 1520,
+      "y": 4120
+    },
+    "Home.dc.html": {
+      "expand": "fill",
+      "h": 1600,
+      "is_interactive": true,
+      "title": "Home — desktop",
+      "w": 1440,
+      "x": 0,
+      "y": 4120
+    },
+    "Integrations-m.dc.html": {
+      "h": 1300,
+      "is_interactive": true,
+      "title": "Settings · Integrations — mobile",
+      "w": 390,
+      "x": 1520,
+      "y": 23170
+    },
+    "Integrations.dc.html": {
+      "expand": "fill",
+      "h": 1060,
+      "is_interactive": true,
+      "title": "Settings · Integrations — desktop",
+      "w": 1440,
+      "x": 0,
+      "y": 23170
+    },
+    "Main.dc.html": {
+      "h": 1700,
+      "title": "Tokens",
+      "w": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "Metrics-m.dc.html": {
+      "h": 1500,
+      "is_interactive": true,
+      "title": "Metrics — mobile (today, pre-launch)",
+      "w": 390,
+      "x": 1520,
+      "y": 17990
+    },
+    "Metrics.dc.html": {
+      "expand": "fill",
+      "h": 1300,
+      "is_interactive": true,
+      "title": "Metrics — desktop (post-launch sample)",
+      "w": 1440,
+      "x": 0,
+      "y": 17990
+    },
+    "More-m.dc.html": {
+      "h": 1000,
+      "is_interactive": true,
+      "title": "More + channel switcher — mobile",
+      "w": 390,
+      "x": 1990,
+      "y": 2360
+    },
+    "Onb-ChBasics-m.dc.html": {
+      "h": 1500,
+      "is_interactive": true,
+      "page": "onboarding",
+      "title": "5 Channel basics — mobile",
+      "w": 390,
+      "x": 1520,
+      "y": 8600
+    },
+    "Onb-ChBasics.dc.html": {
+      "expand": "fill",
+      "h": 1100,
+      "is_interactive": true,
+      "page": "onboarding",
+      "title": "5 Channel basics — desktop",
+      "w": 1440,
+      "x": 0,
+      "y": 8600
+    },
+    "Onb-ChCaps-m.dc.html": {
+      "h": 1600,
+      "is_interactive": true,
+      "page": "onboarding",
+      "title": "8 Caps & trends — mobile",
+      "w": 390,
+      "x": 1520,
+      "y": 14380
+    },
+    "Onb-ChCaps.dc.html": {
+      "expand": "fill",
+      "h": 1150,
+      "is_interactive": true,
+      "page": "onboarding",
+      "title": "8 Caps & trends — desktop",
+      "w": 1440,
+      "x": 0,
+      "y": 14380
+    },
+    "Onb-ChCast-m.dc.html": {
+      "h": 1700,
+      "is_interactive": true,
+      "page": "onboarding",
+      "title": "6 Cast & voices — mobile",
+      "w": 390,
+      "x": 1520,
+      "y": 10460
+    },
+    "Onb-ChCast.dc.html": {
+      "expand": "fill",
+      "h": 1300,
+      "is_interactive": true,
+      "page": "onboarding",
+      "title": "6 Cast & voices — desktop",
+      "w": 1440,
+      "x": 0,
+      "y": 10460
+    },
+    "Onb-ChSchedule-m.dc.html": {
+      "h": 1500,
+      "is_interactive": true,
+      "page": "onboarding",
+      "title": "7 Series & slots — mobile",
+      "w": 390,
+      "x": 1520,
+      "y": 12520
+    },
+    "Onb-ChSchedule.dc.html": {
+      "expand": "fill",
+      "h": 1150,
+      "is_interactive": true,
+      "page": "onboarding",
+      "title": "7 Series & slots — desktop",
+      "w": 1440,
+      "x": 0,
+      "y": 12520
+    },
+    "Onb-Connections-m.dc.html": {
+      "h": 1400,
+      "is_interactive": true,
+      "page": "onboarding",
+      "title": "9 Optional connections — mobile",
+      "w": 390,
+      "x": 1520,
+      "y": 16340
+    },
+    "Onb-Connections.dc.html": {
+      "expand": "fill",
+      "h": 1050,
+      "is_interactive": true,
+      "page": "onboarding",
+      "title": "9 Optional connections — desktop",
+      "w": 1440,
+      "x": 0,
+      "y": 16340
+    },
+    "Onb-Finish-m.dc.html": {
+      "h": 1700,
+      "is_interactive": true,
+      "page": "onboarding",
+      "title": "10 First episode — mobile",
+      "w": 390,
+      "x": 1520,
+      "y": 18100
+    },
+    "Onb-Finish.dc.html": {
+      "expand": "fill",
+      "h": 1250,
+      "is_interactive": true,
+      "page": "onboarding",
+      "title": "10 First episode — desktop",
+      "w": 1440,
+      "x": 0,
+      "y": 18100
+    },
+    "Onb-Models-m.dc.html": {
+      "h": 1500,
+      "is_interactive": true,
+      "page": "onboarding",
+      "title": "2 Writing & embeddings — mobile",
+      "w": 390,
+      "x": 1520,
+      "y": 3120
+    },
+    "Onb-Models.dc.html": {
+      "expand": "fill",
+      "h": 1100,
+      "is_interactive": true,
+      "page": "onboarding",
+      "title": "2 Writing & embeddings — desktop",
+      "w": 1440,
+      "x": 0,
+      "y": 3120
+    },
+    "Onb-Rates-m.dc.html": {
+      "h": 1400,
+      "is_interactive": true,
+      "page": "onboarding",
+      "title": "4 Rate card — mobile",
+      "w": 390,
+      "x": 1520,
+      "y": 6840
+    },
+    "Onb-Rates.dc.html": {
+      "expand": "fill",
+      "h": 1050,
+      "is_interactive": true,
+      "page": "onboarding",
+      "title": "4 Rate card — desktop",
+      "w": 1440,
+      "x": 0,
+      "y": 6840
+    },
+    "Onb-Runway-m.dc.html": {
+      "h": 1500,
+      "is_interactive": true,
+      "page": "onboarding",
+      "title": "3 Runway video & voices — mobile",
+      "w": 390,
+      "x": 1520,
+      "y": 4980
+    },
+    "Onb-Runway.dc.html": {
+      "expand": "fill",
+      "h": 1100,
+      "is_interactive": true,
+      "page": "onboarding",
+      "title": "3 Runway video & voices — desktop",
+      "w": 1440,
+      "x": 0,
+      "y": 4980
+    },
+    "Onb-Start-m.dc.html": {
+      "h": 1100,
+      "is_interactive": true,
+      "page": "onboarding",
+      "title": "Start & resume — mobile",
+      "w": 390,
+      "x": 1520,
+      "y": 0
+    },
+    "Onb-Start.dc.html": {
+      "expand": "fill",
+      "h": 1000,
+      "is_interactive": true,
+      "page": "onboarding",
+      "title": "Start & resume — desktop",
+      "w": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "Onb-States-m.dc.html": {
+      "h": 1800,
+      "page": "onboarding",
+      "title": "Empty & error states — mobile",
+      "w": 390,
+      "x": 1520,
+      "y": 20160
+    },
+    "Onb-States.dc.html": {
+      "h": 1700,
+      "page": "onboarding",
+      "title": "Empty & error states — desktop",
+      "w": 1440,
+      "x": 0,
+      "y": 20160
+    },
+    "Onb-Studio-m.dc.html": {
+      "h": 1300,
+      "is_interactive": true,
+      "page": "onboarding",
+      "title": "1 Profile & storage — mobile",
+      "w": 390,
+      "x": 1520,
+      "y": 1460
+    },
+    "Onb-Studio.dc.html": {
+      "expand": "fill",
+      "h": 1000,
+      "is_interactive": true,
+      "page": "onboarding",
+      "title": "1 Profile & storage — desktop",
+      "w": 1440,
+      "x": 0,
+      "y": 1460
+    },
+    "OnbSpine.dc.html": {
+      "h": 1100,
+      "page": "onboarding",
+      "title": "Progress spine (component)",
+      "w": 320,
+      "x": 1990,
+      "y": 0
+    },
+    "Palette.dc.html": {
+      "h": 600,
+      "title": "Command palette ⌘K",
+      "w": 760,
+      "x": 3368,
+      "y": 200
+    },
+    "Rail.dc.html": {
+      "h": 1000,
+      "title": "Rail (component)",
+      "w": 248,
+      "x": 3040,
+      "y": 0
+    },
+    "Ready-m.dc.html": {
+      "h": 1500,
+      "is_interactive": true,
+      "title": "Ready to schedule — mobile",
+      "w": 390,
+      "x": 1520,
+      "y": 12610
+    },
+    "Ready.dc.html": {
+      "expand": "fill",
+      "h": 1200,
+      "is_interactive": true,
+      "title": "Ready to schedule — desktop",
+      "w": 1440,
+      "x": 0,
+      "y": 12610
+    },
+    "TabBar.dc.html": {
+      "h": 84,
+      "title": "Tab bar (component)",
+      "w": 390,
+      "x": 3368,
+      "y": 0
+    },
+    "Voices-m.dc.html": {
+      "h": 1400,
+      "is_interactive": true,
+      "title": "Voices — mobile",
+      "w": 390,
+      "x": 1520,
+      "y": 24830
+    },
+    "Voices.dc.html": {
+      "expand": "fill",
+      "h": 1060,
+      "is_interactive": true,
+      "title": "Voices — desktop",
+      "w": 1440,
+      "x": 0,
+      "y": 24830
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-10-07T04:00:00Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "view": "canvas"
+  },
+  "notes": {
+    "b0": {
+      "kind": "title1",
+      "maxW": 2960,
+      "page": "brand",
+      "text": "Brand — sheet & what changed",
+      "w": 240,
+      "x": 0,
+      "y": -260
+    },
+    "b1": {
+      "kind": "title1",
+      "maxW": 2960,
+      "page": "brand",
+      "text": "Logo & colour",
+      "w": 240,
+      "x": 0,
+      "y": 2110
+    },
+    "b2": {
+      "kind": "title1",
+      "maxW": 2960,
+      "page": "brand",
+      "text": "Type, icons & motion",
+      "w": 240,
+      "x": 0,
+      "y": 3870
+    },
+    "b3": {
+      "kind": "title1",
+      "maxW": 2960,
+      "page": "brand",
+      "text": "3D object, illustration & voice",
+      "w": 240,
+      "x": 0,
+      "y": 5430
+    },
+    "b4": {
+      "kind": "title1",
+      "maxW": 2960,
+      "page": "brand",
+      "text": "Brand, applied",
+      "w": 240,
+      "x": 0,
+      "y": 6990
+    },
+    "n0": {
+      "kind": "title1",
+      "maxW": 4128,
+      "text": "Kiln — foundations",
+      "w": 240,
+      "x": 0,
+      "y": -260
+    },
+    "n1": {
+      "kind": "title1",
+      "maxW": 2380,
+      "text": "All channels",
+      "w": 240,
+      "x": 0,
+      "y": 2110
+    },
+    "n10": {
+      "kind": "title1",
+      "maxW": 1910,
+      "text": "Costs",
+      "w": 240,
+      "x": 0,
+      "y": 19600
+    },
+    "n11": {
+      "kind": "title1",
+      "maxW": 1910,
+      "text": "Authorship log",
+      "w": 240,
+      "x": 0,
+      "y": 21360
+    },
+    "n12": {
+      "kind": "title1",
+      "maxW": 1910,
+      "text": "Settings · Integrations",
+      "w": 240,
+      "x": 0,
+      "y": 22920
+    },
+    "n13": {
+      "kind": "title1",
+      "maxW": 1910,
+      "text": "Library · Voices",
+      "w": 240,
+      "x": 0,
+      "y": 24580
+    },
+    "n2": {
+      "kind": "title1",
+      "maxW": 1910,
+      "text": "Home",
+      "w": 240,
+      "x": 0,
+      "y": 3870
+    },
+    "n3": {
+      "kind": "title1",
+      "maxW": 1910,
+      "text": "Approvals",
+      "w": 240,
+      "x": 0,
+      "y": 6230
+    },
+    "n4": {
+      "kind": "title1",
+      "maxW": 1910,
+      "text": "Board",
+      "w": 240,
+      "x": 0,
+      "y": 8640
+    },
+    "n5": {
+      "kind": "title1",
+      "maxW": 1910,
+      "text": "Cuts",
+      "w": 240,
+      "x": 0,
+      "y": 10300
+    },
+    "n6": {
+      "kind": "title1",
+      "maxW": 1910,
+      "text": "Ready to schedule",
+      "w": 240,
+      "x": 0,
+      "y": 12360
+    },
+    "n7": {
+      "kind": "title1",
+      "maxW": 1910,
+      "text": "Calendar",
+      "w": 240,
+      "x": 0,
+      "y": 14220
+    },
+    "n8": {
+      "kind": "title1",
+      "maxW": 1910,
+      "text": "Generation monitor",
+      "w": 240,
+      "x": 0,
+      "y": 15880
+    },
+    "n9": {
+      "kind": "title1",
+      "maxW": 1910,
+      "text": "Metrics",
+      "w": 240,
+      "x": 0,
+      "y": 17740
+    },
+    "o0": {
+      "kind": "title1",
+      "maxW": 2310,
+      "page": "onboarding",
+      "text": "Onboarding — start & resume",
+      "w": 240,
+      "x": 0,
+      "y": -260
+    },
+    "o1": {
+      "kind": "title1",
+      "maxW": 1910,
+      "page": "onboarding",
+      "text": "1 · Profile & storage",
+      "w": 240,
+      "x": 0,
+      "y": 1210
+    },
+    "o10": {
+      "kind": "title1",
+      "maxW": 1910,
+      "page": "onboarding",
+      "text": "10 · First episode",
+      "w": 240,
+      "x": 0,
+      "y": 17850
+    },
+    "o11": {
+      "kind": "title1",
+      "maxW": 1910,
+      "page": "onboarding",
+      "text": "Empty & error states",
+      "w": 240,
+      "x": 0,
+      "y": 19910
+    },
+    "o2": {
+      "kind": "title1",
+      "maxW": 1910,
+      "page": "onboarding",
+      "text": "2 · Writing & embeddings",
+      "w": 240,
+      "x": 0,
+      "y": 2870
+    },
+    "o3": {
+      "kind": "title1",
+      "maxW": 1910,
+      "page": "onboarding",
+      "text": "3 · Runway — video & voices",
+      "w": 240,
+      "x": 0,
+      "y": 4730
+    },
+    "o4": {
+      "kind": "title1",
+      "maxW": 1910,
+      "page": "onboarding",
+      "text": "4 · Rate card",
+      "w": 240,
+      "x": 0,
+      "y": 6590
+    },
+    "o5": {
+      "kind": "title1",
+      "maxW": 1910,
+      "page": "onboarding",
+      "text": "5 · Channel basics (repeatable)",
+      "w": 240,
+      "x": 0,
+      "y": 8350
+    },
+    "o6": {
+      "kind": "title1",
+      "maxW": 1910,
+      "page": "onboarding",
+      "text": "6 · Cast & voices",
+      "w": 240,
+      "x": 0,
+      "y": 10210
+    },
+    "o7": {
+      "kind": "title1",
+      "maxW": 1910,
+      "page": "onboarding",
+      "text": "7 · Series & slots",
+      "w": 240,
+      "x": 0,
+      "y": 12270
+    },
+    "o8": {
+      "kind": "title1",
+      "maxW": 1910,
+      "page": "onboarding",
+      "text": "8 · Caps & trends",
+      "w": 240,
+      "x": 0,
+      "y": 14130
+    },
+    "o9": {
+      "kind": "title1",
+      "maxW": 1910,
+      "page": "onboarding",
+      "text": "9 · Optional connections",
+      "w": 240,
+      "x": 0,
+      "y": 16090
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "Components.dc.html",
+    "Rail.dc.html",
+    "TabBar.dc.html",
+    "Palette.dc.html",
+    "AllChannels.dc.html",
+    "AllChannels-m.dc.html",
+    "More-m.dc.html",
+    "Home.dc.html",
+    "Home-m.dc.html",
+    "Approvals.dc.html",
+    "Approvals-m.dc.html",
+    "Board.dc.html",
+    "Board-m.dc.html",
+    "Cuts.dc.html",
+    "Cuts-m.dc.html",
+    "Ready.dc.html",
+    "Ready-m.dc.html",
+    "Calendar.dc.html",
+    "Calendar-m.dc.html",
+    "Generation.dc.html",
+    "Generation-m.dc.html",
+    "Metrics.dc.html",
+    "Metrics-m.dc.html",
+    "Costs.dc.html",
+    "Costs-m.dc.html",
+    "Authorship.dc.html",
+    "Authorship-m.dc.html",
+    "Integrations.dc.html",
+    "Integrations-m.dc.html",
+    "Voices.dc.html",
+    "Voices-m.dc.html",
+    "BrandSheet.dc.html",
+    "BrandChanges.dc.html",
+    "BrandLogo.dc.html",
+    "BrandColor.dc.html",
+    "BrandType.dc.html",
+    "BrandMotion.dc.html",
+    "BrandObject.dc.html",
+    "BrandVoice.dc.html",
+    "BrandApplied.dc.html",
+    "BrandAppliedMobile.dc.html",
+    "OnbSpine.dc.html",
+    "Onb-Start.dc.html",
+    "Onb-Start-m.dc.html",
+    "Onb-Studio.dc.html",
+    "Onb-Studio-m.dc.html",
+    "Onb-Models.dc.html",
+    "Onb-Models-m.dc.html",
+    "Onb-Runway.dc.html",
+    "Onb-Runway-m.dc.html",
+    "Onb-Rates.dc.html",
+    "Onb-Rates-m.dc.html",
+    "Onb-ChBasics.dc.html",
+    "Onb-ChBasics-m.dc.html",
+    "Onb-ChCast.dc.html",
+    "Onb-ChCast-m.dc.html",
+    "Onb-ChSchedule.dc.html",
+    "Onb-ChSchedule-m.dc.html",
+    "Onb-ChCaps.dc.html",
+    "Onb-ChCaps-m.dc.html",
+    "Onb-Connections.dc.html",
+    "Onb-Connections-m.dc.html",
+    "Onb-Finish.dc.html",
+    "Onb-Finish-m.dc.html",
+    "Onb-States.dc.html",
+    "Onb-States-m.dc.html"
+  ],
+  "pages": [
+    {
+      "id": "screens",
+      "name": "Screens"
+    },
+    {
+      "id": "brand",
+      "name": "Brand"
+    },
+    {
+      "id": "onboarding",
+      "name": "Onboarding"
+    }
+  ],
+  "title": "Kiln — Studio Redesign"
+}

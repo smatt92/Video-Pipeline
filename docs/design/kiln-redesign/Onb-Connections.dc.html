@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln setup — optional connections</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:oklch(0.150 0.006 70)}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.oc{display:grid;grid-template-columns:1fr auto;gap:10px 16px;align-items:center;padding:16px;border-bottom:1px solid var(--b1)}
+.oc:last-child{border-bottom:0}
+.oc .u{grid-column:1 / -1;font-size:12px;color:var(--t3)}
+</style>
+</helmet>
+<div class="k ob">
+  <div class="ob-spine"><dc-import name="OnbSpine" step="9" hint-size="100%,1050px"></dc-import></div>
+  <main class="ob-main">
+    <div class="ob-col">
+      <div class="col" style="gap: 8px"><span class="ob-step">Optional · step 9 of 10 · nothing here blocks your first video</span><h1 class="ob-h">Optional connections</h1><p class="t2">Each one switches a "—" into a real number or saves you a manual step. Skip any of them; they live in Settings later.</p></div>
+
+      <section class="card">
+        <sc-for list="{{ items }}" as="c" hint-placeholder-count="5">
+          <div class="oc">
+            <div class="col" style="gap: 6px">
+              <div class="row" style="gap: 10px"><span style="font-weight: 600">{{ c.name }}</span><span class="{{ c.pcls }}">{{ c.ptxt }}</span></div>
+              <span class="sm t2">{{ c.what }}</span>
+              <span class="mono xs t3">{{ c.env }}</span>
+            </div>
+            <div class="row" style="gap: 8px"><button class="btn sm ghost" type="button" onClick="{{ c.skip }}">{{ c.skipTxt }}</button><button class="btn sm" type="button">{{ c.act }}</button></div>
+            <span class="u">Without it: {{ c.without }}</span>
+          </div>
+        </sc-for>
+      </section>
+
+      <div class="ob-foot">
+        <a class="btn ghost" href="Onb-ChCaps.dc.html">Back</a>
+        <span class="xs t3">{{ skipped }} skipped</span>
+        <span class="grow"></span>
+        <a class="btn" href="Onb-Finish.dc.html">Skip the rest</a>
+        <a class="btn pri" href="Onb-Finish.dc.html">Next · First episode</a>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1050}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { skip: {} }; }
+  renderVals() {
+    const C = [
+      ['yta', 'YouTube Analytics', 'Views, APV, viewed-vs-swiped, subscribers.', 'OAuth · not connected', 'missing', 'Connect', 'every metric stays "—" with a reason.'],
+      ['ytd', 'YouTube Data API', 'Quota and the "mark scheduled" link check.', 'OAuth · connected, not tested', 'unverified', 'Save and test', 'you paste links and Kiln can’t confirm them.'],
+      ['hf', 'Higgsfield', 'Character beats with locked reference frames.', 'HIGGSFIELD_API_KEY · missing from environment', 'missing', 'Save and test', 'character beats render as overlay.'],
+      ['ig', 'Instagram Reels', 'Posting from Kiln.', 'Meta app review · pending', 'unverified', 'Check status', 'manual posting — Kiln still prepares the bundle.'],
+      ['push', 'Phone alerts', 'One push when a brief or cut needs you, or a run is blocked.', 'this device · not allowed yet', 'missing', 'Allow on this device', 'you find out when you open Kiln.']
+    ];
+    const pc = { missing: 'pill s-blk', unverified: 'pill s-rev', skipped: 'pill nodot s-draft' };
+    const sk = this.state.skip;
+    return {
+      items: C.map(([k, name, what, env, st, act, without]) => {
+        const s = sk[k] ? 'skipped' : st;
+        return { name, what, env, act, without, pcls: pc[s], ptxt: s, skipTxt: sk[k] ? 'Undo skip' : 'Skip for now', skip: () => this.setState({ skip: { ...sk, [k]: !sk[k] } }) };
+      }),
+      skipped: Object.values(sk).filter(Boolean).length
+    };
+  }
+}
+</script>
+</body>
+</html>

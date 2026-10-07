@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln setup — first episode (mobile)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.door-glow{filter:drop-shadow(0 0 8px oklch(0.83 0.12 182 / .9))}
+.ws{display:grid;grid-template-columns:28px 1fr auto;gap:12px;align-items:center;padding:14px;border-bottom:1px solid var(--b1);min-height:64px}
+.ws:last-child{border-bottom:0}
+</style>
+</helmet>
+<div class="k ph-onb" style="height: 1700px">
+  <div class="top">
+    <div class="row sb"><a class="btn icon" href="Onb-Connections-m.dc.html" aria-label="Back" style="width: 40px; height: 40px"><svg class="ic" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"></path></svg></a><span class="mono xs t3">10 of 10</span><span class="xs" style="color: var(--live)">nothing blocks</span></div>
+    <div class="segbar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="d"></span><span class="d"></span><span class="d"></span><span class="d"></span><span class="d"></span><span class="o"></span><span class="c"></span></div>
+  </div>
+  <div class="body">
+    <section class="card bp" style="border-color: rgba(242,239,232,.14); padding: 18px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center">
+      <svg viewBox="80 20 160 200" width="110" aria-hidden="true">
+        <defs>
+          <linearGradient id="koB" x1="0" x2="1"><stop offset="0" class="k6"></stop><stop offset=".35" class="k1"></stop><stop offset=".7" class="k3"></stop><stop offset="1" class="k6"></stop></linearGradient>
+          <radialGradient id="koD" cx=".5" cy=".9" r=".9"><stop offset="0" style="stop-color: #E6FFFB"></stop><stop offset=".4" style="stop-color: #45DCC8"></stop><stop offset="1" style="stop-color: #0B5F58"></stop></radialGradient>
+        </defs>
+        <ellipse cx="160" cy="206" rx="80" ry="16" fill="#16273F" stroke="#F2EFE8" stroke-opacity=".5"></ellipse>
+        <rect x="149" y="32" width="22" height="26" rx="3" fill="url(#koB)" stroke="#F2EFE8" stroke-width="1.4"></rect><path d="M92 204V124a68 68 0 0 1 136 0v80z" fill="url(#koB)" stroke="#F2EFE8" stroke-width="1.6"></path><path d="M140 204v-30a20 20 0 0 1 40 0v30z" fill="url(#koD)" stroke="#F2EFE8" stroke-width="1.4" class="door-glow"></path>
+      </svg>
+      <span style="color: var(--chalk); font-size: 22px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2">The kiln is hot. Fire your first episode.</span>
+    </section>
+    <section class="card">
+      <div class="ws"><div class="cone act"><svg viewBox="0 0 20 28"><path class="c" d="M6 26L10 4l4 22z"></path><rect class="base" x="2" y="26" width="16" height="2" rx="1"></rect></svg></div><div class="col" style="gap: 2px"><span style="font-weight: 500">Approve a brief</span><span class="xs t3">S002 · pick a punchline</span></div><a class="btn sm pri" href="Approvals-m.dc.html" style="height: 40px">Open</a></div>
+      <div class="ws"><div class="cone"><svg viewBox="0 0 20 28"><path class="c" d="M6 26L10 4l4 22z"></path><rect class="base" x="2" y="26" width="16" height="2" rx="1"></rect></svg></div><div class="col" style="gap: 2px"><span style="font-weight: 500">Watch the cut</span><span class="xs t3">with sound on</span></div><span class="xs t3">next</span></div>
+      <div class="ws"><div class="cone"><svg viewBox="0 0 20 28"><path class="c" d="M6 26L10 4l4 22z"></path><rect class="base" x="2" y="26" width="16" height="2" rx="1"></rect></svg></div><div class="col" style="gap: 2px"><span style="font-weight: 500">Approve the cut</span><span class="xs t3">no skip</span></div><span class="xs t3">then</span></div>
+      <div class="ws"><div class="cone"><svg viewBox="0 0 20 28"><path class="c" d="M6 26L10 4l4 22z"></path><rect class="base" x="2" y="26" width="16" height="2" rx="1"></rect></svg></div><div class="col" style="gap: 2px"><span style="font-weight: 500">Download the bundle</span><span class="xs t3">you schedule it</span></div><span class="xs t3">last</span></div>
+    </section>
+    <section class="card card-b col" style="gap: 8px">
+      <div class="row sb"><span class="h3">S002 cost</span><span class="basis est">estimate</span></div>
+      <div class="row sb sm"><span class="t2">Voice · 412 chars</span><span class="mono">₹7.25</span></div>
+      <div class="row sb sm"><span class="t2">Script and brief</span><span class="mono">≈ ₹2.15</span></div>
+      <div class="row sb sm"><span class="t2">Overlay shots</span><span class="mono t3">— not ledgered</span></div>
+      <div class="hr"></div>
+      <div class="row sb"><span>Estimate</span><span class="mono" style="font-size: 18px">₹9.40</span></div>
+    </section>
+  </div>
+  <div class="act"><a class="btn lg pri" href="Approvals-m.dc.html" style="flex: 1">Start with the brief</a></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1700}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

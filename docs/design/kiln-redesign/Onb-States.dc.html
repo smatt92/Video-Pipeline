@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Onboarding empty and error states</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.sr{display:grid;grid-template-columns:200px minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:stretch;padding:12px 0;border-bottom:1px solid var(--b1)}
+.sr:last-child{border-bottom:0}
+.sr .st{display:flex;flex-direction:column;gap:4px;padding-top:4px}
+.em{display:flex;gap:10px;align-items:flex-start;padding:11px 12px;border-radius:10px;border:1px dashed var(--b2);font-size:13px;color:var(--t2)}
+.em .ic{color:var(--t3);margin-top:1px}
+.blocker{height:100%}
+</style>
+</helmet>
+<div class="k" style="width: 1440px; height: 1700px; padding: 56px 72px; display: flex; flex-direction: column; gap: 18px; overflow: hidden">
+  <div class="row sb"><div class="col" style="gap: 6px"><span class="lbl">Onboarding · states</span><h1 class="h1">Empty and error, every step</h1></div><span class="xs t3">empty = dashed, neutral, says what fills it · error = red, one sentence, one action</span></div>
+  <div class="row" style="display: grid; grid-template-columns: 200px minmax(0,1fr) minmax(0,1fr); gap: 14px"><span></span><span class="lbl">Empty</span><span class="lbl">Error</span></div>
+  <section>
+    <div class="sr"><div class="st"><span class="mono xs t3">1</span><span class="h3">Profile & storage</span></div>
+      <div class="em"><svg class="ic" viewBox="0 0 24 24"><path d="M12 8v5M12 16h.01M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z"></path></svg><span>No exchange rate yet. Every ₹ shows "—" until you add one.</span></div>
+      <div class="blocker"><svg class="ic" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg><p>Storage refused the test write because bucket "media" doesn't exist.</p><button class="btn sm" type="button">Check bucket name</button></div>
+    </div>
+    <div class="sr"><div class="st"><span class="mono xs t3">2</span><span class="h3">Writing & embeddings</span></div>
+      <div class="em"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM8 9l3 3-3 3M13 15h3"></path></svg><span><b class="mono">ANTHROPIC_API_KEY</b> is missing from the environment. Add it where you host Kiln, then test.</span></div>
+      <div class="blocker"><svg class="ic" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg><p>Anthropic rejected the key ending ••Q7c2. It may have been revoked.</p><button class="btn sm" type="button">Test again</button></div>
+    </div>
+    <div class="sr"><div class="st"><span class="mono xs t3">3</span><span class="h3">Runway</span></div>
+      <div class="em"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM8 9l3 3-3 3M13 15h3"></path></svg><span><b class="mono">RUNWAYML_API_SECRET</b> isn't set, so video and voice options stay locked.</span></div>
+      <div class="blocker"><svg class="ic" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg><p>The key works but the Runway account has no credits, so every run would fail.</p><button class="btn sm" type="button">Open Runway billing</button></div>
+    </div>
+    <div class="sr"><div class="st"><span class="mono xs t3">4</span><span class="h3">Rate card</span></div>
+      <div class="em"><svg class="ic" viewBox="0 0 24 24"><path d="M6 4h12M6 9h12M6 4c7 0 7 10 0 10l9 7"></path></svg><span>No prices yet. Add one per model you use; unused models can stay empty.</span></div>
+      <div class="blocker"><svg class="ic" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg><p>Rate missing: Runway video has no verified price, so the per-video cap can't be checked.</p><button class="btn sm" type="button">Add price</button></div>
+    </div>
+    <div class="sr"><div class="st"><span class="mono xs t3">5</span><span class="h3">Channel basics</span></div>
+      <div class="em"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg><span>No channel yet. Name it and pick an accent — you can connect YouTube later.</span></div>
+      <div class="blocker"><svg class="ic" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg><p>The Google account you signed in with doesn't manage @BureauofReality.</p><button class="btn sm" type="button">Switch account</button></div>
+    </div>
+    <div class="sr"><div class="st"><span class="mono xs t3">6</span><span class="h3">Cast & voices</span></div>
+      <div class="em"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3"></path></svg><span>No characters yet. Start with the host — the voice that reads the case files.</span></div>
+      <div class="blocker"><svg class="ic" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg><p>Voice not locked: Pip's lines can't be recorded until you lock one preset.</p><button class="btn sm pri" type="button">Lock voice</button></div>
+    </div>
+    <div class="sr"><div class="st"><span class="mono xs t3">7</span><span class="h3">Series & slots</span></div>
+      <div class="em"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"></path></svg><span>No publish slots. Add one series and a weekday to get your first slot.</span></div>
+      <div class="blocker"><svg class="ic" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg><p>Two series are on Monday, and a channel gets one Short slot per day.</p><button class="btn sm" type="button">Move one</button></div>
+    </div>
+    <div class="sr"><div class="st"><span class="mono xs t3">8</span><span class="h3">Caps & trends</span></div>
+      <div class="em"><svg class="ic" viewBox="0 0 24 24"><path d="M6 4h12M6 9h12M6 4c7 0 7 10 0 10l9 7"></path></svg><span>No caps yet, so Kiln won't start a paid run. Trend sources are optional.</span></div>
+      <div class="blocker"><svg class="ic" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg><p>r/askscienc couldn't be found — it looks like a typo of r/askscience.</p><button class="btn sm" type="button">Use r/askscience</button></div>
+    </div>
+    <div class="sr"><div class="st"><span class="mono xs t3">9</span><span class="h3">Connections</span></div>
+      <div class="em"><svg class="ic" viewBox="0 0 24 24"><path d="M5 12h14"></path></svg><span>All skipped. Fine — each one lives in Settings → Integrations.</span></div>
+      <div class="blocker"><svg class="ic" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg><p>Google sign-in was cancelled, so YouTube Analytics isn't connected.</p><button class="btn sm" type="button">Try again</button></div>
+    </div>
+    <div class="sr"><div class="st"><span class="mono xs t3">10</span><span class="h3">First episode</span></div>
+      <div class="em" style="flex-direction: column"><span>Drafting the S002 brief…</span><div class="fire" style="width: 100%"><i style="width: 40%"></i></div></div>
+      <div class="blocker"><svg class="ic" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg><p>The brief couldn't be drafted because today's ₹600 cap is already reached.</p><button class="btn sm" type="button">Raise today's cap</button></div>
+    </div>
+  </section>
+  <div class="row" style="gap: 12px"><span class="pill s-gen">Resuming</span><span class="sm t2">Lost connection mid-step? Kiln keeps what was saved and reopens the same step with "Resume where you left off".</span></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1700}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

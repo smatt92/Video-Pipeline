@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln — what changed</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.chg{font:500 10.5px var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:4px;white-space:nowrap}
+.chg.new{color:var(--ac);background:var(--ac-t)}
+.chg.rep{color:var(--rev);background:oklch(0.82 0.14 78 / .12)}
+.chg.keep{color:var(--t3);border:1px solid var(--b2)}
+</style>
+</helmet>
+<div class="k" style="width: 1440px; height: 1200px; padding: 56px 72px; display: flex; flex-direction: column; gap: 24px; overflow: hidden">
+  <div class="row sb" style="align-items: flex-end">
+    <div class="col" style="gap: 6px"><span class="lbl">Brand v1 → v2</span><h1 class="h1">What changed</h1><p class="sm t3">Additive by default. Nothing on the Screens page lost a token; only the rail logo and the run-progress motif were swapped.</p></div>
+    <div class="row" style="gap: 8px"><span class="chg new">new</span><span class="chg rep">replaces</span><span class="chg keep">kept</span></div>
+  </div>
+  <section class="card">
+    <table class="tbl">
+      <thead><tr><th style="width: 160px">Area</th><th style="width: 110px">Change</th><th>Before (v1)</th><th>After (v2)</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td style="font-weight: 500">Logo</td><td><span class="chg rep">replaces</span></td><td class="sm t2">Stroke arch icon + "Kiln" set in Geist</td><td class="sm"><span class="row" style="gap: 8px; flex-wrap: nowrap"><svg class="kmark" viewBox="0 0 32 32" width="20" height="20" aria-hidden="true"><path class="arch" d="M5 29V15a11 11 0 0 1 22 0v14z"></path><path class="door" d="M12.5 29v-6.5a3.5 3.5 0 0 1 7 0V29z"></path></svg><span class="wm" style="font-size: 17px">k<span class="i">ı</span>ln</span></span>solid arch mark, lowercase wordmark, teal square tittle</td><td class="sm t2">Readable at 16 px; the tittle reuses the channel square</td></tr>
+        <tr><td style="font-weight: 500">Rail header</td><td><span class="chg rep">replaces</span></td><td class="sm t2">Icon + "Kiln" + "v2"</td><td class="sm">New lockup, links home</td><td class="sm t2">Applied on every desktop screen through the Rail component</td></tr>
+        <tr><td style="font-weight: 500">Teal accent</td><td><span class="chg new">new</span></td><td class="sm t2">One value, hover written inline</td><td class="sm mono">--ac-100 … --ac-900, --ac-hi, --ac-lo, --glow</td><td class="sm t2">Hover, pressed, light-mode and glow need named steps. Base 0.79 0.12 182 unchanged</td></tr>
+        <tr><td style="font-weight: 500">Light set</td><td><span class="chg new">new</span></td><td class="sm t2">None</td><td class="sm mono">--paper, --paper-2, --ink, --ink-2, --ac-on-paper</td><td class="sm t2">Email, PDF bundle and the light logo need it. The app stays dark</td></tr>
+        <tr><td style="font-weight: 500">Motion</td><td><span class="chg new">new</span></td><td class="sm t2">150 ms transitions, 1.6 s pulse, 5 s drift</td><td class="sm mono">--e-out, --e-io, --e-fire · 120 / 200 / 320 / 600 ms</td><td class="sm t2">Named so code and design use the same curves</td></tr>
+        <tr><td style="font-weight: 500">Run progress</td><td><span class="chg rep">replaces</span></td><td class="sm t2">4-segment stage bar on cards</td><td class="sm">Witness cones (stand → glow → bend; slump when blocked) + firing bar</td><td class="sm t2">Kilns use cones to show heat work. The flat bar stays for tables and tight rows</td></tr>
+        <tr><td style="font-weight: 500">3D</td><td><span class="chg new">new</span></td><td class="sm t2">Bureau building, busts, canisters</td><td class="sm">+ Kiln object (app-level only)</td><td class="sm t2">Building = the channel's world; kiln = the studio. Never both on one screen</td></tr>
+        <tr><td style="font-weight: 500">Voice</td><td><span class="chg new">new</span></td><td class="sm t2">Rules lived inside screens</td><td class="sm">Written voice and tone guide</td><td class="sm t2">Onboarding and notifications needed the rules spelled out</td></tr>
+        <tr><td style="font-weight: 500">Kept as is</td><td><span class="chg keep">kept</span></td><td class="sm t2" colspan="2">Surfaces, text, borders, the six state colours, cast colours, series colours, channel accents, Geist + Geist Mono, radii, every component, every rule (— for unknown, ₹ basis, one-sentence blockers, human cut review)</td><td class="sm t2">Already working</td></tr>
+      </tbody>
+    </table>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1200}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln 3D object and illustration</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.door-glow{filter:drop-shadow(0 0 8px oklch(0.83 0.12 182 / .9))}
+.drift{animation:kfloat 5s ease-in-out infinite}
+.ch{fill:none;stroke:#F2EFE8;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.chd{fill:none;stroke:#F2EFE8;stroke-opacity:.5;stroke-width:1.5;stroke-dasharray:4 5;stroke-linecap:round}
+</style>
+</helmet>
+<div class="k" style="width: 1440px; height: 1200px; padding: 56px 72px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 20px; align-content: start; overflow: hidden">
+  <div style="grid-column: span 12" class="col"><span class="lbl">3D brand object & illustration</span><h1 class="h1">One kiln, fired once per screen</h1></div>
+
+  <section class="card bp" style="grid-column: span 7; grid-row: span 2; padding: 0; overflow: hidden; border-color: rgba(242,239,232,.14); display: flex; flex-direction: column">
+    <svg viewBox="0 0 320 250" style="display: block; width: 100%; height: auto" role="img" aria-label="Clay beehive kiln with glowing teal door on a blueprint plate; a raw lump on the left, a fired tile on the right">
+      <defs>
+        <linearGradient id="koB" x1="0" x2="1"><stop offset="0" class="k6"></stop><stop offset=".35" class="k1"></stop><stop offset=".7" class="k3"></stop><stop offset="1" class="k6"></stop></linearGradient>
+        <radialGradient id="koD" cx=".5" cy=".9" r=".9"><stop offset="0" style="stop-color: #E6FFFB"></stop><stop offset=".4" style="stop-color: #45DCC8"></stop><stop offset="1" style="stop-color: #0B5F58"></stop></radialGradient>
+      </defs>
+      <ellipse cx="160" cy="206" rx="132" ry="30" fill="#16273F" stroke="#F2EFE8" stroke-opacity=".5"></ellipse>
+      <ellipse cx="160" cy="210" rx="78" ry="12" fill="#000" opacity=".4" style="filter: blur(5px)"></ellipse>
+      <ellipse cx="160" cy="214" rx="44" ry="8" fill="#45DCC8" opacity=".35" style="filter: blur(6px)"></ellipse>
+      <g class="drift">
+        <rect x="149" y="32" width="22" height="26" rx="3" fill="url(#koB)" stroke="#F2EFE8" stroke-width="1.4"></rect>
+        <path d="M92 204V124a68 68 0 0 1 136 0v80z" fill="url(#koB)" stroke="#F2EFE8" stroke-width="1.6"></path>
+        <path d="M96 160q64-12 128 0M104 112q56-12 112 0" fill="none" stroke="#F2EFE8" stroke-opacity=".3"></path>
+        <path d="M140 204v-30a20 20 0 0 1 40 0v30z" fill="url(#koD)" stroke="#F2EFE8" stroke-width="1.4" class="door-glow"></path>
+      </g>
+      <path d="M56 204c-6-8 2-16 10-14 6-6 16-2 14 6 6 4 2 10-6 10z" fill="#8E877C" stroke="#F2EFE8" stroke-opacity=".6"></path>
+      <path d="M246 196l18-6 14 6-18 6z" fill="#E6E1D8" stroke="#F2EFE8"></path><path d="M246 196v5l14 6v-5zM260 202v5l18-6v-5z" fill="#A9A194" stroke="#F2EFE8" stroke-width=".8"></path><path d="M246 196l18-6 14 6-18 6z" fill="none" stroke="#45DCC8" stroke-width="1.2"></path>
+      <path d="M86 186q20-10 44 2M190 190q24-8 50 2" fill="none" stroke="#F2EFE8" stroke-opacity=".45" stroke-dasharray="3 4"></path>
+      <text x="40" y="236" style="fill: rgba(242,239,232,.55); font: 500 7px 'Geist Mono', monospace; letter-spacing: .1em">IDEA · RAW</text>
+      <text x="238" y="236" style="fill: rgba(242,239,232,.55); font: 500 7px 'Geist Mono', monospace; letter-spacing: .1em">EPISODE · FIRED</text>
+    </svg>
+  </section>
+
+  <section class="card" style="grid-column: span 5; padding: 22px; display: flex; flex-direction: column; gap: 10px">
+    <h2 class="h3">Material & light</h2>
+    <table class="tbl" style="font-size: 12.5px">
+      <tbody>
+        <tr><td class="t3">Clay</td><td>Matte, no specular. #EEE9E0 lit → #6F685D shadow</td></tr>
+        <tr><td class="t3">Edges</td><td>Chalk #F2EFE8, 1.5 px at 1×, on every silhouette</td></tr>
+        <tr><td class="t3">Key light</td><td>Soft, top-left 45°, large source</td></tr>
+        <tr><td class="t3">Fill</td><td>Teal door glow, spills onto the plate only</td></tr>
+        <tr><td class="t3">Ground</td><td>Navy blueprint plate, 6–8 % chalk grid</td></tr>
+        <tr><td class="t3">Motion</td><td>5 px drift over 5 s. Door glow steady.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card" style="grid-column: span 5; padding: 22px; display: flex; flex-direction: column; gap: 10px">
+    <h2 class="h3">Where 3D lives</h2>
+    <div class="col" style="gap: 6px">
+      <div class="row sb sm"><span>Kiln object</span><span class="t3">splash · onboarding start/finish · studio-level empty states</span></div>
+      <div class="row sb sm"><span>Bureau building</span><span class="t3">channel Home hero</span></div>
+      <div class="row sb sm"><span>Cast busts</span><span class="t3">approvals, voices, cast setup</span></div>
+      <div class="row sb sm"><span>Film canisters</span><span class="t3">episode cards</span></div>
+      <div class="row sb sm"><span>App icon</span><span class="t3">only 3D version of the mark</span></div>
+    </div>
+    <p class="xs t3">One 3D object per screen. Never behind numbers, never in tables, never in notifications.</p>
+  </section>
+
+  <section class="card" style="grid-column: span 12; padding: 22px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
+    <div class="col" style="gap: 10px">
+      <div class="bp" style="height: 150px; border-radius: 12px; display: grid; place-items: center"><svg viewBox="0 0 120 80" width="170" aria-hidden="true"><path class="ch" d="M14 66h92M20 66V44h80v22M20 44l10-14h60l10 14"></path><path class="chd" d="M44 58h12v-8H44zM64 58h12v-8H64z"></path></svg></div>
+      <span class="h3">Empty</span><span class="xs t3">Dashed chalk = something that isn't there yet. "Nothing to cut — cuts appear after QC."</span>
+    </div>
+    <div class="col" style="gap: 10px">
+      <div class="bp" style="height: 150px; border-radius: 12px; display: grid; place-items: center"><svg viewBox="0 0 120 80" width="170" aria-hidden="true"><path class="ch" d="M30 56l30-12 30 12-30 12z"></path><path d="M58 46l4 8-5 4 3 9" fill="none" stroke="#FB605C" stroke-width="1.6" stroke-linecap="round"></path></svg></div>
+      <span class="h3">Error</span><span class="xs t3">A cracked tile, one red line. The red belongs to the blocker state, nowhere else.</span>
+    </div>
+    <div class="col" style="gap: 10px">
+      <div class="bp" style="height: 150px; border-radius: 12px; display: grid; place-items: center"><svg viewBox="0 0 120 80" width="170" aria-hidden="true"><path class="ch" d="M24 66h72"></path><path d="M38 66L44 30l6 36z" fill="#60DB89" stroke="#F2EFE8"></path><path d="M57 66L63 30l6 36z" fill="#B296FF" stroke="#F2EFE8"></path><path d="M76 66L82 30l6 36z" fill="none" stroke="#F2EFE8"></path></svg></div>
+      <span class="h3">In progress</span><span class="xs t3">Cones, in state colours. The only illustration that uses state colour.</span>
+    </div>
+    <div class="col" style="gap: 10px">
+      <div style="height: 150px; border-radius: 12px; display: grid; place-items: center; background: var(--s2); border: 1px solid var(--b2); position: relative"><span class="sm t3" style="text-align: center; padding: 0 20px">No gradient blobs · no stock photos · no emoji · no AI-generated people · no glossy 3D</span></div>
+      <span class="h3">Never</span><span class="xs t3">If an illustration doesn't explain a state, leave the space empty.</span>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1200}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

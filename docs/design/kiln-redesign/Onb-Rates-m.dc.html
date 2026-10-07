@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln setup — rate card (mobile)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.rr{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--b1);min-height:60px}
+.rr:last-child{border-bottom:0}
+.ph{font:500 12px var(--mono);color:var(--t3);border:1px dashed var(--b3);padding:2px 6px;border-radius:5px}
+</style>
+</helmet>
+<div class="k ph-onb" style="height: 1400px">
+  <div class="top">
+    <div class="row sb"><a class="btn icon" href="Onb-Runway-m.dc.html" aria-label="Back" style="width: 40px; height: 40px"><svg class="ic" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"></path></svg></a><span class="mono xs t3">Studio · 4 of 10</span><a class="xs" href="Onb-Start-m.dc.html">5 blockers</a></div>
+    <div class="segbar"><span class="d"></span><span class="d"></span><span class="d"></span><span class="c"></span><span></span><span></span><span></span><span></span><span class="o"></span><span></span></div>
+  </div>
+  <div class="body">
+    <h1 class="ob-h" style="font-size: 24px">Rate card</h1>
+    <p class="sm t2">Price × quantity × ₹88 per dollar. Check each against the provider's pricing page.</p>
+    <section class="card">
+      <div class="rr"><div class="col grow" style="gap: 2px"><span class="sm">Anthropic · input</span><span class="mono xs t3">per 1M tokens</span></div><span class="ph">$[price]</span><span class="pill s-live">✓</span></div>
+      <div class="rr"><div class="col grow" style="gap: 2px"><span class="sm">Anthropic · output</span><span class="mono xs t3">per 1M tokens</span></div><span class="ph">$[price]</span><span class="pill s-live">✓</span></div>
+      <div class="rr"><div class="col grow" style="gap: 2px"><span class="sm">Gemini · embeddings</span><span class="mono xs t3">per 1M tokens</span></div><span class="ph">$[price]</span><span class="pill s-live">✓</span></div>
+      <div class="rr"><div class="col grow" style="gap: 2px"><span class="sm">Runway · voice</span><span class="mono xs t3">per 1k chars · ₹17.60</span></div><span class="mono sm">$0.20</span><span class="pill s-live">✓</span></div>
+      <div class="rr" style="background: oklch(0.69 0.19 25 / .06)"><div class="col grow" style="gap: 2px"><label class="sm" for="rvm">Runway · video</label><span class="mono xs t3">per second · ₹ —</span></div><input id="rvm" class="input mono" placeholder="$0.00" style="width: 96px; height: 44px; border-color: oklch(0.69 0.19 25 / .5)"></div>
+      <div class="rr"><div class="col grow" style="gap: 2px"><span class="sm t2">Higgsfield · per clip</span><span class="xs t3">only if connected</span></div><span class="mono t3">—</span></div>
+    </section>
+    <div class="blocker" style="flex-direction: column; align-items: stretch"><p>Runway video has no verified price, so the per-video cap can't be checked.</p></div>
+    <label class="row sm" style="gap: 10px; min-height: 44px"><input type="checkbox"> I checked these against pricing pages today</label>
+  </div>
+  <div class="act"><button class="btn lg" type="button">Save and verify</button><a class="btn lg pri" href="Onb-ChBasics-m.dc.html" style="flex: 1">Next</a></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1400}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
