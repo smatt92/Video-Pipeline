@@ -265,6 +265,11 @@ export function Rail({ data, onOpenPalette }: { data: RailData; onOpenPalette: (
           <Link className="btn ghost sm icon" href="/settings" aria-label="Settings">
             <Icon name="settings" />
           </Link>
+          <form action="/auth/signout" method="post" style={{ display: 'contents' }}>
+            <button type="submit" className="btn ghost sm" title="Sign out">
+              Sign out
+            </button>
+          </form>
         </div>
       </div>
     </nav>
