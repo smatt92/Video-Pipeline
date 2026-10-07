@@ -88,4 +88,5 @@ One dashboard paste is optional. The sign-in email on the paper set is `supabase
 
 - Run 186 (`95ec612`) is green on every step.
 - Runs 184 and 185 were red on the tour step only; the cause and fix are above.
-- The status of the last push (`04ce362`) is read below and recorded at the end of this file.
+- Runs 187 (`04ce362`) and 188 (`f58159c`, this handover) are green, step list read.
+- The Vercel production deployments for `071de89`, `95ec612`, `04ce362` and `f58159c` are all READY.
