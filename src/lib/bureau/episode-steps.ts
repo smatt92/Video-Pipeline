@@ -508,7 +508,7 @@ export async function assembleEpisode(
     const ids: Record<string, string> = {};
     let serveUrl: string | undefined;
     for (const layer of layers) {
-      const ext = layer === 'caption_layer' ? 'mov' : 'mp4';
+      const ext = layer === 'caption_layer' ? 'webm' : 'mp4';
       const out = join(work, `${layer}.${ext}`);
       // Progress the screens can read: rendering is the longest step (minutes per layer), and a
       // status that says only "assembling" for twenty minutes cannot be told from a hung run.

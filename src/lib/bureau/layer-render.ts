@@ -68,7 +68,11 @@ export async function renderBureau(input: BureauRenderInput): Promise<BureauRend
     outputLocation: input.outputPath,
     browserExecutable: input.browserExecutable,
     ...(alpha
-      ? { codec: 'prores' as const, proResProfile: '4444' as const, imageFormat: 'png' as const, pixelFormat: 'yuva444p10le' as const, muted: true }
+      ? // VP9 WebM with alpha, not ProRes 4444. ProRes at 1080×1920 is ~330 Mbit/s — S001's 51 s
+        // caption layer was ~2 GB, rendered in 8 min and then sat uploading past any storage
+        // object limit (07-Oct). A transparent caption layer is mostly empty pixels; VP9 alpha
+        // carries it in a few MB, and editors and ffmpeg overlay it the same way.
+        { codec: 'vp9' as const, imageFormat: 'png' as const, pixelFormat: 'yuva420p' as const, muted: true }
       : { codec: 'h264' as const }),
     onProgress: ({ renderedFrames }) => input.onProgress?.(renderedFrames, input.durationInFrames),
   });
