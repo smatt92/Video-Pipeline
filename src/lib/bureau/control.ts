@@ -35,7 +35,7 @@ function dbError(message: string): Error {
 
 export interface Effects {
   /** Start the episode run (Trigger task `20-episode`). Returns the run id. */
-  startEpisode(episodeId: string): Promise<string | null>;
+  startEpisode(episodeId: string, attempt?: string): Promise<string | null>;
   /** Complete a Trigger wait token (the cut gate). */
   completeWaitToken(tokenId: string, output: Record<string, unknown>): Promise<void>;
   /** Post a Slack notification, recorded in `notifications`. */
@@ -111,6 +111,35 @@ export async function startQueuedEpisode(db: Db, token: BureauToken, effects: Ef
   } catch (err) {
     const startError = err instanceof Error ? err.message : String(err);
     await db.from('episodes').update({ status_detail: `run not started: ${startError}` }).eq('id', ep.id);
+    return { ok: false as const, episode_id: ep.id, run_id: null, start_error: startError };
+  }
+}
+
+/**
+ * Restart the run for an episode that HALTED — a refusal, not a crash: no locked voice, an
+ * unconfirmed stage, a missing integration. Fix the cause, then restart here. Every stage is
+ * replayable and re-uses what it already paid for (voice re-uses its takes), so a restart
+ * spends only what the earlier run did not reach.
+ *
+ * The idempotency key carries the halted row's updated_at: two clicks on the same halt start
+ * one run; the next halt writes a new updated_at, so it can be restarted in turn. Before this,
+ * the only restart path was Replay in the Trigger.dev dashboard.
+ */
+export async function restartHaltedEpisode(db: Db, token: BureauToken, effects: Effects, input: { episode_id: string }) {
+  requireApprover(token, 'episode_restart');
+  const { data: ep, error } = await db.from('episodes').select('id, status, updated_at').eq('id', input.episode_id).maybeSingle();
+  if (error) throw dbError(error.message);
+  if (!ep) throw new Error('No such episode.');
+  if (ep.status !== 'halted') throw new Error(`Episode is ${ep.status}, not halted — nothing to restart.`);
+  try {
+    const runId = await effects.startEpisode(ep.id, `restart:${new Date(ep.updated_at).getTime()}`);
+    // Back to 'queued' with the new run: a second click now finds it not halted and is refused,
+    // rather than deriving a fresh key from the updated_at this write changes. (verify:episode
+    // §7b caught exactly that: leaving it 'halted' let a double click start two runs.)
+    await db.from('episodes').update({ status: 'queued', run_id: runId, status_detail: null, updated_at: new Date().toISOString() }).eq('id', ep.id);
+    return { ok: true as const, episode_id: ep.id, run_id: runId, start_error: null };
+  } catch (err) {
+    const startError = err instanceof Error ? err.message : String(err);
     return { ok: false as const, episode_id: ep.id, run_id: null, start_error: startError };
   }
 }

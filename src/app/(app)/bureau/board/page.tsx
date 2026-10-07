@@ -30,8 +30,8 @@ export default async function BureauBoardPage() {
       <div className="mt-4 grid gap-3 overflow-x-auto md:grid-cols-4 xl:grid-cols-8">
         {COLUMNS.map((c) => {
           const items = c.key === 'approval'
-            ? (pending ?? []).map((b) => ({ id: b.id, slot: b.slot_id, line: b.premise, detail: b.flagged ? 'flagged' : null, startable: false }))
-            : (eps ?? []).filter((e) => c.statuses.includes(e.status)).map((e) => ({ id: e.id, slot: e.slot_id, line: `${e.kind === 'long_form' ? 'long-form · ' : ''}${e.status}`, detail: e.status_detail, startable: e.status === 'queued' && !e.run_id }));
+            ? (pending ?? []).map((b) => ({ id: b.id, slot: b.slot_id, line: b.premise, detail: b.flagged ? 'flagged' : null, startable: false, restartable: false }))
+            : (eps ?? []).filter((e) => c.statuses.includes(e.status)).map((e) => ({ id: e.id, slot: e.slot_id, line: `${e.kind === 'long_form' ? 'long-form · ' : ''}${e.status}`, detail: e.status_detail, startable: e.status === 'queued' && !e.run_id, restartable: e.status === 'halted' }));
           return (
             <section key={c.key} className="min-w-[180px] rounded-md border p-2" style={{ borderColor: 'var(--border-default)' }}>
               <h2 className="flex justify-between text-sm font-medium">
@@ -44,6 +44,7 @@ export default async function BureauBoardPage() {
                     <div>{i.line}</div>
                     {i.detail && <div style={{ color: 'var(--state-blocked)' }}>{i.detail}</div>}
                     {i.startable && <StartRun episodeId={i.id} />}
+                    {i.restartable && <StartRun episodeId={i.id} restart />}
                   </li>
                 ))}
               </ul>

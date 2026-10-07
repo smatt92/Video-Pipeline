@@ -52,6 +52,7 @@ const { mintBureauToken } = require(`${B}/bureau/tokens.js`);
 const { BUREAU_CHANNEL_ID } = require(`${B}/bureau/bible.js`);
 const P = require(`${B}/bureau/episode-steps.js`);
 const LF = require(`${B}/bureau/longform.js`);
+const { restartHaltedEpisode } = require(`${B}/bureau/control.js`);
 const { runDubJob } = require(`${B}/bureau/dubs.js`);
 const { verifiedCredential } = require(`${B}/integrations/verify.js`);
 const { dispatchProvider, advanceSubmitted, settleEpisodes } = require(`${B}/bureau/dispatch.js`);
@@ -447,6 +448,28 @@ try {
   check(Number(ep2takes[0].blank) > 0, 'the paid-for audio is kept, with absent word timings — not zeros, not an even split');
   const { rows: blk } = await client.query('select blocker from v_pipeline_blockers where script_id = $1', [ep2row[0].script_id]);
   check(!/forced alignment/.test(blk[0]?.blocker ?? ''), 'the blocker view no longer names alignment as a reason to stop', String(blk[0]?.blocker));
+
+  // ═══ 10b. Restarting a halted episode ═══
+  // The halt is SEEDED (status is an input); what is asserted is what restartHaltedEpisode did
+  // with it — the key it handed the runner and the run id it wrote back.
+  console.log('\n7b. Restarting a halted episode\n');
+  const keys = [];
+  const runner = { async startEpisode(id, attempt) { keys.push(attempt); return `run_restart_${keys.length}`; }, async completeWaitToken() {} };
+  const approverTok = { id: approver.id, name: 'Sahil', scope: 'approver', channelId: BUREAU_CHANNEL_ID, profileId: null };
+  await client.query(`update episodes set status = 'halted', status_detail = 'voice_not_locked: test', updated_at = '2026-10-06T17:33:56Z' where id = $1`, [ep2]);
+  const r1 = await restartHaltedEpisode(db, approverTok, runner, { episode_id: ep2 });
+  const { rows: afterR1 } = await client.query('select run_id, status, status_detail from episodes where id = $1', [ep2]);
+  check(r1.ok && afterR1[0].run_id === r1.run_id && r1.run_id === 'run_restart_1' && afterR1[0].status === 'queued', 'a halted episode restarts, goes back to queued and records the new run', JSON.stringify(afterR1[0]));
+  check(keys[0] === `restart:${Date.parse('2026-10-06T17:33:56Z')}`, 'the key is derived from the halt it restarts, so two clicks on one halt dedupe', String(keys[0]));
+  let refusedNotHalted = null;
+  try { await restartHaltedEpisode(db, approverTok, runner, { episode_id: ep2 }); } catch (err) { refusedNotHalted = err.message; }
+  check(/not halted/.test(refusedNotHalted ?? '') && keys.length === 1, 'an episode that is not halted is refused, and nothing is started', refusedNotHalted);
+  await client.query(`update episodes set status = 'halted', updated_at = '2026-10-07T02:00:00Z' where id = $1`, [ep2]);
+  let refusedAgent = null;
+  try { await restartHaltedEpisode(db, { ...approverTok, scope: 'agent' }, runner, { episode_id: ep2 }); } catch (err) { refusedAgent = err.message; }
+  check(/approver scope/.test(refusedAgent ?? '') && keys.length === 1, 'an agent token cannot restart a run', refusedAgent);
+  const r2 = await restartHaltedEpisode(db, approverTok, runner, { episode_id: ep2 });
+  check(r2.ok && keys[1] !== keys[0], 'a later halt restarts under a new key', JSON.stringify(keys));
   const { rows: blk1 } = await client.query('select blocker from v_pipeline_blockers where script_id = $1', [script1.scriptId]);
   check(blk1[0]?.blocker === null, 'and for the episode that went through, the view says nothing blocks it', String(blk1[0]?.blocker));
 } catch (err) {

@@ -19,8 +19,11 @@ import { notify, type NotificationKind } from './alerts';
  */
 export function productionEffects(db: Db): BureauSideEffects {
   return {
-    async startEpisode(episodeId) {
-      const handle = await tasks.trigger('20-episode', { episodeId }, { idempotencyKey: `episode:${episodeId}` });
+    async startEpisode(episodeId, attempt) {
+      // The first start keys on the episode alone; a restart adds the attempt marker the caller
+      // derives from the halted row, so a double click dedupes but a later halt can restart.
+      const idempotencyKey = attempt ? `episode:${episodeId}:${attempt}` : `episode:${episodeId}`;
+      const handle = await tasks.trigger('20-episode', { episodeId }, { idempotencyKey });
       return handle.id;
     },
     async completeWaitToken(tokenId, output) {

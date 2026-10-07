@@ -7,7 +7,7 @@ import { routeClient } from '../auth/supabase';
 import { serverClient } from '../db/server';
 import { youtubeVideoId } from '../publish/yt-analytics';
 import { BUREAU_CHANNEL_ID } from './bible';
-import { approveBrief, decideCut, markScheduled, rejectBrief, setKillSwitch, startQueuedEpisode } from './control';
+import { approveBrief, decideCut, markScheduled, rejectBrief, restartHaltedEpisode, setKillSwitch, startQueuedEpisode } from './control';
 import { productionEffects } from './effects';
 import { queueDubs, regenerateShot, type DubLanguage } from './episodes';
 import { importStudioCsv } from './studio-csv';
@@ -74,6 +74,15 @@ export async function startRunAction(episodeId: string): Promise<ActionResult> {
     const r = await startQueuedEpisode(db, t, productionEffects(db), { episode_id: episodeId });
     if (!r.ok) throw new Error(`The run did not start: ${r.start_error}`);
     return 'Run started.';
+  });
+}
+
+export async function restartRunAction(episodeId: string): Promise<ActionResult> {
+  return run('/bureau/board', async (t) => {
+    const db = serverClient();
+    const r = await restartHaltedEpisode(db, t, productionEffects(db), { episode_id: episodeId });
+    if (!r.ok) throw new Error(`The run did not restart: ${r.start_error}`);
+    return 'Run restarted.';
   });
 }
 
