@@ -94,4 +94,17 @@ a real redraw; the two screens in a browser against the deployed app; the 0050 p
 
 ## CI and deploy
 
-See the commit message of the push and the section appended below after the run is read.
+- CI run **194** on `c2dfe30` (the code commit): **success**, every step read in the step
+  list — guards, typecheck, lint, Bureau rules, migrations 0001–0050, enums, drift, catalogue,
+  duplicates, every DB harness including the new **Instagram Reels publish — gated, once, with
+  the permalink** step, Build, render, **Bureau episode end to end** (with §12 redraw), public
+  pages, scaling, tour.
+- Worker: **Deploy worker (Trigger.dev)** run 22 on `c2dfe30`: success, every step; "Successfully
+  deployed version 20261007.12 … 20 detected tasks" (18 + `25-redraw` + `26-ig-post`).
+- Locally before push: `pnpm check` exit 0; `verify:episode`, `verify:ig-publish`,
+  `verify:channels`, `verify:bureau`, `verify:bureau-publish`, enums/drift/catalog/duplicates
+  exit 0 on a local Postgres 16 + pgvector cluster; `pnpm build` exit 0 with CI's env.
+- O1 had pushed nothing to `main` by this push (fetched before committing); no rebase needed.
+- Not looked at: Cuts and Ready on the deployed app in a browser (no session here). Cuts shows
+  Redraw only on an awaiting cut with illustrated shots; Ready shows "manual" with the reason
+  until the Meta steps above are done.
