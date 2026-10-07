@@ -387,3 +387,6 @@ a.btn.pri{color:var(--ac-ink)}
   .sw{width:50px;height:30px}.sw::after{width:24px;height:24px}.sw.on::after{left:22px}
   .main{padding:14px 16px calc(var(--tabbar-height) + 32px)}
 }
+.can .can-shadow{fill:#000;opacity:.35}
+.can .hub{fill:var(--chalk)}
+.can.s-draft{--c:var(--draft)}.can.s-gen{--c:var(--gen)}.can.s-rev{--c:var(--rev)}.can.s-blk{--c:var(--blk)}.can.s-rdy{--c:var(--rdy)}.can.s-live{--c:var(--live)}.can.s-ac{--c:var(--ac)}
