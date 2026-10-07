@@ -1,6 +1,6 @@
 import { BureauNav } from '@/components/bureau/bureau-nav';
 import { StartRun } from '@/components/bureau/start-run';
-import { BUREAU_CHANNEL_ID } from '@/lib/bureau/bible';
+import { requireChannel } from '@/lib/channels/active';
 import { serverClient } from '@/lib/db/server';
 
 export const dynamic = 'force-dynamic';
@@ -18,10 +18,11 @@ const COLUMNS: { key: string; label: string; statuses: string[] }[] = [
 
 /** Every Bureau episode by state, plus the briefs waiting for a decision. */
 export default async function BureauBoardPage() {
+  const channel = await requireChannel();
   const db = serverClient();
   const [{ data: eps }, { data: pending }] = await Promise.all([
-    db.from('episodes').select('id, slot_id, status, status_detail, kind, run_id, updated_at').eq('channel_id', BUREAU_CHANNEL_ID).order('updated_at', { ascending: false }).limit(300),
-    db.from('briefs').select('id, slot_id, premise, flagged').eq('channel_id', BUREAU_CHANNEL_ID).eq('status', 'pending').order('created_at'),
+    db.from('episodes').select('id, slot_id, status, status_detail, kind, run_id, updated_at').eq('channel_id', channel.id).order('updated_at', { ascending: false }).limit(300),
+    db.from('briefs').select('id, slot_id, premise, flagged').eq('channel_id', channel.id).eq('status', 'pending').order('created_at'),
   ]);
   return (
     <main className="mx-auto w-full max-w-[1600px] px-4 py-6">

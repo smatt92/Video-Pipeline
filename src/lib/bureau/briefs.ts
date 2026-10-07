@@ -4,7 +4,7 @@ import { readUsdInrRate } from '../cost/fx';
 import type { Db } from '../db/server';
 import type { Json } from '../db/types';
 import { bureauSeries, hookPattern } from '../db/enums';
-import { BIBLE, CHARACTER_SLUGS, SERIES } from './bible';
+import { bibleForChannel, type ChannelBible } from './bible';
 import type { Embedder } from './embed';
 import { estimateEpisode, PlannedShotSchema } from './estimate';
 import { classifySource, FactSchema, policyLint, type LintResult } from './policy-lint';
@@ -28,7 +28,6 @@ import {
  * why it was flagged — but it is never silently passed.
  */
 
-const Slug = z.string().refine((s) => CHARACTER_SLUGS.includes(s), 'not a cast slug');
 
 export const TitleSchema = z.object({ text: z.string().min(3).max(100), hook_archetype: hookPattern });
 
@@ -37,14 +36,14 @@ export const BeatSchema = z.object({
   summary: z.string().min(1),
 });
 
-export const BriefInputSchema = z
+const BriefShape = z
   .object({
     slot_id: z.string().regex(/^(S\d{3}|L\d{2}|B\d{2})$/).nullish(),
     series: bureauSeries,
     season: z.number().int().positive().nullish(),
     episode: z.number().int().positive().nullish(),
-    lead_character: Slug,
-    supporting_characters: z.array(Slug).default([]),
+    lead_character: z.string().min(1),
+    supporting_characters: z.array(z.string().min(1)).default([]),
     desk: z.string().min(1),
     premise: z.string().min(10).max(300),
     premise_type: z.string().min(1),
@@ -67,10 +66,23 @@ export const BriefInputSchema = z
     source_comment_id: z.uuid().nullish(),
     /** Long-form only: aired Shorts and new scenes in running order (see longform.ts). */
     segments: z.array(SegmentSchema).optional(),
-  })
-  .superRefine((b, ctx) => {
-    const series = SERIES[b.series];
+  });
+
+/**
+ * The brief schema for one channel: the structural shape, plus every cross-field rule that
+ * reads that channel's bible — cast slugs, the series' variants, endings, beds and premise
+ * types, the cast's catchphrases. A cast slug of channel A is not a slug on channel B.
+ */
+export function briefInputSchema(cb: ChannelBible) {
+  return BriefShape.superRefine((b, ctx) => {
     const issue = (path: string, message: string) => ctx.addIssue({ code: 'custom', path: [path], message });
+    if (!cb.characterSlugs.includes(b.lead_character)) issue('lead_character', `not a ${cb.slug} cast slug`);
+    for (const s of b.supporting_characters) if (!cb.characterSlugs.includes(s)) issue('supporting_characters', `"${s}" is not a ${cb.slug} cast slug`);
+    const series = cb.series[b.series];
+    if (!series) {
+      issue('series', `channel ${cb.slug} runs no "${b.series}" series`);
+      return;
+    }
     if (!series.structure_variants.some((v) => v.id === b.structure_variant)) {
       issue('structure_variant', `not one of ${series.structure_variants.map((v) => v.id).join(', ')}`);
     }
@@ -81,17 +93,18 @@ export const BriefInputSchema = z
     if (b.series === 'long_form') {
       if (!b.segments?.length) issue('segments', 'a long-form brief lists its aired Shorts and new scenes in order');
     } else {
-      const parsed = parseScript(b.script_text);
+      const parsed = parseScript(b.script_text, cb);
       if (!parsed.ok) issue('script_text', parsed.problems.join('; '));
     }
-    if (b.catchphrase_used && !BIBLE.characters.some((c) => c.catchphrase.text.toLowerCase() === b.catchphrase_used!.toLowerCase())) {
+    if (b.catchphrase_used && !cb.bible.characters.some((c) => c.catchphrase.text.toLowerCase() === b.catchphrase_used!.toLowerCase())) {
       issue('catchphrase_used', 'not a cast catchphrase');
     }
     if (b.series === 'complaint' && !b.source_comment_id) {
       issue('source_comment_id', 'Complaint Box episodes are built from a real comment (complaint_candidates)');
     }
   });
-export type BriefInput = z.infer<typeof BriefInputSchema>;
+}
+export type BriefInput = z.infer<typeof BriefShape>;
 
 /** Who is drafting: a token holder, or the safety-net task acting as the system. */
 export type Actor = BureauToken | { id: null; scope: 'system'; channelId: string; profileId: null; name: string };
@@ -114,9 +127,19 @@ export async function createBriefs(rawBriefs: unknown[], deps: CreateDeps): Prom
   const fx = await readUsdInrRate(db);
   const usdInrRate = fx.ok ? fx.rate : null;
   const policy = await loadVariationPolicy(db, token.channelId);
+  // The token's channel decides the bible — never a constant. A channel without a bible
+  // refuses every brief by name rather than validating against somebody else's cast.
+  let cb: ChannelBible;
+  try {
+    cb = await bibleForChannel(db, token.channelId);
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    return rawBriefs.map((_, index) => ({ index, ok: false as const, error }));
+  }
+  const schema = briefInputSchema(cb);
 
   for (const [index, raw] of rawBriefs.entries()) {
-    const parsed = BriefInputSchema.safeParse(raw);
+    const parsed = schema.safeParse(raw);
     if (!parsed.success) {
       out.push({ index, ok: false, error: parsed.error.issues.map((i) => `${i.path.join('.') || 'brief'}: ${i.message}`).join('; ') });
       continue;
@@ -125,7 +148,7 @@ export async function createBriefs(rawBriefs: unknown[], deps: CreateDeps): Prom
     if (b.series === 'long_form' && b.segments) {
       // The voiced script and the shots come from the segments, so they cannot disagree.
       const masters = await airedMasters(db, token.channelId);
-      const problems = validateSegments(b.segments, Object.fromEntries(Object.entries(masters).map(([k, v]) => [k, v.durationS])));
+      const problems = validateSegments(b.segments, Object.fromEntries(Object.entries(masters).map(([k, v]) => [k, v.durationS])), cb);
       if (problems.length) {
         out.push({ index, ok: false, error: `long-form: ${problems.join('; ')}` });
         continue;
@@ -134,7 +157,7 @@ export async function createBriefs(rawBriefs: unknown[], deps: CreateDeps): Prom
       b = { ...b, script_text: built.script_text, shot_list: built.shot_list };
     }
 
-    let lint = policyLint({ ...b, fact: b.fact });
+    let lint = policyLint({ ...b, fact: b.fact }, cb);
     if (lint.status === 'needs_judge' && deps.judge) {
       try {
         lint = await deps.judge(lint, [b.premise, b.script_text, ...b.punchlines, ...b.titles.map((t) => t.text)].join('\n'));
@@ -172,7 +195,7 @@ export async function createBriefs(rawBriefs: unknown[], deps: CreateDeps): Prom
       similarity,
     );
 
-    const parsedScript = parseScript(b.script_text);
+    const parsedScript = parseScript(b.script_text, cb);
     const voChars = parsedScript.ok ? parsedScript.voText.length : b.script_text.length;
     const estimate = usdInrRate === null ? null : await estimateEpisode(db, { shots: b.shot_list, voChars, usdInrRate });
 

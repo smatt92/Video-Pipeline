@@ -3,7 +3,7 @@ import 'server-only';
 import type { Db } from '../db/server';
 import { dispatch, PROTOCOL_VERSION, studioSurface, type McpSurface } from './mcp';
 import { bearerFrom, verifySessionToken } from './token';
-import { bureauSurface, NO_EFFECTS, type BureauSideEffects } from '../bureau/mcp/surface';
+import { bureauSurface, loadTokenChannel, NO_EFFECTS, type BureauSideEffects } from '../bureau/mcp/surface';
 import { isBureauToken, resolveBureauToken } from '../bureau/tokens';
 
 /**
@@ -99,7 +99,8 @@ export async function serveMcp(request: McpRequest, deps: McpDeps): Promise<McpR
         },
       };
     }
-    const surface = bureauSurface({ db: deps.db, token: resolved.token, effects: deps.bureau ?? NO_EFFECTS });
+    const channel = await loadTokenChannel(deps.db, resolved.token.channelId);
+    const surface = bureauSurface({ db: deps.db, token: resolved.token, effects: deps.bureau ?? NO_EFFECTS, channel });
     return answer(request.body, surface);
   }
 

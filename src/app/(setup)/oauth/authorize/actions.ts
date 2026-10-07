@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation';
 
 import { checkEmail } from '@/lib/auth/allowed';
 import { routeClient } from '@/lib/auth/supabase';
-import { BUREAU_CHANNEL_ID } from '@/lib/bureau/bible';
+import { currentChannel } from '@/lib/channels/active';
 import { serverClient } from '@/lib/db/server';
 import { fetchClientDocument } from '@/lib/oauth/clients';
 import { originFromHeaders, type McpDoor } from '@/lib/oauth/policy';
@@ -53,7 +53,10 @@ async function decide(door: McpDoor, formData: FormData): Promise<void> {
     approve: formData.get('decision') === 'approve',
     scope: String(formData.get('grant_scope') ?? ''),
     profileId: user.id,
-    channelId: BUREAU_CHANNEL_ID,
+    // The connection is for the channel this browser has active — the consent page names it.
+    // A token is bound to one channel for its life; connect again with another channel active
+    // to give Claude a second channel.
+    channelId: await consentChannelId(),
     origin,
   });
   redirect(url);
@@ -65,4 +68,10 @@ export async function decideOwnerAction(formData: FormData): Promise<void> {
 
 export async function decideAgentAction(formData: FormData): Promise<void> {
   return decide('agent', formData);
+}
+
+async function consentChannelId(): Promise<string> {
+  const { active } = await currentChannel();
+  if (!active) throw new Error('No channel exists yet — add one in Kiln before connecting Claude.');
+  return active.id;
 }

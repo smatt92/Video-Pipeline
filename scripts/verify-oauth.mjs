@@ -68,7 +68,7 @@ const { serveOAuth } = require(`${BUILD}/oauth/endpoints.js`);
 const { authorizeParamsFrom, checkAuthorize, decideConsent } = require(`${BUILD}/oauth/flow.js`);
 const { resourceMetadataUrlFor, ALLOWED_REDIRECT_URIS, ACCESS_TOKEN_TTL_S, DOORS } = require(`${BUILD}/oauth/policy.js`);
 const { mintBureauToken, revokeBureauToken, hashToken } = require(`${BUILD}/bureau/tokens.js`);
-const { BUREAU_CHANNEL_ID } = require(`${BUILD}/bureau/bible.js`);
+const { BUREAU_CHANNEL_ID } = require(`${BUILD}/fixtures/seed-channel.js`);
 
 const { supabaseShim } = await import('./lib/supabase-shim.mjs');
 const { scratchDatabase } = await import('./lib/scratch.mjs');

@@ -8,7 +8,7 @@ import { serverClient, type Db } from '../db/server';
 import { INTEGRATION_CATALOG, descriptorFor } from '../drivers/catalog';
 import { verifyIntegration } from '../integrations/verify';
 import { storeSecret } from '../integrations/vault';
-import { BUREAU_CHANNEL_ID } from '../bureau/bible';
+import { currentChannel } from '../channels/active';
 import { completeChannelStep } from './channel-step';
 import { isDeferrable } from './gate';
 import { integrationForStep } from './step-integration';
@@ -275,7 +275,7 @@ async function writeSecretsAndVerify(
     }
   }
 
-  const outcome = await verifyIntegration(db, slug);
+  const outcome = await verifyIntegration(db, slug, { channelId: (await currentChannel()).active?.id ?? null });
 
   // Enabled on success; on failure left exactly as it was. A previously-working
   // integration is not disabled because one check failed — a failure is at least as likely
@@ -370,7 +370,7 @@ export async function recheckIntegration(
   try {
     await currentUser();
     const db = serverClient();
-    const outcome = await verifyIntegration(db, slug);
+    const outcome = await verifyIntegration(db, slug, { channelId: (await currentChannel()).active?.id ?? null });
     refresh();
 
     return {
@@ -506,7 +506,7 @@ export async function createChannel(_prev: StepState, formData: FormData): Promi
         niche: String(formData.get('niche') ?? ''),
         handle: String(formData.get('handle') ?? ''),
       },
-      BUREAU_CHANNEL_ID,
+      (await currentChannel()).active?.id ?? null,
     );
     if (!result.ok) return { status: 'error', message: result.message };
 

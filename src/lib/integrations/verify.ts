@@ -6,7 +6,7 @@ import type { Db } from '../db/server';
 import type { Json } from '../db/types';
 import { integrationForStep } from '../onboarding/step-integration';
 import { createSupabaseStorageDriver } from '../storage/supabase';
-import { BUREAU_CHANNEL_ID } from '../bureau/bible';
+import { pickActive, listChannels, publishTargets } from '../channels/list';
 import { resolveCredentials } from './credentials';
 import { hasVerified } from './state';
 
@@ -63,6 +63,7 @@ function unconfigured(missing: string[]): CheckResult[] {
 async function runProbe(
   db: Db,
   descriptor: IntegrationDescriptor,
+  channelId: string | null,
 ): Promise<{ checks: CheckResult[]; latencyMs: number }> {
   const resolved = await resolveCredentials(db, descriptor.slug);
 
@@ -118,12 +119,21 @@ async function runProbe(
 
   // Everything else routes through the driver layer, which is the only place allowed to
   // know which vendor is behind which slug.
-  // A publishing channel's probe also checks *which* channel the token is for, against the
-  // Bureau channel row. Read here because the driver layer does not reach the database.
+  // A publishing channel's probe also checks *which* account the token is for, against the
+  // channel being set up: the active channel when the caller names one, else the oldest. Its
+  // publish target for this platform first (0046), else the channels row. Read here because
+  // the driver layer does not reach the database.
   let channelExternalId: string | null = null;
   if (descriptor.kind === 'channel') {
-    const { data: ch } = await db.from('channels').select('external_id').eq('id', BUREAU_CHANNEL_ID).maybeSingle();
-    channelExternalId = ch?.external_id ?? null;
+    const id = channelId ?? pickActive(await listChannels(db), null)?.id ?? null;
+    if (id) {
+      const { targets } = await publishTargets(db, id);
+      channelExternalId = targets.find((t) => t.platform === descriptor.slug)?.externalId ?? null;
+      if (!channelExternalId) {
+        const { data: ch } = await db.from('channels').select('external_id, platform').eq('id', id).maybeSingle();
+        channelExternalId = ch?.platform === descriptor.slug ? (ch.external_id ?? null) : null;
+      }
+    }
   }
   const result = await probeIntegration(descriptor, v, { channelExternalId });
   if (result) return result;
@@ -141,7 +151,7 @@ async function runProbe(
   };
 }
 
-export async function verifyIntegration(db: Db, slug: string): Promise<VerifyOutcome> {
+export async function verifyIntegration(db: Db, slug: string, opts: { channelId?: string | null } = {}): Promise<VerifyOutcome> {
   const descriptor = descriptorFor(slug);
   if (!descriptor) throw new Error(`Unknown integration "${slug}".`);
 
@@ -159,7 +169,7 @@ export async function verifyIntegration(db: Db, slug: string): Promise<VerifyOut
     );
   }
 
-  const { checks, latencyMs } = await runProbe(db, descriptor);
+  const { checks, latencyMs } = await runProbe(db, descriptor, opts.channelId ?? null);
 
   // Only the required ones decide. The credit-balance read is informational and failing
   // it must not make an otherwise working credential unusable.

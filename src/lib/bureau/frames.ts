@@ -1,4 +1,4 @@
-import { BIBLE, STORAGE_REF_PREFIX, type Character } from './bible';
+import { STORAGE_REF_PREFIX, type Bible, type Character } from './bible';
 
 /**
  * Locked reference frames — the one image per character that every character beat is
@@ -33,7 +33,7 @@ export function frameRef(key: string): string {
  * and the negative list, in that order of priority — so if the vendor's 1000-character limit
  * forces a cut, it is the trailing world rules that a caller drops, never the character.
  */
-export function framePrompt(c: Character, extra?: string): string {
+export function framePrompt(c: Character, world: Bible['world'], extra?: string): string {
   const v = c.visual_lock;
   const lock = [
     `${c.name}: ${v.silhouette}`,
@@ -43,9 +43,9 @@ export function framePrompt(c: Character, extra?: string): string {
   ]
     .filter(Boolean)
     .join('; ');
-  const world = BIBLE.world.style_rules.slice(0, 2).join(' ');
-  const negative = `Avoid: ${BIBLE.world.negative_prompt}.`;
-  return [extra?.trim() || 'Full-body reference frame, standing, three-quarter view, centred, 9:16.', lock + '.', world, negative]
+  const rules = world.style_rules.slice(0, 2).join(' ');
+  const negative = `Avoid: ${world.negative_prompt}.`;
+  return [extra?.trim() || 'Full-body reference frame, standing, three-quarter view, centred, 9:16.', lock + '.', rules, negative]
     .join(' ')
     .replace(/\s+/g, ' ')
     .trim();

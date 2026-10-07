@@ -15,6 +15,7 @@ import { Sidebar } from './sidebar';
 export function AppShell({
   children,
   checklist,
+  channelSwitcher,
 }: {
   children: React.ReactNode;
   /**
@@ -23,6 +24,8 @@ export function AppShell({
    * a prop is the supported shape and keeps the profile read off the client bundle.
    */
   checklist?: React.ReactNode;
+  /** The active-channel switcher, server-rendered for the same reason as `checklist`. */
+  channelSwitcher?: React.ReactNode;
 }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
 
@@ -32,7 +35,7 @@ export function AppShell({
       className="grid h-dvh"
       style={{ gridTemplateColumns: 'var(--sidebar-width) minmax(0, 1fr)' }}
     >
-      <Sidebar checklist={checklist} />
+      <Sidebar checklist={checklist} channelSwitcher={channelSwitcher} />
       <main className="overflow-y-auto">{children}</main>
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
     </div>

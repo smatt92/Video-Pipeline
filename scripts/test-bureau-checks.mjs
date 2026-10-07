@@ -12,7 +12,7 @@ const serverOnly = require.resolve('server-only');
 require.cache[serverOnly] = { id: serverOnly, filename: serverOnly, loaded: true, exports: {}, paths: [], children: [] };
 
 const B = new URL('../.verify-build/src/lib', import.meta.url).pathname;
-const { policyLint, classifySource, properNameCandidates } = require(`${B}/bureau/policy-lint.js`);
+const { policyLint, classifySource, properNameCandidates, castNames } = require(`${B}/bureau/policy-lint.js`);
 const { checkVariation, isoWeek, variationRefusal } = require(`${B}/bureau/variation.js`);
 const { fitToCap } = require(`${B}/bureau/estimate.js`);
 const { parseScript, speakerSlug, punchlineTurns } = require(`${B}/bureau/script-lines.js`);
@@ -25,7 +25,9 @@ const { providersForRoute, failoverEnabled } = require(`${B}/drivers/jobs.js`);
 const { videoRequestBody, imageRequestBody, clipSeconds, clipCredits } = require(`${B}/drivers/video-runway.js`);
 const { embedTexts, EMBED_ATTEMPTS } = require(`${B}/drivers/embeddings.js`);
 const { resolveReferenceFrame } = require(`${B}/bureau/dispatch.js`);
-const { BIBLE } = require(`${B}/bureau/bible.js`);
+const { bibleForSlug, templateBible } = require(`${B}/bureau/bible.js`);
+const CB = bibleForSlug('bureau-of-reality');
+const BIBLE = CB.bible;
 const { framePrompt } = require(`${B}/bureau/frames.js`);
 
 let failures = 0;
@@ -50,24 +52,24 @@ const cases = [
   ['kid_coded', 'Pip: Gather round, kids, it is bedtime story time.'],
 ];
 for (const [rule, script] of cases) {
-  const r = policyLint({ script_text: script, fact });
+  const r = policyLint({ script_text: script, fact }, CB);
   check(r.status === 'fail' && r.violations.map((v) => v.rule).join() === rule, `${rule} is caught and nothing else is`, JSON.stringify(r.violations));
 }
-const clean = policyLint({ series: 'incident', script_text: 'Pip: Where is the Moon?\nMarlo: Gone. Tides shrink by Friday.', fact });
+const clean = policyLint({ series: 'incident', script_text: 'Pip: Where is the Moon?\nMarlo: Gone. Tides shrink by Friday.', fact }, CB);
 check(clean.status === 'pass' && clean.fact.source_class === 'met_ocean_agency', 'a clean script with a NOAA fact passes', JSON.stringify(clean));
-check(policyLint({ script_text: 'Pip: hi there all.', facts: [fact, fact] }).violations.some((v) => v.rule === 'fact_count'), 'two facts fail "exactly one"');
-check(policyLint({ script_text: 'Pip: hi there all.', fact: { ...fact, source_url: 'https://someblog.example.com/moon' } }).violations.some((v) => v.rule === 'fact_source_class'), 'a blog source fails the primary-source rule');
-check(policyLint({ series: 'myth', script_text: 'Kaz: The serpent swallows the sun.', fact: { ...fact, source_url: 'https://www.britishmuseum.org/x' } }).violations.some((v) => v.rule === 'myth_unlabelled'), 'a Myth Desk script without an interpretation marker fails');
-check(policyLint({ series: 'myth', script_text: 'Kaz: Tradition holds the serpent swallows the sun.', fact: { ...fact, source_url: 'https://www.britishmuseum.org/x' } }).status === 'pass', 'with "tradition holds" it passes');
-check(policyLint({ script_text: 'Pip: ' + 'word '.repeat(151), fact }).violations.some((v) => v.rule === 'script_length'), '151 words fails the 150-word limit');
-check(policyLint({ script_text: 'Pip: ' + 'word '.repeat(149), fact }).violations.length === 0, '150 words passes');
-check(policyLint({ script_text: 'Pip: hi there all.', fact, music_bed: 'nursery rhyme for little ones' }).violations.some((v) => v.rule === 'kid_coded'), 'kid-coded styling in the music bed is caught');
+check(policyLint({ script_text: 'Pip: hi there all.', facts: [fact, fact] }, CB).violations.some((v) => v.rule === 'fact_count'), 'two facts fail "exactly one"');
+check(policyLint({ script_text: 'Pip: hi there all.', fact: { ...fact, source_url: 'https://someblog.example.com/moon' } }, CB).violations.some((v) => v.rule === 'fact_source_class'), 'a blog source fails the primary-source rule');
+check(policyLint({ series: 'myth', script_text: 'Kaz: The serpent swallows the sun.', fact: { ...fact, source_url: 'https://www.britishmuseum.org/x' } }, CB).violations.some((v) => v.rule === 'myth_unlabelled'), 'a Myth Desk script without an interpretation marker fails');
+check(policyLint({ series: 'myth', script_text: 'Kaz: Tradition holds the serpent swallows the sun.', fact: { ...fact, source_url: 'https://www.britishmuseum.org/x' } }, CB).status === 'pass', 'with "tradition holds" it passes');
+check(policyLint({ script_text: 'Pip: ' + 'word '.repeat(151), fact }, CB).violations.some((v) => v.rule === 'script_length'), '151 words fails the 150-word limit');
+check(policyLint({ script_text: 'Pip: ' + 'word '.repeat(149), fact }, CB).violations.length === 0, '150 words passes');
+check(policyLint({ script_text: 'Pip: hi there all.', fact, music_bed: 'nursery rhyme for little ones' }, CB).violations.some((v) => v.rule === 'kid_coded'), 'kid-coded styling in the music bed is caught');
 const titles = [{ text: 'a b c', hook_archetype: 'question' }, { text: 'd e f', hook_archetype: 'question' }, { text: 'g h i', hook_archetype: 'warning' }];
-check(policyLint({ script_text: 'Pip: hi.', fact, titles }).violations.some((v) => v.rule === 'title_archetypes'), 'two titles with one archetype fail');
-const judge = policyLint({ script_text: 'Pip: Ravi Kumar from accounts called.', fact });
+check(policyLint({ script_text: 'Pip: hi.', fact, titles }, CB).violations.some((v) => v.rule === 'title_archetypes'), 'two titles with one archetype fail');
+const judge = policyLint({ script_text: 'Pip: Ravi Kumar from accounts called.', fact }, CB);
 check(judge.status === 'needs_judge' && judge.judge_questions.length === 1, 'an unknown two-word name goes to the judge, not a pass', JSON.stringify(judge));
-check(properNameCandidates('Marlo stamped "Gravitationally Unavailable" in Lost Property.').length === 0, 'stamps, labels and office nouns are not names');
-check(properNameCandidates('Mrs. Iyer and Director Ohm met.').length === 0, 'the cast is not a judge question');
+check(properNameCandidates('Marlo stamped "Gravitationally Unavailable" in Lost Property.', castNames(CB)).length === 0, 'stamps, labels and office nouns are not names');
+check(properNameCandidates('Mrs. Iyer and Director Ohm met.', castNames(CB)).length === 0, 'the cast is not a judge question');
 
 console.log('\nsource classes\n');
 for (const [url, cls] of [
@@ -154,7 +156,7 @@ check(!imageRequestBody({ model: 'gen4_image_turbo', prompt: 'x', ratio: '720:12
 check(!imageRequestBody({ model: 'gen4_image', prompt: 'x', ratio: '720:1280', references: [{ uri: 'https://e.test/a.png', tag: 'p-1' }] }).ok, 'a reference tag with a hyphen is refused (3–16, letters/digits/underscore)');
 const img = imageRequestBody({ model: 'gen4_image', prompt: 'x', ratio: '1080:1920', references: [{ uri: 'https://e.test/a.png', tag: 'pip_ref1' }] });
 check(img.ok && img.body.referenceImages[0].tag === 'pip_ref1' && img.body.ratio === '1080:1920', 'gen4_image with a tagged reference');
-check(BIBLE.characters.every((c) => framePrompt(c).length <= 1000), 'every character’s frame prompt fits the vendor’s 1000-character limit', String(Math.max(...BIBLE.characters.map((c) => framePrompt(c).length))));
+check(BIBLE.characters.every((c) => framePrompt(c, CB.bible.world).length <= 1000), 'every character’s frame prompt fits the vendor’s 1000-character limit', String(Math.max(...BIBLE.characters.map((c) => framePrompt(c, CB.bible.world).length))));
 const rf1 = await resolveReferenceFrame({ reference_frame: 'storage:characters/pip/ref.png', prompt: 'x' });
 check(!rf1.ok && /no way to presign/.test(rf1.detail), 'a storage frame with no presigner is refused, not submitted without it');
 const rf2 = await resolveReferenceFrame({ reference_frame: 'storage:characters/pip/ref.png' }, async (k) => `https://signed.test/${k}`);
@@ -176,14 +178,14 @@ const e2 = await embedTexts(['hello'], 'k', always, async () => {});
 check(!e2.ok && calls === EMBED_ATTEMPTS && /rate-limited \(429\) on all 4 attempts/.test(e2.detail), 'a vendor that keeps refusing is reported unavailable, by name, after the last attempt', e2.ok ? 'ok' : e2.detail);
 
 console.log('\nscript lines\n');
-const p = parseScript('Pip: Where is it?\nMrs. Iyer: Filed.\nmrs iyer: Twice.\nDirector Ohm: Noted.\n\nComplaint Box: Why?');
+const p = parseScript('Pip: Where is it?\nMrs. Iyer: Filed.\nmrs iyer: Twice.\nDirector Ohm: Noted.\n\nComplaint Box: Why?', CB);
 check(p.ok && p.lines.map((l) => l.speaker).join() === 'pip,iyer,iyer,ohm,complaint_box', 'speakers resolve by name, surname and case', JSON.stringify(p));
 check(p.ok && p.voText === 'Where is it? Filed. Twice. Noted. Why?' && p.lines[1].voStart === 13 && p.lines[1].voEnd === 19, 'VO text joins lines with one space; offsets index into it');
-const bad = parseScript('Pip: ok\nGandalf: no\njust words');
+const bad = parseScript('Pip: ok\nGandalf: no\njust words', CB);
 check(!bad.ok && bad.problems.length === 2, 'an unknown speaker and an unlabelled line are both reported', JSON.stringify(bad));
-check(speakerSlug('The Auditor') === 'auditor' && speakerSlug('auditor') === 'auditor', '"The Auditor" and "auditor" are one speaker');
+check(speakerSlug('The Auditor', CB) === 'auditor' && speakerSlug('auditor', CB) === 'auditor', '"The Auditor" and "auditor" are one speaker');
 // S001's last line, verbatim: two turns on one line, once voiced entirely by Pip, names and all.
-const two = parseScript('Marlo: You have till lunch.\nPip: Marlo: File it under— Pip: Missing?');
+const two = parseScript('Marlo: You have till lunch.\nPip: Marlo: File it under— Pip: Missing?', CB);
 check(
   two.ok && JSON.stringify(two.lines.map((l) => [l.speaker, l.text])) === JSON.stringify([['marlo', 'You have till lunch.'], ['marlo', 'File it under—'], ['pip', 'Missing?']]) &&
     two.voText === 'You have till lunch. File it under— Missing?' && two.lines[2].voStart === 36 && two.lines[2].voEnd === 44,
@@ -191,22 +193,22 @@ check(
   JSON.stringify(two),
 );
 // S003's three punchlines, verbatim from the brief (07-Oct).
-const pA = punchlineTurns("Pip: So I can't break gravity. / Marlo: Not alone. Meet your supervisor. / Ohm's lamp flickers on.", 'pip');
+const pA = punchlineTurns("Pip: So I can't break gravity. / Marlo: Not alone. Meet your supervisor. / Ohm's lamp flickers on.", 'pip', CB);
 check(JSON.stringify(pA) === JSON.stringify([{ speaker: 'pip', text: "So I can't break gravity." }, { speaker: 'marlo', text: 'Not alone. Meet your supervisor.' }]), 'a punchline exchange keeps its spoken turns and drops the stage direction', JSON.stringify(pA));
-const pB = punchlineTurns("Pip lets go of the lanyard to test it; it falls; Marlo's mug keeps orbiting. Marlo: The mug has seniority.", 'pip');
+const pB = punchlineTurns("Pip lets go of the lanyard to test it; it falls; Marlo's mug keeps orbiting. Marlo: The mug has seniority.", 'pip', CB);
 check(JSON.stringify(pB) === JSON.stringify([{ speaker: 'marlo', text: 'The mug has seniority.' }]), 'direction before the first label is not spoken', JSON.stringify(pB));
 const { scriptAcceptable } = require(`${B}/bureau/episode-steps.js`);
 const s003 = "Ohm: Memo. New intern, Gravity Desk. Touch nothing.\nPip: So I can't break gravity.\nMarlo: Not alone. Meet your supervisor.\nOhm: Welcome to the Gravity Desk.";
-check(scriptAcceptable(s003, "Pip: So I can't break gravity. / Marlo: Not alone. Meet your supervisor. / Ohm's lamp flickers on.", 150).ok, "S003's script is accepted with the punchline it actually speaks");
-check(!scriptAcceptable(s003, "Marlo: The mug has seniority.", 150).ok, 'and refused when the punchline is genuinely missing');
-const pC = punchlineTurns("File it under 'falling'.", 'marlo');
+check(scriptAcceptable(s003, "Pip: So I can't break gravity. / Marlo: Not alone. Meet your supervisor. / Ohm's lamp flickers on.", 150, CB).ok, "S003's script is accepted with the punchline it actually speaks");
+check(!scriptAcceptable(s003, "Marlo: The mug has seniority.", 150, CB).ok, 'and refused when the punchline is genuinely missing');
+const pC = punchlineTurns("File it under 'falling'.", 'marlo', CB);
 check(JSON.stringify(pC) === JSON.stringify([{ speaker: 'marlo', text: "File it under 'falling'." }]), 'an unlabelled punchline is one line for the lead', JSON.stringify(pC));
-const notCast = parseScript('Marlo: Note: Desk Four: closed.');
+const notCast = parseScript('Marlo: Note: Desk Four: closed.', CB);
 check(notCast.ok && notCast.lines.length === 1 && notCast.lines[0].text === 'Note: Desk Four: closed.', 'a colon after a word that is not in the cast stays as words');
 
 console.log('\ncomments\n');
-check(characterMentions('Mrs Iyer is the best, and Pip too').sort().join() === 'iyer,pip', 'mentions find Mrs Iyer (no dot) and Pip');
-check(characterMentions('I sat on a box and pipped it').length === 0, '"box" and "pipped" are not characters');
+check(characterMentions('Mrs Iyer is the best, and Pip too', CB).sort().join() === 'iyer,pip', 'mentions find Mrs Iyer (no dot) and Pip');
+check(characterMentions('I sat on a box and pipped it', CB).length === 0, '"box" and "pipped" are not characters');
 check(complaintScore({ body: 'Why does the Moon get to leave whenever it wants? Unfair.', is_public: true, like_count: 10 }) > 0.6, 'a specific public complaint scores high');
 check(complaintScore({ body: 'Why does the Moon get to leave whenever it wants? Unfair.', is_public: false, like_count: 10 }) === 0, 'a private comment scores 0 — it can never be credited');
 
@@ -225,14 +227,41 @@ const scene = (purpose, lines, secs, route = 'overlay') => ({ type: 'scene', pur
 const box = scene('Complaint Box moment', 'Complaint Box: Why?\nMarlo: Because.', 40);
 const aired = { S001: 200, S002: 200, S003: 150 };
 const good = [scene('cold open', 'Pip: Previously.', 40), { type: 'short', slot_id: 'S001' }, box, { type: 'short', slot_id: 'S002' }, scene('bridge', 'Marlo: Meanwhile.', 40), { type: 'short', slot_id: 'S003' }, scene('ending', 'Pip: Next week.', 30)];
-check(validateSegments(good, aired).length === 0, 'cold open, three aired Shorts each framed by new scenes, 700 s, 21% new → accepted', JSON.stringify(validateSegments(good, aired)));
-check(validateSegments([good[0], { type: 'short', slot_id: 'S001' }, { type: 'short', slot_id: 'S002' }, box], aired).some((p) => /back to back/.test(p)), 'two aired Shorts back to back is re-stitching, refused');
-check(validateSegments([{ type: 'short', slot_id: 'S001' }, ...good.slice(1)], aired).some((p) => /cold open/.test(p)), 'opening on an aired Short is refused');
-check(validateSegments(good.filter((s) => s !== box), aired).some((p) => /Complaint Box/.test(p)), 'no Complaint Box moment is refused');
-check(validateSegments([scene('cold open', 'Pip: hi.', 10), { type: 'short', slot_id: 'S001' }, box], aired).some((p) => /8–12 minutes/.test(p)), '240 s is too short for long-form');
-check(validateSegments([scene('cold open', 'Pip: hi.', 95, 'character_beat'), { type: 'short', slot_id: 'S001' }, box, { type: 'short', slot_id: 'S002' }, scene('end', 'Pip: bye.', 60)], aired).some((p) => /90 s/.test(p)), 'more than 90 s of generated character beats is refused');
-check(validateSegments([scene('cold open', 'Pip: hi.', 5), { type: 'short', slot_id: 'S001' }, scene('Complaint Box', 'Complaint Box: x', 5), { type: 'short', slot_id: 'S002' }, scene('b', 'Pip: y.', 5), { type: 'short', slot_id: 'S003' }, scene('e', 'Pip: z.', 100)], { S001: 250, S002: 250, S003: 200 }).some((p) => /at least 20%/.test(p)), 'new scenes under 20% of the runtime is refused');
-check(validateSegments([good[0], { type: 'short', slot_id: 'S099' }, box], aired).some((p) => /no aired master/.test(p)), 'a Short that never aired cannot be replayed');
+check(validateSegments(good, aired, CB).length === 0, 'cold open, three aired Shorts each framed by new scenes, 700 s, 21% new → accepted', JSON.stringify(validateSegments(good, aired, CB)));
+check(validateSegments([good[0], { type: 'short', slot_id: 'S001' }, { type: 'short', slot_id: 'S002' }, box], aired, CB).some((p) => /back to back/.test(p)), 'two aired Shorts back to back is re-stitching, refused');
+check(validateSegments([{ type: 'short', slot_id: 'S001' }, ...good.slice(1)], aired, CB).some((p) => /cold open/.test(p)), 'opening on an aired Short is refused');
+check(validateSegments(good.filter((s) => s !== box), aired, CB).some((p) => /Complaint Box/.test(p)), 'no Complaint Box moment is refused');
+check(validateSegments([scene('cold open', 'Pip: hi.', 10), { type: 'short', slot_id: 'S001' }, box], aired, CB).some((p) => /8–12 minutes/.test(p)), '240 s is too short for long-form');
+check(validateSegments([scene('cold open', 'Pip: hi.', 95, 'character_beat'), { type: 'short', slot_id: 'S001' }, box, { type: 'short', slot_id: 'S002' }, scene('end', 'Pip: bye.', 60)], aired, CB).some((p) => /90 s/.test(p)), 'more than 90 s of generated character beats is refused');
+check(validateSegments([scene('cold open', 'Pip: hi.', 5), { type: 'short', slot_id: 'S001' }, scene('Complaint Box', 'Complaint Box: x', 5), { type: 'short', slot_id: 'S002' }, scene('b', 'Pip: y.', 5), { type: 'short', slot_id: 'S003' }, scene('e', 'Pip: z.', 100)], { S001: 250, S002: 250, S003: 200 }, CB).some((p) => /at least 20%/.test(p)), 'new scenes under 20% of the runtime is refused');
+check(validateSegments([good[0], { type: 'short', slot_id: 'S099' }, box], aired, CB).some((p) => /no aired master/.test(p)), 'a Short that never aired cannot be replayed');
+
+console.log('\nchannel bibles and voice overrides\n');
+{
+  const T = templateBible();
+  check(T.slug === '_template' && T.bible.characters.length >= 1 && Object.keys(T.series).length >= 1, 'the template bible parses — Add channel copies something valid');
+  let refusal = '';
+  try { bibleForSlug('no-such-channel'); } catch (e) { refusal = e.message; }
+  check(/channels\/no-such-channel\//.test(refusal) && /pnpm channel:new no-such-channel/.test(refusal), 'a slug without a folder is refused by name, with the command', refusal);
+  let tmpl = '';
+  try { bibleForSlug('_template'); } catch (e) { tmpl = e.message; }
+  check(/No bible folder channels\/_template\//.test(tmpl), 'the template is never a channel’s bible', tmpl);
+  // Cast is per channel: a Bureau name is not a speaker on the template channel.
+  check(speakerSlug('Pip', CB) === 'pip' && speakerSlug('Pip', T) === null, 'a cast name resolves on its own channel only');
+  const onBureau = properNameCandidates('Pip met Mrs Iyer today.', castNames(CB));
+  const onTemplate = properNameCandidates('Pip met Mrs Iyer today.', castNames(T));
+  check(onBureau.length === 0 && onTemplate.join() === 'Mrs Iyer', 'the Bureau cast is a judge question on another channel, not on its own', JSON.stringify({ onBureau, onTemplate }));
+
+  const pip = CB.characterBySlug('pip');
+  const bible = voiceRouteFor(pip);
+  const over = voiceRouteFor(pip, { provider: 'runway', voiceId: 'Maya' });
+  check(bible.ok && bible.voiceId === pip.voice.preset_id && bible.voiceId !== 'Maya', 'no override → the bible’s locked preset', JSON.stringify(bible));
+  check(over.ok && over.voiceId === 'Maya' && over.provider === 'runway', 'an override wins over the bible', JSON.stringify(over));
+  const badPreset = voiceRouteFor(pip, { provider: 'runway', voiceId: 'Nobody' });
+  check(!badPreset.ok && /override is unusable/.test(badPreset.detail), 'an unusable override refuses by name — never a silent fall back to the bible', JSON.stringify(badPreset));
+  const badProvider = voiceRouteFor(pip, { provider: 'acme', voiceId: 'x' });
+  check(!badProvider.ok && /unknown voice provider "acme"/.test(badProvider.detail), 'an unknown provider refuses by name', JSON.stringify(badProvider));
+}
 
 console.log(failures ? `\n${failures} FAILED\n` : '\nAll Bureau rule checks passed.\n');
 process.exit(failures ? 1 : 0);

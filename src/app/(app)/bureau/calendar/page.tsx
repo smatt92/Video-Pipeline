@@ -1,5 +1,5 @@
 import { BureauNav } from '@/components/bureau/bureau-nav';
-import { BUREAU_CHANNEL_ID, characterBySlug, leadsFromCalendar } from '@/lib/bureau/bible';
+import { bibleOrNull, requireChannel } from '@/lib/channels/active';
 import { serverClient } from '@/lib/db/server';
 
 export const dynamic = 'force-dynamic';
@@ -10,13 +10,15 @@ export const dynamic = 'force-dynamic';
  * produce-by line, since an episode needs a day to render and a day to review.
  */
 export default async function CalendarPage() {
+  const channel = await requireChannel();
+  const cb = bibleOrNull(channel);
   const db = serverClient();
   const now = new Date();
   const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 2, 0));
   const [{ data: slots }, { count: bank }] = await Promise.all([
-    db.from('v_slot_status').select('id, slot_date, series, series_name, lead, topic, seasonal_tag, production_status, kind').eq('channel_id', BUREAU_CHANNEL_ID).gte('slot_date', from.toISOString().slice(0, 10)).lte('slot_date', to.toISOString().slice(0, 10)).order('slot_date'),
-    db.from('slots').select('id', { count: 'exact', head: true }).eq('channel_id', BUREAU_CHANNEL_ID).eq('kind', 'bank'),
+    db.from('v_slot_status').select('id, slot_date, series, series_name, lead, topic, seasonal_tag, production_status, kind').eq('channel_id', channel.id).gte('slot_date', from.toISOString().slice(0, 10)).lte('slot_date', to.toISOString().slice(0, 10)).order('slot_date'),
+    db.from('slots').select('id', { count: 'exact', head: true }).eq('channel_id', channel.id).eq('kind', 'bank'),
   ]);
   const byDate = new Map<string, NonNullable<typeof slots>>();
   for (const s of slots ?? []) byDate.set(s.slot_date!, [...(byDate.get(s.slot_date!) ?? []), s]);
@@ -43,7 +45,7 @@ export default async function CalendarPage() {
                   <div key={date} className="min-h-24 rounded border p-1" style={{ borderColor: date === today ? 'var(--border-strong)' : 'var(--border-subtle)' }}>
                     <div className="font-mono" style={{ color: 'var(--text-faint)' }}>{i + 1}</div>
                     {(byDate.get(date) ?? []).map((s) => {
-                      const c = characterBySlug(leadsFromCalendar(s.lead)[0] ?? '');
+                      const c = cb?.characterBySlug(cb?.leadsFromCalendar(s.lead)[0] ?? '');
                       const late = date <= produceBy && date >= today && ['open', 'needs_approval'].includes(s.production_status ?? '');
                       return (
                         <div key={s.id} className="mt-1 rounded px-1" style={{ background: 'var(--surface-1)' }} title={s.topic ?? ''}>

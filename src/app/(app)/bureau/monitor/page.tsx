@@ -1,6 +1,6 @@
 import { BureauNav } from '@/components/bureau/bureau-nav';
 import { KillSwitch } from '@/components/bureau/kill-switch';
-import { BUREAU_CHANNEL_ID } from '@/lib/bureau/bible';
+import { requireChannel } from '@/lib/channels/active';
 import { serverClient } from '@/lib/db/server';
 
 export const dynamic = 'force-dynamic';
@@ -9,13 +9,14 @@ const inr = (v: unknown) => (v === null || v === undefined ? '—' : `₹${Numbe
 
 /** Generation queues per provider, recent failures, spend against the caps, the kill switch. */
 export default async function MonitorPage() {
+  const channel = await requireChannel();
   const db = serverClient();
   const [{ data: queues }, { data: failures }, { data: spend }, { data: pol }, { data: alerts }] = await Promise.all([
     db.from('v_gen_queue').select('*').order('provider'),
     db.from('gen_jobs').select('id, provider, model, render_route, last_error, last_error_code, attempts, updated_at').eq('status', 'failed').order('updated_at', { ascending: false }).limit(20),
-    db.from('v_channel_spend').select('*').eq('channel_id', BUREAU_CHANNEL_ID).maybeSingle(),
-    db.from('channel_policy').select('*').eq('channel_id', BUREAU_CHANNEL_ID).single(),
-    db.from('notifications').select('kind, text, delivered, detail, created_at').eq('channel_id', BUREAU_CHANNEL_ID).order('created_at', { ascending: false }).limit(15),
+    db.from('v_channel_spend').select('*').eq('channel_id', channel.id).maybeSingle(),
+    db.from('channel_policy').select('*').eq('channel_id', channel.id).single(),
+    db.from('notifications').select('kind, text, delivered, detail, created_at').eq('channel_id', channel.id).order('created_at', { ascending: false }).limit(15),
   ]);
   const caps = [
     ['Today', spend?.today_inr, spend?.daily_cap_inr],
@@ -31,7 +32,7 @@ export default async function MonitorPage() {
             {pol?.kill_switch ? `Kill switch ON since ${new Date(pol.kill_switch_at!).toLocaleString('en-IN')}: ${pol.kill_switch_reason}` : 'Running. Concurrency is enforced by the database per provider.'}
           </p>
         </div>
-        <KillSwitch on={!!pol?.kill_switch} />
+        <KillSwitch on={!!pol?.kill_switch} channelId={channel.id} />
       </div>
 
       <section className="mt-5 grid gap-3 sm:grid-cols-2">

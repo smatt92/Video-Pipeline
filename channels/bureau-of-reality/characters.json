@@ -18,6 +18,11 @@
     ],
     "negative_prompt": "realistic human, photorealism, 3D plastic, anime, chibi, pastel kids style, nursery colours, text, watermark, logos, existing cartoon characters, extra limbs, inconsistent accessories"
   },
+  "publishing": {
+    "hashtags": ["science", "physics", "animation", "explained", "officecomedy"],
+    "tags": ["science", "explained", "animation", "office comedy"],
+    "category": "Comedy"
+  },
   "characters": [
     {
       "id": "pip",

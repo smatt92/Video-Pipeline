@@ -21,7 +21,9 @@ if (!TTS_PRESET_IDS.includes(preset)) {
   console.error(`"${preset}" is not a Runway preset. Known: ${TTS_PRESET_IDS.join(', ')}`);
   process.exit(2);
 }
-const path = new URL('../channels/bureau-of-reality/characters.json', import.meta.url).pathname;
+// --channel <slug>; the Bureau when omitted.
+const CHANNEL_SLUG = process.argv.includes('--channel') ? process.argv[process.argv.indexOf('--channel') + 1] : 'bureau-of-reality';
+const path = new URL(`../channels/${CHANNEL_SLUG}/characters.json`, import.meta.url).pathname;
 const text = readFileSync(path, 'utf8');
 const data = JSON.parse(text);
 const c = data.characters.find((x) => x.id === character);
@@ -40,4 +42,4 @@ if (next === block) {
 }
 writeFileSync(path, text.slice(0, start) + next + text.slice(end));
 JSON.parse(readFileSync(path, 'utf8'));
-console.log(`Locked ${c.name} → ${preset}. Commit channels/bureau-of-reality/characters.json to make it live.`);
+console.log(`Locked ${c.name} → ${preset}. Commit channels/${CHANNEL_SLUG}/characters.json to make it live.`);

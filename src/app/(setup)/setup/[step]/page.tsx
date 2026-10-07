@@ -9,7 +9,7 @@ import {
   RateCardForm,
 } from '@/components/onboarding/step-forms';
 import { CheckPill } from '@/components/settings/parts';
-import { BUREAU_CHANNEL_ID } from '@/lib/bureau/bible';
+import { currentChannel } from '@/lib/channels/active';
 import { serverClient } from '@/lib/db/server';
 import { activeChannel } from '@/lib/onboarding/channel-step';
 import { isDeferrable } from '@/lib/onboarding/gate';
@@ -64,7 +64,7 @@ export default async function OnboardingStepPage({
   const unlocked = isUnlocked(step, completed);
   const { prev, next } = stepNeighbours(step);
   // Step 8 shows the channel that already exists rather than offering to make a second one.
-  const channel = step.n === 8 ? await activeChannel(serverClient(), BUREAU_CHANNEL_ID) : null;
+  const channel = step.n === 8 ? await activeChannel(serverClient(), (await currentChannel()).active?.id ?? null) : null;
   const blockers = step.blockedBy
     .filter((n) => !completed.includes(n))
     .map((n) => STEPS.find((s) => s.n === n)!.title);

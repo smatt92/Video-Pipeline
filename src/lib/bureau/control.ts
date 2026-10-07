@@ -99,9 +99,10 @@ export async function approveBrief(
  */
 export async function startQueuedEpisode(db: Db, token: BureauToken, effects: Effects, input: { episode_id: string }) {
   requireApprover(token, 'episode_start');
-  const { data: ep, error } = await db.from('episodes').select('id, status, run_id').eq('id', input.episode_id).maybeSingle();
+  const { data: ep, error } = await db.from('episodes').select('id, status, run_id, channel_id').eq('id', input.episode_id).maybeSingle();
   if (error) throw dbError(error.message);
-  if (!ep) throw new Error('No such episode.');
+  // The token's channel, like every decision function in the database (0040).
+  if (!ep || ep.channel_id !== token.channelId) throw new Error('No such episode on this channel.');
   if (ep.status !== 'queued') throw new Error(`Episode is ${ep.status}, not queued — its run already started.`);
   if (ep.run_id) throw new Error('This episode already has a run.');
   try {
@@ -127,9 +128,9 @@ export async function startQueuedEpisode(db: Db, token: BureauToken, effects: Ef
  */
 export async function restartHaltedEpisode(db: Db, token: BureauToken, effects: Effects, input: { episode_id: string }) {
   requireApprover(token, 'episode_restart');
-  const { data: ep, error } = await db.from('episodes').select('id, status, updated_at').eq('id', input.episode_id).maybeSingle();
+  const { data: ep, error } = await db.from('episodes').select('id, status, updated_at, channel_id').eq('id', input.episode_id).maybeSingle();
   if (error) throw dbError(error.message);
-  if (!ep) throw new Error('No such episode.');
+  if (!ep || ep.channel_id !== token.channelId) throw new Error('No such episode on this channel.');
   // 'failed' too: a crash after a fix (S001's render, 07-Oct) needs the same way back as a refusal.
   if (ep.status !== 'halted' && ep.status !== 'failed') throw new Error(`Episode is ${ep.status}, not halted or failed — nothing to restart.`);
   try {

@@ -33,7 +33,11 @@ require.cache[so] = { id: so, filename: so, loaded: true, exports: {}, paths: []
 const B = new URL('../.verify-build/src/lib', import.meta.url).pathname;
 const { submitImage, imageCredits, imageRateUnit, IMAGE_MODELS, PROMPT_MAX } = require(`${B}/drivers/video-runway.js`);
 const { waitForTask, CREDIT_USD } = require(`${B}/drivers/runway.js`);
-const { BIBLE, BUREAU_CHANNEL_ID, STORAGE_REF_PREFIX } = require(`${B}/bureau/bible.js`);
+const { bibleForSlug, STORAGE_REF_PREFIX } = require(`${B}/bureau/bible.js`);
+// --channel <slug>: whose cast, and whose ledger the spend lands on. The Bureau when omitted —
+// it is the channel these tools were written for; any other channel names itself.
+const CHANNEL_SLUG = process.argv.includes('--channel') ? process.argv[process.argv.indexOf('--channel') + 1] : 'bureau-of-reality';
+const BIBLE = bibleForSlug(CHANNEL_SLUG).bible;
 const { framePrompt } = require(`${B}/bureau/frames.js`);
 
 const argv = process.argv.slice(2);
@@ -113,7 +117,7 @@ if (refSource.length > 3) {
 const references = [];
 for (const [i, r] of refSource.entries()) references.push({ uri: await asUri(r), tag: `${c.id.replace(/[^a-z0-9_]/g, '')}_ref${i + 1}`.slice(0, 16) });
 
-let prompt = framePrompt(c, arg('prompt'));
+let prompt = framePrompt(c, BIBLE.world, arg('prompt'));
 if (references.length) prompt = `Match the character in @${references[0].tag} exactly. ${prompt}`;
 if (prompt.length > PROMPT_MAX) {
   console.error(`The frame prompt is ${prompt.length} characters; the vendor's limit is ${PROMPT_MAX}. Shorten --prompt or the visual_lock.`);
@@ -124,6 +128,12 @@ if (prompt.length > PROMPT_MAX) {
 const pg = (await import('pg')).default;
 const client = new pg.Client({ connectionString: dbUrl });
 await client.connect();
+const chRow = (await client.query('select id from channels where slug = $1', [CHANNEL_SLUG])).rows[0];
+if (!chRow) {
+  console.error(`No channel row with slug ${CHANNEL_SLUG} — add the channel in Kiln first.`);
+  process.exit(2);
+}
+const CHANNEL_ID = chRow.id;
 const unit = model === 'gen4_image_turbo' ? 'image' : imageRateUnit(ratio);
 const { rows: rate } = await client.query(
   `select unit_cost, is_verified from rate_card where driver = 'runway' and model = $1 and endpoint = '/v1/text_to_image' and unit = $2 and effective_from <= now() order by effective_from desc limit 1`,
@@ -160,7 +170,7 @@ for (let n = 1; n <= count; n++) {
   await client.query(
     `insert into cost_ledger (channel_id, driver, stage, entry_kind, unit, quantity, cost_usd, cost_inr, usd_inr_rate, idempotency_key, cost_source)
      values ($1, 'runway', 'frame-audition', 'estimate', $2, 1, $3, $4, $5, $6, 'rate_card')`,
-    [BUREAU_CHANNEL_ID, unit, unitUsd, unitUsd * fxRate, fxRate, `${key}:estimate`],
+    [CHANNEL_ID, unit, unitUsd, unitUsd * fxRate, fxRate, `${key}:estimate`],
   );
   const started = await submitImage({ model, prompt, ratio, references, seed: seed === undefined ? undefined : seed + n - 1 }, { apiKey });
   if (!started.ok) {
@@ -173,7 +183,7 @@ for (let n = 1; n <= count; n++) {
     await client.query(
       `insert into cost_ledger (channel_id, driver, stage, entry_kind, unit, quantity, cost_usd, cost_inr, usd_inr_rate, idempotency_key, cost_source)
        values ($1, 'runway', 'frame-audition', 'reconcile', 'credit', $2, $3, $4, $5, $6, 'measured') on conflict do nothing`,
-      [BUREAU_CHANNEL_ID, charged, charged * CREDIT_USD, charged * CREDIT_USD * fxRate, fxRate, `${key}:reconcile`],
+      [CHANNEL_ID, charged, charged * CREDIT_USD, charged * CREDIT_USD * fxRate, fxRate, `${key}:reconcile`],
     );
   }
   if (done.state !== 'succeeded') {

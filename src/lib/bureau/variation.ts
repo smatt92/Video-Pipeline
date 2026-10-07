@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import type { Db } from '../db/server';
-import { BIBLE } from './bible';
+import { bibleForChannel } from './bible';
 
 /**
  * variation_check — the anti-repetition gate.
@@ -64,6 +64,9 @@ export interface VariationPolicy {
   similarity_max: number;
   hook_archetype_weekly_max: number;
   catchphrase_weekly_max: number;
+  /** The channel's cast catchphrases and their own weekly limits (the bible). Absent → the
+   *  channel-wide limit applies to every phrase. */
+  catchphrases?: readonly { text: string; max_per_week: number }[];
 }
 
 export type Similarity =
@@ -92,10 +95,11 @@ export function isoWeek(date: string): string {
   return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
-function catchphraseLimit(text: string | null | undefined, policyMax: number): number {
+function catchphraseLimit(text: string | null | undefined, policy: VariationPolicy): number {
+  const policyMax = policy.catchphrase_weekly_max;
   if (!text) return policyMax;
-  const owner = BIBLE.characters.find((c) => c.catchphrase.text.toLowerCase() === text.toLowerCase());
-  return owner ? Math.min(owner.catchphrase.max_per_week, policyMax) : policyMax;
+  const owner = (policy.catchphrases ?? []).find((c) => c.text.toLowerCase() === text.toLowerCase());
+  return owner ? Math.min(owner.max_per_week, policyMax) : policyMax;
 }
 
 export function checkVariation(
@@ -127,7 +131,7 @@ export function checkVariation(
   const hookOk = hookCount <= policy.hook_archetype_weekly_max;
 
   const phrase = c.catchphrase_used ?? null;
-  const phraseMax = catchphraseLimit(phrase, policy.catchphrase_weekly_max);
+  const phraseMax = catchphraseLimit(phrase, policy);
   const phraseCount = phrase
     ? sameWeek.filter((h) => (h.catchphrase_used ?? '').toLowerCase() === phrase.toLowerCase()).length + 1
     : 0;
@@ -167,6 +171,9 @@ export async function loadVariationPolicy(db: Db, channelId: string): Promise<Va
     similarity_max: Number(data.similarity_max),
     hook_archetype_weekly_max: data.hook_archetype_weekly_max,
     catchphrase_weekly_max: data.catchphrase_weekly_max,
+    catchphrases: await bibleForChannel(db, channelId)
+      .then((cb) => cb.bible.characters.map((c) => c.catchphrase))
+      .catch(() => []),
   };
 }
 

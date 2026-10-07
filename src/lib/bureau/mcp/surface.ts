@@ -3,8 +3,8 @@ import { z } from 'zod';
 import type { Db } from '../../db/server';
 import type { Json } from '../../db/types';
 import type { McpSurface } from '../../studio/mcp';
-import { BIBLE, POLICY, SERIES } from '../bible';
-import { BriefInputSchema, createBriefs, getBrief, pendingBriefs } from '../briefs';
+import { bibleForChannel, type ChannelBible } from '../bible';
+import { createBriefs, getBrief, pendingBriefs } from '../briefs';
 import { approveBrief, decideCut, markScheduled, rejectBrief, setCaps, setKillSwitch, type Effects } from '../control';
 import type { Embedder } from '../embed';
 import { DUB_LANGUAGES, listDubs, queueDubs, regenerateShot } from '../episodes';
@@ -65,6 +65,23 @@ export interface BureauContext {
   db: Db;
   token: BureauToken;
   effects: BureauSideEffects;
+  /**
+   * The token's channel, loaded once per request by the server (`loadTokenChannel`). Every
+   * resource and every bible-reading tool answers for THIS channel — a token for channel A
+   * never reads channel B's cast. `bible: null` = the channel has no bible folder in this
+   * build, and the bible-reading surfaces refuse by name.
+   */
+  channel: { id: string; name: string; bible: ChannelBible | null; refusal: string | null };
+}
+
+/** The token's channel row and bible, for `BureauContext.channel`. */
+export async function loadTokenChannel(db: Db, channelId: string): Promise<BureauContext['channel']> {
+  const { data } = await db.from('channels').select('name').eq('id', channelId).maybeSingle();
+  try {
+    return { id: channelId, name: data?.name ?? channelId, bible: await bibleForChannel(db, channelId), refusal: null };
+  } catch (err) {
+    return { id: channelId, name: data?.name ?? channelId, bible: null, refusal: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 type Scope = 'approver' | 'any';
@@ -210,7 +227,7 @@ export const BUREAU_TOOLS: BureauTool[] = [
     description: 'Rejects finance/health advice, politics, real living people, franchises/brands, true crime, devotional framing, kid-coded styling; requires exactly one fact with a primary-source URL. "needs_judge" lists questions a pattern cannot decide — never treat it as a pass.',
     scope: 'any',
     args: LintInputSchema,
-    run: async (_c, a) => policyLint(a),
+    run: async (c, a) => (c.channel.bible ? policyLint(a, c.channel.bible) : { ok: false, refused: true, summary: c.channel.refusal }),
   }),
   tool({
     name: 'episode_status',
@@ -330,9 +347,6 @@ export const BUREAU_TOOLS: BureauTool[] = [
   }),
 ];
 
-/** Parsed for its side effect: a malformed brief schema fails at import, not at 6am. */
-void BriefInputSchema;
-
 function descriptor(t: BureauTool) {
   const schema = z.toJSONSchema(t.args, { io: 'input', unrepresentable: 'any' }) as Record<string, unknown>;
   delete schema.$schema;
@@ -349,10 +363,11 @@ export function visibleTools(scope: BureauToken['scope']): BureauTool[] {
 }
 
 export function bureauSurface(ctx: BureauContext): McpSurface {
+  const series = ctx.channel.bible?.series ?? {};
   return {
-    serverInfo: { name: 'kiln-bureau', title: 'Kiln — Bureau of Reality', version: '0.2.0' },
+    serverInfo: { name: 'kiln-bureau', title: `Kiln — ${ctx.channel.name}`, version: '0.3.0' },
     instructions:
-      `Kiln control plane for "Bureau of Reality" (${ctx.token.scope} token). Read kiln://bible/characters, ` +
+      `Kiln control plane for "${ctx.channel.name}" (${ctx.token.scope} token). Every tool and resource answers for this channel only. Read kiln://bible/characters, ` +
       'kiln://series/{id} and kiln://policy/rubric before drafting. Agent tokens draft, read and queue; ' +
       'only the approver approves, rejects, schedules, changes caps or flips the kill switch. A result with ' +
       '`refused: true` names what would clear it — relay it, do not retry.',
@@ -381,18 +396,20 @@ export function bureauSurface(ctx: BureauContext): McpSurface {
         { uri: 'kiln://bible/characters', name: 'characters', title: 'Cast bible', mimeType: 'application/json' },
         { uri: 'kiln://policy/rubric', name: 'policy', title: 'Content policy rubric', mimeType: 'application/json' },
         { uri: 'kiln://calendar/next-14', name: 'calendar-next-14', title: 'Next 14 days of slots', mimeType: 'application/json' },
-        ...Object.keys(SERIES).map((id) => ({ uri: `kiln://series/${id}`, name: `series-${id}`, title: SERIES[id as keyof typeof SERIES].name, mimeType: 'application/json' })),
+        ...Object.values(series).map((s) => ({ uri: `kiln://series/${s!.id}`, name: `series-${s!.id}`, title: s!.name, mimeType: 'application/json' })),
       ],
       templates: () => [
-        { uriTemplate: 'kiln://series/{id}', name: 'series', title: 'Series template', description: `id: ${Object.keys(SERIES).join(', ')}`, mimeType: 'application/json' },
+        { uriTemplate: 'kiln://series/{id}', name: 'series', title: 'Series template', description: `id: ${Object.keys(series).join(', ') || 'none — this channel has no bible'}`, mimeType: 'application/json' },
       ],
       async read(uri) {
         const json = (v: unknown) => ({ uri, mimeType: 'application/json', text: JSON.stringify(v, null, 2) });
-        if (uri === 'kiln://bible/characters') return json(BIBLE);
-        if (uri === 'kiln://policy/rubric') return json(POLICY);
+        const cb = ctx.channel.bible;
+        if ((uri === 'kiln://bible/characters' || uri === 'kiln://policy/rubric') && !cb) return json({ refused: true, summary: ctx.channel.refusal });
+        if (uri === 'kiln://bible/characters') return json(cb!.bible);
+        if (uri === 'kiln://policy/rubric') return json(cb!.policy);
         if (uri === 'kiln://calendar/next-14') return json(await calendarUpcoming(ctx.db, ctx.token.channelId, 14));
         const m = /^kiln:\/\/series\/([a-z_]+)$/.exec(uri);
-        if (m && m[1] in SERIES) return json(SERIES[m[1] as keyof typeof SERIES]);
+        if (m && m[1] in series) return json(series[m[1] as keyof typeof series]);
         return null;
       },
     },

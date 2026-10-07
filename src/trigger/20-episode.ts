@@ -5,7 +5,6 @@ import { z } from 'zod';
 
 import { afterBundle } from '@/lib/bureau/after-bundle';
 import { notify } from '@/lib/bureau/alerts';
-import { BUREAU_CHANNEL_ID } from '@/lib/bureau/bible';
 import {
   type AssembleDeps,
   assembleEpisode,
@@ -71,7 +70,11 @@ export const episodeTask = schemaTask({
     const presign = async (key: string) => (await driver.presignGet({ key, expiresIn: 3600 })).url;
     const put = putterFor(driver).put;
 
-    const { data: pol } = await db.from('channel_policy').select('kill_switch, rerolls_max').eq('channel_id', BUREAU_CHANNEL_ID).single();
+    // The episode's own channel: its kill switch, its re-roll budget, its notifications.
+    const { data: epRow } = await db.from('episodes').select('channel_id').eq('id', episodeId).single();
+    if (!epRow) throw new Error(`episode ${episodeId} not found`);
+    const channelId = epRow.channel_id;
+    const { data: pol } = await db.from('channel_policy').select('kill_switch, rerolls_max').eq('channel_id', channelId).single();
     if (pol?.kill_switch) {
       await setStatus(db, episodeId, 'halted', 'kill switch is on');
       return { halted: 'kill_switch' };
@@ -105,7 +108,7 @@ export const episodeTask = schemaTask({
       });
       if (!voice.ok) {
         await setStatus(db, episodeId, 'halted', `${voice.code}: ${voice.detail}`);
-        await notify(db, BUREAU_CHANNEL_ID, 'qc_failed', `Episode ${episodeId.slice(0, 8)} halted at voice: ${voice.detail}`);
+        await notify(db, channelId, 'qc_failed', `Episode ${episodeId.slice(0, 8)} halted at voice: ${voice.detail}`);
         return { halted: voice.code };
       }
 
@@ -134,14 +137,14 @@ export const episodeTask = schemaTask({
                 const refPng = referenceUrl ? Buffer.from(await (await fetch(referenceUrl)).arrayBuffer()).toString('base64') : null;
                 return visionQc(
                   { frames, referencePng: refPng, description },
-                  { db, apiKey: anthropicKey, usdInrRate, subject: { kind: 'channel', channelId: BUREAU_CHANNEL_ID, idempotencyKey: `qc:${episodeId}:${round}:${description.slice(0, 20)}:${Date.now()}`, stage: '20-qc' } },
+                  { db, apiKey: anthropicKey, usdInrRate, subject: { kind: 'channel', channelId: channelId, idempotencyKey: `qc:${episodeId}:${round}:${description.slice(0, 20)}:${Date.now()}`, stage: '20-qc' } },
                 );
               }
             : undefined,
           log: logger,
         });
         logger.info('qc', qc);
-        if (qc.flagged) await notify(db, BUREAU_CHANNEL_ID, 'qc_failed', `Episode ${episodeId.slice(0, 8)}: ${qc.flagged} clip(s) failed QC after re-rolls — see Cuts.`);
+        if (qc.flagged) await notify(db, channelId, 'qc_failed', `Episode ${episodeId.slice(0, 8)}: ${qc.flagged} clip(s) failed QC after re-rolls — see Cuts.`);
         if (qc.rerolled === 0) break;
       }
 
@@ -180,7 +183,7 @@ export const episodeTask = schemaTask({
       for (let attempt = 0; attempt < 3; attempt++) {
         const token = await wait.createToken({ timeout: '14d', idempotencyKey: `cut:${episodeId}:${attempt}`, tags: [`episode:${episodeId}`] });
         await db.from('episodes').update({ cut_wait_token: token.id, status: 'awaiting_cut', status_detail: null }).eq('id', episodeId);
-        await notify(db, BUREAU_CHANNEL_ID, 'cut_ready', `Cut ready for review: episode ${episodeId.slice(0, 8)} (${(assembled.frames / FPS).toFixed(1)} s, ${lufs === null ? 'loudness unmeasured' : `${lufs} LUFS`}).`);
+        await notify(db, channelId, 'cut_ready', `Cut ready for review: episode ${episodeId.slice(0, 8)} (${(assembled.frames / FPS).toFixed(1)} s, ${lufs === null ? 'loudness unmeasured' : `${lufs} LUFS`}).`);
         const decision = await wait.forToken<{ approved: boolean; note: string | null }>(token);
         if (!decision.ok) {
           await setStatus(db, episodeId, 'halted', 'cut review timed out after 14 days');
@@ -193,7 +196,7 @@ export const episodeTask = schemaTask({
           const next = await afterBundle(db, b.publicationId, {
             startUpload: async (publicationId) => (await tasks.trigger('10-publish', { publicationId, idempotencyKey: `publish:${publicationId}` })).id,
           });
-          await notify(db, BUREAU_CHANNEL_ID, 'info', `Publish bundle ready for episode ${episodeId.slice(0, 8)}${b.slotTime ? ` — slot ${b.slotTime}` : ''}. YouTube: ${next.youtube}.`);
+          await notify(db, channelId, 'info', `Publish bundle ready for episode ${episodeId.slice(0, 8)}${b.slotTime ? ` — slot ${b.slotTime}` : ''}. YouTube: ${next.youtube}.`);
           return { bundled: b.publicationId, ...next };
         }
         // Rejected: re-rolls queued by shot_regenerate are generated, then the cut is rebuilt.

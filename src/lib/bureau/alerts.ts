@@ -28,7 +28,9 @@ export async function notify(
     const creds = await resolveCredentials(db, NOTIFY_INTEGRATION).catch(() => null);
     url = creds?.values[NOTIFY_FIELD];
   }
-  const sent = await sendNotification(url, `*Kiln · Bureau of Reality* — ${text}`, opts.fetchImpl);
+  // Named by the row's channel: with several channels a Slack line has to say whose it is.
+  const { data: ch } = await db.from('channels').select('name').eq('id', channelId).maybeSingle();
+  const sent = await sendNotification(url, `*Kiln · ${ch?.name ?? 'unknown channel'}* — ${text}`, opts.fetchImpl);
   const detail = sent.ok ? null : sent.detail;
   await db.from('notifications').insert({
     channel_id: channelId,

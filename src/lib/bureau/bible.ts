@@ -1,29 +1,27 @@
 import { z } from 'zod';
 
-import charactersJson from '../../../channels/bureau-of-reality/characters.json';
-import policyJson from '../../../channels/bureau-of-reality/policy.json';
-import archive from '../../../channels/bureau-of-reality/series/archive.json';
-import complaint from '../../../channels/bureau-of-reality/series/complaint.json';
-import deep from '../../../channels/bureau-of-reality/series/deep.json';
-import deskTour from '../../../channels/bureau-of-reality/series/desk_tour.json';
-import incident from '../../../channels/bureau-of-reality/series/incident.json';
-import longForm from '../../../channels/bureau-of-reality/series/long_form.json';
-import myth from '../../../channels/bureau-of-reality/series/myth.json';
-import pip from '../../../channels/bureau-of-reality/series/pip.json';
+import { CHANNEL_FOLDERS } from '../channels/registry.generated';
+import type { Db } from '../db/server';
 import { bureauSeries, hookPattern } from '../db/enums';
 import { ROUTE_PROVIDERS } from '../drivers/jobs';
-import { CharacterVoiceFields, voiceKey, voiceRouteFor } from '../drivers/voice-route';
+import { CharacterVoiceFields, voiceKey, voiceRouteFor, type VoiceOverride, type VoiceRoute } from '../drivers/voice-route';
 
 /**
- * The channel bible, parsed once and typed.
+ * Channel bibles, parsed once per folder and typed.
  *
- * The JSON under `channels/bureau-of-reality/` is the source of truth — Sahil edits it, the
- * MCP resources serve it, the brief checks enforce it. Parsing it with Zod at import means a
- * malformed edit fails the build (and `verify:bureau`) instead of failing a 6am Routine.
+ * Each channel's JSON under `channels/<slug>/` is the source of truth for that channel — Sahil
+ * edits it, the MCP resources serve it, the brief checks enforce it. The folders reach the
+ * bundles through `src/lib/channels/registry.generated.ts` (static imports, see
+ * `scripts/channels-registry.mjs`), and every folder is parsed with Zod at import, so a
+ * malformed edit to ANY channel fails the build instead of failing a 6am Routine.
+ *
+ * Nothing here knows which channel is "the" channel. A caller holds a channel id — from the
+ * episode, brief or slot row it is acting on, from an MCP token, or from the active-channel
+ * cookie — and asks for that channel's bible with `bibleForChannel`. (Until 07-Oct-2026 this
+ * module exported the Bureau's bible as module constants and 55 call sites read the Bureau's
+ * id from here; that is what multichannel removed. The seed id survives only in
+ * `src/lib/fixtures/seed-channel.ts`, for migrations' fixtures and harnesses.)
  */
-
-export const BUREAU_CHANNEL_ID = 'b0000000-0000-4000-8000-000000000001';
-export const BUREAU_CHANNEL_SLUG = 'bureau-of-reality';
 
 const Hex = z.string().regex(/^#[0-9A-Fa-f]{6}$/);
 
@@ -55,7 +53,7 @@ export type Character = z.infer<typeof CharacterSchema>;
 
 export const BibleSchema = z.object({
   version: z.number().int(),
-  channel: z.literal(BUREAU_CHANNEL_SLUG),
+  channel: z.string().regex(/^_?[a-z0-9-]+$/),
   world: z.object({
     name: z.string(),
     premise: z.string(),
@@ -63,6 +61,14 @@ export const BibleSchema = z.object({
     style_rules: z.array(z.string()).min(1),
     negative_prompt: z.string().min(1),
   }),
+  /** What every upload of this channel carries: hashtag pool (no '#'), base tags, category. */
+  publishing: z
+    .object({
+      hashtags: z.array(z.string().regex(/^[A-Za-z0-9_]+$/)).min(1).max(30),
+      tags: z.array(z.string().min(1)).max(15),
+      category: z.string().min(1),
+    })
+    .optional(),
   characters: z.array(CharacterSchema).min(1),
 });
 export type Bible = z.infer<typeof BibleSchema>;
@@ -135,32 +141,129 @@ export const PolicySchema = z.object({
 });
 export type Policy = z.infer<typeof PolicySchema>;
 
-export const BIBLE: Bible = BibleSchema.parse(charactersJson);
-export const POLICY: Policy = PolicySchema.parse(policyJson);
-export const SERIES: Readonly<Record<z.infer<typeof bureauSeries>, Series>> = Object.fromEntries(
-  [incident, deskTour, pip, archive, myth, deep, complaint, longForm].map((raw) => {
-    const s = SeriesSchema.parse(raw);
-    return [s.id, s];
-  }),
-) as Record<z.infer<typeof bureauSeries>, Series>;
+export const TrendsConfigSchema = z.object({
+  subreddits: z.array(z.string().regex(/^[A-Za-z0-9_]{2,40}$/)).max(20),
+  youtube: z
+    .object({
+      region_code: z.string().regex(/^[A-Z]{2}$/),
+      category_ids: z.array(z.string().regex(/^\d+$/)).max(10),
+      queries: z.array(z.string().min(2).max(100)).max(10),
+    })
+    .nullable()
+    .optional(),
+});
+export type TrendsConfig = z.infer<typeof TrendsConfigSchema>;
 
-for (const id of bureauSeries.options) {
-  if (!SERIES[id]) throw new Error(`Series "${id}" has no file under channels/bureau-of-reality/series/.`);
+export type SeriesId = z.infer<typeof bureauSeries>;
+
+/** One channel's bible: cast, policy, series and trend sources, with the lookups callers need. */
+export interface ChannelBible {
+  readonly slug: string;
+  readonly bible: Bible;
+  readonly policy: Policy;
+  /** The series this channel runs. Not every channel runs every series. */
+  readonly series: Readonly<Partial<Record<SeriesId, Series>>>;
+  readonly trends: TrendsConfig;
+  readonly characterSlugs: readonly string[];
+  characterBySlug(slug: string): Character | undefined;
+  /** Calendar leads like "pip+marlo", "marlo|iyer" or "rotating_desk_head" → known slugs. */
+  leadsFromCalendar(lead: string | null): string[];
+  /** The series, or a refusal naming the channel and the series it does not run. */
+  seriesFor(id: string): Series;
 }
 
-export const CHARACTER_SLUGS = BIBLE.characters.map((c) => c.id);
-
-export function characterBySlug(slug: string): Character | undefined {
-  return BIBLE.characters.find((c) => c.id === slug);
+function build(slug: string, raw: { characters: unknown; policy: unknown; trends: unknown; series: readonly unknown[] }): ChannelBible {
+  const where = (f: string) => `channels/${slug}/${f}`;
+  const parse = <T>(schema: z.ZodType<T>, v: unknown, f: string): T => {
+    const r = schema.safeParse(v);
+    if (!r.success) throw new Error(`${where(f)} is malformed: ${r.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}`);
+    return r.data;
+  };
+  const bible = parse(BibleSchema, raw.characters, 'characters.json');
+  if (bible.channel !== slug) throw new Error(`${where('characters.json')} names channel "${bible.channel}", not "${slug}".`);
+  const policy = parse(PolicySchema, raw.policy, 'policy.json');
+  const trends = raw.trends === null ? { subreddits: [], youtube: null } : parse(TrendsConfigSchema, raw.trends, 'trends.json');
+  const series: Partial<Record<SeriesId, Series>> = {};
+  for (const r of raw.series) {
+    const s = parse(SeriesSchema, r, 'series/*.json');
+    series[s.id] = s;
+  }
+  const characterSlugs = bible.characters.map((c) => c.id);
+  return {
+    slug,
+    bible,
+    policy,
+    series,
+    trends,
+    characterSlugs,
+    characterBySlug: (s) => bible.characters.find((c) => c.id === s),
+    leadsFromCalendar: (lead) =>
+      lead
+        ? lead
+            .split(/[+|]/)
+            .map((s) => s.trim())
+            .filter((s) => characterSlugs.includes(s))
+        : [],
+    seriesFor(id) {
+      const s = series[id as SeriesId];
+      if (!s) throw new Error(`Channel "${slug}" runs no series "${id}" — channels/${slug}/series/ has ${Object.keys(series).join(', ') || 'none'}.`);
+      return s;
+    },
+  };
 }
 
-/** Calendar leads like "pip+marlo", "marlo|iyer" or "rotating_desk_head" → known slugs. */
-export function leadsFromCalendar(lead: string | null): string[] {
-  if (!lead) return [];
-  return lead
-    .split(/[+|]/)
-    .map((s) => s.trim())
-    .filter((s) => CHARACTER_SLUGS.includes(s));
+/** Every folder, parsed at import. `_template` is parsed too, so the template cannot rot. */
+const BIBLES: ReadonlyMap<string, ChannelBible> = new Map(Object.entries(CHANNEL_FOLDERS).map(([slug, raw]) => [slug, build(slug, raw)]));
+
+/** Slugs a channel can use: every folder except the template. */
+export const BIBLE_SLUGS: readonly string[] = [...BIBLES.keys()].filter((s) => !s.startsWith('_'));
+
+export function hasBible(slug: string): boolean {
+  return BIBLE_SLUGS.includes(slug);
+}
+
+/** The template's bible, for tests of the template itself. Never a channel's. */
+export function templateBible(): ChannelBible {
+  return BIBLES.get('_template')!;
+}
+
+export function bibleForSlug(slug: string): ChannelBible {
+  if (slug.startsWith('_') || !BIBLES.has(slug)) {
+    throw new Error(
+      `No bible folder channels/${slug}/ in this build. Create it with \`pnpm channel:new ${slug}\`, commit, and deploy; ` +
+        `folders in this build: ${BIBLE_SLUGS.join(', ') || 'none'}.`,
+    );
+  }
+  return BIBLES.get(slug)!;
+}
+
+/** The bible for a channels row — the one way a caller holding a channel id reaches its cast. */
+export async function bibleForChannel(db: Db, channelId: string): Promise<ChannelBible> {
+  const { data, error } = await db.from('channels').select('name, slug').eq('id', channelId).maybeSingle();
+  if (error) throw new Error(`Reading channel ${channelId}: ${error.message}`);
+  if (!data) throw new Error(`No channel ${channelId}.`);
+  if (!data.slug) throw new Error(`Channel "${data.name}" has no slug, so it has no bible folder under channels/.`);
+  return bibleForSlug(data.slug);
+}
+
+/**
+ * Voice overrides set on the Voices screen (channel_voice_overrides), keyed by character slug.
+ * A missing table (0046 not pasted yet) reads as no overrides — the bible stands, which is
+ * what it meant before the table existed.
+ */
+export async function voiceOverrides(db: Db, channelId: string): Promise<Map<string, VoiceOverride>> {
+  const { data, error } = await db.from('channel_voice_overrides').select('character_slug, voice_provider, voice_id').eq('channel_id', channelId);
+  const out = new Map<string, VoiceOverride>();
+  if (error) return out;
+  for (const r of data ?? []) out.set(r.character_slug, { provider: r.voice_provider, voiceId: r.voice_id });
+  return out;
+}
+
+/** The voice route for one character of a channel: an override wins, else the bible. */
+export function routeForCharacter(cb: ChannelBible, slug: string, overrides: ReadonlyMap<string, VoiceOverride>): VoiceRoute {
+  const c = cb.characterBySlug(slug);
+  if (!c) return { ok: false, code: 'voice_not_locked', detail: `${slug}: not in the ${cb.slug} cast` };
+  return voiceRouteFor(c, overrides.get(slug));
 }
 
 /**
@@ -184,22 +287,27 @@ export function isUsableReference(ref: string): boolean {
  * "guard that permits what its message forbids" shape: the character-beat route checks that
  * column before it will submit, and the generator needs a frame it can fetch.
  */
-export async function syncCast(db: {
-  from: (t: 'characters') => {
-    upsert: (
-      rows: Record<string, unknown>[],
-      opts: { onConflict: string },
-    ) => PromiseLike<{ error: { message: string } | null }>;
-  };
-}): Promise<{ synced: number; withReference: number; withVoice: number }> {
+export async function syncCast(
+  db: {
+    from: (t: 'characters') => {
+      upsert: (
+        rows: Record<string, unknown>[],
+        opts: { onConflict: string },
+      ) => PromiseLike<{ error: { message: string } | null }>;
+    };
+  },
+  channelId: string,
+  cb: ChannelBible,
+  overrides: ReadonlyMap<string, VoiceOverride> = new Map(),
+): Promise<{ synced: number; withReference: number; withVoice: number }> {
   const now = new Date().toISOString();
-  const rows = BIBLE.characters.map((c) => {
+  const rows = cb.bible.characters.map((c) => {
     const real = c.reference_frame_ids.filter(isUsableReference);
     // `voice_id` holds the routed voice ("<provider>:<id>") or null while unlocked — never a
     // stand-in, because the voice stage reads null as "refuse this line".
-    const route = voiceRouteFor(c);
+    const route = voiceRouteFor(c, overrides.get(c.id));
     return {
-      channel_id: BUREAU_CHANNEL_ID,
+      channel_id: channelId,
       slug: c.id,
       name: c.name,
       role: c.role,

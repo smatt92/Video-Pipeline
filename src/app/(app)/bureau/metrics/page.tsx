@@ -1,6 +1,6 @@
 import { BureauNav } from '@/components/bureau/bureau-nav';
 import { CsvImport } from '@/components/bureau/csv-import';
-import { BUREAU_CHANNEL_ID, characterBySlug } from '@/lib/bureau/bible';
+import { bibleOrNull, requireChannel } from '@/lib/channels/active';
 import { GATES, metricsSummary, topPerformers } from '@/lib/bureau/read';
 import { serverClient } from '@/lib/db/server';
 
@@ -10,8 +10,10 @@ const fmt = (v: number | null, d = 1, suffix = '') => (v === null ? '—' : `${v
 
 /** KPIs against the gates, character-name mentions, top performers, the Studio CSV import. */
 export default async function MetricsPage() {
+  const channel = await requireChannel();
+  const cb = bibleOrNull(channel);
   const db = serverClient();
-  const [m28, m7, top] = await Promise.all([metricsSummary(db, BUREAU_CHANNEL_ID, '28d'), metricsSummary(db, BUREAU_CHANNEL_ID, '7d'), topPerformers(db, BUREAU_CHANNEL_ID, 10)]);
+  const [m28, m7, top] = await Promise.all([metricsSummary(db, channel.id, '28d'), metricsSummary(db, channel.id, '7d'), topPerformers(db, channel.id, 10)]);
   const tiles = [
     { label: 'Viewed vs swiped (median, last 20)', v: fmt(m28.viewed_vs_swiped_median_last20, 1, '%'), gate: `≥ ${GATES.vvsa_pct}%`, verdict: m28.gates.vvsa },
     { label: 'Average % viewed (median)', v: fmt(m28.apv_median, 1, '%'), gate: `≥ ${GATES.apv_pct}%`, verdict: m28.gates.apv },
@@ -39,7 +41,7 @@ export default async function MetricsPage() {
           <h2 className="text-sm font-medium">Character-name mentions (7d / 28d)</h2>
           <ul className="mt-2 grid gap-1 text-sm">
             {Object.entries(m28.character_mentions).sort((a, b) => b[1] - a[1]).map(([slug, n]) => (
-              <li key={slug} className="flex justify-between"><span>{characterBySlug(slug)?.name ?? slug}</span><span className="font-mono tabular-nums">{m7.character_mentions[slug] ?? 0} / {n}</span></li>
+              <li key={slug} className="flex justify-between"><span>{cb?.characterBySlug(slug)?.name ?? slug}</span><span className="font-mono tabular-nums">{m7.character_mentions[slug] ?? 0} / {n}</span></li>
             ))}
             {Object.keys(m28.character_mentions).length === 0 && <li style={{ color: 'var(--text-muted)' }}>No comments ingested yet.</li>}
           </ul>
@@ -57,7 +59,7 @@ export default async function MetricsPage() {
       <section className="mt-6">
         <h2 className="text-sm font-medium">Viewed vs swiped — Studio CSV</h2>
         <p className="mt-1 text-2xs" style={{ color: 'var(--text-muted)' }}>Not in the Analytics API. Studio → Analytics → Advanced mode → Shorts, export per video, upload here.</p>
-        <div className="mt-2"><CsvImport /></div>
+        <div className="mt-2"><CsvImport channelId={channel.id} /></div>
       </section>
     </main>
   );

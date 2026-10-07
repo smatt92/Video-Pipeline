@@ -34,7 +34,7 @@ const { importStudioCsv, parseStudioCsv } = require(`${B}/bureau/studio-csv.js`)
 const { youtubeVideoId } = require(`${B}/publish/yt-analytics.js`);
 const { dispatchProvider } = require(`${B}/bureau/dispatch.js`);
 const { capAlerts, headroom } = require(`${B}/bureau/caps.js`);
-const { BUREAU_CHANNEL_ID } = require(`${B}/bureau/bible.js`);
+const { BUREAU_CHANNEL_ID } = require(`${B}/fixtures/seed-channel.js`);
 const { supabaseShim } = await import('./lib/supabase-shim.mjs');
 const { scratchDatabase } = await import('./lib/scratch.mjs');
 

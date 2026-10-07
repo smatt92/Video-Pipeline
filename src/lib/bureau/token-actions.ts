@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { checkEmail } from '../auth/allowed';
 import { routeClient } from '../auth/supabase';
 import { serverClient } from '../db/server';
-import { BUREAU_CHANNEL_ID } from './bible';
+import { currentChannel } from '../channels/active';
 import { mintBureauToken, revokeBureauToken, type BureauScope } from './tokens';
 
 /**
@@ -43,10 +43,14 @@ export async function mintTokenAction(_prev: MintState, form: FormData): Promise
     if (scope === 'approver' && !profile) {
       return { status: 'error', message: 'Your profile row does not exist yet — finish onboarding first.' };
     }
+    // A token is bound to one channel for its life: the one active in this browser when it was
+    // minted, and Settings → MCP tokens lists which.
+    const { active } = await currentChannel();
+    if (!active) return { status: 'error', message: 'No channel exists yet — add one from the sidebar first.' };
     const minted = await mintBureauToken(db, {
       name,
       scope,
-      channelId: BUREAU_CHANNEL_ID,
+      channelId: active.id,
       profileId: scope === 'approver' ? profile!.id : null,
     });
     revalidatePath('/settings/mcp');

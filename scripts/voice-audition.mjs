@@ -22,7 +22,11 @@ const require = createRequire(import.meta.url);
 const B = new URL('../.verify-build/src/lib', import.meta.url).pathname;
 const { TTS_PRESET_IDS } = require(`${B}/drivers/voice-route.js`);
 const { submitSpeech, waitForTask, CREDIT_USD } = require(`${B}/drivers/voice-runway.js`);
-const { BIBLE, BUREAU_CHANNEL_ID } = require(`${B}/bureau/bible.js`);
+const { bibleForSlug } = require(`${B}/bureau/bible.js`);
+// --channel <slug>: whose cast, and whose ledger the spend lands on. The Bureau when omitted —
+// it is the channel these tools were written for; any other channel names itself.
+const CHANNEL_SLUG = process.argv.includes('--channel') ? process.argv[process.argv.indexOf('--channel') + 1] : 'bureau-of-reality';
+const BIBLE = bibleForSlug(CHANNEL_SLUG).bible;
 
 const arg = (name, dflt) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -66,6 +70,12 @@ if (usd > maxUsd) {
 const pg = (await import('pg')).default;
 const client = new pg.Client({ connectionString: dbUrl });
 await client.connect();
+const chRow = (await client.query('select id from channels where slug = $1', [CHANNEL_SLUG])).rows[0];
+if (!chRow) {
+  console.error(`No channel row with slug ${CHANNEL_SLUG} — add the channel in Kiln first.`);
+  process.exit(2);
+}
+const CHANNEL_ID = chRow.id;
 const { rows: fx } = await client.query('select usd_inr_rate from profiles where usd_inr_rate is not null limit 1');
 const rate = fx[0] ? Number(fx[0].usd_inr_rate) : null;
 if (rate === null) {
@@ -81,7 +91,7 @@ for (const r of plan) {
   await client.query(
     `insert into cost_ledger (channel_id, driver, stage, entry_kind, unit, quantity, cost_usd, cost_inr, usd_inr_rate, idempotency_key, cost_source)
      values ($1, 'runway', 'voice-audition', 'estimate', 'character', $2, $3, $4, $5, $6, 'rate_card')`,
-    [BUREAU_CHANNEL_ID, chars, costUsd, costUsd * rate, rate, `audition:${r.c.id}:${r.p}:${r.n}:${Date.now()}`],
+    [CHANNEL_ID, chars, costUsd, costUsd * rate, rate, `audition:${r.c.id}:${r.p}:${r.n}:${Date.now()}`],
   );
   const started = await submitSpeech({ apiKey, text: r.text, presetId: r.p, model: 'eleven_v3', languageCode: 'en' });
   if (!started.ok) {

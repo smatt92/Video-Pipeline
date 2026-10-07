@@ -18,9 +18,9 @@ import { takeWords } from './take-words';
 import { shiftBy, type WordTiming } from '../voice/timings';
 import { normaliseOverlay, type OverlaySpec } from '../../remotion/bureau/overlay-scene';
 import type { BureauShot, BureauVideoProps } from '../../remotion/bureau/bureau-video';
-import { BIBLE, characterBySlug, SERIES, STORAGE_REF_PREFIX, syncCast } from './bible';
+import { bibleForChannel, STORAGE_REF_PREFIX, syncCast, voiceOverrides, type ChannelBible, type Series } from './bible';
 import { estimateEpisode, fitToCap, PlannedShotSchema, recipeForRoute, type PlannedShot } from './estimate';
-import { parseScript, punchlineTurns, type ScriptLine } from './script-lines';
+import { parseScript, punchlineTurns, type Cast, type ScriptLine } from './script-lines';
 
 /**
  * The episode run's steps, each a function of (db, episode) plus injected effects, each
@@ -53,7 +53,16 @@ async function loadEpisode(db: Db, episodeId: string) {
   if (!e) throw new Error(`episode ${episodeId} not found`);
   const { data: b } = await db.from('briefs').select('*').eq('id', e.brief_id).single();
   if (!b) throw new Error(`brief ${e.brief_id} not found`);
-  return { e, b };
+  // The episode's own channel decides the cast, series and world — never a constant.
+  const cb = await bibleForChannel(db, e.channel_id);
+  return { e, b, cb };
+}
+
+/** The brief's lead in the episode's channel's cast, or a refusal naming both. */
+function leadOf(cb: ChannelBible, slug: string) {
+  const c = cb.characterBySlug(slug);
+  if (!c) throw new Error(`Lead "${slug}" is not in the ${cb.slug} cast.`);
+  return c;
 }
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
@@ -64,8 +73,8 @@ const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
 const PolishSchema = z.object({ script_text: z.string() });
 
-export function scriptAcceptable(text: string, punchline: string, maxWords: number): { ok: true; lines: ScriptLine[]; voText: string } | { ok: false; why: string } {
-  const p = parseScript(text);
+export function scriptAcceptable(text: string, punchline: string, maxWords: number, cast: Cast): { ok: true; lines: ScriptLine[]; voText: string } | { ok: false; why: string } {
+  const p = parseScript(text, cast);
   if (!p.ok) return { ok: false, why: p.problems.join('; ') };
   const words = p.voText.split(/\s+/).length;
   if (words > maxWords) return { ok: false, why: `${words} words > ${maxWords}` };
@@ -73,7 +82,7 @@ export function scriptAcceptable(text: string, punchline: string, maxWords: numb
   // names and stage directions nobody says (S003, 07-Oct).
   const spoken = norm(p.voText);
   let at = 0;
-  for (const t of punchlineTurns(punchline, p.lines[p.lines.length - 1]?.speaker ?? '')) {
+  for (const t of punchlineTurns(punchline, p.lines[p.lines.length - 1]?.speaker ?? '', cast)) {
     const i = spoken.indexOf(norm(t.text), at);
     if (i < 0) return { ok: false, why: 'the approved punchline is not in the script' };
     at = i + norm(t.text).length;
@@ -87,17 +96,17 @@ export async function prepareScript(
   deps: { apiKey: string | null; usdInrRate: number; log?: StepLog },
 ): Promise<{ scriptId: string; polished: boolean; reason: string | null }> {
   const log = deps.log ?? quiet;
-  const { e, b } = await loadEpisode(db, episodeId);
+  const { e, b, cb } = await loadEpisode(db, episodeId);
   if (e.script_id) return { scriptId: e.script_id, polished: false, reason: 'already scripted' };
   await setStatus(db, episodeId, 'scripting');
-  await syncCast(db);
+  await syncCast(db, e.channel_id, cb, await voiceOverrides(db, e.channel_id));
 
   const punchline = b.chosen_punchline!;
   const maxWords = b.series === 'long_form' ? 2000 : 150;
-  const lead = characterBySlug(b.lead_character)!;
-  const base = scriptAcceptable(b.script_text, punchline, maxWords).ok
+  const lead = leadOf(cb, b.lead_character);
+  const base = scriptAcceptable(b.script_text, punchline, maxWords, cb).ok
     ? b.script_text
-    : `${b.script_text.trim()}\n${punchlineTurns(punchline, lead.id).map((t) => `${characterBySlug(t.speaker)?.name ?? lead.name}: ${t.text}`).join('\n')}`;
+    : `${b.script_text.trim()}\n${punchlineTurns(punchline, lead.id, cb).map((t) => `${cb.characterBySlug(t.speaker)?.name ?? lead.name}: ${t.text}`).join('\n')}`;
 
   // Concept first: the script's cost rows hang off it.
   const titles = (b.titles as { text: string }[]) ?? [];
@@ -132,7 +141,7 @@ export async function prepareScript(
         },
         { db, apiKey: deps.apiKey, usdInrRate: deps.usdInrRate, subject: { kind: 'channel', channelId: e.channel_id, idempotencyKey: `polish:${episodeId}`, stage: '20-script-polish' } },
       );
-      const ok = scriptAcceptable(r.data.script_text, punchline, maxWords);
+      const ok = scriptAcceptable(r.data.script_text, punchline, maxWords, cb);
       if (ok.ok) {
         text = r.data.script_text;
         polished = true;
@@ -144,7 +153,7 @@ export async function prepareScript(
   } else reason = 'no model key; the approved script is used as written';
   if (reason) log.info('script polish skipped', { reason });
 
-  const parsed = scriptAcceptable(text, punchline, maxWords);
+  const parsed = scriptAcceptable(text, punchline, maxWords, cb);
   if (!parsed.ok) throw new Error(`the approved script is not speakable: ${parsed.why}`);
   const structureHash = createHash('sha256')
     .update(`${b.structure_variant}|${parsed.lines.map((l) => l.speaker).join(',')}`)
@@ -210,7 +219,7 @@ export function bindShotsToLines(shots: PlannedShot[], lines: ScriptLine[]): { s
 }
 
 /** No shot list on the brief: one overlay per line group, from the series beat templates. */
-function defaultShots(series: (typeof SERIES)[keyof typeof SERIES], lines: number): PlannedShot[] {
+function defaultShots(series: Series, lines: number): PlannedShot[] {
   const beats = series.beat_sheet.slice(0, Math.max(1, Math.min(lines, series.beat_sheet.length)));
   return beats.map((b) => PlannedShotSchema.parse({ beat_id: b.id, route: 'overlay', description: b.purpose, duration_s: b.end_s - b.start_s, overlay: b.overlay ?? {} }));
 }
@@ -220,7 +229,7 @@ export async function planShots(
   episodeId: string,
   deps: { usdInrRate: number; actedBeatAvailable: boolean; log?: StepLog },
 ): Promise<{ shots: number; swaps: { idx: number; from: string; reason: string }[]; estimateInr: number | null }> {
-  const { e, b } = await loadEpisode(db, episodeId);
+  const { e, b, cb } = await loadEpisode(db, episodeId);
   if (!e.script_id) throw new Error('planShots before prepareScript');
   const { count } = await db.from('shots').select('id', { count: 'exact', head: true }).eq('script_id', e.script_id);
   if ((count ?? 0) > 0) return { shots: count ?? 0, swaps: [], estimateInr: e.estimate_inr === null ? null : Number(e.estimate_inr) };
@@ -228,7 +237,7 @@ export async function planShots(
 
   const { data: script } = await db.from('scripts').select('beats, vo_text').eq('id', e.script_id).single();
   const lines = (script!.beats as unknown as { lines: ScriptLine[] }).lines;
-  const series = SERIES[b.series as keyof typeof SERIES];
+  const series = cb.seriesFor(b.series);
   const fromBrief = z.array(PlannedShotSchema).safeParse(b.shot_list);
   const planned = fromBrief.success && fromBrief.data.length ? fromBrief.data : defaultShots(series, lines.length);
 
@@ -263,7 +272,7 @@ export async function planShots(
   });
   const finalEst = await estimateEpisode(db, { shots: fit.shots, voChars: script!.vo_text.length, usdInrRate: deps.usdInrRate });
 
-  const lead = characterBySlug(b.lead_character)!;
+  const lead = leadOf(cb, b.lead_character);
   const bound = bindShotsToLines(fit.shots, lines);
   const rows = bound.map(({ shot, first, last }, idx) => {
     const beat = series.beat_sheet.find((x) => x.id === shot.beat_id);
@@ -310,7 +319,7 @@ export function fillTemplate(template: string, vars: { description: string; inte
 }
 
 export async function enqueueGeneration(db: Db, episodeId: string, deps: { usdInrRate: number }): Promise<{ queued: number; refused: string[] }> {
-  const { e, b } = await loadEpisode(db, episodeId);
+  const { e, b, cb } = await loadEpisode(db, episodeId);
   const { data: shots } = await db
     .from('shots')
     .select('id, idx, render_route, duration_s, duration_source, description, character_slugs, realistic')
@@ -349,8 +358,8 @@ export async function enqueueGeneration(db: Db, episodeId: string, deps: { usdIn
     const billed = billedSeconds(recipe.driver, recipe.model, duration, Number(recipe.params.max_duration_s) || undefined);
     const params: Record<string, unknown> = {
       ...recipe.params,
-      prompt: `${fillTemplate(recipe.template, { description: s.description, intent: b.premise, duration })}. ${BIBLE.world.style_rules[0]}`,
-      negative_prompt: BIBLE.world.negative_prompt,
+      prompt: `${fillTemplate(recipe.template, { description: s.description, intent: b.premise, duration })}. ${cb.bible.world.style_rules[0]}`,
+      negative_prompt: cb.bible.world.negative_prompt,
       duration_s: billed,
       aspect_ratio: '9:16',
       // Stored as the bible wrote it (`storage:<key>` or https); the dispatcher resolves it to
@@ -428,7 +437,7 @@ export function toSrt(cues: CaptionCue[]): string {
 
 export async function assembleEpisode(db: Db, episodeId: string, deps: AssembleDeps): Promise<{ ok: true; compositeRenderId: string; masterRenderId: string; captionRenderId: string; frames: number } | { ok: false; code: string; detail: string }> {
   const log = deps.log ?? quiet;
-  const { e, b } = await loadEpisode(db, episodeId);
+  const { e, b, cb } = await loadEpisode(db, episodeId);
   await setStatus(db, episodeId, 'assembling');
   const { data: shots } = await db.from('shots').select('id, idx, render_route, duration_s, duration_source, overlay_spec').eq('script_id', e.script_id!).order('idx');
   if (!shots?.length) return { ok: false, code: 'no_shots', detail: 'nothing to assemble' };
@@ -458,7 +467,7 @@ export async function assembleEpisode(db: Db, episodeId: string, deps: AssembleD
       // A generated shot that never produced a clip is drawn as its overlay rather than holding
       // the episode; the swap is recorded and shown on the Cuts page.
       log.error('generated shot has no clip; drawing an overlay in its place', { idx: s.idx });
-      const lead = characterBySlug(b.lead_character)!;
+      const lead = leadOf(cb, b.lead_character);
       bureauShots.push({ type: 'overlay', overlay: normaliseOverlay({}, lead.accent_hex, i + 1), frames: frames[i] });
       continue;
     }
@@ -523,7 +532,7 @@ export async function assembleEpisode(db: Db, episodeId: string, deps: AssembleD
 // ═════════════════════════════════════════════════════════════════════════════
 
 export async function bundleEpisode(db: Db, episodeId: string): Promise<{ publicationId: string; slotTime: string | null }> {
-  const { e, b } = await loadEpisode(db, episodeId);
+  const { e, b, cb } = await loadEpisode(db, episodeId);
   if (e.publication_id) return { publicationId: e.publication_id, slotTime: null };
   if (!e.review_id || !e.final_render_id) throw new Error('bundle before the cut was approved');
 
@@ -536,8 +545,12 @@ export async function bundleEpisode(db: Db, episodeId: string): Promise<{ public
   const { data: slot } = e.slot_id ? await db.from('v_slot_status').select('publish_at').eq('id', e.slot_id).maybeSingle() : { data: null };
   const titles = (b.titles as { text: string; hook_archetype: string }[]) ?? [];
   const fact = b.fact as { claim: string; source_url: string; source_title?: string };
-  const series = SERIES[b.series as keyof typeof SERIES];
+  const series = cb.seriesFor(b.series);
   const voice = (e.voice_detail ?? {}) as { srt_key?: string };
+  const { data: ch } = await db.from('channels').select('name').eq('id', e.channel_id).single();
+  const channelName = ch?.name ?? cb.bible.world.name;
+  const publishing = cb.bible.publishing;
+  const hashtags = (publishing?.hashtags ?? []).slice(0, 2).map((h) => `#${h}`).join(' ');
 
   const description = [
     b.premise,
@@ -545,10 +558,10 @@ export async function bundleEpisode(db: Db, episodeId: string): Promise<{ public
     `The real bit: ${fact.claim}`,
     `Source: ${fact.source_url}`,
     '',
-    `${series.name} · Bureau of Reality`,
-    e.kind === 'long_form' ? '#science #animation' : '#Shorts #science #animation',
+    `${series.name} · ${channelName}`,
+    e.kind === 'long_form' ? hashtags : `#Shorts ${hashtags}`.trim(),
   ].join('\n');
-  const tags = [...new Set(['bureau of reality', series.name.toLowerCase(), 'science', 'explained', 'animation', 'office comedy', ...((b.tags as string[]) ?? []).filter((t) => !t.includes(':'))])].slice(0, 15);
+  const tags = [...new Set([channelName.toLowerCase(), series.name.toLowerCase(), ...(publishing?.tags ?? []), ...((b.tags as string[]) ?? []).filter((t) => !t.includes(':'))])].slice(0, 15);
 
   const bundle = {
     video_key: asset!.storage_key,
@@ -560,7 +573,7 @@ export async function bundleEpisode(db: Db, episodeId: string): Promise<{ public
     made_for_kids: false,
     contains_synthetic_media: realistic,
     pinned_comment: b.pinned_comment,
-    category: 'Comedy',
+    category: publishing?.category ?? 'Entertainment',
     slot_id: e.slot_id,
     slot_time: slot?.publish_at ?? null,
     note: 'Upload API unaudited: schedule in YouTube Studio, then call mark_scheduled with the time.',
@@ -597,9 +610,9 @@ export async function bundleEpisode(db: Db, episodeId: string): Promise<{ public
 export async function voiceStep(
   db: Db,
   episodeId: string,
-  deps: Omit<import('./voice').VoiceDeps, 'db'>,
+  deps: Omit<import('./voice').VoiceDeps, 'db' | 'bible' | 'overrides'>,
 ): Promise<import('./voice').VoiceOutcome> {
-  const { e } = await loadEpisode(db, episodeId);
+  const { e, cb } = await loadEpisode(db, episodeId);
   const existing = e.voice_detail as { vo_asset_id?: string; total_s?: number; lines?: number; chars?: number; cost_inr?: number; unaligned?: number } | null;
   if (existing?.vo_asset_id) {
     // Replayed: the stage already ran and paid. Its own figures, not zeros.
@@ -607,7 +620,7 @@ export async function voiceStep(
   }
   await setStatus(db, episodeId, 'voicing');
   const { runEpisodeVoice } = await import('./voice');
-  const r = await runEpisodeVoice(e.script_id!, { db, ...deps });
+  const r = await runEpisodeVoice(e.script_id!, { db, bible: cb, overrides: await voiceOverrides(db, e.channel_id), ...deps });
   if (r.ok) {
     await db
       .from('episodes')

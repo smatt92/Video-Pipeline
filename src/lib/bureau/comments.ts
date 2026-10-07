@@ -1,4 +1,4 @@
-import { BIBLE } from './bible';
+import type { Cast } from './script-lines';
 
 /**
  * Comment mining, the deterministic half: which characters a comment names, whether it is
@@ -7,17 +7,25 @@ import { BIBLE } from './bible';
  * them; Routine C picks.
  */
 
-const NAME_PATTERNS: { slug: string; re: RegExp }[] = BIBLE.characters.map((c) => {
+const PATTERNS = new WeakMap<object, { slug: string; re: RegExp }[]>();
+
+function namePatterns(cast: Cast): { slug: string; re: RegExp }[] {
+  const hit = PATTERNS.get(cast.bible);
+  if (hit) return hit;
+  const built = cast.bible.characters.map((c) => {
   const names = new Set([c.name, c.name.replace(/\./g, ''), c.id.replace(/_/g, ' ')]);
   const last = c.name.split(/\s+/).pop();
   // Single-word surnames only when distinctive: "Box" alone is not Complaint Box.
   if (last && last.length > 3 && !['box', 'auditor'].includes(last.toLowerCase())) names.add(last);
   const alt = [...names].map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+')).join('|');
   return { slug: c.id, re: new RegExp(`(^|[^\\p{L}])(${alt})(?=$|[^\\p{L}])`, 'iu') };
-});
+  });
+  PATTERNS.set(cast.bible, built);
+  return built;
+}
 
-export function characterMentions(body: string): string[] {
-  return NAME_PATTERNS.filter((p) => p.re.test(body)).map((p) => p.slug);
+export function characterMentions(body: string, cast: Cast): string[] {
+  return namePatterns(cast).filter((p) => p.re.test(body)).map((p) => p.slug);
 }
 
 export function isQuestion(body: string): boolean {

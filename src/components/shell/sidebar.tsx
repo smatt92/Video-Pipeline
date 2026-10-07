@@ -66,7 +66,7 @@ function Item({ item, active }: { item: NavItem; active: boolean }) {
   );
 }
 
-export function Sidebar({ checklist }: { checklist?: React.ReactNode }) {
+export function Sidebar({ checklist, channelSwitcher }: { checklist?: React.ReactNode; channelSwitcher?: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
@@ -85,6 +85,8 @@ export function Sidebar({ checklist }: { checklist?: React.ReactNode }) {
           phase 1
         </span>
       </div>
+
+      {channelSwitcher}
 
       <div className="flex-1 overflow-y-auto px-2 pb-4">
         {NAV.map((group) => (

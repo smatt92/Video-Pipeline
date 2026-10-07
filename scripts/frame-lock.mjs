@@ -24,7 +24,7 @@ const B = new URL('../.verify-build/src/lib', import.meta.url).pathname;
 const { frameKey, frameRef } = require(`${B}/bureau/frames.js`);
 const { createSupabaseStorageDriver } = require(`${B}/storage/supabase.js`);
 
-const pos = process.argv.slice(2).filter((a) => !a.startsWith('--'));
+const pos = process.argv.slice(2).filter((a, i, all) => !a.startsWith('--') && all[i - 1] !== '--channel');
 const append = process.argv.includes('--append');
 const [character, file] = pos;
 if (!character || !file) {
@@ -42,7 +42,9 @@ if (bytes.length > 5 * 1024 * 1024) {
   process.exit(2);
 }
 
-const path = new URL('../channels/bureau-of-reality/characters.json', import.meta.url).pathname;
+// --channel <slug>; the Bureau when omitted.
+const CHANNEL_SLUG = process.argv.includes('--channel') ? process.argv[process.argv.indexOf('--channel') + 1] : 'bureau-of-reality';
+const path = new URL(`../channels/${CHANNEL_SLUG}/characters.json`, import.meta.url).pathname;
 const text = readFileSync(path, 'utf8');
 const data = JSON.parse(text);
 const c = data.characters.find((x) => x.id === character);
@@ -102,4 +104,4 @@ if (replaced === block) {
 }
 writeFileSync(path, text.slice(0, start) + replaced + text.slice(end));
 JSON.parse(readFileSync(path, 'utf8'));
-console.log(`Locked ${c.name} → ${ref}\nCommit channels/bureau-of-reality/characters.json to make it live (syncCast copies it on the next episode run).`);
+console.log(`Locked ${c.name} → ${ref}\nCommit channels/${CHANNEL_SLUG}/characters.json to make it live (syncCast copies it on the next episode run).`);

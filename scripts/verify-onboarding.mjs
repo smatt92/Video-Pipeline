@@ -30,7 +30,7 @@ if (!dbUrl) {
 
 const BUILD = new URL('../.verify-build/src/lib', import.meta.url).pathname;
 const { completeChannelStep, activeChannel } = require(`${BUILD}/onboarding/channel-step.js`);
-const { BUREAU_CHANNEL_ID } = require(`${BUILD}/bureau/bible.js`);
+const { BUREAU_CHANNEL_ID } = require(`${BUILD}/fixtures/seed-channel.js`);
 const { supabaseShim } = await import('./lib/supabase-shim.mjs');
 const { scratchDatabase } = await import('./lib/scratch.mjs');
 

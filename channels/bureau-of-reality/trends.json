@@ -1,0 +1,20 @@
+{
+  "subreddits": [
+    "askscience",
+    "space",
+    "explainlikeimfive",
+    "todayilearned",
+    "Physics"
+  ],
+  "youtube": {
+    "region_code": "IN",
+    "category_ids": [
+      "28",
+      "27"
+    ],
+    "queries": [
+      "how does it work science",
+      "physics explained"
+    ]
+  }
+}

@@ -47,7 +47,7 @@ const { integrationState, hasVerified } = require(`${B}/integrations/state.js`);
 const { usability, verifiedCredentials, verifyIntegration } = require(`${B}/integrations/verify.js`);
 const { dispatchProvider } = require(`${B}/bureau/dispatch.js`);
 const { ledgeredEmbedder } = require(`${B}/bureau/embed.js`);
-const { BUREAU_CHANNEL_ID } = require(`${B}/bureau/bible.js`);
+const { BUREAU_CHANNEL_ID } = require(`${B}/fixtures/seed-channel.js`);
 const { supabaseShim } = await import('./lib/supabase-shim.mjs');
 const { scratchDatabase } = await import('./lib/scratch.mjs');
 

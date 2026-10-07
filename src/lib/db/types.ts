@@ -535,6 +535,79 @@ export type Database = {
           },
         ]
       }
+      channel_publish_targets: {
+        Row: {
+          channel_id: string
+          created_at: string
+          enabled: boolean
+          external_id: string | null
+          handle: string | null
+          platform: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          enabled?: boolean
+          external_id?: string | null
+          handle?: string | null
+          platform: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          enabled?: boolean
+          external_id?: string | null
+          handle?: string | null
+          platform?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_publish_targets_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_voice_overrides: {
+        Row: {
+          channel_id: string
+          character_slug: string
+          note: string | null
+          set_at: string
+          set_by: string | null
+          voice_id: string
+          voice_provider: string
+        }
+        Insert: {
+          channel_id: string
+          character_slug: string
+          note?: string | null
+          set_at?: string
+          set_by?: string | null
+          voice_id: string
+          voice_provider: string
+        }
+        Update: {
+          channel_id?: string
+          character_slug?: string
+          note?: string | null
+          set_at?: string
+          set_by?: string | null
+          voice_id?: string
+          voice_provider?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_voice_overrides_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channels: {
         Row: {
           created_at: string
@@ -2480,6 +2553,70 @@ export type Database = {
           },
         ]
       }
+      music_bed_defaults: {
+        Row: {
+          bed_id: string
+          channel_id: string
+          series: string
+          set_at: string
+        }
+        Insert: {
+          bed_id: string
+          channel_id: string
+          series: string
+          set_at?: string
+        }
+        Update: {
+          bed_id?: string
+          channel_id?: string
+          series?: string
+          set_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "music_bed_defaults_channel_id_bed_id_fkey"
+            columns: ["channel_id", "bed_id"]
+            isOneToOne: false
+            referencedRelation: "music_beds"
+            referencedColumns: ["channel_id", "bed_id"]
+          },
+        ]
+      }
+      music_beds: {
+        Row: {
+          bed_id: string
+          bytes: number | null
+          channel_id: string
+          content_type: string
+          storage_key: string
+          uploaded_at: string
+        }
+        Insert: {
+          bed_id: string
+          bytes?: number | null
+          channel_id: string
+          content_type: string
+          storage_key: string
+          uploaded_at?: string
+        }
+        Update: {
+          bed_id?: string
+          bytes?: number | null
+          channel_id?: string
+          content_type?: string
+          storage_key?: string
+          uploaded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "music_beds_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           channel_id: string | null
@@ -3902,6 +4039,7 @@ export type Database = {
       trend_signals: {
         Row: {
           captured_at: string
+          channel_id: string | null
           id: string
           raw: Json
           region: string | null
@@ -3912,6 +4050,7 @@ export type Database = {
         }
         Insert: {
           captured_at?: string
+          channel_id?: string | null
           id?: string
           raw?: Json
           region?: string | null
@@ -3922,6 +4061,7 @@ export type Database = {
         }
         Update: {
           captured_at?: string
+          channel_id?: string | null
           id?: string
           raw?: Json
           region?: string | null
@@ -3930,7 +4070,15 @@ export type Database = {
           velocity?: number | null
           volume?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "trend_signals_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vo_takes: {
         Row: {

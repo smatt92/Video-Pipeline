@@ -2,7 +2,6 @@ import { writeFile } from 'node:fs/promises';
 
 import { logger, schedules } from '@trigger.dev/sdk';
 
-import { BUREAU_CHANNEL_ID } from '@/lib/bureau/bible';
 import { runDubJob, translateLines } from '@/lib/bureau/dubs';
 import { renderBureau } from '@/lib/bureau/layer-render';
 import { requireUsdInrRate } from '@/lib/cost/fx';
@@ -25,10 +24,20 @@ export const dubsTask = schedules.task({
 
   run: async () => {
     const db = serverClient();
-    const { data: queued } = await db.from('dub_jobs').select('id').eq('status', 'queued').order('created_at').limit(2);
-    if (!queued?.length) return { ran: 0 };
-    const { data: pol } = await db.from('channel_policy').select('kill_switch').eq('channel_id', BUREAU_CHANNEL_ID).single();
-    if (pol?.kill_switch) return { ran: 0, skipped: 'kill_switch' };
+    const { data: queuedAll } = await db.from('dub_jobs').select('id, episode_id').eq('status', 'queued').order('created_at').limit(10);
+    if (!queuedAll?.length) return { ran: 0 };
+    // Each job's own channel (through its episode): a kill switch on one channel stops that
+    // channel's dubs only.
+    const channelOf = new Map<string, string>();
+    const { data: eps } = await db.from('episodes').select('id, channel_id').in('id', [...new Set(queuedAll.map((j) => j.episode_id))]);
+    for (const e of eps ?? []) channelOf.set(e.id, e.channel_id);
+    const killed = new Set<string>();
+    for (const ch of new Set(channelOf.values())) {
+      const { data: pol } = await db.from('channel_policy').select('kill_switch').eq('channel_id', ch).maybeSingle();
+      if (pol?.kill_switch) killed.add(ch);
+    }
+    const queued = queuedAll.filter((j) => !killed.has(channelOf.get(j.episode_id) ?? '')).slice(0, 2);
+    if (!queued.length) return { ran: 0, skipped: 'kill_switch' };
 
     const anthropic = await requireCredential(db, 'anthropic', 'ANTHROPIC_API_KEY').catch(() => null);
     const usdInrRate = await requireUsdInrRate(db, 'writing dub cost rows');
@@ -50,7 +59,7 @@ export const dubsTask = schedules.task({
         apiKey: () => verifiedCredential(db, DUB_CREDENTIAL.integration, DUB_CREDENTIAL.field),
         submit: (i) => submitDubbing(i),
         wait: (taskId, apiKey) => waitForVoiceTask({ apiKey, taskId, maxWaitMs: 20 * 60_000 }),
-        translate: anthropic ? (lines, language) => translateLines(lines, language, { db, apiKey: anthropic, usdInrRate, channelId: BUREAU_CHANNEL_ID }) : undefined,
+        translate: anthropic ? (lines, language) => translateLines(lines, language, { db, apiKey: anthropic, usdInrRate, channelId: channelOf.get(j.episode_id)! }) : undefined,
         renderCaptions: async (props, durationInFrames, outputPath) => {
           const r = await renderBureau({ props, width: 1080, height: 1920, fps: 30, durationInFrames, outputPath, browserExecutable: process.env.REMOTION_BROWSER_EXECUTABLE });
           return r.ok ? { ok: true } : { ok: false, detail: r.detail };

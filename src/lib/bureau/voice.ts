@@ -9,11 +9,11 @@ import { promisify } from 'node:util';
 import { currentRate } from '../cost/rate-card';
 import type { Db } from '../db/server';
 import type { Json } from '../db/types';
-import { TTS_RATE_KEY, voiceKey, voiceRouteFor, type VoiceProvider, type VoiceRoute } from '../drivers/voice-route';
+import { TTS_RATE_KEY, voiceKey, voiceRouteFor, type VoiceOverride, type VoiceProvider, type VoiceRoute } from '../drivers/voice-route';
 import type { LineAudio } from '../drivers/voice-synth';
 import type { AlignResult } from '../voice/align';
 import { shiftBy, type WordTiming } from '../voice/timings';
-import { characterBySlug } from './bible';
+import type { ChannelBible } from './bible';
 import type { ScriptLine } from './script-lines';
 import type { CredentialRefusal } from '../integrations/verify';
 
@@ -43,6 +43,10 @@ const run = promisify(execFile);
 
 export interface VoiceDeps {
   db: Db;
+  /** The episode's channel's cast — which speakers exist and their bible voices. */
+  bible: Pick<ChannelBible, 'characterBySlug'>;
+  /** Voices set on the Voices screen for that channel; each wins over the bible's. */
+  overrides?: ReadonlyMap<string, VoiceOverride>;
   usdInrRate: number;
   /** The provider's key if its integration has verified, else the refusal by name.
    *  Production: `verifiedCredential` (integrations/verify.ts). */
@@ -79,12 +83,12 @@ export async function runEpisodeVoice(scriptId: string, deps: VoiceDeps): Promis
   const routes = new Map<string, Extract<VoiceRoute, { ok: true }>>();
   const refusals: string[] = [];
   for (const slug of new Set(lines.map((l) => l.speaker))) {
-    const c = characterBySlug(slug);
+    const c = deps.bible.characterBySlug(slug);
     if (!c) {
       refusals.push(`${slug}: not in the cast`);
       continue;
     }
-    const r = deps.routeFor ? deps.routeFor(slug) : voiceRouteFor(c);
+    const r = deps.routeFor ? deps.routeFor(slug) : voiceRouteFor(c, deps.overrides?.get(slug));
     if (r.ok) routes.set(slug, r);
     else refusals.push(r.detail);
   }

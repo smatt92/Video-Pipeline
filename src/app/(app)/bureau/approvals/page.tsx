@@ -1,6 +1,6 @@
 import { ApprovalCard, type ApprovalBrief } from '@/components/bureau/approval-card';
 import { BureauNav } from '@/components/bureau/bureau-nav';
-import { BUREAU_CHANNEL_ID, characterBySlug } from '@/lib/bureau/bible';
+import { bibleOrNull, requireChannel } from '@/lib/channels/active';
 import { pendingBriefs } from '@/lib/bureau/briefs';
 import { serverClient } from '@/lib/db/server';
 
@@ -13,9 +13,11 @@ export const dynamic = 'force-dynamic';
  * Approving here and approving in Claude chat call the same function and log the same way.
  */
 export default async function ApprovalsPage() {
-  const briefs = await pendingBriefs(serverClient(), BUREAU_CHANNEL_ID);
+  const channel = await requireChannel();
+  const cb = bibleOrNull(channel);
+  const briefs = await pendingBriefs(serverClient(), channel.id);
   const cards: ApprovalBrief[] = briefs.map((b) => {
-    const lead = characterBySlug(b.lead_character);
+    const lead = cb?.characterBySlug(b.lead_character);
     return {
       id: b.id,
       n: b.n,

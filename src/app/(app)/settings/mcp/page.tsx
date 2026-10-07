@@ -2,6 +2,7 @@ import { Panel, SectionHeader } from '@/components/settings/parts';
 import { RevokeButton, TokenMint } from '@/components/bureau/token-mint';
 import { env } from '@/lib/env';
 import { serverClient } from '@/lib/db/server';
+import { listChannels } from '@/lib/channels/list';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +20,8 @@ export default async function McpTokensPage() {
     // `*` so the list still renders on a database without 0045's `kind` column.
     .select('*')
     .order('created_at', { ascending: false });
+  const channels = await listChannels(serverClient());
+  const channelName = (id: string) => channels.find((c) => c.id === id)?.name ?? id.slice(0, 8);
   const url = `${env.APP_URL.replace(/\/$/, '')}/api/mcp`;
 
   return (
@@ -47,6 +50,7 @@ export default async function McpTokensPage() {
               <th className="py-1">Name</th>
               <th>Scope</th>
               <th>Kind</th>
+              <th>Channel</th>
               <th>Prefix</th>
               <th>Last used</th>
               <th />
@@ -58,6 +62,7 @@ export default async function McpTokensPage() {
                 <td className="py-1">{t.name}</td>
                 <td>{t.scope}</td>
                 <td>{t.kind === 'oauth' ? 'OAuth connection' : 'static'}</td>
+                <td>{channelName(t.channel_id)}</td>
                 <td className="font-mono">{t.token_prefix}…</td>
                 <td>{t.last_used_at ? new Date(t.last_used_at).toLocaleString('en-IN') : '—'}</td>
                 <td>{t.revoked_at ? 'revoked' : <RevokeButton id={t.id} />}</td>
@@ -65,7 +70,7 @@ export default async function McpTokensPage() {
             ))}
             {(tokens ?? []).length === 0 && (
               <tr>
-                <td colSpan={6} className="py-2 text-text-muted">
+                <td colSpan={7} className="py-2 text-text-muted">
                   No tokens yet.
                 </td>
               </tr>

@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "channel": "_template",
+  "world": {
+    "name": "REPLACE: world name",
+    "premise": "REPLACE: one sentence on what every video is.",
+    "palette": {
+      "paper": "#0B1F3A",
+      "grid": "#1C3A63",
+      "chalk": "#F4F1E8"
+    },
+    "style_rules": [
+      "REPLACE: the visual style in one sentence.",
+      "No resemblance to any existing franchise, mascot or real person."
+    ],
+    "negative_prompt": "realistic human, photorealism, 3D plastic, anime, chibi, pastel kids style, nursery colours, text, watermark, logos, existing cartoon characters, extra limbs, inconsistent accessories"
+  },
+  "publishing": {
+    "hashtags": [
+      "REPLACE"
+    ],
+    "tags": [
+      "REPLACE"
+    ],
+    "category": "Entertainment"
+  },
+  "characters": [
+    {
+      "id": "host",
+      "name": "Host",
+      "role": "REPLACE: the presenter",
+      "desk": "main",
+      "on_screen": true,
+      "season_introduced": 1,
+      "personality": "REPLACE: two sentences.",
+      "speech_rules": [
+        "REPLACE: how they talk."
+      ],
+      "catchphrase": {
+        "text": "REPLACE: catchphrase",
+        "max_per_week": 1
+      },
+      "accent_hex": "#22D3EE",
+      "visual_lock": {
+        "line": "REPLACE",
+        "props": [],
+        "head_body_ratio": "1:3",
+        "line_weight": "medium",
+        "silhouette": "REPLACE"
+      },
+      "reference_frame_ids": [
+        "PLACEHOLDER_HOST_REF_1"
+      ],
+      "voice": {
+        "provider": "runway",
+        "preset_id": null
+      },
+      "elevenlabs_voice_id": null,
+      "voice_brief": "REPLACE: what the voice should sound like.",
+      "never_do": [
+        "REPLACE: one thing this character never does."
+      ]
+    }
+  ]
+}

@@ -100,6 +100,10 @@
     "src/lib/trigger/vercel-env.ts",
     "src/lib/trigger/vercel-env-check.ts",
     "src/lib/drivers/voice-route.ts",
+    // Multichannel (0046): the channel list, the Add channel flow and the seed fixture.
+    "src/lib/channels/list.ts",
+    "src/lib/channels/add.ts",
+    "src/lib/fixtures/seed-channel.ts",
     "src/lib/drivers/jobs.ts"
   ],
   "exclude": ["node_modules", ".verify-build", "src/lib/bureau/effects.ts"]

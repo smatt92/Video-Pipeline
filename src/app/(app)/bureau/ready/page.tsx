@@ -1,6 +1,6 @@
 import { BureauNav } from '@/components/bureau/bureau-nav';
 import { CopyButton, MarkScheduled, QueueDubs } from '@/components/bureau/ready-controls';
-import { BUREAU_CHANNEL_ID } from '@/lib/bureau/bible';
+import { requireChannel } from '@/lib/channels/active';
 import { readyBundles } from '@/lib/bureau/read';
 import { serverClient } from '@/lib/db/server';
 
@@ -15,7 +15,8 @@ type Bundle = { title?: string; description?: string; tags?: string[]; made_for_
  * by the database when you mark it.
  */
 export default async function ReadyPage() {
-  const bundles = await readyBundles(serverClient(), BUREAU_CHANNEL_ID);
+  const channel = await requireChannel();
+  const bundles = await readyBundles(serverClient(), channel.id);
   return (
     <main className="mx-auto w-full max-w-[960px] px-4 py-6">
       <BureauNav active="ready" />

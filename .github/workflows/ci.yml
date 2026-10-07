@@ -73,6 +73,12 @@ jobs:
       - name: No package script is shadowed by a pnpm builtin
         run: pnpm check:script-names
 
+      # ── Every channel folder is registered, and names itself ─────────────
+      # Channel bibles reach both bundles as static imports generated from channels/; a
+      # folder the generated module does not import exists in git and not in production.
+      - name: Channel bible registry matches channels/
+        run: pnpm check:channels
+
       # ── The worker image would carry ffmpeg ──────────────────────────────
       # Without the build extension the first ingest dies with `spawn ffmpeg ENOENT`, after
       # the generation has been paid for. A build-time error in place of a runtime one.

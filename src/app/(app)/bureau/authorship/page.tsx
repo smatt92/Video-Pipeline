@@ -1,5 +1,5 @@
 import { BureauNav } from '@/components/bureau/bureau-nav';
-import { BUREAU_CHANNEL_ID } from '@/lib/bureau/bible';
+import { requireChannel } from '@/lib/channels/active';
 import { serverClient } from '@/lib/db/server';
 
 export const dynamic = 'force-dynamic';
@@ -9,9 +9,10 @@ export const dynamic = 'force-dynamic';
  * The channel's evidence of human authorship in an appeal.
  */
 export default async function AuthorshipPage() {
+  const channel = await requireChannel();
   const db = serverClient();
   const [{ data: rows }, { data: tokens }] = await Promise.all([
-    db.from('authorship_log').select('id, occurred_at, actor_scope, token_id, action, subject_type, subject_id, exact_text').eq('channel_id', BUREAU_CHANNEL_ID).order('occurred_at', { ascending: false }).limit(200),
+    db.from('authorship_log').select('id, occurred_at, actor_scope, token_id, action, subject_type, subject_id, exact_text').eq('channel_id', channel.id).order('occurred_at', { ascending: false }).limit(200),
     db.from('mcp_tokens').select('id, name'),
   ]);
   const name = new Map((tokens ?? []).map((t) => [t.id, t.name]));

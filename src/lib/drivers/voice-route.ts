@@ -51,11 +51,39 @@ export type VoiceRoute =
 /** The default TTS model. eleven_v3 is expressive and carries audio tags (Prompt H). */
 export const DEFAULT_TTS_MODEL = 'eleven_v3';
 
-export function voiceRouteFor(c: {
-  name: string;
-  voice: CharacterVoice;
-  elevenlabs_voice_id?: string | null;
-}): VoiceRoute {
+/**
+ * A voice chosen on the Voices screen (`channel_voice_overrides`), which wins over the bible.
+ * `provider` is a string from the database, so it is checked here, where the vendor names live.
+ */
+export interface VoiceOverride {
+  readonly provider: string;
+  readonly voiceId: string;
+}
+
+/** Why an override cannot be used, or null when it can. Shared by the screen and the router. */
+export function overrideProblem(o: VoiceOverride): string | null {
+  if (!(VOICE_PROVIDERS as readonly string[]).includes(o.provider)) return `unknown voice provider "${o.provider}"`;
+  if (o.provider === 'runway' && !(TTS_PRESET_IDS as readonly string[]).includes(o.voiceId)) return `"${o.voiceId}" is not a preset the voice vendor offers`;
+  if (!o.voiceId.trim()) return 'empty voice id';
+  return null;
+}
+
+export function voiceRouteFor(
+  c: {
+    name: string;
+    voice: CharacterVoice;
+    elevenlabs_voice_id?: string | null;
+  },
+  override?: VoiceOverride | null,
+): VoiceRoute {
+  // The override path: a row on the Voices screen. A malformed row is a refusal, never a
+  // silent fall back to the bible — the person who set it believes it is in effect.
+  if (override) {
+    const problem = overrideProblem(override);
+    if (problem) return { ok: false, code: 'voice_not_locked', detail: `${c.name}: the voice override is unusable — ${problem}. Change or clear it on the Voices screen.` };
+    const provider = override.provider as VoiceProvider;
+    return { ok: true, provider, voiceId: override.voiceId, integration: provider, model: DEFAULT_TTS_MODEL };
+  }
   if (c.voice.provider === 'runway') {
     if (!c.voice.preset_id) {
       return {

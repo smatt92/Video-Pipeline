@@ -4,8 +4,8 @@ import type { Db } from '../db/server';
 import { hookPattern } from '../db/enums';
 import { routed, type RouterDeps } from '../llm/router';
 import { BRIEF_SYSTEM, briefUserMessage, JUDGE_SYSTEM } from '../prompts/20-bureau.v1';
-import { BIBLE, characterBySlug, leadsFromCalendar, SERIES } from './bible';
-import { BriefInputSchema, type BriefInput } from './briefs';
+import { bibleForChannel } from './bible';
+import { briefInputSchema, type BriefInput } from './briefs';
 import { SHOT_ROUTES } from './estimate';
 import type { LintResult } from './policy-lint';
 import { topPerformers } from './read';
@@ -57,14 +57,18 @@ export async function draftBriefForSlot(db: Db, slotId: string, deps: Omit<Route
     .from('slots')
     .select('id, slot_date, series, topic, hook, lead, seasonal_tag, episode, kind')
     .eq('id', slotId)
+    .eq('channel_id', deps.channelId)
     .maybeSingle();
-  if (!slot) return { ok: false, error: `No slot ${slotId}.` };
+  if (!slot) return { ok: false, error: `No slot ${slotId} on this channel.` };
   if (slot.series === 'sequel') return { ok: false, error: 'Sequel slots are drafted by the weekly review, not here.' };
-  const series = SERIES[slot.series as keyof typeof SERIES];
+  const cb = await bibleForChannel(db, deps.channelId);
+  const series = cb.seriesFor(slot.series);
 
-  const leads = leadsFromCalendar(slot.lead);
+  const leads = cb.leadsFromCalendar(slot.lead);
+  // 'ohm' and 'complaint_box' are the Bureau's standing cast; on another channel they are
+  // simply not in the bible and match nothing.
   const castSlugs = new Set([...series.lead, ...leads, 'ohm', 'complaint_box']);
-  const cast = BIBLE.characters.filter((c) => castSlugs.has(c.id) && (c.season_introduced === 1 || c.id !== 'auditor'));
+  const cast = cb.bible.characters.filter((c) => castSlugs.has(c.id) && (c.season_introduced === 1 || c.id !== 'auditor'));
 
   const { data: recent } = await db
     .from('briefs')
@@ -98,12 +102,12 @@ export async function draftBriefForSlot(db: Db, slotId: string, deps: Omit<Route
     series: slot.series,
     season: ep ? Number(ep[1]) : null,
     episode: ep ? Number(ep[2]) : null,
-    lead_character: characterBySlug(result.data.lead_character) ? result.data.lead_character : series.lead[0],
+    lead_character: cb.characterBySlug(result.data.lead_character) ? result.data.lead_character : series.lead[0],
     tags: ['drafted:server'],
     flag: false,
     flag_reasons: [],
   };
-  const parsed = BriefInputSchema.safeParse(candidate);
+  const parsed = briefInputSchema(cb).safeParse(candidate);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ') };
   }

@@ -13,10 +13,10 @@ import { captionCues } from '../review/timeline';
 import { shiftBy, type WordTiming } from '../voice/timings';
 import { normaliseOverlay, type OverlaySpec } from '../../remotion/bureau/overlay-scene';
 import type { BureauShot, BureauVideoProps } from '../../remotion/bureau/bureau-video';
-import { characterBySlug } from './bible';
+import { bibleForChannel } from './bible';
 import { estimateEpisode, fitToCap, PlannedShotSchema } from './estimate';
 import { bindShotsToLines, setStatus, shotFrames, toSrt, type AssembleDeps } from './episode-steps';
-import { parseScript, type ScriptLine } from './script-lines';
+import { parseScript, type Cast, type ScriptLine } from './script-lines';
 import { takeWords } from './take-words';
 
 const run = promisify(execFile);
@@ -48,7 +48,7 @@ export const SegmentSchema = z.discriminatedUnion('type', [
 export type Segment = z.infer<typeof SegmentSchema>;
 
 /** Pure. Every rule that makes a long-form a new episode rather than a compilation. */
-export function validateSegments(segments: Segment[], airedShortS: Record<string, number | null>): string[] {
+export function validateSegments(segments: Segment[], airedShortS: Record<string, number | null>, cast: Cast): string[] {
   const problems: string[] = [];
   if (!segments.length) return ['no segments'];
   if (segments[0].type !== 'scene') problems.push('it must open on a new scene (the cold open), not an aired Short');
@@ -69,7 +69,7 @@ export function validateSegments(segments: Segment[], airedShortS: Record<string
   const beats = scenes.flatMap((s) => s.shots).filter((x) => x.route === 'character_beat').reduce((n, x) => n + x.duration_s, 0);
   if (beats > 90) problems.push(`${beats} s of generated character beats; the long-form limit is 90 s`);
   for (const [i, s] of scenes.entries()) {
-    const p = parseScript(s.lines);
+    const p = parseScript(s.lines, cast);
     if (!p.ok) problems.push(`scene ${i}: ${p.problems.join('; ')}`);
   }
   return problems;
@@ -107,7 +107,9 @@ export async function planLongForm(db: Db, episodeId: string, deps: { usdInrRate
   const masters = await airedMasters(db, e!.channel_id);
   const { data: script } = await db.from('scripts').select('beats').eq('id', e!.script_id!).single();
   const lines = (script!.beats as unknown as { lines: ScriptLine[] }).lines;
-  const lead = characterBySlug(b!.lead_character)!;
+  const cb = await bibleForChannel(db, e!.channel_id);
+  const lead = cb.characterBySlug(b!.lead_character);
+  if (!lead) throw new Error(`Lead "${b!.lead_character}" is not in the ${cb.slug} cast.`);
 
   // Cost: every scene shot priced and fitted against the long-form cap at once, exactly as a
   // Short is fitted against its per-Short cap (unpriced → overlay, beats ≤ 90 s, ≥ 50% overlay).
@@ -133,7 +135,7 @@ export async function planLongForm(db: Db, episodeId: string, deps: { usdInrRate
       rows.push({ script_id: e!.script_id!, idx: rows.length, duration_s: m.durationS!, description: `Replay ${seg.slot_id}`, render_route: 'overlay', character_slugs: [], realistic: false, source_render_id: m.renderId, beat_id: `seg:${i}`, status: 'ready' });
       continue;
     }
-    const sceneLines = parseScript(seg.lines);
+    const sceneLines = parseScript(seg.lines, cb);
     const n = sceneLines.ok ? sceneLines.lines.length : 0;
     const mine = lines.slice(lineCursor, lineCursor + n);
     lineCursor += n;

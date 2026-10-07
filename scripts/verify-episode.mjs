@@ -49,9 +49,10 @@ if (!dbUrl) {
 const B = new URL('../.verify-build/src/lib', import.meta.url).pathname;
 const { serveMcp } = require(`${B}/studio/serve.js`);
 const { mintBureauToken } = require(`${B}/bureau/tokens.js`);
-const { BUREAU_CHANNEL_ID } = require(`${B}/bureau/bible.js`);
+const { BUREAU_CHANNEL_ID } = require(`${B}/fixtures/seed-channel.js`);
 const P = require(`${B}/bureau/episode-steps.js`);
 const LF = require(`${B}/bureau/longform.js`);
+const LF_CB = require(`${B}/bureau/bible.js`).bibleForSlug('bureau-of-reality');
 const { restartHaltedEpisode } = require(`${B}/bureau/control.js`);
 const { runDubJob } = require(`${B}/bureau/dubs.js`);
 const { verifiedCredential } = require(`${B}/integrations/verify.js`);
@@ -391,7 +392,7 @@ try {
   ];
   const masters = await LF.airedMasters(db, BUREAU_CHANNEL_ID);
   check(masters.S001?.durationS > 10, 'the aired Short’s clean master is found with a measured duration', String(masters.S001?.durationS));
-  const lfProblems = LF.validateSegments(segments, { S001: masters.S001.durationS });
+  const lfProblems = LF.validateSegments(segments, { S001: masters.S001.durationS }, LF_CB);
   check(lfProblems.length === 1 && /8–12 minutes/.test(lfProblems[0]), 'the real validator only objects to the length of this short test fixture', lfProblems.join(' | '));
   const built = LF.longFormScript(segments);
   const [lfBrief] = (await client.query(`insert into briefs (channel_id, series, lead_character, desk, premise, premise_type, structure_variant, ending_type, music_bed, hook_archetype, punchlines, beat_sheet, script_text, shot_list, fact, titles, pinned_comment, status, chosen_punchline, approved_at, created_by, segments)

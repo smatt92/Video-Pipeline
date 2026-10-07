@@ -1,11 +1,11 @@
 import { z } from 'zod';
 
-import { BIBLE, POLICY, type Policy } from './bible';
+import type { ChannelBible } from './bible';
 
 /**
  * policy_lint — the deterministic half of the channel's content policy.
  *
- * Rules come from `channels/bureau-of-reality/policy.json`; this file only applies them.
+ * Rules come from the channel's `channels/<slug>/policy.json`; this file only applies them.
  * Three outcomes, and they are not two:
  *
  *   pass         every deterministic rule held and nothing needed judgement
@@ -94,9 +94,10 @@ export function wordCount(text: string): number {
   return t ? t.split(/\s+/).length : 0;
 }
 
-const CAST_NAMES = new Set(
-  BIBLE.characters.flatMap((c) => [c.name, ...c.name.split(/\s+/)]).map((n) => n.replace(/\.$/, '').toLowerCase()),
-);
+/** The cast's names, lower-cased, as single words and whole — never a judge question. */
+export function castNames(cb: Pick<ChannelBible, 'bible'>): ReadonlySet<string> {
+  return new Set(cb.bible.characters.flatMap((c) => [c.name, ...c.name.split(/\s+/)]).map((n) => n.replace(/\.$/, '').toLowerCase()));
+}
 
 /**
  * Candidate proper names a pattern cannot rule on: two or more capitalised words in a row
@@ -115,7 +116,7 @@ const NOT_NAMES = new Set(
 );
 const looksLikeLabel = (w: string) => /(ly|able|ible|ment|ness|tion|ity)$/i.test(w);
 
-export function properNameCandidates(text: string): string[] {
+export function properNameCandidates(text: string, cast: ReadonlySet<string>): string[] {
   const found = new Set<string>();
   // Quoted text is a label, a stamp or a form title in this show — never a person.
   const unquoted = text.replace(/["“][^"”]*["”]/g, ' ');
@@ -124,7 +125,7 @@ export function properNameCandidates(text: string): string[] {
     const words = m[1].split(/\s+/);
     const unknown = words.filter((w) => {
       const k = w.toLowerCase().replace(/[.'’]s?$/, '');
-      return !CAST_NAMES.has(k) && !NOT_NAMES.has(k) && !looksLikeLabel(w);
+      return !cast.has(k) && !NOT_NAMES.has(k) && !looksLikeLabel(w);
     });
     // A sentence-initial capital plus one cast name is not a name ("Today Marlo …").
     if (unknown.length >= 2) found.add(m[1]);
@@ -139,7 +140,8 @@ function textOf(input: LintInput): string {
     .join('\n');
 }
 
-export function policyLint(raw: unknown, policy: Policy = POLICY): LintResult {
+export function policyLint(raw: unknown, cb: Pick<ChannelBible, 'bible' | 'policy'>): LintResult {
+  const policy = cb.policy;
   const input = LintInputSchema.parse(raw);
   const violations: Violation[] = [];
   const judge: string[] = [];
@@ -240,7 +242,7 @@ export function policyLint(raw: unknown, policy: Policy = POLICY): LintResult {
   }
 
   // ── What a pattern cannot decide ─────────────────────────────────────────
-  for (const name of properNameCandidates(text)) {
+  for (const name of properNameCandidates(text, castNames(cb))) {
     judge.push(`Is "${name}" a real living person? (Historical figures are allowed only as part of the sourced fact.)`);
   }
   if (/\b(god|goddess|deity|divine|sacred|holy)\b/i.test(text)) {

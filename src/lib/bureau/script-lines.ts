@@ -1,4 +1,7 @@
-import { BIBLE } from './bible';
+import type { ChannelBible } from './bible';
+
+/** What the parser needs from a channel's bible: its cast. */
+export type Cast = Pick<ChannelBible, 'bible'>;
 
 /**
  * A Bureau script is dialogue: one line per speaker turn, `Name: words`.
@@ -25,18 +28,26 @@ function norm(s: string): string {
   return s.toLowerCase().replace(/\./g, '').replace(/\s+/g, ' ').trim();
 }
 
-const SPEAKERS = new Map<string, string>();
-for (const c of BIBLE.characters) {
-  SPEAKERS.set(norm(c.id), c.id);
-  SPEAKERS.set(norm(c.id.replace(/_/g, ' ')), c.id);
-  SPEAKERS.set(norm(c.name), c.id);
-  // "Director Ohm" → "Ohm"; "The Auditor" → "Auditor".
-  const last = c.name.split(/\s+/).pop();
-  if (last) SPEAKERS.set(norm(last), c.id);
+const SPEAKERS = new WeakMap<object, Map<string, string>>();
+
+function speakersOf(cast: Cast): Map<string, string> {
+  const hit = SPEAKERS.get(cast.bible);
+  if (hit) return hit;
+  const m = new Map<string, string>();
+  for (const c of cast.bible.characters) {
+    m.set(norm(c.id), c.id);
+    m.set(norm(c.id.replace(/_/g, ' ')), c.id);
+    m.set(norm(c.name), c.id);
+    // "Director Ohm" → "Ohm"; "The Auditor" → "Auditor".
+    const last = c.name.split(/\s+/).pop();
+    if (last) m.set(norm(last), c.id);
+  }
+  SPEAKERS.set(cast.bible, m);
+  return m;
 }
 
-export function speakerSlug(label: string): string | null {
-  return SPEAKERS.get(norm(label)) ?? null;
+export function speakerSlug(label: string, cast: Cast): string | null {
+  return speakersOf(cast).get(norm(label)) ?? null;
 }
 
 /**
@@ -48,11 +59,11 @@ export function speakerSlug(label: string): string | null {
  * followed by a colon inside the text starts a new turn; a label that is not in the cast
  * ("Note:", "Desk Four:") is left as words, because only a known speaker has a voice.
  */
-export function splitTurns(speaker: string, text: string): { speaker: string; text: string }[] {
+export function splitTurns(speaker: string, text: string, cast: Cast): { speaker: string; text: string }[] {
   const re = /(^|\s)([A-Z][\w.]*(?: [A-Z][\w.]*)?):\s+/g;
   const cuts: { at: number; end: number; slug: string }[] = [];
   for (const m of text.matchAll(re)) {
-    const slug = speakerSlug(m[2]);
+    const slug = speakerSlug(m[2], cast);
     if (slug) cuts.push({ at: m.index + m[1].length, end: m.index + m[0].length, slug });
   }
   if (!cuts.length) return [{ speaker, text }];
@@ -82,19 +93,19 @@ export function splitTurns(speaker: string, text: string): { speaker: string; te
  * is a direction and is not spoken, as is any text before the first label. A punchline with no
  * labels at all is one line for `lead`.
  */
-export function punchlineTurns(punchline: string, lead: string): { speaker: string; text: string }[] {
+export function punchlineTurns(punchline: string, lead: string, cast: Cast): { speaker: string; text: string }[] {
   const segs = punchline.split(/\s+\/\s+/).map((x) => x.trim()).filter(Boolean);
   const turns: { speaker: string; text: string }[] = [];
   // Text before the first cast label in a segment ("Pip lets go of the lanyard… Marlo: The mug
   // has seniority.") is direction too: only labelled text is spoken once any label exists.
   const UNSPOKEN = '\u0000direction';
-  for (const seg of segs) turns.push(...splitTurns(UNSPOKEN, seg).filter((t) => t.speaker !== UNSPOKEN));
+  for (const seg of segs) turns.push(...splitTurns(UNSPOKEN, seg, cast).filter((t) => t.speaker !== UNSPOKEN));
   return turns.length ? turns : [{ speaker: lead, text: punchline.trim() }];
 }
 
 export type ParseResult = { ok: true; lines: ScriptLine[]; voText: string } | { ok: false; problems: string[] };
 
-export function parseScript(script: string): ParseResult {
+export function parseScript(script: string, cast: Cast): ParseResult {
   const problems: string[] = [];
   const lines: ScriptLine[] = [];
   let vo = '';
@@ -106,12 +117,12 @@ export function parseScript(script: string): ParseResult {
       problems.push(`line ${n + 1}: no "Speaker:" prefix — "${line.slice(0, 40)}"`);
       continue;
     }
-    const slug = speakerSlug(m[1]);
+    const slug = speakerSlug(m[1], cast);
     if (!slug) {
       problems.push(`line ${n + 1}: "${m[1]}" is not in the cast`);
       continue;
     }
-    for (const turn of splitTurns(slug, m[2].trim())) {
+    for (const turn of splitTurns(slug, m[2].trim(), cast)) {
       if (vo) vo += ' ';
       const start = vo.length;
       vo += turn.text;

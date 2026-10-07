@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 
 import { checkEmail } from '@/lib/auth/allowed';
 import { routeClient } from '@/lib/auth/supabase';
+import { currentChannel } from '@/lib/channels/active';
 import { serverClient } from '@/lib/db/server';
 import { fetchClientDocument } from '@/lib/oauth/clients';
 import { DOORS, originFromHeaders, type McpDoor } from '@/lib/oauth/policy';
@@ -105,6 +106,7 @@ export async function ConsentPage({
   }
 
   const { client, redirectUri, suggestedScope } = check.request;
+  const { active: channel } = await currentChannel();
 
   return (
     <Shell>
@@ -126,6 +128,10 @@ export async function ConsentPage({
         <dd className="break-all font-mono">{redirectUri}</dd>
         <dt style={{ color: 'var(--text-muted)' }}>Signed in as</dt>
         <dd className="break-all">{user.email}</dd>
+        <dt style={{ color: 'var(--text-muted)' }}>Channel</dt>
+        <dd className="break-all">
+          {channel ? `${channel.name}${channel.handle ? ` (${channel.handle})` : ''} — the active channel; switch it in Kiln's sidebar to connect another` : 'none — add a channel in Kiln first'}
+        </dd>
       </dl>
 
       <form action={door === 'agent' ? decideAgentAction : decideOwnerAction} className="flex flex-col gap-4">

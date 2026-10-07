@@ -41,7 +41,7 @@ const BUILD = new URL('../.verify-build/src/lib', import.meta.url).pathname;
 const { serveMcp } = require(`${BUILD}/studio/serve.js`);
 const { mintBureauToken, revokeBureauToken } = require(`${BUILD}/bureau/tokens.js`);
 const { BUREAU_TOOLS } = require(`${BUILD}/bureau/mcp/surface.js`);
-const { BUREAU_CHANNEL_ID } = require(`${BUILD}/bureau/bible.js`);
+const { BUREAU_CHANNEL_ID } = require(`${BUILD}/fixtures/seed-channel.js`);
 
 const { supabaseShim } = await import('./lib/supabase-shim.mjs');
 const { scratchDatabase } = await import('./lib/scratch.mjs');

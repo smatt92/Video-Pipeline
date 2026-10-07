@@ -1,6 +1,6 @@
 import { BureauNav } from '@/components/bureau/bureau-nav';
 import { CutControls, RegenerateButton } from '@/components/bureau/cut-controls';
-import { BUREAU_CHANNEL_ID } from '@/lib/bureau/bible';
+import { requireChannel } from '@/lib/channels/active';
 import { serverClient } from '@/lib/db/server';
 import { storage } from '@/lib/storage';
 
@@ -13,11 +13,12 @@ type Clip = { shot_idx: number; passed: boolean; reasons: string[]; action: stri
  * strip with each shot's route and QC verdict, re-roll per generated shot, approve / reject.
  */
 export default async function CutsPage() {
+  const channel = await requireChannel();
   const db = serverClient();
   const { data: eps } = await db
     .from('episodes')
     .select('id, slot_id, status, status_detail, script_id, final_render_id, qc, estimate_inr, voice_detail')
-    .eq('channel_id', BUREAU_CHANNEL_ID)
+    .eq('channel_id', channel.id)
     .in('status', ['awaiting_cut', 'cut_rejected', 'qc', 'assembling'])
     .order('updated_at', { ascending: false });
   const rows = await Promise.all(
