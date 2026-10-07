@@ -2,43 +2,43 @@
 
 import { useState } from 'react';
 
+import { SceneDefs } from '@/components/ui/episode';
+import type { RailData } from '@/lib/shell/rail';
+
 import { CommandPalette } from './command-palette';
 import { HintProvider } from './hint';
-import { Sidebar } from './sidebar';
+import { Rail } from './rail';
+import { TabBar } from './tab-bar';
 
 /**
- * The shell: a fixed 260px sidebar and a CSS Grid canvas.
+ * The application frame (canvas: Rail + TabBar). Rail on the left from 768px up; the tab bar
+ * and its More sheet below that. Both read the same RailData, built once per request on the
+ * server, so a badge on the rail and on the tab bar can never disagree.
  *
- * Grid rather than flex because the canvas has to hold a card wall, a table and a video
- * player at different times without each of those re-deciding the page layout.
+ * The content column scrolls with the document rather than inside a fixed-height box, so a
+ * phone's browser chrome can collapse and the page never scrolls sideways at 390px.
  */
-export function AppShell({
-  children,
-  checklist,
-  channelSwitcher,
-}: {
-  children: React.ReactNode;
-  /**
-   * Rendered by the server layout and passed through, because this component is a Client
-   * Component and an async Server Component cannot be constructed inside one. Passing it as
-   * a prop is the supported shape and keeps the profile read off the client bundle.
-   */
-  checklist?: React.ReactNode;
-  /** The active-channel switcher, server-rendered for the same reason as `checklist`. */
-  channelSwitcher?: React.ReactNode;
-}) {
+export function AppShell({ children, data }: { children: React.ReactNode; data: RailData }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   return (
     <HintProvider>
-    <div
-      className="grid h-dvh"
-      style={{ gridTemplateColumns: 'var(--sidebar-width) minmax(0, 1fr)' }}
-    >
-      <Sidebar checklist={checklist} channelSwitcher={channelSwitcher} />
-      <main className="overflow-y-auto">{children}</main>
-      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
-    </div>
+      <SceneDefs />
+      <a href="#content" className="sr-only">
+        Skip to content
+      </a>
+      <div className="shell">
+        <div className="shell-rail">
+          <Rail data={data} onOpenPalette={() => setPaletteOpen(true)} />
+        </div>
+        <div className="shell-main" id="content">
+          {children}
+        </div>
+        <div className="shell-tabs">
+          <TabBar data={data} />
+        </div>
+      </div>
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} data={data} />
     </HintProvider>
   );
 }

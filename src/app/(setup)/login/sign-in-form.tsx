@@ -11,19 +11,17 @@ import {
 
 const initial: SignInState = { status: "idle" };
 
+/*
+ * Presentation per the canvas sign-in splash (BrandApplied). The mechanism is unchanged:
+ * Google first, then the emailed link, and either way the allowlist decides. The canvas shows
+ * "Sign in with passkey"; this workspace has no passkey sign-in, so that button is not drawn —
+ * a control for a mechanism that does not exist is a promise the page cannot keep.
+ */
+
 function Submit() {
   const { pending } = useFormStatus();
   return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="rounded-sm px-3 py-[7px] text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
-      style={{
-        background: "var(--accent)",
-        color: "var(--accent-contrast)",
-        transitionDuration: "var(--duration-fast)",
-      }}
-    >
+    <button type="submit" disabled={pending} className="btn lg full">
       {pending ? "Sending…" : "Send sign-in link"}
     </button>
   );
@@ -32,16 +30,7 @@ function Submit() {
 function GoogleButton({ disabled }: { disabled: boolean }) {
   const { pending } = useFormStatus();
   return (
-    <button
-      type="submit"
-      disabled={pending || disabled}
-      className="flex w-full items-center justify-center gap-2 rounded-sm border px-3 py-[8px] text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
-      style={{
-        borderColor: "var(--border-default)",
-        color: "var(--text-primary)",
-        transitionDuration: "var(--duration-fast)",
-      }}
-    >
+    <button type="submit" disabled={pending || disabled} className="btn pri lg full">
       {pending ? "Redirecting…" : "Continue with Google"}
     </button>
   );
@@ -53,7 +42,6 @@ export function SignInForm({
   googleDetail,
 }: {
   next: string;
-  /** enabled | disabled | unknown. Never hidden — see the note on the form below. */
   googleState: "enabled" | "disabled" | "unknown";
   googleDetail: string | null;
 }) {
@@ -62,115 +50,57 @@ export function SignInForm({
 
   if (state.status === "sent") {
     return (
-      <p
-        className="text-sm leading-relaxed"
-        style={{ color: "var(--text-secondary)" }}
-      >
-        Link sent. It signs you in on this device and expires shortly — request
-        another if it lapses.
+      <p className="splash-msg" role="status">
+        Link sent. It signs you in on this device and expires shortly — request another if it lapses.
       </p>
     );
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Google first: it is the path that works without a domain, and the one that does
-          not cost an hour per attempt when the built-in mailer rate-limits.
-
-          Rendered even when it cannot be used. A disabled control with a reason is
-          diagnosable; an absent one is indistinguishable from a deployment that never
-          shipped it — which is exactly the ambiguity this replaced. */}
+    <div className="splash-card">
+      {/* Rendered even when it cannot be used: a disabled control with a reason is
+          diagnosable; an absent one looks like a deployment that never shipped it. */}
       <form action={googleAction}>
         <input type="hidden" name="next" value={next} />
         <GoogleButton disabled={providerState === "disabled"} />
       </form>
 
       {googleDetail && (
-        <p
-          className="text-xs leading-relaxed"
-          style={{
-            color:
-              providerState === "disabled"
-                ? "var(--state-blocked)"
-                : "var(--state-review)",
-          }}
-        >
-          {providerState === "unknown" &&
-            "Cannot tell whether Google is enabled. "}
+        <p className={`splash-msg ${providerState === "disabled" ? "err" : "warn"}`}>
+          {providerState === "unknown" && "Cannot tell whether Google is enabled. "}
           {googleDetail}
         </p>
       )}
 
       {googleState.message && (
-        <p
-          className="text-xs leading-relaxed"
-          style={{ color: "var(--state-blocked)" }}
-        >
+        <p className="splash-msg err" role="alert">
           {googleState.message}
         </p>
       )}
 
-      <div className="flex items-center gap-3">
-        <span
-          className="h-px flex-1"
-          style={{ background: "var(--border-subtle)" }}
-        />
-        <span
-          className="font-mono text-3xs uppercase"
-          style={{ color: "var(--text-faint)" }}
-        >
-          or
-        </span>
-        <span
-          className="h-px flex-1"
-          style={{ background: "var(--border-subtle)" }}
-        />
+      <div className="row" style={{ gap: 12, flexWrap: "nowrap" }}>
+        <span style={{ height: 1, flex: 1, background: "var(--b2)" }} />
+        <span className="mono xs splash-or">or</span>
+        <span style={{ height: 1, flex: 1, background: "var(--b2)" }} />
       </div>
 
-      <form action={action} className="flex flex-col gap-3">
+      <form action={action} className="col" style={{ gap: 10 }}>
         <input type="hidden" name="next" value={next} />
-        <label className="flex flex-col gap-[6px]">
-          <span
-            className="font-mono text-3xs uppercase tracking-[0.09em]"
-            style={{ color: "var(--text-faint)" }}
-          >
-            Email
-          </span>
-          <input
-            name="email"
-            type="email"
-            required
-            autoComplete="email"
-            autoFocus
-            className="w-full rounded-sm border px-[10px] py-[7px] text-sm outline-none"
-            style={{
-              background: "var(--surface-inset)",
-              borderColor: "var(--border-subtle)",
-              color: "var(--text-primary)",
-            }}
-          />
-        </label>
-
+        <div className="field">
+          <label htmlFor="signin-email" className="chalk-2">Email</label>
+          <input id="signin-email" name="email" type="email" required autoComplete="email" className="input" />
+        </div>
         {state.message && (
-          <p
-            className="text-xs leading-relaxed"
-            style={{ color: "var(--state-blocked)" }}
-          >
+          <p className="splash-msg err" role="alert">
             {state.message}
           </p>
         )}
-
-        <div>
-          <Submit />
-        </div>
+        <Submit />
       </form>
 
-      <p
-        className="text-2xs leading-relaxed"
-        style={{ color: "var(--text-faint)" }}
-      >
-        Either way the address has to be on the allowlist. Google authenticating
-        you is not the same as this workspace admitting you.
+      <p className="xs chalk-3">
+        Either way the address has to be on the allowlist. Google authenticating you is not the same as this
+        workspace admitting you.
       </p>
     </div>
   );

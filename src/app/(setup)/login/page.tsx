@@ -3,6 +3,9 @@ import { probeProviders } from "@/lib/auth/providers";
 import { buildInfo } from "@/lib/build-info";
 import { parseAllowlist } from "@/lib/auth/config";
 
+import { KilnObject } from "@/components/ui/kiln-object";
+import { Lockup } from "@/components/ui/logo";
+
 import { SignInForm } from "./sign-in-form";
 
 /**
@@ -53,84 +56,42 @@ export default async function LoginPage({
   const build = buildInfo();
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-[400px] flex-col justify-center px-6 py-12">
-      <div className="mb-7 flex items-center gap-2">
-        <span
-          aria-hidden
-          className="size-[7px] rounded-full"
-          style={{ background: "var(--brand-mark)" }}
-        />
-        <span className="text-sm font-medium tracking-tight">Kiln</span>
-      </div>
-
-      <h1 className="mb-2 text-xl font-medium tracking-tight">Sign in</h1>
-      <p
-        className="mb-6 text-sm leading-relaxed"
-        style={{ color: "var(--text-secondary)" }}
-      >
-        Single-tenant. One address is permitted, set at deploy time.
-      </p>
+    <main className="splash bp">
+      <KilnObject width={300} />
+      <Lockup fontSize={44} />
+      <p className="chalk-2">Private studio. One operator.</p>
 
       {message && (
-        <div
-          className="mb-5 rounded-sm border px-3 py-2 text-xs leading-relaxed"
-          style={{
-            borderColor: "var(--border-strong)",
-            background: "var(--surface-inset)",
-            color: "var(--text-muted)",
-          }}
-        >
+        <p className="splash-msg err splash-card" role="alert">
           {message}
-        </div>
+        </p>
       )}
 
-      <SignInForm
-        next={safeNext}
-        googleState={providers.google}
-        googleDetail={providers.detail}
-      />
-
-      {/* The build marker.
-          Three debugging sessions have gone on a stale deployment mistaken for a code bug.
-          A visible sha turns "is my change live?" from an inference into a comparison
-          against git log — and `source` says whether the platform reported it at runtime or
-          it was baked in, because a build-time value can itself be stale. */}
-      <p
-        className="mt-8 font-mono text-2xs"
-        style={{ color: "var(--text-faint)" }}
-        data-build-sha={build.sha}
-      >
-        build {build.sha}
-        {build.branch ? ` · ${build.branch}` : ""}
-        {build.source === "build" ? " · baked in at build" : ""}
-        {build.builtAt
-          ? ` · ${build.builtAt.slice(0, 16).replace("T", " ")}`
-          : ""}
-      </p>
+      <SignInForm next={safeNext} googleState={providers.google} googleDetail={providers.detail} />
 
       {malformed.length > 0 && (
-        <div
-          className="mt-6 rounded-sm border px-3 py-2 text-xs leading-relaxed"
-          style={{
-            borderColor: "var(--border-strong)",
-            background: "var(--surface-inset)",
-            color: "var(--state-review)",
-          }}
-        >
-          <strong className="font-medium">
-            {`ALLOWED_EMAIL has ${malformed.length} unusable ${malformed.length === 1 ? "entry" : "entries"}`}
-          </strong>
-          , ignored by the allowlist:{" "}
+        <div className="splash-msg warn splash-card">
+          <strong>{`ALLOWED_EMAIL has ${malformed.length} unusable ${malformed.length === 1 ? "entry" : "entries"}`}</strong>,
+          ignored by the allowlist:{" "}
           {malformed.map((e) => (
-            <code key={e} className="font-mono">
-              {e}
+            <code key={e} className="mono">
+              {e}{" "}
             </code>
           ))}
-          . A missing <code className="font-mono">.com</code> is the usual
-          cause. Anyone at those addresses will request a link and never receive
-          one.
+          — a missing <code className="mono">.com</code> is the usual cause. Anyone at those addresses will request a
+          link and never receive one.
         </div>
       )}
-    </div>
+
+      {/* The build marker. A visible sha turns "is my change live?" from an inference into a
+          comparison against git log — and `source` says whether the platform reported it at
+          runtime or it was baked in, because a build-time value can itself be stale. */}
+      <p className="mono xs chalk-3" style={{ position: "absolute", bottom: 20, left: 16, right: 16, textAlign: "center" }} data-build-sha={build.sha}>
+        kiln · v2 · build {build.sha}
+        {build.branch ? ` · ${build.branch}` : ""}
+        {build.source === "build" ? " · baked in at build" : ""}
+        {build.builtAt ? ` · ${build.builtAt.slice(0, 16).replace("T", " ")}` : ""}
+      </p>
+    </main>
   );
 }

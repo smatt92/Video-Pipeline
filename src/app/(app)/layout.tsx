@@ -6,9 +6,8 @@ import { Suspense } from 'react';
 
 import { DeferralBanner } from '@/components/shell/deferral-banner';
 import { AppShell } from '@/components/shell/app-shell';
-import { ChannelSwitcherSlot } from '@/components/channels/channel-switcher-slot';
-import { ChecklistSlot } from '@/components/onboarding/checklist-slot';
 import { readUiScale } from '@/lib/settings/read-ui-scale';
+import { railData } from '@/lib/shell/rail';
 import { uiScaleBootstrapScript } from '@/lib/settings/ui-scale';
 
 import '../globals.css';
@@ -39,7 +38,7 @@ import '../globals.css';
  */
 
 export const metadata: Metadata = {
-  title: 'Kiln',
+  title: { default: 'Kiln', template: 'Kiln — %s' },
   description: 'AI video content pipeline — trend to published, with the cost attached.',
 };
 
@@ -47,7 +46,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Read before render so the scale is on <html> at first paint. Reading it in an effect
   // instead renders every page once at 100% and then jumps, and on the display this exists
   // for the jump is from unreadable to readable — on every navigation.
-  const uiScale = await readUiScale();
+  const [uiScale, rail] = await Promise.all([readUiScale(), railData()]);
 
   return (
     // Dark-first: the attribute is set here rather than resolved from a media query, so
@@ -68,10 +67,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
       </head>
       <body>
-        <AppShell
-          checklist={<Suspense fallback={null}><ChecklistSlot /></Suspense>}
-          channelSwitcher={<Suspense fallback={null}><ChannelSwitcherSlot /></Suspense>}
-        >
+        <AppShell data={rail}>
           {/* Above everything, on every screen in the app, and not dismissible. A banner
               you can close is closed on day one, and the state it describes then goes
               invisible for weeks — which is the failure it exists to prevent, since a

@@ -2,27 +2,37 @@
 
 import { Command } from 'cmdk';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useTransition } from 'react';
 
+import { Icon, type IconName } from '@/components/ui/icon';
+import { episodeState } from '@/components/ui/tags';
+import { killSwitchAction } from '@/lib/bureau/ui-actions';
+import { NAV } from '@/lib/nav';
+import type { RailData } from '@/lib/shell/rail';
 import { UI_SCALES, labelFor, UI_SCALE_STORAGE_KEY } from '@/lib/settings/ui-scale';
 import { setUiScaleAction } from '@/lib/settings/ui-scale-action';
-import { NAV } from '@/lib/nav';
 
 /**
- * ⌘K palette.
+ * ⌘K (canvas: Palette). Scoped to the active channel: its slots, its pending briefs, its kill
+ * switch. Approving, scheduling and the kill switch need the approver token — the palette only
+ * routes to them, and the kill switch asks to confirm (and for a reason) before it acts.
  *
- * Disabled routes appear here too, greyed with their reason. Searching for "publish" and
- * finding nothing suggests the feature does not exist; finding it disabled with "blocked
- * on Meta app review" is the answer to the question actually being asked.
+ * Also keeps the two things it carried before the redesign: replaying the tour / finishing
+ * setup, and the display-scale actions — the palette is where someone reaches when the UI is
+ * too small to comfortably navigate to Settings.
  */
 export function CommandPalette({
   open,
   onOpenChange,
+  data,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  data: RailData;
 }) {
   const router = useRouter();
+  const [, start] = useTransition();
+  const active = data.channels.find((c) => c.id === data.activeId) ?? null;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -35,89 +45,128 @@ export function CommandPalette({
     return () => document.removeEventListener('keydown', onKey);
   }, [open, onOpenChange]);
 
+  const go = (href: string) => {
+    onOpenChange(false);
+    router.push(href);
+  };
+
+  const kill = () => {
+    if (!data.activeId || !data.kill) return;
+    onOpenChange(false);
+    const on = data.kill.on;
+    if (on) {
+      if (!window.confirm(`Turn the kill switch off for ${active?.name ?? 'this channel'}? Generation and publishing resume.`)) return;
+      start(async () => {
+        window.alert((await killSwitchAction(data.activeId!, false, '')).message);
+        router.refresh();
+      });
+    } else {
+      const reason = window.prompt(`Stop ${active?.name ?? 'this channel'}: no new generation, no publishing. Reason (logged verbatim):`);
+      if (!reason) return;
+      start(async () => {
+        window.alert((await killSwitchAction(data.activeId!, true, reason)).message);
+        router.refresh();
+      });
+    }
+  };
+
   return (
-    <Command.Dialog
-      open={open}
-      onOpenChange={onOpenChange}
-      label="Command palette"
-      className="fixed inset-0 z-50"
-    >
-      <div
-        className="fixed inset-0"
-        style={{ background: 'var(--overlay-scrim)' }}
-        onClick={() => onOpenChange(false)}
-      />
-      <div
-        className="fixed left-1/2 top-[18vh] w-[min(560px,calc(100vw-32px))] -translate-x-1/2 overflow-hidden rounded-lg border"
-        style={{
-          background: 'var(--surface-2)',
-          borderColor: 'var(--border-strong)',
-          boxShadow: 'var(--shadow-overlay)',
-        }}
-      >
-        <Command.Input
-          autoFocus
-          placeholder="Search screens…"
-          className="w-full border-b bg-transparent px-4 py-3 text-md outline-none"
-          style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
-        />
-        <Command.List className="max-h-[52vh] overflow-y-auto p-2">
-          <Command.Empty
-            className="px-3 py-6 text-center text-sm"
-            style={{ color: 'var(--text-muted)' }}
-          >
+    <Command.Dialog open={open} onOpenChange={onOpenChange} label="Command palette" className="fixed inset-0 z-50">
+      <div className="fixed inset-0" style={{ background: 'var(--scrim)' }} onClick={() => onOpenChange(false)} />
+      <div className="raised palette">
+        <div className="row" style={{ gap: 10, padding: '14px 16px', borderBottom: '1px solid var(--b1)', flexWrap: 'nowrap' }}>
+          <Icon name="search" className="t3" size={18} />
+          <Command.Input
+            autoFocus
+            placeholder="Search slots, screens, actions…"
+            aria-label="Command"
+            className="grow"
+            style={{ background: 'transparent', border: 0, outline: 0, color: 'var(--t1)', font: '400 16px var(--sans)', minWidth: 0 }}
+          />
+          {active && (
+            <span className="row" style={{ gap: 6, flexWrap: 'nowrap' }}>
+              <span className="chm" />
+              <span className="xs t3">{active.name}</span>
+            </span>
+          )}
+          <span className="kbd">esc</span>
+        </div>
+        <Command.List>
+          <Command.Empty className="sm t3" style={{ padding: '24px 12px', textAlign: 'center' }}>
             Nothing matches.
           </Command.Empty>
 
-          {/* Replaying the tour. The third of three resume paths, and the only one that
-              stays after setup is finished — the sidebar checklist hides itself at 8 of 8,
-              because a checklist showing all-done is furniture. Someone wanting to re-read
-              what a stage does still needs a door. */}
-          <Command.Group
-            heading="Help"
-            className="mb-1 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:font-mono [&_[cmdk-group-heading]]:text-3xs [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.09em]"
-            style={{ color: 'var(--text-faint)' }}
-          >
-            <Command.Item
-              value="replay product tour onboarding what is kiln intro explain"
-              onSelect={() => {
-                onOpenChange(false);
-                router.push('/onboarding');
-              }}
-              className="flex cursor-pointer items-center gap-3 rounded-sm px-2 py-[7px] text-sm data-[selected=true]:bg-[var(--surface-3)]"
-              style={{ color: 'var(--text-primary)' }}
-            >
-              <span className="shrink-0">Replay the product tour</span>
-              <span className="truncate text-xs" style={{ color: 'var(--text-faint)' }}>
-                five things worth knowing about the pipeline
-              </span>
+          {data.slots.length > 0 && (
+            <Command.Group heading="Slots">
+              {data.slots.map((s) => {
+                const st = episodeState(s.status);
+                return (
+                  <Command.Item key={s.episodeId} value={`${s.slot} ${s.title} ${st.label}`} onSelect={() => go(`/bureau/board#${s.episodeId}`)}>
+                    <span className="mono" style={{ width: 52, color: 'var(--t1)', flex: 'none' }}>
+                      {s.slot}
+                    </span>
+                    <span className="grow" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {s.title || '—'}
+                    </span>
+                    <span className={`pill s-${st.tone}`}>{st.label}</span>
+                  </Command.Item>
+                );
+              })}
+            </Command.Group>
+          )}
+
+          <Command.Group heading="Actions">
+            {data.pendingBriefs.map((b) => (
+              <Command.Item key={b.id} value={`review brief ${b.slot ?? ''} ${b.premise}`} onSelect={() => go('/bureau/approvals')}>
+                <Icon name="approvals" />
+                <span className="grow">Review brief {b.slot ?? '(bank)'}</span>
+              </Command.Item>
+            ))}
+            <Command.Item value="switch to all channels combined" onSelect={() => go('/all')}>
+              <Icon name="channels" />
+              <span className="grow">Switch to All channels</span>
             </Command.Item>
-            <Command.Item
-              value="finish setup onboarding wizard connect accounts"
-              onSelect={() => {
-                onOpenChange(false);
-                router.push('/setup');
-              }}
-              className="flex cursor-pointer items-center gap-3 rounded-sm px-2 py-[7px] text-sm data-[selected=true]:bg-[var(--surface-3)]"
-              style={{ color: 'var(--text-primary)' }}
-            >
-              <span className="shrink-0">Finish setup</span>
-              <span className="truncate text-xs" style={{ color: 'var(--text-faint)' }}>
-                connect storage, models and your channel
-              </span>
+            {data.activeId && data.kill && (
+              <Command.Item value="kill switch stop pipeline resume" onSelect={kill}>
+                <Icon name="power" className="tblk" />
+                <span className="grow">
+                  {data.kill.on ? 'Turn kill switch off…' : 'Kill switch…'} <span className="t3">asks to confirm</span>
+                </span>
+              </Command.Item>
+            )}
+            <Command.Item value="replay product tour onboarding what is kiln intro explain" onSelect={() => go('/onboarding')}>
+              <Icon name="info" />
+              <span className="grow">Replay the product tour</span>
+            </Command.Item>
+            <Command.Item value="finish setup onboarding wizard connect accounts add channel" onSelect={() => go('/setup')}>
+              <Icon name="setup" />
+              <span className="grow">Setup — studio and channels</span>
             </Command.Item>
           </Command.Group>
 
-          {/* Display scale, as direct actions rather than a link to the settings page.
-              The palette is where someone reaches when the UI is too small to comfortably
-              navigate to Settings — which is exactly the situation this control exists for,
-              so routing them through two more screens to reach it would be the wrong shape.
-              Applied immediately and persisted in the background, same as the stepper. */}
-          <Command.Group
-            heading="Display"
-            className="mb-1 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:font-mono [&_[cmdk-group-heading]]:text-3xs [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.09em]"
-            style={{ color: 'var(--text-faint)' }}
-          >
+          {NAV.map((group) => (
+            <Command.Group key={group.label} heading={group.label}>
+              {group.items.map((item) => {
+                const disabled = item.status.kind === 'disabled';
+                return (
+                  <Command.Item
+                    key={item.href}
+                    value={`${item.label} ${item.hint}`}
+                    disabled={disabled}
+                    onSelect={() => !disabled && go(item.href)}
+                  >
+                    <Icon name={item.icon as IconName} />
+                    <span style={{ flex: 'none' }}>{item.label}</span>
+                    <span className="xs t3 grow" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {item.status.kind === 'disabled' ? item.status.reason : item.hint}
+                    </span>
+                  </Command.Item>
+                );
+              })}
+            </Command.Group>
+          ))}
+
+          <Command.Group heading="Display">
             {UI_SCALES.map((scale) => (
               <Command.Item
                 key={scale}
@@ -132,59 +181,21 @@ export function CommandPalette({
                   onOpenChange(false);
                   void setUiScaleAction(scale);
                 }}
-                className="flex cursor-pointer items-center gap-3 rounded-sm px-2 py-[7px] text-sm data-[selected=true]:bg-[var(--surface-3)]"
-                style={{ color: 'var(--text-primary)' }}
               >
-                <span className="shrink-0">UI scale — {labelFor(scale)}</span>
-                <span className="truncate text-xs" style={{ color: 'var(--text-faint)' }}>
-                  applies immediately, saved to your profile
-                </span>
+                <span>UI scale — {labelFor(scale)}</span>
+                <span className="xs t3">applies immediately, saved to your profile</span>
               </Command.Item>
             ))}
           </Command.Group>
-
-          {NAV.map((group) => (
-            <Command.Group
-              key={group.label}
-              heading={group.label}
-              className="mb-1 [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:font-mono [&_[cmdk-group-heading]]:text-3xs [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.09em]"
-              style={{ color: 'var(--text-faint)' }}
-            >
-              {group.items.map((item) => {
-                const disabled = item.status.kind === 'disabled';
-                return (
-                  <Command.Item
-                    key={item.href}
-                    value={`${item.label} ${item.hint}`}
-                    disabled={disabled}
-                    onSelect={() => {
-                      if (disabled) return;
-                      onOpenChange(false);
-                      router.push(item.href);
-                    }}
-                    className="flex cursor-pointer items-center gap-3 rounded-sm px-2 py-[7px] text-sm data-[selected=true]:bg-[var(--surface-3)]"
-                    style={{ color: disabled ? 'var(--text-faint)' : 'var(--text-primary)' }}
-                  >
-                    <span className="shrink-0">{item.label}</span>
-                    <span className="truncate text-xs" style={{ color: 'var(--text-faint)' }}>
-                      {disabled && item.status.kind === 'disabled'
-                        ? item.status.reason
-                        : item.hint}
-                    </span>
-                    {disabled && item.status.kind === 'disabled' && (
-                      <span
-                        className="ml-auto shrink-0 rounded-xs px-1 font-mono text-3xs"
-                        style={{ background: 'var(--surface-3)' }}
-                      >
-                        {item.status.phase}
-                      </span>
-                    )}
-                  </Command.Item>
-                );
-              })}
-            </Command.Group>
-          ))}
         </Command.List>
+        <div className="row sb" style={{ padding: '10px 16px', borderTop: '1px solid var(--b1)' }}>
+          <span className="xs t3">Scoped to {active ? 'this channel' : 'the workspace'} · approving, scheduling and the kill switch need the approver token</span>
+          <span className="row xs t3" style={{ gap: 6 }}>
+            <span className="kbd">↑</span>
+            <span className="kbd">↓</span>
+            move
+          </span>
+        </div>
       </div>
     </Command.Dialog>
   );
