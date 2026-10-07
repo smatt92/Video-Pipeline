@@ -435,7 +435,19 @@ export function toSrt(cues: CaptionCue[]): string {
   return cues.map((c, i) => `${i + 1}\n${ts(c.startS)} --> ${ts(c.endS)}\n${c.text}\n`).join('\n');
 }
 
-export async function assembleEpisode(db: Db, episodeId: string, deps: AssembleDeps): Promise<{ ok: true; compositeRenderId: string; masterRenderId: string; captionRenderId: string; frames: number } | { ok: false; code: string; detail: string }> {
+/**
+ * `layers` picks which of the three to render. The run renders only the composite before the cut
+ * gate — it is what the reviewer watches — and the clean master and caption layer after approval,
+ * for the bundle. S001's first full render (07-Oct) spent ~16 min on the first two layers and
+ * over 40 on the ProRes caption layer, holding the cut back the whole time. Default: all three.
+ */
+export async function assembleEpisode(
+  db: Db,
+  episodeId: string,
+  deps: AssembleDeps,
+  opts: { layers?: readonly ('composite' | 'clean_master' | 'caption_layer')[] } = {},
+): Promise<{ ok: true; compositeRenderId: string | null; masterRenderId: string | null; captionRenderId: string | null; frames: number } | { ok: false; code: string; detail: string }> {
+  const layers = opts.layers ?? (['composite', 'clean_master', 'caption_layer'] as const);
   const log = deps.log ?? quiet;
   const { e, b, cb } = await loadEpisode(db, episodeId);
   await setStatus(db, episodeId, 'assembling');
@@ -495,14 +507,14 @@ export async function assembleEpisode(db: Db, episodeId: string, deps: AssembleD
     const variantGroup = randomUUID();
     const ids: Record<string, string> = {};
     let serveUrl: string | undefined;
-    for (const layer of ['composite', 'clean_master', 'caption_layer'] as const) {
+    for (const layer of layers) {
       const ext = layer === 'caption_layer' ? 'mov' : 'mp4';
       const out = join(work, `${layer}.${ext}`);
       // Progress the screens can read: rendering is the longest step (minutes per layer), and a
       // status that says only "assembling" for twenty minutes cannot be told from a hung run.
       // Throttled to one write per ~5 s; a failed write never fails the render.
       const label = { composite: 'video', clean_master: 'clean copy', caption_layer: 'caption layer' }[layer];
-      const n = (['composite', 'clean_master', 'caption_layer'] as const).indexOf(layer) + 1;
+      const n = layers.indexOf(layer) + 1;
       let lastWrite = 0;
       const onProgress = (done: number, of: number) => {
         const now = Date.now();
@@ -510,7 +522,7 @@ export async function assembleEpisode(db: Db, episodeId: string, deps: AssembleD
         lastWrite = now;
         void db
           .from('episodes')
-          .update({ status_detail: `rendering ${label} (${n} of 3) · ${Math.round((done / Math.max(1, of)) * 100)}% · ${done}/${of} frames`, updated_at: new Date().toISOString() })
+          .update({ status_detail: `rendering ${label} (${n} of ${layers.length}) · ${Math.round((done / Math.max(1, of)) * 100)}% · ${done}/${of} frames`, updated_at: new Date().toISOString() })
           .eq('id', episodeId)
           .then(() => undefined, () => undefined);
       };
@@ -536,9 +548,9 @@ export async function assembleEpisode(db: Db, episodeId: string, deps: AssembleD
 
     await db
       .from('episodes')
-      .update({ final_render_id: ids.composite, master_render_id: ids.clean_master, updated_at: new Date().toISOString(), voice_detail: { ...(voice as object), loud_key: loudKey, srt_key: srtKey } as unknown as Json })
+      .update({ ...(ids.composite ? { final_render_id: ids.composite } : {}), ...(ids.clean_master ? { master_render_id: ids.clean_master } : {}), updated_at: new Date().toISOString(), voice_detail: { ...(voice as object), loud_key: loudKey, srt_key: srtKey } as unknown as Json })
       .eq('id', episodeId);
-    return { ok: true, compositeRenderId: ids.composite, masterRenderId: ids.clean_master, captionRenderId: ids.caption_layer, frames: total };
+    return { ok: true, compositeRenderId: ids.composite ?? null, masterRenderId: ids.clean_master ?? null, captionRenderId: ids.caption_layer ?? null, frames: total };
   } finally {
     await rm(work, { recursive: true, force: true });
   }

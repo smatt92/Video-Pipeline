@@ -311,6 +311,13 @@ try {
     await download(await presign(layers.find((l) => l.layer === 'composite').storage_key), master);
     const { stdout: streams } = await run('ffprobe', ['-v', 'error', '-show_entries', 'stream=codec_type', '-of', 'csv=p=0', master]);
     check(streams.includes('audio') && streams.includes('video'), 'the composite carries picture and the VO');
+    // The run renders only the composite before the cut gate (the other two after approval).
+    const asmDeps = { usdInrRate: 88, presign, putBytes, download, normaliseAudio: async (i, o) => run('ffmpeg', ['-v', 'error', '-y', '-i', i, '-af', 'loudnorm=I=-14:TP=-1.5:LRA=11', '-c:a', 'aac', o]), render: (i) => renderBureau({ ...i, width: 270, height: 480, fps: 30, browserExecutable: shell }) };
+    const before = (await client.query('select master_render_id from episodes where id = $1', [ep])).rows[0].master_render_id;
+    const one = await P.assembleEpisode(db, ep, asmDeps, { layers: ['composite'] });
+    const { rows: afterOne } = await client.query('select final_render_id, master_render_id from episodes where id = $1', [ep]);
+    check(one.ok && one.compositeRenderId && one.masterRenderId === null && one.captionRenderId === null && afterOne[0].final_render_id === one.compositeRenderId && afterOne[0].master_render_id === before,
+      'a composite-only pass renders one layer, points the cut at it and leaves the master alone', JSON.stringify({ one, afterOne }));
   }
 
   // ═══ 7. Cut gate over MCP ═══

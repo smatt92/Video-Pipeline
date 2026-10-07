@@ -62,7 +62,10 @@ export const episodeTask = schemaTask({
   schema: Payload,
   queue: { concurrencyLimit: 2 },
   machine: 'medium-2x',
-  maxDuration: 3_600,
+  // CPU time, not wall time (waits are excluded — Trigger docs, max-duration). A 51 s Short renders
+  // three 1080×1920 layers on the worker; the ProRes caption layer alone ran past 40 min on
+  // S001 (07-Oct) and the 1 h ceiling cut the run off. Three hours is a ceiling, not a target.
+  maxDuration: 10_800,
 
   run: async ({ episodeId }) => {
     const db = serverClient();
@@ -164,14 +167,14 @@ export const episodeTask = schemaTask({
         ? lf.ok
           ? { ok: true as const, compositeRenderId: lf.renderId, frames: lf.frames }
           : lf
-        : await assembleEpisode(db, episodeId, asmDeps);
+        : await assembleEpisode(db, episodeId, asmDeps, { layers: ['composite'] });
       if (!assembled.ok) {
         await setStatus(db, episodeId, 'failed', `${assembled.code}: ${assembled.detail}`);
         return { failed: assembled.code };
       }
 
       // Loudness, measured on what was rendered — the instrument closest to the thing.
-      const { data: comp } = await db.from('renders').select('asset_id').eq('id', assembled.compositeRenderId).single();
+      const { data: comp } = await db.from('renders').select('asset_id').eq('id', assembled.compositeRenderId!).single();
       const { data: compAsset } = await db.from('assets').select('storage_key').eq('id', comp!.asset_id!).single();
       const local = `/tmp/composite-${episodeId}.mp4`;
       await download(await presign(compAsset!.storage_key), local);
@@ -190,6 +193,14 @@ export const episodeTask = schemaTask({
           return { halted: 'cut_timeout' };
         }
         if (decision.output.approved) {
+          // 8b. The deliverable layers, rendered only once the cut is approved.
+          if (!longForm) {
+            const extra = await assembleEpisode(db, episodeId, asmDeps, { layers: ['clean_master', 'caption_layer'] });
+            if (!extra.ok) {
+              await setStatus(db, episodeId, 'failed', `${extra.code}: ${extra.detail}`);
+              return { failed: extra.code };
+            }
+          }
           // 9. Bundle
           const b = await bundleEpisode(db, episodeId);
           // Both flags false today: this records "bundle only" and does nothing else.
@@ -208,7 +219,7 @@ export const episodeTask = schemaTask({
         const gen = await wait.createToken({ timeout: '3h', idempotencyKey: `gen:${episodeId}:cut${attempt}` });
         await db.from('episodes').update({ gen_wait_token: gen.id, status: 'generating' }).eq('id', episodeId);
         await wait.forToken(gen);
-        const re = longForm ? await assembleLongForm(db, episodeId, asmDeps) : await assembleEpisode(db, episodeId, asmDeps);
+        const re = longForm ? await assembleLongForm(db, episodeId, asmDeps) : await assembleEpisode(db, episodeId, asmDeps, { layers: ['composite'] });
         if (!re.ok) {
           await setStatus(db, episodeId, 'failed', `${re.code}: ${re.detail}`);
           return { failed: re.code };
