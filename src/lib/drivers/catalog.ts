@@ -348,12 +348,19 @@ export const INTEGRATION_CATALOG: readonly IntegrationDescriptor[] = [
       {
         key: 'META_ACCESS_TOKEN',
         label: 'Long-lived access token',
-        help: 'Needs instagram_business_basic and instagram_business_content_publish, which need Meta app review.',
+        help: 'A long-lived token from the Facebook Login flow with instagram_basic and pages_show_list (enough for Save and test). Publishing would also need instagram_content_publish — app review, decision 0020.',
       },
     ],
-    checks: [CREDENTIALS],
+    checks: [
+      CREDENTIALS,
+      {
+        name: 'channel',
+        label: 'Professional account linked to a Page',
+        detail: 'Reads the Pages the token can see and finds the one linked to this account; compares the account id with the active channel\'s Instagram target. Read-only: no publish permission is exercised.',
+      },
+    ],
     capabilities: { creditBalance: false, planTierConcurrency: false },
-    notes: ['Container → poll FINISHED → media_publish. Disabled until app review clears.'],
+    notes: ['Manual posting today: Ready to schedule → copy, post, Mark posted. Container → poll FINISHED → media_publish exists and stays off until app review clears (0020).'],
     rates: [],
   },
   {

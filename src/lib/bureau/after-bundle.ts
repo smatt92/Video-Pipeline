@@ -44,7 +44,14 @@ export async function afterBundle(
   if (pol?.instagram_publish_enabled) {
     if (!slot) instagram = 'refused: no slot time';
     else {
-      const { error } = await db.from('publications').insert({
+      // The manual Instagram draft (instagram-draft.ts) carries the same idempotency key; when
+      // it exists, schedule it rather than inserting a second Reels row for one cut.
+      const { data: draft } = await db.from('publications').select('id, status').eq('idempotency_key', `ig:${publicationId}`).maybeSingle();
+      const { error } = draft
+        ? draft.status === 'draft'
+          ? await db.from('publications').update({ status: 'scheduled', scheduled_for: slot }).eq('id', draft.id)
+          : { error: { message: `the Reels row is already ${draft.status}` } }
+        : await db.from('publications').insert({
         render_id: pub.render_id,
         channel_id: pub.channel_id,
         review_id: pub.review_id,
@@ -60,7 +67,7 @@ export async function afterBundle(
         status: 'scheduled',
         scheduled_for: slot,
         idempotency_key: `ig:${publicationId}`,
-      });
+        });
       instagram = error ? `refused: ${error.message}` : `Reels mirror scheduled for ${slot}`;
     }
   }

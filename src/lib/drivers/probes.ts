@@ -362,8 +362,8 @@ export async function probeIntegration(
     }
 
     case 'instagram': {
-      const r = await probeInstagram(values.META_IG_USER_ID, values.META_ACCESS_TOKEN);
-      return { latencyMs: 0, checks: [{ name: 'credentials', ...r, required: true }] };
+      const checks = await probeInstagram(values.META_IG_USER_ID, values.META_ACCESS_TOKEN, { expectedAccountId: context.channelExternalId ?? null, fetchImpl: context.fetchImpl });
+      return { latencyMs: 0, checks };
     }
 
     default:

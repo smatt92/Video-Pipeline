@@ -1,5 +1,6 @@
 import { BureauNav } from '@/components/bureau/bureau-nav';
 import { LiveRefresh, LiveStatus } from '@/components/bureau/live-status';
+import { channelGeneration, episodeClips } from '@/lib/bureau/overlay-only';
 import { isRunning } from '@/lib/bureau/running';
 import { StartRun } from '@/components/bureau/start-run';
 import { requireChannel } from '@/lib/channels/active';
@@ -23,14 +24,23 @@ export default async function BureauBoardPage() {
   const channel = await requireChannel();
   const db = serverClient();
   const [{ data: eps }, { data: pending }] = await Promise.all([
-    db.from('episodes').select('id, slot_id, status, status_detail, kind, run_id, updated_at').eq('channel_id', channel.id).order('updated_at', { ascending: false }).limit(300),
+    db.from('episodes').select('id, slot_id, status, status_detail, kind, run_id, updated_at, script_id, qc, final_render_id').eq('channel_id', channel.id).order('updated_at', { ascending: false }).limit(300),
     db.from('briefs').select('id, slot_id, premise, flagged').eq('channel_id', channel.id).eq('status', 'pending').order('created_at'),
   ]);
+  // Overlay-only, said where the cut exists: the channel's reasons once, each cut's own badge.
+  const readiness = await channelGeneration(db, channel.id);
+  const CUT = ['awaiting_cut', 'cut_rejected', 'cut_approved', 'bundled', 'scheduled', 'live'];
+  const overlayOnly = new Set<string>();
+  for (const e of (eps ?? []).filter((x) => CUT.includes(x.status) && x.final_render_id)) {
+    const g = await episodeClips(db, e);
+    if (g?.overlayOnly) overlayOnly.add(e.id);
+  }
   return (
     <main className="mx-auto w-full max-w-[1600px] px-4 py-6">
       <LiveRefresh active={(eps ?? []).some((e) => isRunning(e.status))} />
       <BureauNav active="board" />
       <h1 className="text-lg font-medium">Pipeline board</h1>
+      {readiness.summary && <p className="mt-1 text-sm" style={{ color: 'var(--state-blocked)' }}>{readiness.summary} Cuts marked overlay-only show the chalk diagrams and none of the cast.</p>}
       <div className="mt-4 grid gap-3 overflow-x-auto md:grid-cols-4 xl:grid-cols-8">
         {COLUMNS.map((c) => {
           const items = c.key === 'approval'
@@ -46,6 +56,7 @@ export default async function BureauBoardPage() {
                   <li key={i.id} className="rounded px-2 py-1 text-2xs" style={{ background: 'var(--surface-1)' }}>
                     <div className="font-mono">{i.slot ?? 'bank'}</div>
                     <div>{i.line}</div>
+                    {overlayOnly.has(i.id) && <div style={{ color: 'var(--state-blocked)' }}>overlay-only cut</div>}
                     {isRunning(i.status) && i.updatedAt ? (
                       <LiveStatus status={i.status} detail={i.detail} updatedAt={i.updatedAt} />
                     ) : (

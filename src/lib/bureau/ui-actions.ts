@@ -162,3 +162,22 @@ export async function importCsvAction(_prev: ActionResult | null, form: FormData
     return `${r.updated + r.inserted} row(s) imported; ${r.unmatched.length} not ours${r.problems.length ? `; ${r.problems.join('; ')}` : ''}.`;
   });
 }
+
+/** Ready to schedule: build the Instagram variant for a YouTube bundle that predates it. */
+export async function buildInstagramDraftAction(youtubePublicationId: string): Promise<ActionResult> {
+  return run('/bureau/ready', { table: 'publications', id: youtubePublicationId }, async () => {
+    const { buildInstagramDraft } = await import('./instagram-draft');
+    const r = await buildInstagramDraft(serverClient(), youtubePublicationId);
+    if (!r.ok) throw new Error(r.refused);
+    return r.created ? 'Instagram variant built. The cover is a frame time here; the worker extracts a still only for new bundles.' : 'The Instagram variant already exists.';
+  });
+}
+
+/** Ready to schedule: a Reel posted by hand, recorded with its permalink so metrics can find it. */
+export async function markPostedAction(publicationId: string, permalink: string, postedAt: string): Promise<ActionResult> {
+  return run('/bureau/ready', { table: 'publications', id: publicationId }, async (t) => {
+    const { markInstagramPosted } = await import('./instagram-draft');
+    const r = await markInstagramPosted(serverClient(), t, { publication_id: publicationId, permalink, posted_at: new Date(postedAt).toISOString() });
+    return `Marked posted (${r.shortcode}).`;
+  });
+}

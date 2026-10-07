@@ -114,14 +114,59 @@ export async function publishContainer(c: IgCreds, containerId: string): Promise
   return p.success ? { ok: true, value: p.data.id } : { ok: false, code: 'upstream', detail: 'No media id.' };
 }
 
-/** Settings probe: reads the account's username. */
-export async function probeInstagram(igUserId: string | undefined, token: string | undefined) {
-  if (!igUserId || !token) return { passed: false, detail: 'Account id and token are both required.' };
-  const r = await httpJson(`${GRAPH_BASE}/${encodeURIComponent(igUserId)}?fields=username`, {
-    headers: { authorization: `Bearer ${token}` },
-    timeoutMs: 15_000,
-  });
-  return r.ok ? { passed: true, detail: 'Account read.' } : { passed: false, detail: r.detail };
+/**
+ * Settings probe — read-only, two checks, no publishing permission exercised.
+ *
+ *   credentials  GET /{ig-user-id}?fields=id,username — the token reads the account. Only a
+ *                professional (Business or Creator) account has an IG User node on the Graph
+ *                API, so a personal account fails here, by name.
+ *   channel      GET /me/accounts?fields=name,instagram_business_account{id,username} — the
+ *                account is linked to a Facebook Page this token can see (the Facebook Login
+ *                path decision 0020 submits for), and, when the channel's Instagram target
+ *                names an account id, it is that one.
+ */
+const IgUser = z.object({ id: z.string(), username: z.string().optional() });
+const Pages = z.object({
+  data: z.array(z.object({ name: z.string().optional(), instagram_business_account: z.object({ id: z.string(), username: z.string().optional() }).optional() })),
+});
+
+export async function probeInstagram(
+  igUserId: string | undefined,
+  token: string | undefined,
+  opts: { expectedAccountId?: string | null; fetchImpl?: typeof fetch } = {},
+): Promise<{ name: 'credentials' | 'channel'; passed: boolean; required: boolean; detail: string }[]> {
+  if (!igUserId || !token) {
+    return [{ name: 'credentials', passed: false, required: true, detail: 'Account id and token are both required.' }];
+  }
+  const headers = { authorization: `Bearer ${token}` };
+  const me = await httpJson(`${GRAPH_BASE}/${encodeURIComponent(igUserId)}?fields=id,username`, { headers, timeoutMs: 15_000, fetchImpl: opts.fetchImpl });
+  if (!me.ok) {
+    return [{ name: 'credentials', passed: false, required: true, detail: `${me.detail} — a personal account has no Graph API node; switch it to Business or Creator and link it to a Facebook Page.` }];
+  }
+  const user = IgUser.safeParse(me.json);
+  if (!user.success) return [{ name: 'credentials', passed: false, required: true, detail: 'Unreadable account response.' }];
+  const username = user.data.username ?? '(no username returned)';
+  const checks: { name: 'credentials' | 'channel'; passed: boolean; required: boolean; detail: string }[] = [
+    { name: 'credentials', passed: true, required: true, detail: `Account ${user.data.id} (@${username}) read.` },
+  ];
+
+  const pages = await httpJson(`${GRAPH_BASE}/me/accounts?fields=name,instagram_business_account%7Bid,username%7D`, { headers, timeoutMs: 15_000, fetchImpl: opts.fetchImpl });
+  const parsed = pages.ok ? Pages.safeParse(pages.json) : null;
+  if (!pages.ok || !parsed?.success) {
+    checks.push({ name: 'channel', passed: false, required: true, detail: pages.ok ? 'Unreadable page list.' : `${pages.detail} — the token needs pages_show_list to read the linked Page.` });
+    return checks;
+  }
+  const page = parsed.data.data.find((p) => p.instagram_business_account?.id === user.data.id);
+  if (!page) {
+    checks.push({ name: 'channel', passed: false, required: true, detail: `@${username} is not linked to any Facebook Page this token can see. Link it in Instagram → Settings → Accounts Center, or grant the Page to the app.` });
+    return checks;
+  }
+  if (opts.expectedAccountId && opts.expectedAccountId !== user.data.id) {
+    checks.push({ name: 'channel', passed: false, required: true, detail: `The token reads @${username} (${user.data.id}), but the active channel's Instagram target is ${opts.expectedAccountId}.` });
+    return checks;
+  }
+  checks.push({ name: 'channel', passed: true, required: true, detail: `@${username} is linked to the Page "${page.name ?? '(unnamed)'}"${opts.expectedAccountId ? ' and is the active channel\'s target' : ' (no account id on the channel target to compare)'}.` });
+  return checks;
 }
 
 // ── Insights (Sprint 6) ─────────────────────────────────────────────────────

@@ -57,6 +57,7 @@
     "verify:publish": "tsc -p tsconfig.verify.json && node scripts/verify-publish.mjs",
     "verify:outlier": "tsc -p tsconfig.verify.json && node scripts/verify-outlier.mjs",
     "verify:trends": "tsc -p tsconfig.verify.json && node scripts/verify-trends.mjs",
+    "verify:channels": "tsc -p tsconfig.verify.json && node scripts/verify-channels.mjs",
     "verify:library": "tsc -p tsconfig.verify.json && node scripts/verify-library.mjs",
     "verify:submit": "tsc -p tsconfig.verify.json && node scripts/verify-submit.mjs",
     "verify:webhook": "tsc -p tsconfig.verify.json && node scripts/verify-webhook.mjs",

@@ -107,6 +107,8 @@
     "src/lib/channels/list.ts",
     "src/lib/channels/add.ts",
     "src/lib/fixtures/seed-channel.ts",
+    "src/lib/publish/instagram.ts",
+    "src/lib/publish/instagram-bundle.ts",
     "src/lib/drivers/jobs.ts",
     // The Library screens (verify:library), minus library/actions.ts — a Server Action module.
     "src/lib/library/voices.ts",

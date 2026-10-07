@@ -54,7 +54,10 @@ export function ChannelSwitcher({ channels, activeId }: { channels: SwitcherChan
       </select>
       <div className="mt-1 flex items-center gap-2 text-2xs" style={{ color: 'var(--text-faint)' }}>
         <span className="truncate">{active?.handle ?? (active ? 'no handle' : '')}</span>
-        <Link href="/channels/new" className="ml-auto shrink-0" style={{ color: 'var(--accent)' }}>
+        <Link href="/channels" className="ml-auto shrink-0" style={{ color: 'var(--text-muted)' }}>
+          Channels
+        </Link>
+        <Link href="/channels/new" className="shrink-0" style={{ color: 'var(--accent)' }}>
           + Add channel
         </Link>
       </div>

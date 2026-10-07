@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 
-import { markScheduledAction, queueDubsAction } from '@/lib/bureau/ui-actions';
+import { buildInstagramDraftAction, markPostedAction, markScheduledAction, queueDubsAction } from '@/lib/bureau/ui-actions';
 
 export function CopyButton({ text, label }: { text: string; label: string }) {
   const [done, setDone] = useState(false);
@@ -53,5 +53,38 @@ export function QueueDubs({ episodeId }: { episodeId: string }) {
       </button>
       {msg && <span className="ml-2 text-2xs" style={{ color: 'var(--text-muted)' }}>{msg}</span>}
     </span>
+  );
+}
+
+export function BuildInstagram({ youtubePublicationId }: { youtubePublicationId: string }) {
+  const [msg, setMsg] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2">
+      <button type="button" disabled={pending} onClick={() => start(async () => setMsg((await buildInstagramDraftAction(youtubePublicationId)).message))} className="min-h-11 rounded-md border px-3 text-sm" style={{ borderColor: 'var(--border-default)' }}>
+        {pending ? 'Building…' : 'Build Instagram variant'}
+      </button>
+      {msg && <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{msg}</span>}
+    </div>
+  );
+}
+
+export function MarkPosted({ publicationId }: { publicationId: string }) {
+  const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+  const [at, setAt] = useState(now);
+  const [url, setUrl] = useState('');
+  const [msg, setMsg] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+  return (
+    <div className="mt-3 grid gap-2">
+      <div className="flex flex-wrap gap-2">
+        <input type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} className="min-h-11 rounded-md border bg-transparent px-2 text-sm" style={{ borderColor: 'var(--border-default)' }} />
+        <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Reel permalink (https://www.instagram.com/reel/…)" className="min-h-11 flex-1 rounded-md border bg-transparent px-2 text-sm" style={{ borderColor: 'var(--border-default)' }} />
+        <button type="button" disabled={pending || !at || !url} onClick={() => start(async () => setMsg((await markPostedAction(publicationId, url, at)).message))} className="min-h-11 rounded-md px-3 text-sm font-medium" style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}>
+          Mark posted
+        </button>
+      </div>
+      {msg && <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{msg}</p>}
+    </div>
   );
 }

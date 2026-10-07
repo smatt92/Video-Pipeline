@@ -1,3 +1,5 @@
+import { coverStillWith } from '@/lib/bureau/cover-still';
+import { buildInstagramDraft } from '@/lib/bureau/instagram-draft';
 import { writeFile } from 'node:fs/promises';
 
 import { logger, schemaTask, tasks, wait } from '@trigger.dev/sdk';
@@ -203,11 +205,15 @@ export const episodeTask = schemaTask({
           }
           // 9. Bundle
           const b = await bundleEpisode(db, episodeId);
+          // The Instagram half: a manual Reels draft beside the YouTube bundle when the channel
+          // publishes there (decision 0020). Refused by name for a channel without the target;
+          // never fails the run.
+          const ig = await buildInstagramDraft(db, b.publicationId, { coverStill: coverStillWith({ presign, putBytes: put }) }).catch((err) => ({ ok: false as const, refused: err instanceof Error ? err.message : String(err) }));
           // Both flags false today: this records "bundle only" and does nothing else.
           const next = await afterBundle(db, b.publicationId, {
             startUpload: async (publicationId) => (await tasks.trigger('10-publish', { publicationId, idempotencyKey: `publish:${publicationId}` })).id,
           });
-          await notify(db, channelId, 'info', `Publish bundle ready for episode ${episodeId.slice(0, 8)}${b.slotTime ? ` — slot ${b.slotTime}` : ''}. YouTube: ${next.youtube}.`);
+          await notify(db, channelId, 'info', `Publish bundle ready for episode ${episodeId.slice(0, 8)}${b.slotTime ? ` — slot ${b.slotTime}` : ''}. YouTube: ${next.youtube}. Instagram: ${ig.ok ? 'Reels draft ready on Ready to schedule' : ig.refused}.`);
           return { bundled: b.publicationId, ...next };
         }
         // Rejected: re-rolls queued by shot_regenerate are generated, then the cut is rebuilt.

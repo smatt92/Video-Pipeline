@@ -274,6 +274,9 @@ jobs:
       - name: Stage 11 — a blank metric stays blank, and the rollup declares what it cannot see
         run: pnpm verify:measure "$DATABASE_URL"
 
+      - name: Two channels stay apart; the Instagram variant, draft, Mark posted and probe
+        run: pnpm verify:channels "$DATABASE_URL"
+
       - name: Stage 1 — trend intake deduplicates and reports what it could not reach
         run: pnpm verify:trends "$DATABASE_URL"
 

@@ -1,6 +1,7 @@
 import { BureauNav } from '@/components/bureau/bureau-nav';
 import { CutControls, RegenerateButton } from '@/components/bureau/cut-controls';
 import { LiveRefresh, LiveStatus } from '@/components/bureau/live-status';
+import { channelGeneration, episodeClips } from '@/lib/bureau/overlay-only';
 import { isRunning } from '@/lib/bureau/running';
 import { requireChannel } from '@/lib/channels/active';
 import { serverClient } from '@/lib/db/server';
@@ -35,17 +36,24 @@ export default async function CutsPage() {
       const { data: spend } = await db.from('v_episode_spend').select('spent_inr, unpriced_rows').eq('episode_id', e.id).maybeSingle();
       const clips = Object.values(((e.qc ?? {}) as { clips?: Record<string, Clip> }).clips ?? {});
       const lufs = ((e.qc ?? {}) as { loudness_lufs?: number | null }).loudness_lufs ?? null;
-      return { e, url, shots: shots ?? [], clips, spend, lufs };
+      const gen = await episodeClips(db, e);
+      return { e, url, shots: shots ?? [], clips, spend, lufs, gen };
     }),
   );
+  const readiness = await channelGeneration(db, channel.id);
   return (
     <main className="mx-auto w-full max-w-[960px] px-4 py-6">
       <LiveRefresh active={rows.some(({ e }) => isRunning(e.status))} />
       <BureauNav active="cuts" />
       <h1 className="text-lg font-medium">Cuts</h1>
+      {readiness.summary && (
+        <p className="mt-1 text-sm" style={{ color: 'var(--state-blocked)' }}>
+          {readiness.summary} A viewer sees the chalk diagrams and none of the cast. Nothing is spent on this; it is the pipeline refusing to generate a different-looking person.
+        </p>
+      )}
       {rows.length === 0 && <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>No cut is waiting.</p>}
       <div className="mt-4 grid gap-6">
-        {rows.map(({ e, url, shots, clips, spend, lufs }) => (
+        {rows.map(({ e, url, shots, clips, spend, lufs, gen }) => (
           <section key={e.id} className="grid gap-4 rounded-md border p-4 md:grid-cols-[320px_1fr]" style={{ borderColor: 'var(--border-default)' }}>
             <div>
               {url ? (
@@ -63,6 +71,12 @@ export default async function CutsPage() {
                 <span className="font-mono tabular-nums">spent {spend?.spent_inr === undefined || spend?.spent_inr === null ? '—' : `₹${Number(spend.spent_inr).toFixed(2)}`}{Number(spend?.unpriced_rows ?? 0) > 0 ? ` + ${spend?.unpriced_rows} unpriced` : ''} (estimates)</span>
                 <span className="font-mono">{lufs === null ? 'loudness unmeasured' : `${lufs} LUFS`}</span>
               </div>
+              {gen && e.final_render_id && gen.overlayOnly && (
+                <p className="mt-1 text-sm" style={{ color: 'var(--state-blocked)' }}>
+                  Overlay-only cut: {gen.generatedPlanned === 0 ? 'every shot was planned as an overlay' : `${gen.generatedPlanned} generated shot${gen.generatedPlanned === 1 ? '' : 's'} planned, none produced a clip, so each is drawn as its overlay`}.
+                  {gen.swaps.length > 0 && <span className="block text-2xs" style={{ color: 'var(--text-muted)' }}>{gen.swaps.join(' · ')}</span>}
+                </p>
+              )}
               {(() => {
                 // Written by the voice stage: lines whose words the aligner could not confirm.
                 // They caption as whole lines, and only a listen confirms they say the script.

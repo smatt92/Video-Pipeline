@@ -6,7 +6,7 @@ import { cookies } from 'next/headers';
 import { checkEmail } from '../auth/allowed';
 import { routeClient } from '../auth/supabase';
 import { serverClient } from '../db/server';
-import { addChannel } from './add';
+import { addChannel, setPublishTarget } from './add';
 import { ACTIVE_CHANNEL_COOKIE, listChannels } from './list';
 
 async function signedIn(): Promise<string | null> {
@@ -64,6 +64,25 @@ export async function addChannelAction(_prev: AddChannelState, form: FormData): 
       status: 'ok',
       message: `Added and switched to it: ${r.cast} cast member(s) synced, publishing to ${r.targets.join(' + ')}.${r.warnings.length ? ` Warnings: ${r.warnings.join('; ')}.` : ''}`,
     };
+  } catch (err) {
+    return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+export async function setPublishTargetAction(_prev: AddChannelState, form: FormData): Promise<AddChannelState> {
+  try {
+    const denied = await signedIn();
+    if (denied) return { status: 'error', message: denied };
+    const s = (k: string) => (typeof form.get(k) === 'string' ? String(form.get(k)) : undefined);
+    const r = await setPublishTarget(serverClient(), s('channel_id') ?? '', {
+      platform: s('platform') === 'instagram' ? 'instagram' : 'youtube',
+      enabled: form.get('enabled') === 'on',
+      handle: s('handle'),
+      external_id: s('external_id'),
+    });
+    if (!r.ok) return { status: 'error', message: r.refused };
+    revalidatePath('/channels');
+    return { status: 'ok', message: 'Saved.' };
   } catch (err) {
     return { status: 'error', message: err instanceof Error ? err.message : String(err) };
   }
