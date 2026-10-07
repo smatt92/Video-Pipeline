@@ -1222,6 +1222,57 @@ decides the Settings banner's count and the refusal. Not observed on the hosted 
 every Bureau integration Sahil has clicked "Save and test" on is verified, so nothing changes
 until one is not.
 
+### 21. Several channels (2026-10-07, decision 0019) — RUN locally; the hosted project NOT
+
+**What has run:** `verify:channels` §1–§3 against a scratch database: Add channel refuses a
+slug without a bible folder by name and writes nothing, adds one with a folder (row, policy,
+both publish targets, the 8-member cast); a brief, an episode and a ₹44 ledger row on channel
+B are absent from every channel-A read the screens and tools use; an agent token for A is
+refused on B's brief, episode and shot, an approver token for A cannot approve B's brief (the
+0040 function refuses), and A's resources never return B's bible. `test:bureau` proves the
+cast, the lint's proper-name list and the voice override are per channel. Every other harness
+still green with the Bureau's bible reached through `bibleForChannel`.
+
+**What has NOT run:** 0046 on the hosted project (`docs/bureau/hosted-migrations-5-0046.sql`,
+verified locally to apply on a database at 0045 and to refuse a second paste). Until it is
+pasted: publish targets fall back to `channels.platform`, voice overrides and music beds read
+as none, and their screens say so. The switcher and `/channels/new` have not been rendered in
+a browser. No second channel exists in production; a real one needs `pnpm channel:new`, a
+commit and a worker deploy first.
+
+### 22. Instagram Reels, manual (2026-10-07, decision 0020) — RUN against stubs; Meta NOT
+
+**What has run:** `verify:channels` §4–§6: the variant's caption exactly (2,200 cap with the
+fact and tags intact, 3–5 hashtags), the permalink parser; the draft refused for a channel
+without the target, made once (same render and review, keyed `ig:<youtube id>`), with the
+cover still requested at the cold open's end; afterBundle's switched-off path scheduling that
+draft instead of a second row; Mark posted refusing a non-Instagram link and another channel's
+token, then writing the Reel `live` with its shortcode through `bureau_mark_scheduled`; the
+read-only probe against a stub Graph API in four shapes.
+
+**What has NOT run:** any Graph API call; the ffmpeg cover still on the worker (`coverStillWith`
+is not driven by a harness — the draft takes it as a dependency, and a failure only changes the
+cover note); Ready to schedule in a browser. The cover JPEG is stored through `putterFor`,
+which signs its PUT as `video/mp4` — the download works, an inline preview may not. Meta app
+review not submitted (0020 lists what it needs).
+
+### 23. Trends on a schedule, YouTube as a source (2026-10-07) — RUN against stubs
+
+**What has run:** `verify:trends` (per-channel rows, exact velocities, YouTube chart + search
+through a stub, the missing-key refusal by name with zero rows, Run now reaching the trigger
+with the channel's config, `trends_recent` scoped to the token's channel); `verify:bureau`
+drives `trends_recent` over HTTP.
+
+**What has NOT run:** the YouTube Data API (no key exists — `YOUTUBE_DATA_API_KEY`), Reddit
+for real, the 4×/day schedule on Trigger.dev (deployed 2026-10-07 by run 14 of the deploy
+workflow, not yet observed firing), `/trends` in a browser.
+
+### 24. Library and Concepts screens (2026-10-07) — RUN locally (`verify:library`)
+
+Voice override both ways (set → the stage's route is the override; clear → the bible), music
+upload confirm and per-series default refusals, concepts per channel with settled vs estimated
+cost. **NOT run:** a real presigned PUT of a bed, the `<audio>` players, any page in a browser.
+
 ## Gates, and where each can run
 
 | Gate | Runnable in this environment? |
@@ -1236,6 +1287,8 @@ until one is not.
 | Agent connector — OAuth handshake on `/api/mcp/agent` (0018) | **No.** Only Sahil adding the second connector (§19). |
 | Worker env sync from Vercel (0017) | **No.** The first `pnpm trigger:deploy` with `VERCEL_ACCESS_TOKEN` (§17). |
 | YouTube "Save and test" against Google | **No.** Clicking it on the deploy (§18). |
+| Instagram "Save and test" against the Graph API | **No.** Needs a Meta token; read-only probe (§22). |
+| YouTube Data API trend intake | **No.** Needs `YOUTUBE_DATA_API_KEY` in Vercel production (§23). |
 
 ## Closing this file
 
