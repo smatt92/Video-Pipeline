@@ -120,6 +120,19 @@ const ytServer = createServer((req, res) => {
     send(403, { error: { code: 403, message: 'The request cannot be completed because you have exceeded your quota.', errors: [{ reason: 'quotaExceeded', domain: 'youtube.quota' }] } });
     return;
   }
+  // The body the hosted run received for category 27 in IN (07-Oct 14:25 UTC), verbatim in shape.
+  if (ytMode === 'chart404' && u.searchParams.get('chart') === 'mostPopular' && u.searchParams.get('videoCategoryId') === '27') {
+    send(404, { error: { code: 404, message: 'Requested entity was not found.', errors: [{ message: 'Requested entity was not found.', domain: 'global', reason: 'notFound' }] } });
+    return;
+  }
+  if (ytMode === 'chart404' && u.pathname === '/youtube/v3/search' && u.searchParams.get('q') === 'cat physics') {
+    send(500, { error: { code: 500, message: 'Backend Error', errors: [{ reason: 'backendError' }] } });
+    return;
+  }
+  if (ytMode === 'allfail') {
+    send(404, { error: { code: 404, message: 'Requested entity was not found.', errors: [{ reason: 'notFound' }] } });
+    return;
+  }
   if (u.pathname === '/youtube/v3/videos' && u.searchParams.get('chart') === 'mostPopular') {
     send(200, { kind: 'youtube#videoListResponse', items: YT.mostPopular[u.searchParams.get('videoCategoryId')] ?? [] });
     return;
@@ -238,7 +251,8 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= 'harness';
 const BUILD = new URL('../.verify-build/src/lib', import.meta.url).pathname;
 const { runTrends, runTrendsForAllChannels } = require(`${BUILD}/trends/run.js`);
 const { startTrendsRun } = require(`${BUILD}/trends/run-now.js`);
-const { latestTrendRun } = require(`${BUILD}/trends/runs.js`);
+const { latestTrendRun, sourceStatus } = require(`${BUILD}/trends/runs.js`);
+const { signalsForConcepts } = require(`${BUILD}/trends/relevance.js`);
 const { parseApproxTraffic } = require(`${BUILD}/drivers/trends-google.js`);
 const { isArticle, WIKIPEDIA_USER_AGENT } = require(`${BUILD}/drivers/trends-wikipedia.js`);
 const { BUREAU_TOOLS, NO_EFFECTS } = require(`${BUILD}/bureau/mcp/surface.js`);
@@ -490,6 +504,120 @@ console.log('\n8. A missing key refuses by name and asks nothing; quota is named
   ytMode = 'ok';
   const qy = q.sources.find((s) => s.source === 'youtube');
   check(qy && !qy.ok && qy.count === 0 && (qy.detail ?? '').startsWith('HTTP 403 quotaExceeded'), 'a quota-exceeded 403 is reported by name', qy?.detail);
+  check(ytRequests.filter((u) => u.searchParams.get('key') === 'harness-key').length >= 1 && q.sources.find((s) => s.source === 'youtube')?.failures === undefined, '  · and quota is the whole source (no per-part list), because no later call could pass it', '');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('\n8b. One category with no chart is that category’s failure, not the source’s (O5)\n');
+{
+  // The hosted bug: category 27 answered 404 in IN and the first error ended the run, so the
+  // two queries after it were never asked. Seeded inputs: 28 → [V1]; 27 → the exact 404;
+  // "how fridges work" → VS; "cat physics" → 500. Expected outputs computed from those.
+  ytRequests.length = 0;
+  ytMode = 'chart404';
+  const out = await runTrends({ channelId: B, subreddits: [], youtube: YT_CFG, googleTrends: null, wikipedia: null, hn: null }, DEPS);
+  ytMode = 'ok';
+  const yt = out.sources.find((s) => s.source === 'youtube');
+  const asked = ytRequests.map((u) => `${u.pathname.split('/').pop()}:${u.searchParams.get('videoCategoryId') ?? u.searchParams.get('q') ?? u.searchParams.get('id')}`);
+  check(
+    JSON.stringify(asked) === JSON.stringify(['videos:28', 'videos:27', 'search:how fridges work', 'search:cat physics', 'videos:vidSEARCH01']),
+    'every category and query was still asked after the 404, and the statistics batch for the hit that landed',
+    asked.join(' '),
+  );
+  check(yt?.ok === true && yt.count === 2, '  · partial: ok with the 2 videos that landed (28’s and the fridge query’s)', JSON.stringify({ ok: yt?.ok, count: yt?.count }));
+  const f = yt?.failures ?? [];
+  check(
+    f.length === 2 &&
+      f[0].part === 'category 27' && f[0].kind === 'no_chart' && f[0].detail.startsWith('no most-popular chart for this category in IN (HTTP 404 notFound — Requested entity was not found.)') &&
+      f[1].part === 'query “cat physics”' && f[1].kind === 'error' && f[1].detail === 'HTTP 500 backendError — Backend Error',
+    '  · each failure named: category 27 has no chart in IN; the query’s 500 by its own words',
+    JSON.stringify(f),
+  );
+  check(sourceStatus(yt) === 'partial', '  · and its status is "partial"', sourceStatus(yt));
+  const rec = (await latestTrendRun(db, B));
+  const recYt = rec.ok ? rec.run?.sources.find((s) => s.source === 'youtube') : null;
+  check(JSON.stringify(recYt?.failures) === JSON.stringify(f), '  · the run row records the same per-part failures for /trends', JSON.stringify(recYt?.failures));
+
+  // Every part failing is the source failing.
+  ytMode = 'allfail';
+  const all = await runTrends({ channelId: B, subreddits: [], youtube: YT_CFG, googleTrends: null, wikipedia: null, hn: null }, DEPS);
+  ytMode = 'ok';
+  const ay = all.sources.find((s) => s.source === 'youtube');
+  check(ay?.ok === false && ay.count === 0 && ay.failures?.length === 4 && sourceStatus(ay) === 'failed', 'every category and query failing → the source failed, with four named parts', JSON.stringify(ay));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('\n16. Relevance for the channel: exact scores, each term embedded once, NULL when refused (O5)\n');
+{
+  // INPUTS: a stub embedder whose vectors are fixed by construction. Every niche text (the
+  // bible premise, the series, the calendar topics — whatever nicheTexts returns) embeds to e0,
+  // so the niche centroid IS e0 and a term's relevance is exactly its first coordinate. Terms
+  // get unit vectors with known first coordinates. OUTPUT asserted: what runTrends wrote.
+  const DIM = 768;
+  const unit = (first) => {
+    const v = new Array(DIM).fill(0);
+    v[0] = first;
+    v[1] = Math.sqrt(1 - first * first);
+    return v;
+  };
+  const T_ON = 'How superconductors levitate magnets above a track';
+  const T_OFF = 'Celebrity couple announces surprise wedding in Goa';
+  const T_NEW = 'Why the stock market fell today, explained in charts';
+  const TERM_VEC = { [T_ON]: unit(0.8125), [T_OFF]: unit(0.3) };
+  const embedCalls = [];
+  const stubEmbed = async (texts) => {
+    embedCalls.push(texts);
+    return { ok: true, model: 'harness-stub', vectors: texts.map((t) => TERM_VEC[t] ?? unit(1)) };
+  };
+  const refusing = async (texts) => {
+    embedCalls.push(texts);
+    // A refusal is only for terms; the niche is already stored, so this is never asked for it.
+    return { ok: false, detail: 'embeddings vendor rate-limited (429) on all 4 attempts: stub' };
+  };
+  const OFF = { googleTrends: null, wikipedia: null, hn: null, youtube: null };
+
+  listing = asListing([post(T_ON, 300, 3), post(T_OFF, 900, 3)]);
+  const out = await runTrends({ channelId: A, subreddits: ['infrastructure'], ...OFF }, { ...DEPS, embedFor: () => stubEmbed });
+  const rel = async (term) => (await client.query(`select relevance from trend_signals where channel_id = $1 and term = $2`, [A, term])).rows[0]?.relevance ?? 'missing';
+  const on = await rel(T_ON);
+  const off = await rel(T_OFF);
+  // numeric crosses as a string: compared as text, exactly — no tolerance, the inputs fix it.
+  check(on === '0.8125' && off === '0.3', 'relevance is the cosine with the niche, exactly: 0.8125 and 0.3', `${on}, ${off}`);
+  check(out.relevance.scored === 2 && out.relevance.unscored === 0 && out.relevance.detail === null && out.relevance.nicheRebuilt === true && out.relevance.embedded === 2,
+    '  · the result says 2 scored, niche built, 2 terms embedded', JSON.stringify(out.relevance));
+  const niche = (await client.query(`select source_count, model, jsonb_array_length(source_texts) n from channel_niche_vectors where channel_id = $1`, [A])).rows[0];
+  check(niche?.model === 'harness-stub' && niche.source_count === niche.n && niche.n >= 2, '  · the niche vector is stored with the texts it came from', JSON.stringify(niche));
+  const termRows = Number((await client.query(`select count(*)::int n from trend_term_embeddings where term in ($1, $2)`, [T_ON, T_OFF])).rows[0].n);
+  check(termRows === 2, '  · one stored embedding per term', String(termRows));
+
+  // Second run, same terms: nothing new is embedded and the niche is not rebuilt.
+  embedCalls.length = 0;
+  const again = await runTrends({ channelId: A, subreddits: ['infrastructure'], ...OFF }, { ...DEPS, embedFor: () => stubEmbed });
+  check(embedCalls.length === 0 && again.relevance.scored === 2 && again.relevance.nicheRebuilt === false, 'a term already embedded is not embedded again; the niche is read, not rebuilt', `${embedCalls.length} embed call(s)`);
+
+  // A new term while the vendor refuses → NULL, never 0, and the reason travels.
+  listing = asListing([post(T_NEW, 50, 3)]);
+  embedCalls.length = 0;
+  const refused = await runTrends({ channelId: A, subreddits: ['infrastructure'], ...OFF }, { ...DEPS, embedFor: () => refusing });
+  const nv = (await client.query(`select relevance from trend_signals where channel_id = $1 and term = $2`, [A, T_NEW])).rows[0];
+  check(nv && nv.relevance === null, 'a term the embedder refused keeps relevance NULL (not 0)', JSON.stringify(nv));
+  check(refused.relevance.scored === 0 && refused.relevance.unscored === 1 && (refused.relevance.detail ?? '').startsWith('1 new term not embedded: embeddings vendor rate-limited (429)'),
+    '  · and the run says why, in the vendor’s words', refused.relevance.detail);
+  const rr = await latestTrendRun(db, A);
+  const recorded = (await client.query(`select relevance from trend_runs where channel_id = $1 order by finished_at desc limit 1`, [A])).rows[0]?.relevance;
+  check(rr.ok && recorded?.detail === refused.relevance.detail, '  · recorded on the trend_runs row for /trends', JSON.stringify(recorded));
+  // No embedder at all: NULL too, and said.
+  listing = asListing([post('A brand new headline no embedder will ever see', 50, 3)]);
+  const bare = await runTrends({ channelId: A, subreddits: ['infrastructure'], ...OFF }, DEPS);
+  check(bare.relevance.detail === 'relevance not scored: no embedder was given to this run' && bare.relevance.scored === 0, 'no embedder → not scored, said by name', bare.relevance.detail);
+
+  // Stage 2's read: relevant first, unscored after, the off-niche one left out.
+  const picked = await signalsForConcepts(db, A, 25, 0.65, NOW);
+  const terms = picked.signals.map((x) => x.term);
+  check(terms[0] === T_ON && !terms.includes(T_OFF) && terms.includes(T_NEW) && picked.signals[0].relevance === 0.8125 && terms.slice(1).every((t) => picked.signals.find((x) => x.term === t).relevance === null),
+    'stage 2 reads the relevant signal first, then never-scored ones, and never the one measured off-niche', `${picked.basis} · ${terms.map((t) => t.slice(0, 18)).join(' | ')}`);
+  const lowered = await signalsForConcepts(db, A, 25, 0.25, NOW);
+  check(lowered.signals[0].term === T_ON && lowered.signals[1].term === T_OFF, '  · lower the threshold to 0.25 and the off-niche one returns, ranked by relevance', lowered.signals.slice(0, 2).map((x) => `${x.relevance}`).join(', '));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -562,15 +690,26 @@ const ctxFor = (channelId) => ({
   );
 
   const r = await tool.run(ctxFor(A), tool.args.parse({ days: 30, limit: 50 }));
+  // Expected, computed in SQL from the rows (not from the tool): the channel's relevant rows
+  // (≥ its 0.65 threshold, §16 scored one) most relevant first, then the rest by velocity,
+  // nulls last. Rows of equal velocity have no defined order, so the comparison is the same
+  // rows with the same sequence of (relevance band, velocity).
   const expected = (
     await client.query(
-      `select term from trend_signals where channel_id = $1 and captured_at >= now() - interval '30 days'
-        order by velocity desc nulls last`,
+      `select term, velocity, coalesce(relevance >= 0.65, false) as rel from trend_signals where channel_id = $1 and captured_at >= now() - interval '30 days'
+        order by coalesce(relevance >= 0.65, false) desc, case when relevance >= 0.65 then relevance end desc, velocity desc nulls last`,
       [A],
     )
-  ).rows.map((x) => x.term);
+  ).rows.map((x) => `${x.rel ? 'R' : '-'}${x.velocity === null ? '—' : Number(x.velocity)}|${x.term}`);
+  const relOf = (s) => (s.relevance !== null && s.relevance >= 0.65 ? 'R' : '-');
+  const got = r.ok ? r.signals.map((s) => `${relOf(s)}${s.velocity === null ? '—' : s.velocity}|${s.term}`) : [];
+  const seq = (xs) => xs.map((x) => x.split('|')[0]).join();
   const terms = r.ok ? r.signals.map((s) => s.term) : [];
-  check(r.ok === true && r.scope === 'channel' && r.scope_note === undefined && JSON.stringify(terms) === JSON.stringify(expected), "A's rows only, velocity desc, nulls last", `${terms.length} of ${expected.length}`);
+  check(
+    r.ok === true && r.scope === 'channel' && r.scope_note === undefined && JSON.stringify([...got].sort()) === JSON.stringify([...expected].sort()) && seq(got) === seq(expected) && got[0]?.startsWith('R'),
+    "A's rows only: the relevant one first, then velocity desc, nulls last",
+    `${terms.length} of ${expected.length}; first ${got[0]}`,
+  );
   check(r.ok && terms.at(-1) === NULL_TERM, '  · the null-velocity row is last', terms.at(-1));
   check(r.ok && r.signals.every((s) => s.velocity === null || typeof s.velocity === 'number') && r.signals.every((s) => s.volume === null || typeof s.volume === 'number'), '  · numeric columns arrive as numbers, not strings', '');
 
@@ -580,7 +719,7 @@ const ctxFor = (channelId) => ({
   check(salt?.velocity === 300 && salt?.url === `https://www.reddit.com${ROAD_SALT_LINK}`, '  · reddit link from raw.permalink', JSON.stringify(salt));
 
   const top = await tool.run(ctxFor(A), tool.args.parse({}));
-  check(top.ok && top.signals.length === Math.min(20, expected.length) && top.signals[0].term === expected[0], '  · defaults: 7 days, 20 rows, highest first', `${top.ok ? top.signals.length : JSON.stringify(top)}`);
+  check(top.ok && top.signals.length === Math.min(20, expected.length) && top.signals[0].term === expected[0].split('|').slice(1).join('|'), '  · defaults: 7 days, 20 rows, highest first', `${top.ok ? top.signals.length : JSON.stringify(top)}`);
 
   const bySlugB = await tool.run(ctxFor(A), tool.args.parse({ channel: B_SLUG }));
   check(
@@ -797,11 +936,15 @@ console.log('\n12. A database without 0046’s column still collects, and says s
   // Falls back to unfiltered — there is no per-channel fact to filter on — and says so.
   const r = await tool.run(ctxFor(B), tool.args.parse({ days: 30, limit: 50 }));
   const all = (
-    await client.query(`select term from trend_signals where captured_at >= now() - interval '30 days' order by velocity desc nulls last`)
-  ).rows.map((x) => x.term);
-  const got = r.ok ? r.signals.map((s) => s.term) : [];
+    await client.query(`select term, velocity from trend_signals where captured_at >= now() - interval '30 days' order by velocity desc nulls last`)
+  ).rows.map((x) => `${x.velocity === null ? '—' : Number(x.velocity)}|${x.term}`);
+  const got = r.ok ? r.signals.map((s) => `${s.velocity === null ? '—' : s.velocity}|${s.term}`) : [];
+  // Rows of equal velocity have no defined order (in Postgres or in the tool), so the
+  // comparison is: the same rows, and the velocities in the same sequence. Comparing terms
+  // in order broke the first time an update moved two equal-velocity rows in the heap.
+  const vel = (xs) => xs.map((x) => x.split('|')[0]).join();
   check(
-    r.ok === true && r.scope === 'workspace' && (r.scope_note ?? '').startsWith('migration 0046 not applied') && JSON.stringify(got) === JSON.stringify(all),
+    r.ok === true && r.scope === 'workspace' && (r.scope_note ?? '').startsWith('migration 0046 not applied') && JSON.stringify([...got].sort()) === JSON.stringify([...all].sort()) && vel(got) === vel(all),
     'trends_recent falls back to every row, unfiltered, and names the migration',
     r.ok ? `${got.length} of ${all.length}; ${r.scope_note}` : JSON.stringify(r),
   );

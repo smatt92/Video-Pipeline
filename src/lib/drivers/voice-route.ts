@@ -52,6 +52,32 @@ export type VoiceRoute =
 export const DEFAULT_TTS_MODEL = 'eleven_v3';
 
 /**
+ * The second model, for voice overflow (O5, channel_policy.voice_overflow). On the same vendor
+ * and the same presets, with its OWN daily limit (50/day, separate from v3's 50/day) — so when
+ * v3 is limited, the whole episode can be re-voiced here instead of waiting. Slightly less
+ * expressive: it reads no audio tags and takes no seed or language code.
+ */
+export const OVERFLOW_TTS_MODEL = 'eleven_multilingual_v2';
+
+export const TTS_MODELS = [DEFAULT_TTS_MODEL, OVERFLOW_TTS_MODEL] as const;
+export type TtsModelName = (typeof TTS_MODELS)[number];
+
+export function isTtsModel(m: string): m is TtsModelName {
+  return (TTS_MODELS as readonly string[]).includes(m);
+}
+
+/** A person-readable name for a model, for Cuts and Settings — never the vendor's id alone. */
+export const TTS_MODEL_LABEL: Record<TtsModelName, string> = {
+  [DEFAULT_TTS_MODEL]: 'the main voice model',
+  [OVERFLOW_TTS_MODEL]: 'the second voice model',
+};
+
+/** The same route on another model — the whole-episode overflow re-routes every speaker with this. */
+export function withModel(route: Extract<VoiceRoute, { ok: true }>, model: TtsModelName): Extract<VoiceRoute, { ok: true }> {
+  return { ...route, model };
+}
+
+/**
  * A voice chosen on the Voices screen (`channel_voice_overrides`), which wins over the bible.
  * `provider` is a string from the database, so it is checked here, where the vendor names live.
  */
@@ -112,9 +138,16 @@ export function voiceRouteFor(
   };
 }
 
-/** A stable, vendor-neutral string for `characters.voice_id` and `vo_takes.voice_id`. */
+/**
+ * A stable, vendor-neutral string for `characters.voice_id` and `vo_takes.voice_id`.
+ *
+ * The model is part of the key whenever it is not the default (O5): a take is re-used only when
+ * its key matches the current route, so a line spoken on v3 is never re-used under the second
+ * model and vice versa — which is what keeps an overflowed episode on ONE model throughout.
+ * The default model adds nothing, so every take recorded before this change keeps its key.
+ */
 export function voiceKey(route: Extract<VoiceRoute, { ok: true }>): string {
-  return `${route.provider}:${route.voiceId}`;
+  return route.model === DEFAULT_TTS_MODEL ? `${route.provider}:${route.voiceId}` : `${route.provider}:${route.voiceId}@${route.model}`;
 }
 
 /** Where the default voice path's per-character rate lives in `rate_card`. */
@@ -124,6 +157,11 @@ export const TTS_RATE_KEY = {
   endpoint: '/v1/text_to_speech',
   unit: 'character',
 } as const;
+
+/** The rate-card row for a TTS model on the preset path (0040 seeds both). */
+export function ttsRateKey(model: TtsModelName) {
+  return { ...TTS_RATE_KEY, model };
+}
 
 // ═════════════════════════════════════════════════════════════════════════════
 // The voice as the database stores it (channel_characters.voice, decision 0022)

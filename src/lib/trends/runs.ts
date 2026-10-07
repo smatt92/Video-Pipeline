@@ -8,7 +8,27 @@ import type { Db } from '../db/server';
  * an absence. Separate from read.ts so a harness can drive it with a database handle.
  */
 
-const SourceRow = z.object({ source: z.string(), ok: z.boolean(), count: z.number(), detail: z.string().optional() });
+const PartFailure = z.object({ part: z.string(), kind: z.enum(['no_chart', 'error']), detail: z.string() });
+const SourceRow = z.object({ source: z.string(), ok: z.boolean(), count: z.number(), detail: z.string().optional(), failures: z.array(PartFailure).optional() });
+export type TrendRunSource = z.infer<typeof SourceRow>;
+
+/**
+ * The pill a source card shows. One function so the card, the harness and anything else that
+ * says "partial" agree on what it means:
+ *   not_configured — the source refused because this channel did not set it up (a choice or a
+ *                    missing credential), said in `detail` beginning "not configured"
+ *   failed         — the whole source failed (ok false)
+ *   partial        — it landed signals and named at least one part that did not
+ *   ok             — every part answered
+ */
+export type SourceStatus = 'ok' | 'partial' | 'not_configured' | 'failed';
+export function sourceStatus(s: Pick<TrendRunSource, 'ok' | 'detail' | 'failures'>): SourceStatus {
+  if (!s.ok) return /^not configured/i.test(s.detail ?? '') ? 'not_configured' : 'failed';
+  return s.failures && s.failures.length > 0 ? 'partial' : 'ok';
+}
+
+const RelevanceNote = z.object({ scored: z.number(), unscored: z.number(), detail: z.string().nullable(), embedded: z.number(), nicheRebuilt: z.boolean() });
+export type RunRelevance = z.infer<typeof RelevanceNote>;
 
 export interface TrendRunView {
   id: string;
@@ -17,6 +37,8 @@ export interface TrendRunView {
   inserted: number;
   updated: number;
   sources: z.infer<typeof SourceRow>[];
+  /** What the relevance pass said (0051). Null = not recorded (before 0051, or a run before O5). */
+  relevance: RunRelevance | null;
 }
 
 export type LatestTrendRun =
@@ -25,13 +47,14 @@ export type LatestTrendRun =
   | { ok: false; reason: string };
 
 export async function latestTrendRun(db: Db, channelId: string): Promise<LatestTrendRun> {
-  const { data, error } = await db
-    .from('trend_runs')
-    .select('id, trigger, finished_at, inserted, updated, sources')
-    .eq('channel_id', channelId)
-    .order('finished_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const read = (cols: string) =>
+    db.from('trend_runs').select(cols).eq('channel_id', channelId).order('finished_at', { ascending: false }).limit(1).maybeSingle() as unknown as Promise<{
+      data: { id: string; trigger: string; finished_at: string; inserted: number; updated: number; sources: unknown; relevance?: unknown } | null;
+      error: { message: string } | null;
+    }>;
+  let { data, error } = await read('id, trigger, finished_at, inserted, updated, sources, relevance');
+  // trend_runs.relevance is 0051; a database without it still answers the rest.
+  if (error && /relevance/.test(error.message)) ({ data, error } = await read('id, trigger, finished_at, inserted, updated, sources'));
   if (error) {
     return {
       ok: false,
@@ -51,6 +74,10 @@ export async function latestTrendRun(db: Db, channelId: string): Promise<LatestT
       inserted: data.inserted,
       updated: data.updated,
       sources: sources.success ? sources.data : [{ source: 'unknown', ok: false, count: 0, detail: 'the recorded source list did not parse' }],
+      relevance: (() => {
+        const r = RelevanceNote.safeParse(data.relevance);
+        return r.success ? r.data : null;
+      })(),
     },
   };
 }

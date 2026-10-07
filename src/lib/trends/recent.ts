@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import type { Db } from '../db/server';
+import { readChannelFlags } from '../settings/channel-flags';
 
 /**
  * `trends_recent` — the Bureau's read of stage 1, for the token's channel only.
@@ -49,6 +50,8 @@ export interface RecentSignal {
   volume: number | null;
   captured_at: string;
   url: string | null;
+  /** Cosine with the channel's niche (0051). Null = not scored — never read it as 0. */
+  relevance: number | null;
 }
 
 export type TrendsRecentResult =
@@ -61,6 +64,7 @@ export type TrendsRecentResult =
       days: number;
       count: number;
       velocity_note: string;
+      relevance_note: string;
       signals: RecentSignal[];
     }
   | { ok: false; refused: true; summary: string };
@@ -70,7 +74,8 @@ const YoutubeRaw = z.object({ id: z.string().regex(/^[A-Za-z0-9_-]{6,20}$/) });
 const WikipediaRaw = z.object({ url: z.string().regex(/^https:\/\/[a-z-]+\.wikipedia\.org\/wiki\//) });
 const HnRaw = z.object({ url: z.string().regex(/^https?:\/\//).nullable(), hn_url: z.string().regex(/^https:\/\/news\.ycombinator\.com\//) });
 
-function urlFor(source: string, raw: unknown): string | null {
+/** A signal's link from its raw payload, where the source gives one. Shared with /trends. */
+export function signalUrl(source: string, raw: unknown): string | null {
   if (source === 'reddit') {
     const r = RedditRaw.safeParse(raw);
     return r.success ? `https://www.reddit.com${r.data.permalink}` : null;
@@ -108,6 +113,7 @@ interface Row {
   volume: unknown;
   captured_at: string;
   raw: unknown;
+  relevance?: unknown;
 }
 
 const toSignal = (r: Row): RecentSignal => ({
@@ -116,7 +122,8 @@ const toSignal = (r: Row): RecentSignal => ({
   velocity: num(r.velocity),
   volume: num(r.volume),
   captured_at: r.captured_at,
-  url: urlFor(r.source, r.raw),
+  url: signalUrl(r.source, r.raw),
+  relevance: num(r.relevance),
 });
 
 export async function trendsRecent(db: Db, tokenChannelId: string, args: TrendsRecentArgs, now: number = Date.now()): Promise<TrendsRecentResult> {
@@ -132,7 +139,7 @@ export async function trendsRecent(db: Db, tokenChannelId: string, args: TrendsR
   }
 
   const since = new Date(now - args.days * 86_400_000).toISOString();
-  const cols = 'source, term, velocity, volume, captured_at, raw';
+  let cols = 'source, term, velocity, volume, captured_at, raw, relevance';
   let scope: 'channel' | 'workspace' = 'channel';
   // Applied only while the column exists. Without 0046 there is no per-channel fact to filter
   // on — every row is workspace-wide — so the read falls back to unfiltered and says so.
@@ -149,21 +156,45 @@ export async function trendsRecent(db: Db, tokenChannelId: string, args: TrendsR
       .order('velocity', { ascending: false })
       .limit(args.limit);
   let ranked = await rankedQ();
+  if (ranked.error && /relevance/.test(ranked.error.message) && /does not exist|schema cache|could not find/i.test(ranked.error.message)) {
+    cols = 'source, term, velocity, volume, captured_at, raw';
+    ranked = await rankedQ();
+  }
   if (ranked.error && isChannelColumnMissing(ranked.error.message)) {
     scope = 'workspace';
     ranked = await rankedQ();
   }
   if (ranked.error) return { ok: false, refused: true, summary: `Reading trend_signals failed: ${ranked.error.message}` };
 
-  const rows: Row[] = [...(ranked.data ?? [])];
+  // The channel's relevant signals first (0051): at or above its threshold, most relevant
+  // first, so a model drafting for a science channel sees the science before the celebrity
+  // news however fast the latter is moving. Then the velocity ranking below, minus those.
+  const relevantRows: Row[] = [];
+  let threshold: number | null = null;
+  if (scope === 'channel' && cols.includes('relevance')) {
+    threshold = (await readChannelFlags(db, tokenChannelId)).values.relevanceThreshold;
+    const rel = await db
+      .from('trend_signals')
+      .select(cols)
+      .eq('channel_id', tokenChannelId)
+      .gte('captured_at', since)
+      .gte('relevance', threshold)
+      .order('relevance', { ascending: false })
+      .limit(args.limit);
+    if (rel.error) return { ok: false, refused: true, summary: `Reading trend_signals failed: ${rel.error.message}` };
+    relevantRows.push(...((rel.data ?? []) as unknown as Row[]));
+  }
+  const key = (r: Row) => `${r.source}\u0000${r.term}\u0000${r.captured_at}`;
+  const seen = new Set(relevantRows.map(key));
+  const rows: Row[] = [...relevantRows, ...((ranked.data ?? []) as unknown as Row[]).filter((r) => !seen.has(key(r)))].slice(0, args.limit);
   if (rows.length < args.limit) {
     const unranked = await scoped(db.from('trend_signals').select(cols))
       .gte('captured_at', since)
       .is('velocity', null)
       .order('captured_at', { ascending: false })
-      .limit(args.limit - rows.length);
+      .limit(args.limit);
     if (unranked.error) return { ok: false, refused: true, summary: `Reading trend_signals failed: ${unranked.error.message}` };
-    rows.push(...(unranked.data ?? []));
+    rows.push(...((unranked.data ?? []) as unknown as Row[]).filter((r) => !seen.has(key(r))).slice(0, args.limit - rows.length));
   }
 
   const signals = rows.map(toSignal);
@@ -180,6 +211,10 @@ export async function trendsRecent(db: Db, tokenChannelId: string, args: TrendsR
     days: args.days,
     count: signals.length,
     velocity_note: 'velocity is a proxy, not a measurement: Reddit = score per hour since posting; YouTube = views per hour since publish. null = the source gave none, not zero.',
+    relevance_note:
+      threshold === null
+        ? 'relevance is not available on this database (migration 0051), so signals are ranked by velocity alone.'
+        : `relevance is cosine similarity to this channel's niche (premise, series, calendar topics); signals at or above ${threshold} come first, most relevant first, then the rest by velocity. null = not scored, never 0.`,
     signals,
   };
 }

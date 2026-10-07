@@ -1456,6 +1456,35 @@ permission was not answered in an unattended run; the response shapes are from t
 documentation and parsed with Zod). The real run after deploy is the check — see
 HANDOVER-PROMPT-O3.
 
+### 33. YouTube partial failures, trend relevance, /trends redesign, voice overflow (2026-10-07, migration 0051) — RUN locally against stubs
+
+**YouTube 404, root cause (hosted rows, read-only select):** runs at 14:25 and 14:31 UTC recorded
+`youtube ok:false count:25 "HTTP 404 notFound — Requested entity was not found."`; every stored
+YouTube row is `via mostPopular, category 28`. So category 28's chart answered, **category 27
+(Education) answered 404 in IN**, and the first error ended the loop — the two queries were never
+asked. Google's videos.list documents `videoChartNotFound` (400) for an unavailable chart, not this
+404, and publishes no list of which categories have a chart per region; both are now matched as
+"no chart". Each category/query is its own attempt (`failures[]` on the source result and on
+`trend_runs.sources`); only quota/key/API-disabled stop the run.
+
+**What has run:** `verify:trends` §8b (the exact 404 body for 27 + a 500 on one query → partial,
+2 rows, both failures named, recorded on the run; every part failing → failed), §16 (stub vectors
+fixed by construction: relevance exactly 0.8125 and 0.3; second run embeds nothing; refusing
+embedder → NULL with the vendor's words on the run; no embedder → NULL, said; stage 2's read is
+relevant-first, unscored after, off-niche out), §11 (trends_recent relevant first);
+`verify:concepts` §9 (the user message runConcepts sent lists relevant by score, then unscored;
+the off-niche and another channel's signals absent); `verify:settings` §11 (flags: approver only,
+schema + CHECK, authorship_log, a DB without 0051 keeps every 0049 value); `verify:episode` §7c
+(overflow on: main refused once, every line on the second model, takes keyed `@model`, ONE re-speak
+estimate for exactly the re-bought characters, voice_detail.model/overflow/reason; off: "wait",
+second model never asked; both limited: "wait", nothing recorded). Bundle 9 proved on a 0050 DB
+(applies; second paste refuses).
+
+**Unverified:** a real Gemini embedding of a real term and the real spread of scores (the 0.65
+default is a starting point — /trends prints every score); the second TTS model on the real
+vendor (its separate 50/day limit is Sahil's statement, not observed here); a real overflowed
+episode; the redesigned /trends signed in on Vercel (screens are from the local seed).
+
 ## Gates, and where each can run
 
 | Gate | Runnable in this environment? |

@@ -58,9 +58,26 @@ export interface YoutubeSignal {
   readonly raw: Record<string, unknown>;
 }
 
+/**
+ * One call of the run that failed while the others went on (O5). `part` names it the way a
+ * person reads it — "category 27", "query “physics explained”" — and `kind` separates a chart
+ * that does not exist for that category in that region (a configuration fact, said once on
+ * /trends) from any other error.
+ */
+export interface YoutubePartFailure {
+  readonly part: string;
+  readonly kind: 'no_chart' | 'error';
+  readonly detail: string;
+}
+
+/**
+ * `ok: true` with `failures` is a PARTIAL result: some categories or queries failed and the
+ * rest landed. `ok: false` is the whole source — the key, the project or the quota, which no
+ * other call this run would get past either, or every part failing.
+ */
 export type YoutubeFetchResult =
-  | { ok: true; signals: YoutubeSignal[] }
-  | { ok: false; signals: YoutubeSignal[]; detail: string };
+  | { ok: true; signals: YoutubeSignal[]; failures: YoutubePartFailure[]; detail?: string }
+  | { ok: false; signals: YoutubeSignal[]; failures: YoutubePartFailure[]; detail: string };
 
 export interface YoutubeFetchOptions {
   /**
@@ -127,7 +144,36 @@ const ApiError = z.object({
 
 type Video = z.infer<typeof VideoItem>;
 
-class YoutubeApiError extends Error {}
+/**
+ * `fatal` = no other call this run can succeed either (quota spent, key refused, API not
+ * enabled), so the run stops. Anything else is one category's or one query's failure.
+ * `status`/`reason` are kept so the chart-not-found case can be told apart.
+ */
+class YoutubeApiError extends Error {
+  constructor(
+    message: string,
+    readonly fatal: boolean = false,
+    readonly status: number | null = null,
+    readonly reason: string | null = null,
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * A `mostPopular` chart that does not exist for this category in this region.
+ *
+ * Google documents `videoChartNotFound` (400, "The requested video chart is not supported or
+ * is not available") for this case on videos.list. What the hosted run actually received for
+ * category 27 (Education) in IN, 07-Oct 14:25 and 14:31 UTC, was `404 notFound — Requested
+ * entity was not found.` — undocumented for this endpoint, but the same fact: there is no
+ * chart to return. Both are matched; nothing else on a chart call is read as "no chart".
+ * Google publishes no list of which categories have a chart in which region, so the only
+ * instrument is the call itself, and its answer is recorded per category on every run.
+ */
+function isNoChart(err: YoutubeApiError): boolean {
+  return (err.status === 404 && (err.reason === 'notFound' || err.reason === null)) || err.reason === 'videoChartNotFound';
+}
 
 async function call(url: string): Promise<unknown> {
   const controller = new AbortController();
@@ -142,19 +188,25 @@ async function call(url: string): Promise<unknown> {
       if (res.status === 403 && reason === 'quotaExceeded') {
         throw new YoutubeApiError(
           'HTTP 403 quotaExceeded — the Data API daily quota for this key’s Google Cloud project is spent; ' +
-            'it resets at midnight Pacific time. Nothing was collected from YouTube this run.',
+            'it resets at midnight Pacific time. Nothing more was collected from YouTube this run.',
+          true,
+          res.status,
+          reason,
         );
       }
       if (reason === 'accessNotConfigured' || reason === 'SERVICE_DISABLED') {
         throw new YoutubeApiError(
           `HTTP ${res.status} ${reason} — "YouTube Data API v3" is not enabled on this key’s Google Cloud project. ` +
             'Enable it under APIs & Services → Library; the key itself is fine.',
+          true,
+          res.status,
+          reason,
         );
       }
       if (reason === 'keyInvalid' || (res.status === 400 && /API key not valid/i.test(message ?? ''))) {
-        throw new YoutubeApiError(`HTTP ${res.status} keyInvalid — YOUTUBE_DATA_API_KEY is set but Google does not accept it. Re-copy it from Credentials.`);
+        throw new YoutubeApiError(`HTTP ${res.status} keyInvalid — YOUTUBE_DATA_API_KEY is set but Google does not accept it. Re-copy it from Credentials.`, true, res.status, reason ?? 'keyInvalid');
       }
-      throw new YoutubeApiError(`HTTP ${res.status}${reason ? ` ${reason}` : ''}${message ? ` — ${message}` : ''}`);
+      throw new YoutubeApiError(`HTTP ${res.status}${reason ? ` ${reason}` : ''}${message ? ` — ${message}` : ''}`, false, res.status, reason ?? null);
     }
     return body;
   } finally {
@@ -171,14 +223,25 @@ function endpoint(base: string, path: string, params: Record<string, string>, ke
 /**
  * Trending videos for one channel's configuration: the most-popular chart per category, and
  * a week's most-viewed per query. Deduplicated by video id within the run.
+ *
+ * ── One failing category is that category's failure, not the source's (O5) ──
+ *
+ * Until 07-Oct the first error ended the run: category 27 answered 404 in IN, so the two
+ * queries after it were never asked and the whole source read "failed" with category 28's 25
+ * videos still landing under it. Now each category and each query is its own attempt, its
+ * failure is recorded by name in `failures`, and the rest go on. Only an error no later call
+ * could get past either (quota, key, API not enabled) stops the run.
  */
 export async function fetchYoutubeTrends(config: YoutubeTrendConfig, opts: YoutubeFetchOptions): Promise<YoutubeFetchResult> {
-  if (!opts.apiKey) return { ok: false, signals: [], detail: MISSING_KEY_DETAIL };
+  if (!opts.apiKey) return { ok: false, signals: [], failures: [], detail: MISSING_KEY_DETAIL };
   const key = opts.apiKey;
   const base = opts.baseUrl ?? DEFAULT_BASE;
   const now = opts.now ?? Date.now();
 
   const seen = new Map<string, YoutubeSignal>();
+  const failures: YoutubePartFailure[] = [];
+  let attempted = 0;
+  let succeeded = 0;
   const add = (v: Video, via: Record<string, string>) => {
     if (!v.snippet || seen.has(v.id)) return;
     const views = v.statistics?.viewCount;
@@ -197,65 +260,103 @@ export async function fetchYoutubeTrends(config: YoutubeTrendConfig, opts: Youtu
     });
   };
 
+  /** One part: its call, its parse, its failure. Throws only what must stop the run. */
+  const attempt = async (part: string, chart: boolean, f: () => Promise<boolean>) => {
+    attempted++;
+    try {
+      if (await f()) succeeded++;
+      else failures.push({ part, kind: 'error', detail: 'unexpected response shape' });
+    } catch (err) {
+      if (err instanceof YoutubeApiError && err.fatal) throw err;
+      if (err instanceof YoutubeApiError && chart && isNoChart(err)) {
+        failures.push({
+          part,
+          kind: 'no_chart',
+          detail: `no most-popular chart for this category in ${config.region_code} (${err.message}) — Google does not publish which categories have one; keep it as a query instead, or remove it`,
+        });
+        return;
+      }
+      failures.push({ part, kind: 'error', detail: err instanceof Error ? err.message : String(err) });
+    }
+  };
+
+  const summarise = (): string | undefined =>
+    failures.length ? failures.map((f) => `${f.part}: ${f.detail}`).join('; ') : undefined;
+
   try {
     for (const category of config.category_ids) {
-      const json = await call(
-        endpoint(base, 'videos', {
-          part: 'snippet,statistics',
-          chart: 'mostPopular',
-          regionCode: config.region_code,
-          videoCategoryId: category,
-          maxResults: String(MAX_RESULTS),
-        }, key),
-      );
-      const parsed = VideoList.safeParse(json);
-      if (!parsed.success) {
-        return { ok: false, signals: [...seen.values()], detail: `mostPopular category ${category}: unexpected response shape` };
-      }
-      for (const v of parsed.data.items) add(v, { via: 'mostPopular', category_id: category });
+      await attempt(`category ${category}`, true, async () => {
+        const json = await call(
+          endpoint(base, 'videos', {
+            part: 'snippet,statistics',
+            chart: 'mostPopular',
+            regionCode: config.region_code,
+            videoCategoryId: category,
+            maxResults: String(MAX_RESULTS),
+          }, key),
+        );
+        const parsed = VideoList.safeParse(json);
+        if (!parsed.success) return false;
+        for (const v of parsed.data.items) add(v, { via: 'mostPopular', category_id: category });
+        return true;
+      });
     }
 
     const publishedAfter = new Date(now - SEARCH_WINDOW_MS).toISOString();
     const fromSearch: { id: string; query: string }[] = [];
     for (const query of config.queries) {
-      const json = await call(
-        endpoint(base, 'search', {
-          part: 'snippet',
-          type: 'video',
-          order: 'viewCount',
-          publishedAfter,
-          q: query,
-          regionCode: config.region_code,
-          maxResults: String(MAX_RESULTS),
-        }, key),
-      );
-      const parsed = SearchList.safeParse(json);
-      if (!parsed.success) {
-        return { ok: false, signals: [...seen.values()], detail: `search "${query}": unexpected response shape` };
-      }
-      for (const item of parsed.data.items) {
-        const id = item.id.videoId;
-        if (id && !seen.has(id) && !fromSearch.some((s) => s.id === id)) fromSearch.push({ id, query });
-      }
+      await attempt(`query “${query}”`, false, async () => {
+        const json = await call(
+          endpoint(base, 'search', {
+            part: 'snippet',
+            type: 'video',
+            order: 'viewCount',
+            publishedAfter,
+            q: query,
+            regionCode: config.region_code,
+            maxResults: String(MAX_RESULTS),
+          }, key),
+        );
+        const parsed = SearchList.safeParse(json);
+        if (!parsed.success) return false;
+        for (const item of parsed.data.items) {
+          const id = item.id.videoId;
+          if (id && !seen.has(id) && !fromSearch.some((s) => s.id === id)) fromSearch.push({ id, query });
+        }
+        return true;
+      });
     }
 
     // One statistics batch for every search hit — see the header. 50 ids is the API's cap.
+    // Not counted as a part of its own: it measures the queries' hits, and its failure is
+    // recorded so those hits are known to be missing rather than silently absent.
     for (let i = 0; i < fromSearch.length; i += 50) {
       const batch = fromSearch.slice(i, i + 50);
-      const json = await call(endpoint(base, 'videos', { part: 'snippet,statistics', id: batch.map((b) => b.id).join(',') }, key));
-      const parsed = VideoList.safeParse(json);
-      if (!parsed.success) {
-        return { ok: false, signals: [...seen.values()], detail: 'statistics for search results: unexpected response shape' };
-      }
-      for (const v of parsed.data.items) {
-        const query = batch.find((b) => b.id === v.id)?.query ?? '';
-        add(v, { via: 'search', query });
+      try {
+        const json = await call(endpoint(base, 'videos', { part: 'snippet,statistics', id: batch.map((b) => b.id).join(',') }, key));
+        const parsed = VideoList.safeParse(json);
+        if (!parsed.success) {
+          failures.push({ part: 'statistics for search results', kind: 'error', detail: 'unexpected response shape' });
+          continue;
+        }
+        for (const v of parsed.data.items) {
+          const query = batch.find((b) => b.id === v.id)?.query ?? '';
+          add(v, { via: 'search', query });
+        }
+      } catch (err) {
+        if (err instanceof YoutubeApiError && err.fatal) throw err;
+        failures.push({ part: 'statistics for search results', kind: 'error', detail: err instanceof Error ? err.message : String(err) });
       }
     }
   } catch (err) {
-    const why = err instanceof YoutubeApiError ? err.message : err instanceof Error ? err.message : String(err);
-    return { ok: false, signals: [...seen.values()], detail: why };
+    const why = err instanceof Error ? err.message : String(err);
+    return { ok: false, signals: [...seen.values()], failures, detail: why };
   }
 
-  return { ok: true, signals: [...seen.values()] };
+  // Every part failed → the source failed; some did → partial, with each failure by name.
+  if (attempted > 0 && succeeded === 0) {
+    return { ok: false, signals: [...seen.values()], failures, detail: summarise() ?? 'every call failed' };
+  }
+  const detail = summarise();
+  return { ok: true, signals: [...seen.values()], failures, ...(detail ? { detail } : {}) };
 }

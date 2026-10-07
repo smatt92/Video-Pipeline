@@ -9,14 +9,16 @@ import type { RedditCredentials } from '../drivers/trends-reddit';
 import type { YoutubeTrendConfig } from '../drivers/trends-youtube';
 import { DEFAULT_HN_TOP_N } from '../drivers/trends-hn';
 import { DEFAULT_WIKIPEDIA_LANGUAGES, DEFAULT_WIKIPEDIA_TOP_N } from '../drivers/trends-wikipedia';
-import { fetchGoogleTrends, fetchHn, fetchReddit, fetchWikipedia, fetchYoutube, type RawSignal, type SourceResult } from './sources';
+import { fetchGoogleTrends, fetchHn, fetchReddit, fetchWikipedia, fetchYoutube, type RawSignal, type SourcePartFailure, type SourceResult } from './sources';
 import { isChannelColumnMissing } from './recent';
+import { scoreSignals, type RelevanceOutcome } from './relevance';
+import type { Embedder } from '../bureau/embed';
 
 /**
  * Stage 1 — collect trend signals.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * The only stage in this pipeline that costs nothing
+ * The stage that costs (almost) nothing
  * ─────────────────────────────────────────────────────────────────────────────
  *
  * No billing and no `cost_ledger` row — and that is worth saying out loud because rule 5 is
@@ -25,6 +27,10 @@ import { isChannelColumnMissing } from './recent';
  * YouTube's (`YOUTUBE_DATA_API_KEY`) are free within their quotas, and the Google Trends RSS
  * feed, Wikipedia's pageviews API and Hacker News' API need nothing — no key, no account, no
  * charge. Quota running out is reported by name, never as an empty list.
+ *
+ * Since 0051 one thing here does write a row: scoring relevance embeds each NEW term once,
+ * through the embedder the task passes (`ledgeredEmbedder`, estimate before the call, 0015).
+ * Collection never waits on it, and a refusal leaves relevance NULL — see relevance.ts.
  *
  * ── Per channel (0046) ───────────────────────────────────────────────────────
  *
@@ -91,6 +97,12 @@ export interface TrendRunDeps {
   readonly youtubeBaseUrl?: string;
   readonly now?: number;
   readonly log?: { info(m: string, d?: unknown): void; error(m: string, d?: unknown): void };
+  /**
+   * Embeds new terms to score relevance (O5, 0051). Per channel: the task passes
+   * `ledgeredEmbedder(db, channelId, rate)` through `embedFor`. Absent → every signal keeps
+   * relevance NULL and the result says so — never 0.
+   */
+  readonly embedFor?: (channelId: string) => Embedder | null;
 }
 
 export interface TrendRunResult {
@@ -98,7 +110,7 @@ export interface TrendRunResult {
   readonly channelId: string | null;
   readonly inserted: number;
   readonly updated: number;
-  readonly sources: { source: string; ok: boolean; count: number; detail?: string }[];
+  readonly sources: { source: string; ok: boolean; count: number; detail?: string; failures?: readonly SourcePartFailure[] }[];
   /**
    * Present only when the rows could NOT carry their channel: `trend_signals.channel_id` is
    * missing because migration 0046 has not been applied to this database, so the rows were
@@ -110,6 +122,8 @@ export interface TrendRunResult {
    * missing because migration 0049 has not been pasted. The signals still landed.
    */
   readonly runLogMissing?: string;
+  /** How many of this run's signals were scored for relevance, and why the rest were not. */
+  readonly relevance: RelevanceOutcome;
 }
 
 const noop = { info: () => {}, error: () => {} };
@@ -212,6 +226,9 @@ export async function runTrends(
     return r.data;
   };
 
+  // Every row this run inserted or updated, for the relevance pass below.
+  const touched: { id: string; term: string }[] = [];
+
   for (const result of results) {
     for (const signal of result.signals) {
       if (signal.term.trim().length < MIN_TERM) continue;
@@ -239,20 +256,22 @@ export async function runTrends(
         // The latest reading wins. Velocity moves through the day and the newest number is
         // the one stage 2 should score against.
         await db.from('trend_signals').update(base).eq('id', existing.id);
+        touched.push({ id: existing.id, term: signal.term });
         updated++;
         continue;
       }
 
       const row: TablesInsert<'trend_signals'> = channelColumn ? { ...base, channel_id: channelId } : base;
-      let { error } = await db.from('trend_signals').insert(row);
+      let { data: ins, error } = await db.from('trend_signals').insert(row).select('id').single();
       if (error && channelColumn && isChannelColumnMissing(error.message)) {
         channelColumn = false;
-        ({ error } = await db.from('trend_signals').insert(base));
+        ({ data: ins, error } = await db.from('trend_signals').insert(base).select('id').single());
       }
       if (error) {
         log.error('signal refused', { term: signal.term.slice(0, 60), error: error.message });
         continue;
       }
+      if (ins) touched.push({ id: ins.id, term: signal.term });
       inserted++;
     }
   }
@@ -262,22 +281,45 @@ export async function runTrends(
     ok: r.ok,
     count: r.signals.length,
     ...(r.detail ? { detail: r.detail } : {}),
+    // Which category or query failed and why (O5) — so /trends can say "partial: category
+    // 27 has no chart in IN" instead of failing the whole source on one 404.
+    ...(r.failures?.length ? { failures: r.failures } : {}),
   }));
 
-  log.info('trend intake', { channelId, inserted, updated, sources: summary, channelColumn });
+  // ── Relevance for this channel (0051) ──────────────────────────────────────
+  // After the rows land, so a vendor that refuses costs the scores and nothing else. A
+  // workspace-wide run (no channel, or no channel column) has no niche to score against.
+  const relevance: RelevanceOutcome =
+    channelId === null || !channelColumn
+      ? { scored: 0, unscored: touched.length, detail: touched.length ? 'relevance not scored: these signals have no channel to be relevant to' : null, embedded: 0, nicheRebuilt: false }
+      : await scoreSignals(db, channelId, touched, deps.embedFor?.(channelId) ?? null, deps.now ?? Date.now()).catch((err: unknown) => ({
+          scored: 0,
+          unscored: touched.length,
+          detail: `relevance not scored: ${err instanceof Error ? err.message : String(err)}`,
+          embedded: 0,
+          nicheRebuilt: false,
+        }));
+  if (relevance.detail) log.error(relevance.detail, { channelId, scored: relevance.scored, unscored: relevance.unscored });
+
+  log.info('trend intake', { channelId, inserted, updated, sources: summary, channelColumn, relevance });
 
   // Every source's answer, as a row (0049) — so /trends says "Reddit: refused 403" instead of
   // showing a board that looks like a quiet day. Best-effort: a missing table is said in the
   // result, and the signals above have landed either way.
   let runLogMissing: string | undefined;
-  const { error: runErr } = await db.from('trend_runs').insert({
+  const runRow = {
     channel_id: channelId,
     trigger: deps.runKind ?? 'schedule',
     started_at: startedAt,
     inserted,
     updated,
     sources: summary as unknown as Json,
-  });
+  };
+  let { error: runErr } = await db.from('trend_runs').insert({ ...runRow, relevance: relevance as unknown as Json });
+  // trend_runs.relevance is 0051; without it the row still lands, minus the relevance note.
+  if (runErr && /relevance/.test(runErr.message) && /does not exist|schema cache|could not find/i.test(runErr.message)) {
+    ({ error: runErr } = await db.from('trend_runs').insert(runRow));
+  }
   if (runErr) {
     runLogMissing = /trend_runs|relation .* does not exist|schema cache/i.test(runErr.message) ? TRENDS_RUNS_NEED_0049 : `trend_runs not written: ${runErr.message}`;
     log.error(runLogMissing);
@@ -291,6 +333,7 @@ export async function runTrends(
     sources: summary,
     ...(channelColumn ? {} : { channelColumnMissing: COLUMN_MISSING }),
     ...(runLogMissing ? { runLogMissing } : {}),
+    relevance,
   };
 }
 

@@ -9,7 +9,7 @@ import { promisify } from 'node:util';
 import { currentRate } from '../cost/rate-card';
 import type { Db } from '../db/server';
 import type { Json } from '../db/types';
-import { TTS_RATE_KEY, voiceKey, voiceRouteFor, type VoiceOverride, type VoiceProvider, type VoiceRoute } from '../drivers/voice-route';
+import { DEFAULT_TTS_MODEL, ttsRateKey, voiceKey, voiceRouteFor, withModel, type TtsModelName, type VoiceOverride, type VoiceProvider, type VoiceRoute } from '../drivers/voice-route';
 import type { LineAudio } from '../drivers/voice-synth';
 import type { AlignResult } from '../voice/align';
 import { shiftBy, type WordTiming } from '../voice/timings';
@@ -70,11 +70,16 @@ export interface VoiceDeps {
   gaps?: { lineGapS: number; tailS: number };
   /** Override the character → voice decision (harnesses lock presets without editing the bible). */
   routeFor?(slug: string): VoiceRoute;
+  /**
+   * Every speaker on this model (O5 voice overflow). Absent → the route's own model (the
+   * default). Applied to EVERY route, never per line: an episode is spoken on one model.
+   */
+  model?: TtsModelName;
   log?: { info(m: string, d?: unknown): void; error(m: string, d?: unknown): void };
 }
 
 export type VoiceOutcome =
-  | { ok: true; lines: number; totalS: number; voAssetId: string; chars: number; costInr: number; shotsTimed: number; reused: number; unaligned: number | null; tempo?: number }
+  | { ok: true; lines: number; totalS: number; voAssetId: string; chars: number; costInr: number; shotsTimed: number; reused: number; unaligned: number | null; tempo?: number; model: string; respoken: number }
   | { ok: false; code: string; detail: string };
 
 /** Silence between lines, so the cut has room to breathe and captions do not collide. Default; a channel's is line_gap_s. */
@@ -101,7 +106,7 @@ export async function runEpisodeVoice(scriptId: string, deps: VoiceDeps): Promis
       continue;
     }
     const r = deps.routeFor ? deps.routeFor(slug) : voiceRouteFor(c, deps.overrides?.get(slug));
-    if (r.ok) routes.set(slug, r);
+    if (r.ok) routes.set(slug, deps.model ? withModel(r, deps.model) : r);
     else refusals.push(r.detail);
   }
   if (refusals.length) return { ok: false, code: 'voice_not_locked', detail: refusals.join(' ') };
@@ -132,7 +137,10 @@ export async function runEpisodeVoice(scriptId: string, deps: VoiceDeps): Promis
   const respoken = toSpeak.filter((l) => (existing ?? []).some((t) => t.chunk_idx === l.idx && t.asset_id));
 
   // ── Price before speaking ──────────────────────────────────────────────────
-  const rate = await currentRate(db, { ...TTS_RATE_KEY });
+  // Priced at the model the episode is spoken on (one model per episode, so one rate).
+  const model = deps.model ?? DEFAULT_TTS_MODEL;
+  const rateKey = ttsRateKey(model);
+  const rate = await currentRate(db, { ...rateKey });
   if (!rate.found) return { ok: false, code: 'unpriced', detail: `Refusing to synthesise: ${rate.detail}` };
   // The first pass prices the whole script under '06-voice' (its natural key dedupes a retry).
   // A later pass that re-speaks lines — a voice changed on re-cut — prices only those, under a
@@ -152,7 +160,7 @@ export async function runEpisodeVoice(scriptId: string, deps: VoiceDeps): Promis
   const { error: ledgerError } = already ? { error: null } : await db.from('cost_ledger').insert({
     script_id: script.id,
     concept_id: script.concept_id,
-    driver: TTS_RATE_KEY.driver,
+    driver: rateKey.driver,
     idempotency_key: respeakKey,
     stage,
     entry_kind: 'estimate',
@@ -324,7 +332,7 @@ export async function runEpisodeVoice(scriptId: string, deps: VoiceDeps): Promis
     const shotsTimed = await deriveContiguous(db, script.id, lines, offsets, totalS);
     log.info('voice complete', { lines: lines.length, totalS, words: allWords.length, shotsTimed });
 
-    return { ok: true, lines: lines.length, totalS, voAssetId: trackAsset!.id, chars, costInr, shotsTimed, reused, unaligned: failedLines.length, tempo };
+    return { ok: true, lines: lines.length, totalS, voAssetId: trackAsset!.id, chars, costInr, shotsTimed, reused, unaligned: failedLines.length, tempo, model, respoken: respoken.length };
   } finally {
     await rm(work, { recursive: true, force: true });
   }

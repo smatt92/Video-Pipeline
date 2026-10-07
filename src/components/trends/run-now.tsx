@@ -14,17 +14,17 @@ export function RunNow({ channelId }: { channelId: string }) {
   const [state, setState] = useState<TrendsState>({ status: 'idle' });
   const [pending, start] = useTransition();
   return (
-    <div>
+    <div className="col" style={{ gap: 6, alignItems: 'flex-end', maxWidth: 420 }}>
       <button
         type="button"
         disabled={pending}
         onClick={() => start(async () => setState(await runTrendsNowAction(channelId)))}
-        className="btn sm"
+        className="btn pri"
       >
         {pending ? 'Starting…' : 'Run now'}
       </button>
       {state.status !== 'idle' && state.message && (
-        <p className="mt-1 text-2xs" style={{ color: state.status === 'ok' ? 'var(--t3)' : 'var(--blk)' }}>
+        <p className="xs" role="status" style={{ color: state.status === 'ok' ? 'var(--t3)' : 'var(--blk-text)', textAlign: 'right' }}>
           {state.message}
           {state.runId ? ` Run ${state.runId}.` : ''}
         </p>

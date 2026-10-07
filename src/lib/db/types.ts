@@ -558,6 +558,44 @@ export type Database = {
           },
         ]
       }
+      channel_niche_vectors: {
+        Row: {
+          built_at: string
+          channel_id: string
+          embedding: string
+          model: string
+          source_count: number
+          source_hash: string
+          source_texts: Json
+        }
+        Insert: {
+          built_at?: string
+          channel_id: string
+          embedding: string
+          model: string
+          source_count: number
+          source_hash: string
+          source_texts: Json
+        }
+        Update: {
+          built_at?: string
+          channel_id?: string
+          embedding?: string
+          model?: string
+          source_count?: number
+          source_hash?: string
+          source_texts?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_niche_vectors_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: true
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channel_policy: {
         Row: {
           caption_scale: number
@@ -585,6 +623,7 @@ export type Database = {
           monthly_cap_inr: number
           overlay_min_share: number
           per_short_cap_inr: number
+          relevance_threshold: number
           rerolls_max: number
           seconds_per_picture: number
           similarity_max: number
@@ -597,6 +636,7 @@ export type Database = {
           updated_by: string | null
           variation_min_axes: number
           variation_window: number
+          voice_overflow: boolean
           youtube_api_audited: boolean
         }
         Insert: {
@@ -625,6 +665,7 @@ export type Database = {
           monthly_cap_inr?: number
           overlay_min_share?: number
           per_short_cap_inr?: number
+          relevance_threshold?: number
           rerolls_max?: number
           seconds_per_picture?: number
           similarity_max?: number
@@ -637,6 +678,7 @@ export type Database = {
           updated_by?: string | null
           variation_min_axes?: number
           variation_window?: number
+          voice_overflow?: boolean
           youtube_api_audited?: boolean
         }
         Update: {
@@ -665,6 +707,7 @@ export type Database = {
           monthly_cap_inr?: number
           overlay_min_share?: number
           per_short_cap_inr?: number
+          relevance_threshold?: number
           rerolls_max?: number
           seconds_per_picture?: number
           similarity_max?: number
@@ -677,6 +720,7 @@ export type Database = {
           updated_by?: string | null
           variation_min_axes?: number
           variation_window?: number
+          voice_overflow?: boolean
           youtube_api_audited?: boolean
         }
         Relationships: [
@@ -4196,6 +4240,7 @@ export type Database = {
           finished_at: string
           id: string
           inserted: number
+          relevance: Json | null
           sources: Json
           started_at: string
           trigger: string
@@ -4206,6 +4251,7 @@ export type Database = {
           finished_at?: string
           id?: string
           inserted: number
+          relevance?: Json | null
           sources: Json
           started_at: string
           trigger: string
@@ -4216,6 +4262,7 @@ export type Database = {
           finished_at?: string
           id?: string
           inserted?: number
+          relevance?: Json | null
           sources?: Json
           started_at?: string
           trigger?: string
@@ -4238,6 +4285,8 @@ export type Database = {
           id: string
           raw: Json
           region: string | null
+          relevance: number | null
+          relevance_scored_at: string | null
           source: string
           term: string
           velocity: number | null
@@ -4249,6 +4298,8 @@ export type Database = {
           id?: string
           raw?: Json
           region?: string | null
+          relevance?: number | null
+          relevance_scored_at?: string | null
           source: string
           term: string
           velocity?: number | null
@@ -4260,6 +4311,8 @@ export type Database = {
           id?: string
           raw?: Json
           region?: string | null
+          relevance?: number | null
+          relevance_scored_at?: string | null
           source?: string
           term?: string
           velocity?: number | null
@@ -4274,6 +4327,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      trend_term_embeddings: {
+        Row: {
+          created_at: string
+          embedding: string
+          model: string
+          term: string
+        }
+        Insert: {
+          created_at?: string
+          embedding: string
+          model: string
+          term: string
+        }
+        Update: {
+          created_at?: string
+          embedding?: string
+          model?: string
+          term?: string
+        }
+        Relationships: []
       }
       vo_takes: {
         Row: {
@@ -5987,6 +6061,7 @@ export type Database = {
           monthly_cap_inr: number
           overlay_min_share: number
           per_short_cap_inr: number
+          relevance_threshold: number
           rerolls_max: number
           seconds_per_picture: number
           similarity_max: number
@@ -5999,6 +6074,7 @@ export type Database = {
           updated_by: string | null
           variation_min_axes: number
           variation_window: number
+          voice_overflow: boolean
           youtube_api_audited: boolean
         }
         SetofOptions: {
@@ -6045,6 +6121,7 @@ export type Database = {
           monthly_cap_inr: number
           overlay_min_share: number
           per_short_cap_inr: number
+          relevance_threshold: number
           rerolls_max: number
           seconds_per_picture: number
           similarity_max: number
@@ -6057,6 +6134,7 @@ export type Database = {
           updated_by: string | null
           variation_min_axes: number
           variation_window: number
+          voice_overflow: boolean
           youtube_api_audited: boolean
         }
         SetofOptions: {

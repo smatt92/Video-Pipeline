@@ -2,10 +2,13 @@ import { logger, queue, schedules, schemaTask } from '@trigger.dev/sdk';
 import { z } from 'zod';
 
 import { TrendsConfigSchema } from '@/lib/bureau/bible';
-import { serverClient } from '@/lib/db/server';
+import { ledgeredEmbedder } from '@/lib/bureau/embed';
+import { readUsdInrRate } from '@/lib/cost/fx';
+import { serverClient, type Db } from '@/lib/db/server';
 import { redditCredentialsFromEnv } from '@/lib/drivers/trends-reddit';
 import { youtubeApiKeyFromEnv } from '@/lib/drivers/trends-youtube';
 import { runTrends, runTrendsForAllChannels, type TrendRunResult } from '@/lib/trends/run';
+import { TRENDS_CRON } from '@/lib/trends/schedule';
 
 /**
  * Stage 1 — collect trend signals. Two tasks, one lib function (`src/lib/trends/run.ts`).
@@ -20,9 +23,11 @@ import { runTrends, runTrendsForAllChannels, type TrendRunResult } from '@/lib/t
  *
  * ── No charge, and one credential ────────────────────────────────────────────
  *
- * No `cost_ledger` write, deliberately: Reddit's and YouTube's Data APIs are free within
+ * Collection writes no `cost_ledger` row: Reddit's and YouTube's Data APIs are free within
  * their quotas and the Google Trends feed needs nothing — see the note in `run.ts`, where a
- * reader auditing rule 5 will look. The YouTube key and the Reddit app credentials are
+ * reader auditing rule 5 will look. The relevance pass (0051) is the exception: embedding new
+ * terms goes through `ledgeredEmbedder`, which writes its estimate row before each call, as
+ * every embedding does (0015). The YouTube key and the Reddit app credentials are
  * resolved here from the environment and handed down; "not configured" is decided in the
  * lib, where `verify:trends` reaches it.
  *
@@ -36,6 +41,18 @@ import { runTrends, runTrendsForAllChannels, type TrendRunResult } from '@/lib/t
 
 // One named queue, declared once with `queue()` and referenced by both tasks, so the limit of
 // one is shared between the schedule and Run now rather than being one each.
+/**
+ * The relevance embedder for a run (0051): the same ledgered embedder as the variation check —
+ * a verified key, a rate-card row, one estimate row per call written before it. A missing
+ * USD→INR rate or an unverified key is its refusal, and every signal keeps relevance NULL with
+ * that reason on the run (relevance.ts); collection itself never depends on it.
+ */
+async function embedderFor(db: Db) {
+  const fx = await readUsdInrRate(db);
+  const rate = fx.ok ? fx.rate : null;
+  return (channelId: string) => ledgeredEmbedder(db, channelId, rate, '01-relevance');
+}
+
 const trendsQueue = queue({ name: '01-trends', concurrencyLimit: 1 });
 
 function warnOnFailedSources(channel: string, result: TrendRunResult) {
@@ -52,17 +69,16 @@ function warnOnFailedSources(channel: string, result: TrendRunResult) {
 
 export const trendsTask = schedules.task({
   id: '01-trends',
-  // 00:40, 06:40, 12:40 and 18:40 UTC = 06:10, 12:10, 18:10 and 00:10 IST. Written in UTC:
-  // Trigger.dev's deploy rejected the zone name 'Asia/Kolkata' ("Invalid IANA timezone"),
-  // and India has no daylight saving, so UTC+05:30 is exact all year. Minute 40 rather than
-  // :00 so this does not queue behind every other job scheduled on the hour, and so the
-  // 06:10 IST run has landed before 19-draft-briefs (06:45 IST) drafts against it.
-  cron: '40 0,6,12,18 * * *',
+  // TRENDS_CRON: 00:40, 06:40, 12:40, 18:40 UTC (06:10 … 00:10 IST) — src/lib/trends/schedule.ts,
+  // shared with /trends so "next collection" is computed from the same definition.
+  cron: TRENDS_CRON,
   queue: trendsQueue,
 
   run: async () => {
+    const db = serverClient();
     const outcomes = await runTrendsForAllChannels({
-      db: serverClient(),
+      db,
+      embedFor: await embedderFor(db),
       youtubeApiKey: youtubeApiKeyFromEnv(),
       redditCredentials: redditCredentialsFromEnv(),
       runKind: 'schedule',
@@ -84,6 +100,7 @@ export const trendsNowTask = schemaTask({
   queue: trendsQueue,
 
   run: async (payload): Promise<TrendRunResult> => {
+    const db = serverClient();
     const result = await runTrends(
       {
         channelId: payload.channelId,
@@ -93,7 +110,7 @@ export const trendsNowTask = schemaTask({
         ...(payload.wikipedia !== undefined ? { wikipedia: payload.wikipedia } : {}),
         ...(payload.hn !== undefined ? { hn: payload.hn } : {}),
       },
-      { db: serverClient(), youtubeApiKey: youtubeApiKeyFromEnv(), redditCredentials: redditCredentialsFromEnv(), runKind: 'now', log: logger },
+      { db, embedFor: await embedderFor(db), youtubeApiKey: youtubeApiKeyFromEnv(), redditCredentials: redditCredentialsFromEnv(), runKind: 'now', log: logger },
     );
     warnOnFailedSources(payload.channelId, result);
     return result;

@@ -1,7 +1,7 @@
 import 'server-only';
 
 import { serverClient, type Db } from '../db/server';
-import { isChannelColumnMissing } from './recent';
+import { isChannelColumnMissing, signalUrl } from './recent';
 import type { TrendSource } from './sources';
 
 /**
@@ -45,6 +45,16 @@ import type { TrendSource } from './sources';
  * check by eye. If the window ever stops being bounded, that is the moment for the view.
  */
 
+interface WindowRow {
+  source: string;
+  term: string;
+  velocity: unknown;
+  volume: unknown;
+  captured_at: string;
+  raw: unknown;
+  relevance?: unknown;
+}
+
 /** How far back the board looks. Bounded so the aggregation below stays honest at any age. */
 const WINDOW_DAYS = 30;
 
@@ -85,6 +95,10 @@ export interface TrendTerm {
   /** From the most recent reading. Null is unknown, never zero. */
   velocity: number | null;
   volume: number | null;
+  /** Relevance to this channel from the most recent reading (0051). Null = not scored — never 0. */
+  relevance: number | null;
+  /** The most recent reading's link, where the source gives one. */
+  url: string | null;
   /**
    * True for rows with `channel_id is null`: captured before per-channel intake (0046), so
    * they belong to the whole workspace rather than this channel. Shown, and labelled.
@@ -103,6 +117,8 @@ export interface TrendBoard {
   scope: 'channel' | 'workspace';
   /** Of `totalSignals`, rows with no channel (captured before 0046), shown as workspace-wide. 0 when scope is 'workspace'. */
   workspaceWideInWindow: number;
+  /** False when the database has no relevance column (0051 not pasted) — every relevance is then null for that reason. */
+  relevanceAvailable: boolean;
 }
 
 export type TrendBoardResult =
@@ -122,20 +138,33 @@ export async function readTrendBoard(channelId: string, client?: Db): Promise<Tr
   const db = client ?? serverClient();
   const since = new Date(Date.now() - WINDOW_DAYS * 86_400_000).toISOString();
 
+  // relevance (0051) is asked for and dropped from the select if the column is not there yet.
+  let cols = 'source, term, velocity, volume, captured_at, raw, relevance';
   const windowedQ = () =>
     db
       .from('trend_signals')
-      .select('source, term, velocity, volume, captured_at')
+      .select(cols)
       .gte('captured_at', since)
-      .order('captured_at', { ascending: false });
+      .order('captured_at', { ascending: false }) as unknown as PromiseLike<{ data: WindowRow[] | null; error: { message: string } | null }> & {
+      eq(c: string, v: string): PromiseLike<{ data: WindowRow[] | null; error: { message: string } | null }>;
+      is(c: string, v: null): PromiseLike<{ data: WindowRow[] | null; error: { message: string } | null }>;
+    };
   // Asked separately and deliberately: without it, an empty window is indistinguishable
   // from an empty table, and those send a person to different places — one to the source
   // configuration, the other to whether intake has ever run.
   const everQ = () => db.from('trend_signals').select('captured_at').order('captured_at', { ascending: false }).limit(1);
 
   let scope: TrendBoard['scope'] = 'channel';
-  type Windowed = Awaited<ReturnType<typeof windowedQ>>;
-  type Row = NonNullable<Windowed['data']>[number] & { workspaceWide: boolean };
+  let relevanceAvailable = true;
+  {
+    const probe = await db.from('trend_signals').select('relevance').limit(1);
+    if (probe.error && /relevance/.test(probe.error.message)) {
+      relevanceAvailable = false;
+      cols = 'source, term, velocity, volume, captured_at, raw';
+    }
+  }
+  type Windowed = { data: WindowRow[] | null; error: { message: string } | null };
+  type Row = WindowRow & { workspaceWide: boolean };
   let rows: Row[] = [];
   let everAt: string | null = null;
 
@@ -204,6 +233,7 @@ export async function readTrendBoard(channelId: string, client?: Db): Promise<Tr
     }
     const velocity = r.velocity === null ? null : Number(r.velocity);
     const volume = r.volume === null ? null : Number(r.volume);
+    const relevance = r.relevance === null || r.relevance === undefined ? null : Number(r.relevance);
     byTerm.set(key, {
       term: r.term,
       source: r.source,
@@ -212,6 +242,8 @@ export async function readTrendBoard(channelId: string, client?: Db): Promise<Tr
       lastSeenAt: r.captured_at,
       velocity: Number.isFinite(velocity as number) ? velocity : null,
       volume: Number.isFinite(volume as number) ? volume : null,
+      relevance: Number.isFinite(relevance as number) ? relevance : null,
+      url: signalUrl(r.source, r.raw),
       workspaceWide: r.workspaceWide,
     });
   }
@@ -230,6 +262,7 @@ export async function readTrendBoard(channelId: string, client?: Db): Promise<Tr
       everCapturedAt: everAt,
       scope,
       workspaceWideInWindow: scope === 'channel' ? rows.filter((r) => r.workspaceWide).length : 0,
+      relevanceAvailable,
     },
   };
 }

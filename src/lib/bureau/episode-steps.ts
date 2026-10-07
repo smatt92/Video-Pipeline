@@ -7,6 +7,7 @@ import type { Readable } from 'node:stream';
 
 import { z } from 'zod';
 
+import { DEFAULT_TTS_MODEL } from '../drivers/voice-route';
 import { SAFE_AREAS } from '../assemble/composition';
 import type { Db } from '../db/server';
 import type { Json } from '../db/types';
@@ -855,30 +856,37 @@ export async function bundleEpisode(db: Db, episodeId: string): Promise<{ public
 export async function voiceStep(
   db: Db,
   episodeId: string,
-  deps: Omit<import('./voice').VoiceDeps, 'db' | 'bible' | 'overrides'>,
+  deps: Omit<import('./voice').VoiceDeps, 'db' | 'bible' | 'overrides'> & {
+    /** Set when this pass is the voice overflow (O5): why the episode left the main model. */
+    overflowReason?: string;
+  },
 ): Promise<import('./voice').VoiceOutcome> {
   const { e, b, cb } = await loadEpisode(db, episodeId);
-  const existing = e.voice_detail as { vo_asset_id?: string; total_s?: number; lines?: number; chars?: number; cost_inr?: number; unaligned?: number } | null;
+  const existing = e.voice_detail as { vo_asset_id?: string; total_s?: number; lines?: number; chars?: number; cost_inr?: number; unaligned?: number; model?: string } | null;
   const pace = paceOf({ approvedEdits: b.approved_edits, seriesPace: cb.seriesFor(b.series as Series['id']).voice_pace });
   if (existing?.vo_asset_id) {
     // Replayed: the stage already ran and paid. Its own figures, not zeros.
-    return { ok: true, lines: existing.lines ?? 0, totalS: existing.total_s ?? 0, voAssetId: existing.vo_asset_id, chars: existing.chars ?? 0, costInr: existing.cost_inr ?? 0, shotsTimed: 0, reused: existing.lines ?? 0, unaligned: existing.unaligned ?? null };
+    return { ok: true, lines: existing.lines ?? 0, totalS: existing.total_s ?? 0, voAssetId: existing.vo_asset_id, chars: existing.chars ?? 0, costInr: existing.cost_inr ?? 0, shotsTimed: 0, reused: existing.lines ?? 0, unaligned: existing.unaligned ?? null, model: existing.model ?? DEFAULT_TTS_MODEL, respoken: 0 };
   }
   await setStatus(db, episodeId, 'voicing');
   const { runEpisodeVoice } = await import('./voice');
   const { values: tuning } = await readTuning(db, e.channel_id);
+  const { overflowReason, ...voiceDeps } = deps;
   const r = await runEpisodeVoice(e.script_id!, {
     db,
     bible: cb,
     overrides: await voiceOverrides(db, e.channel_id),
     tempo: pace.tempo,
     gaps: { lineGapS: tuning.lineGapS, tailS: tuning.tailS },
-    ...deps,
+    ...voiceDeps,
   });
   if (r.ok) {
+    // `model` always, `overflow` only when this pass was the overflow — Cuts says "voiced on
+    // the second model — main model's daily limit" from these two fields and nothing else.
+    const overflow = overflowReason ? { overflow: true, overflow_reason: overflowReason, respoken_lines: r.respoken } : { overflow: false };
     await db
       .from('episodes')
-      .update({ voice_detail: { vo_asset_id: r.voAssetId, total_s: r.totalS, lines: r.lines, chars: r.chars, cost_inr: r.costInr, unaligned: r.unaligned, pace: pace.pace, tempo: pace.tempo, pace_source: pace.source } as unknown as Json, updated_at: new Date().toISOString() })
+      .update({ voice_detail: { vo_asset_id: r.voAssetId, total_s: r.totalS, lines: r.lines, chars: r.chars, cost_inr: r.costInr, unaligned: r.unaligned, pace: pace.pace, tempo: pace.tempo, pace_source: pace.source, model: r.model, ...overflow } as unknown as Json, updated_at: new Date().toISOString() })
       .eq('id', episodeId);
   }
   return r;

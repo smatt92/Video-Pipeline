@@ -525,6 +525,73 @@ try {
   const { rows: [paced] } = await client.query('select voice_detail from episodes where id = $1', [ep2]);
   check(paced.voice_detail?.pace === 'fast' && Number(paced.voice_detail.total_s) < spokenS, 'the re-cut track is at the fast pace and shorter than before', `${paced.voice_detail?.total_s} s vs ${spokenS} s`);
 
+  // ═══ 10a''. Voice overflow: the whole episode on the second model (O5) ═══
+  // Seeded: ep2's takes (all on the main model, from 7a/10a'), the episode's voice_detail
+  // cleared, and a synth stub that answers the vendor's daily-limit refusal for the main model.
+  // Asserted: what voiceWithOverflow → voiceStep did — which model every line was spoken on,
+  // the one ledger estimate written for the re-speak, and what voice_detail records.
+  console.log('\n7c. Voice overflow — the whole episode on the second model\n');
+  {
+    const { voiceWithOverflow } = require(`${B}/bureau/voice-overflow.js`);
+    const MAIN = 'eleven_v3';
+    const SECOND = 'eleven_multilingual_v2';
+    const LIMIT = { ok: false, code: 'rate_limited', detail: 'Your daily task limit has been reached' };
+    const calls = [];
+    const synthWith = (limited) => async (i) => {
+      calls.push({ model: i.route.model, text: i.text });
+      return limited.has(i.route.model) ? LIMIT : synthFrom(() => i.text)(i);
+    };
+    // ep2's current voices (10a' gave one speaker Marlene): every take on file is reusable on the
+    // main model, so the main pass is limited exactly where it would be for real — at a line
+    // still to speak — and not while re-buying a voice change.
+    const current = (slug) => (slug === changedSpeaker ? { ...routeFor(slug), voiceId: 'Marlene' } : routeFor(slug));
+    const speakWith = (limited) => (pass) => P.voiceStep(db, ep2, { usdInrRate: 88, apiKeyFor: async () => ({ ok: true, value: 'k' }), synth: synthWith(limited), align: (i) => alignLine(i), putBytes, presign, routeFor: current, ...pass });
+    const { rows: [scr2] } = await client.query('select s.id, s.beats from episodes e join scripts s on s.id = e.script_id where e.id = $1', [ep2]);
+    const lines = scr2.beats.lines;
+    const allChars = lines.reduce((n, l) => n + l.text.length, 0);
+    const ledgerBefore = (await client.query(`select id from cost_ledger where script_id = $1`, [scr2.id])).rows.map((r) => r.id);
+
+    // ON, main limited: the daily limit lands on the last line (its take removed — still to
+    // speak), as it does mid-episode for real; every line is then spoken on the second model.
+    const last = lines[lines.length - 1];
+    await client.query(`delete from vo_takes where script_id = $1 and chunk_idx = $2`, [scr2.id, last.idx]);
+    const rebought = lines.filter((l) => l.idx !== last.idx).reduce((n, l) => n + l.text.length, 0);
+    await client.query('update episodes set voice_detail = null where id = $1', [ep2]);
+    calls.length = 0;
+    const on = await voiceWithOverflow(speakWith(new Set([MAIN])), true);
+    const onSecond = calls.filter((c) => c.model === SECOND);
+    check(on.path === 'overflow' && on.wait === false && on.voice.ok && on.voice.model === SECOND,
+      'overflow on + main model limited → the episode is voiced on the second model', JSON.stringify({ path: on.path, wait: on.wait, ok: on.voice.ok, model: on.voice.model, detail: on.voice.detail }));
+    check(onSecond.length === lines.length && onSecond.every((c, k) => c.text === lines[k].text) && calls.filter((c) => c.model === MAIN).length === 1 && calls[0].text === last.text,
+      'LOAD-BEARING: every line spoken again on the second model (none re-used from the main one); the main model was asked once and refused', `${onSecond.length}/${lines.length} on the second, ${calls.filter((c) => c.model === MAIN).length} on the main`);
+    const { rows: takes } = await client.query('select voice_id, model from vo_takes where script_id = $1 and language = $2', [scr2.id, 'en']);
+    check(takes.length === lines.length && takes.every((t) => t.model === SECOND && t.voice_id.endsWith(`@${SECOND}`)),
+      '  · every take on file is the second model’s, keyed with the model — never a mix', JSON.stringify([...new Set(takes.map((t) => t.voice_id))]));
+    const { rows: newLedger } = await client.query(`select stage, quantity, idempotency_key, entry_kind from cost_ledger where script_id = $1 and not (id = any($2::uuid[]))`, [scr2.id, ledgerBefore]);
+    // The line that was never spoken is covered by the first pass's whole-script estimate (the
+    // same rule as a resume after the limit); the lines spoken on the main model are re-bought.
+    check(newLedger.length === 1 && /^06-voice-r\d+$/.test(newLedger[0].stage) && Number(newLedger[0].quantity) === rebought && rebought < allChars && newLedger[0].entry_kind === 'estimate' && newLedger[0].idempotency_key.includes(`@${SECOND}`),
+      '  · one ledger estimate for the re-speak, written before speaking, for exactly the characters re-bought', JSON.stringify({ rows: newLedger, rebought }));
+    const { rows: [vd] } = await client.query('select voice_detail from episodes where id = $1', [ep2]);
+    check(vd.voice_detail?.model === SECOND && vd.voice_detail.overflow === true && /^main model's daily limit — line \d+ \([\w-]+\): Your daily task limit has been reached$/.test(vd.voice_detail.overflow_reason ?? '') && vd.voice_detail.respoken_lines === lines.length - 1,
+      '  · voice_detail records the model, overflow = true and the reason (what Cuts shows)', JSON.stringify({ model: vd.voice_detail?.model, overflow: vd.voice_detail?.overflow, reason: vd.voice_detail?.overflow_reason, respoken: vd.voice_detail?.respoken_lines }));
+
+    // OFF, main limited: exactly today — the refusal comes back with "wait", the second model is never asked.
+    await client.query('update episodes set voice_detail = null where id = $1', [ep2]);
+    calls.length = 0;
+    const off = await voiceWithOverflow(speakWith(new Set([MAIN])), false);
+    check(off.wait === true && off.path === 'main' && !off.voice.ok && off.voice.code === 'synth_rate_limited' && calls.every((c) => c.model === MAIN) && calls.length === 1,
+      'overflow off → the main model’s limit comes back as "wait" (the task’s wait loop); the second model is never asked', JSON.stringify({ wait: off.wait, path: off.path, code: off.voice.code, calls: calls.map((c) => c.model) }));
+
+    // ON, both limited: the wait path too.
+    await client.query(`delete from vo_takes where script_id = $1 and chunk_idx = $2`, [scr2.id, lines[0].idx]);
+    calls.length = 0;
+    const both = await voiceWithOverflow(speakWith(new Set([MAIN, SECOND])), true);
+    const { rows: [vd2] } = await client.query('select voice_detail from episodes where id = $1', [ep2]);
+    check(both.wait === true && both.path === 'overflow' && both.voice.code === 'synth_rate_limited' && calls.map((c) => c.model).join() === `${MAIN},${SECOND}` && vd2.voice_detail === null,
+      'overflow on + both models limited → "wait" (the existing wait loop), nothing recorded as voiced', JSON.stringify({ wait: both.wait, path: both.path, calls: calls.map((c) => c.model) }));
+  }
+
   // ═══ 10b. Restarting a halted episode ═══
   // The halt is SEEDED (status is an input); what is asserted is what restartHaltedEpisode did
   // with it — the key it handed the runner and the run id it wrote back.

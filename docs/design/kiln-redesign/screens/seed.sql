@@ -22,6 +22,8 @@ delete from notifications where id::text like '5eed%';
 delete from authorship_log where id::text like '5eed%';
 delete from channel_policy where channel_id = '5eed0000-0000-4000-8000-00000000c002';
 delete from channels where id = '5eed0000-0000-4000-8000-00000000c002';
+delete from trend_signals where id::text like '5eed%';
+delete from trend_runs where id::text like '5eed%';
 
 insert into profiles (id, email, display_name, onboarding_seen_at)
 values (:me, 'sahil.matt@gmail.com', 'Sahil', now())
@@ -110,5 +112,39 @@ values
  ('5eed0000-0000-4000-8000-00000000c101', :ch, 'approver', :me, 'brief.approve', 'brief', '5eed0000-0000-4000-8000-0000000b0001', 'No Moon, no big tides.', now() - interval '2 days'),
  ('5eed0000-0000-4000-8000-00000000c102', :ch, 'approver', :me, 'brief.approve', 'brief', '5eed0000-0000-4000-8000-0000000b0003', 'Gravity is the floor being clingy.', now() - interval '2 days'),
  ('5eed0000-0000-4000-8000-00000000c103', :ch, 'agent', null, 'brief.create', 'brief', '5eed0000-0000-4000-8000-0000000b0002', null, now() - interval '3 hours');
+
+-- Trends (O5): a run with YouTube partial (category 27 has no chart in IN), Reddit not configured,
+-- and signals across the five sources with relevance — some for the channel, most not, two never scored.
+insert into trend_runs (id, channel_id, trigger, started_at, finished_at, inserted, updated, sources, relevance)
+values ('5eed0000-0000-4000-8000-0000000e0001', :ch, 'schedule', now() - interval '3 hours 2 minutes', now() - interval '3 hours', 118, 14,
+  '[{"source":"reddit","ok":false,"count":0,"detail":"not configured: REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET are not set — Reddit refuses unauthenticated reads (403 since 28-May-2026)."},
+    {"source":"youtube","ok":true,"count":43,"detail":"category 27: no most-popular chart for this category in IN (HTTP 404 notFound — Requested entity was not found.)","failures":[{"part":"category 27","kind":"no_chart","detail":"no most-popular chart for this category in IN (HTTP 404 notFound — Requested entity was not found.) — Google does not publish which categories have one; keep it as a query instead, or remove it"}]},
+    {"source":"google_trends","ok":true,"count":20},
+    {"source":"wikipedia","ok":true,"count":50},
+    {"source":"hn","ok":true,"count":30}]'::jsonb,
+  '{"scored":130,"unscored":2,"detail":"2 new terms not embedded: embeddings vendor rate-limited (429) on all 4 attempts","embedded":61,"nicheRebuilt":false}'::jsonb);
+
+insert into trend_signals (id, channel_id, source, term, region, velocity, volume, relevance, captured_at, raw)
+select ('5eed0000-0000-4000-8000-0000000f' || lpad(n::text, 4, '0'))::uuid, :ch, src, term, reg, vel, vol, rel, now() - (h || ' hours')::interval, '{}'::jsonb
+from (values
+  (1, 'hn', 'Physicists measure gravity at the millimetre scale for the first time', null, 61.2, 412, 0.81, 3),
+  (2, 'wikipedia', 'Total solar eclipse of 2027', null, 18420, 96110, 0.78, 3),
+  (3, 'youtube', 'How does a fridge actually move heat? | Science explained', 'IN', 2210.5, 160400, 0.76, 3),
+  (4, 'hn', 'Why the Moon is slowly drifting away from Earth', null, 33.8, 251, 0.74, 9),
+  (5, 'wikipedia', 'Speed of light', null, -1210, 24410, 0.71, 3),
+  (6, 'youtube', 'Why do bridges hum in the wind?', 'IN', 840, 51200, 0.69, 27),
+  (7, 'google_trends', 'kourtney kardashian', 'US', null, 200000, 0.31, 3),
+  (8, 'google_trends', 'why is the stock market down today', 'US', null, 50000, 0.38, 3),
+  (9, 'youtube', 'iPhone 18 Pro unboxing — first look', 'IN', 15600, 1250000, 0.42, 3),
+  (10, 'google_trends', 'india vs australia', 'IN', null, 500000, 0.27, 3),
+  (11, 'wikipedia', 'Deaths in 2026', null, 4210, 88120, 0.33, 3),
+  (12, 'hn', 'Show HN: A Postgres extension for time-series compression', null, 22.1, 188, 0.49, 3),
+  (13, 'youtube', 'Samsung Galaxy S27 Ultra camera test', 'IN', 9210, 640000, 0.40, 9),
+  (14, 'wikipedia', 'Taylor Swift', null, 820, 51900, 0.29, 3),
+  (15, 'hn', 'The economics of open-source maintainers', null, 12.4, 140, 0.52, 3),
+  (16, 'google_trends', 'diwali 2026 date', 'IN', null, 100000, 0.35, 3),
+  (17, 'wikipedia', 'Black hole', null, 3110, 31020, null, 3),
+  (18, 'youtube', 'Desi street food tour in Old Delhi', 'IN', 3300, 210000, null, 3)
+) as t(n, src, term, reg, vel, vol, rel, h);
 
 commit;

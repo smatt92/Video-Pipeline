@@ -163,6 +163,13 @@ export const TrendsConfigSchema = z.object({
   youtube: z
     .object({
       region_code: z.string().regex(/^[A-Z]{2}$/),
+      /**
+       * Each id is one `videos?chart=mostPopular` call. Not every category has a chart in every
+       * region, and Google publishes no list of which do: Bureau of Reality's 27 (Education)
+       * answers 404 "Requested entity was not found" in IN (hosted runs, 07-Oct). That is
+       * recorded per run as "category 27: no most-popular chart …" and the rest still land —
+       * a category without a chart is better searched as a query.
+       */
       category_ids: z.array(z.string().regex(/^\d+$/)).max(10),
       queries: z.array(z.string().min(2).max(100)).max(10),
     })

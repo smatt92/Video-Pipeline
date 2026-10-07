@@ -2,7 +2,7 @@ import { writeFile } from 'node:fs/promises';
 
 import { synthesise, TtsError } from './audio-tts';
 import type { DriverErrorCode } from './types';
-import type { VoiceRoute } from './voice-route';
+import { isTtsModel, type VoiceRoute } from './voice-route';
 import { submitSpeech, waitForTask } from './voice-runway';
 import type { WordTiming } from '../voice/timings';
 
@@ -37,11 +37,14 @@ export async function synthLine(input: {
 }): Promise<LineAudio> {
   const f = input.fetchImpl ?? fetch;
   if (input.route.provider === 'runway') {
+    // The route's model, passed explicitly (it used to be the literal 'eleven_v3' here, so a
+    // route to the second model would have been spoken on the first). Refused when unknown.
+    if (!isTtsModel(input.route.model)) return { ok: false, code: 'invalid_input', detail: `unknown TTS model "${input.route.model}"` };
     const started = await submitSpeech({
       apiKey: input.apiKey,
       text: input.text,
       presetId: input.route.voiceId as Parameters<typeof submitSpeech>[0]['presetId'],
-      model: 'eleven_v3',
+      model: input.route.model,
       languageCode: input.language,
       seed: input.seed,
       fetchImpl: f,

@@ -6,9 +6,11 @@ import { useState, useTransition } from 'react';
 import {
   updateSeriesDefaultsAction,
   updateSlotAction,
+  updateChannelFlagsAction,
   updateStillStyleAction,
   updateTuningAction,
 } from '@/lib/settings/actions';
+import type { ChannelFlags } from '@/lib/settings/channel-flags';
 import type { Tuning, TuningKey } from '@/lib/settings/tuning';
 
 /**
@@ -28,12 +30,18 @@ function Outcome({ r }: { r: Result }) {
   );
 }
 
-export type TuningField =
-  | { key: TuningKey; label: string; help: string; kind: 'number'; min: number; max: number; step: number; unit?: string; builtIn: number }
-  | { key: TuningKey; label: string; help: string; kind: 'boolean'; builtIn: boolean }
-  | { key: TuningKey; label: string; help: string; kind: 'select'; options: { value: string; label: string }[]; builtIn: string };
+type FieldKey = TuningKey | keyof ChannelFlags;
 
-/** A set of channel_policy tuning fields saved together. Disabled (with the reason) before 0049. */
+export type TuningField =
+  | { key: FieldKey; label: string; help: string; kind: 'number'; min: number; max: number; step: number; unit?: string; builtIn: number }
+  | { key: FieldKey; label: string; help: string; kind: 'boolean'; builtIn: boolean; labels?: { on: string; off: string } }
+  | { key: FieldKey; label: string; help: string; kind: 'select'; options: { value: string; label: string }[]; builtIn: string };
+
+/**
+ * A set of channel_policy fields saved together. Disabled (with the reason) before the
+ * migration that added them. `target` picks the writer: the 0049 tuning or the 0051 flags,
+ * which are read and written apart (settings/channel-flags.ts says why).
+ */
 export function TuningForm({
   channelId,
   fields,
@@ -41,13 +49,15 @@ export function TuningForm({
   disabledReason,
   path,
   canEdit,
+  target = 'tuning',
 }: {
   channelId: string;
   fields: TuningField[];
-  values: Tuning;
+  values: Partial<Record<FieldKey, string | number | boolean>>;
   disabledReason: string | null;
   path: string;
   canEdit: boolean;
+  target?: 'tuning' | 'flags';
 }) {
   const initial = Object.fromEntries(fields.map((f) => [f.key, String(values[f.key])]));
   const [draft, setDraft] = useState<Record<string, string>>(initial);
@@ -68,7 +78,7 @@ export function TuningForm({
         setResult({ ok: true, message: 'Nothing changed.' });
         return;
       }
-      const r = await updateTuningAction(channelId, patch as Partial<Tuning>, path);
+      const r = target === 'flags' ? await updateChannelFlagsAction(channelId, patch as Partial<ChannelFlags>, path) : await updateTuningAction(channelId, patch as Partial<Tuning>, path);
       setResult(r);
       if (r.ok) router.refresh();
     });
@@ -82,7 +92,7 @@ export function TuningForm({
               {f.label}
             </label>
             <div className="xs t3" style={{ marginTop: 3 }}>
-              {f.help} Built-in: <span className="mono">{String(f.builtIn)}{f.kind === 'number' && f.unit ? ` ${f.unit}` : ''}</span>.
+              {f.help} Built-in: <span className="mono">{f.kind === 'boolean' && f.labels ? (f.builtIn ? f.labels.on : f.labels.off) : String(f.builtIn)}{f.kind === 'number' && f.unit ? ` ${f.unit}` : ''}</span>.
             </div>
           </div>
           <div className="row" style={{ minWidth: 0 }}>
@@ -108,8 +118,8 @@ export function TuningForm({
               </>
             ) : f.kind === 'boolean' ? (
               <select id={`t-${f.key}`} className="input" value={draft[f.key]} disabled={disabled} onChange={(e) => setDraft({ ...draft, [f.key]: e.target.value })} style={{ width: '14ch' }}>
-                <option value="false">No</option>
-                <option value="true">Yes</option>
+                <option value="false">{f.labels?.off ?? 'No'}</option>
+                <option value="true">{f.labels?.on ?? 'Yes'}</option>
               </select>
             ) : (
               <select id={`t-${f.key}`} className="input" value={draft[f.key]} disabled={disabled} onChange={(e) => setDraft({ ...draft, [f.key]: e.target.value })}>

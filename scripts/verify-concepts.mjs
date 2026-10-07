@@ -67,10 +67,16 @@ function messageResponse({ concepts, stopReason = 'end_turn', usage }) {
   };
 }
 
+let lastRequest = null;
 const model = createServer(async (req, res) => {
   calls++;
   const chunks = [];
   for await (const c of req) chunks.push(c);
+  try {
+    lastRequest = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  } catch {
+    lastRequest = null;
+  }
 
   const reply = typeof nextReply === 'function' ? nextReply() : nextReply;
 
@@ -516,6 +522,33 @@ console.log('\n8. The rate card, read and corrected\n');
   } else {
     bad('the pipeline reads the same rate the screen shows', JSON.stringify(live).slice(0, 160));
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+console.log('\n9. The model is shown this channel’s relevant signals first (O5)\n');
+{
+  // INPUTS seeded: four signals for this channel with relevance 0.9 / 0.7 / 0.2 / NULL, and
+  // one for another channel with 0.99. The default threshold applies (no policy row → 0.65).
+  // OUTPUT asserted: the user message runConcepts actually sent to the model.
+  const other = randomUUID();
+  await client.query(`insert into channels (id, name, platform, niche) values ($1, 'other', 'youtube', 'gossip')`, [other]);
+  const seed = [
+    ['Superconductors levitating a train, explained', 0.7, channelId],
+    ['Why concrete cracks in the cold', 0.9, channelId],
+    ['Celebrity wedding in Goa', 0.2, channelId],
+    ['An unscored headline about tides', null, channelId],
+    ['Another channel’s most relevant thing', 0.99, other],
+  ];
+  for (const [term, relevance, ch] of seed) {
+    await client.query(`insert into trend_signals (source, term, channel_id, relevance, captured_at) values ('hn', $1, $2, $3, now())`, [term, ch, relevance]);
+  }
+  nextReply = { body: messageResponse({ concepts: [concept('Cold concrete', 'Water inside the slab is the culprit, not the cold')] }) };
+  await runConcepts({ channelId, count: 1 }, { ...DEPS, runId: `run-${randomUUID()}` });
+  const user = (lastRequest?.messages ?? []).filter((m) => m.role === 'user').map((m) => (typeof m.content === 'string' ? m.content : m.content.map((c) => c.text ?? '').join(''))).join('\n');
+  const lines = user.split('\n').filter((l) => /^- .* \(hn/.test(l)).map((l) => l.slice(2, l.indexOf(' (hn')));
+  const want = ['Why concrete cracks in the cold', 'Superconductors levitating a train, explained', 'An unscored headline about tides'];
+  if (JSON.stringify(lines) === JSON.stringify(want)) ok('relevant by relevance, then unscored; the off-niche one and the other channel’s are not shown', lines.join(' | '));
+  else bad('relevant by relevance, then unscored; the off-niche one and the other channel’s are not shown', JSON.stringify(lines));
 }
 
 model.close();

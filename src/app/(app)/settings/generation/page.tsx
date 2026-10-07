@@ -9,6 +9,7 @@ import { requireChannel } from '@/lib/channels/active';
 import { serverClient } from '@/lib/db/server';
 import { stillPromptPreview, STILL_STYLE_MAX } from '@/lib/settings/admin';
 import { generationStatus } from '@/lib/settings/generation-status';
+import { CHANNEL_FLAG_DEFAULTS, overflowCostPerShort, readChannelFlags } from '@/lib/settings/channel-flags';
 import { readTuning, TUNING_DEFAULTS } from '@/lib/settings/tuning';
 import { viewerIsApprover } from '@/lib/settings/viewer';
 
@@ -43,16 +44,46 @@ const PICTURE_FIELDS: TuningField[] = [
   },
 ];
 
+const RELEVANCE_FIELDS: TuningField[] = [
+  {
+    key: 'relevanceThreshold',
+    label: 'Relevance threshold',
+    help: 'A trend signal at or above this similarity to the channel (its premise, series and calendar topics) is listed under “For this channel” on Trends and shown to concept drafting first; below it, it is left out of drafting. /trends prints every signal’s score, so set this from the real spread.',
+    kind: 'number',
+    min: 0,
+    max: 1,
+    step: 0.01,
+    builtIn: CHANNEL_FLAG_DEFAULTS.relevanceThreshold,
+  },
+];
+
 export default async function GenerationSettingsPage() {
   const channel = await requireChannel();
   const db = serverClient();
-  const [tuning, cb, status, canEdit, policy] = await Promise.all([
+  const [tuning, cb, status, canEdit, policy, flags, overflowCost] = await Promise.all([
     readTuning(db, channel.id),
     getBible(db, channel.id),
     generationStatus(db, channel.id),
     viewerIsApprover(),
     db.from('channel_policy').select('stills_enabled').eq('channel_id', channel.id).maybeSingle(),
+    readChannelFlags(db, channel.id),
+    overflowCostPerShort(db, channel.id),
   ]);
+  const overflowFields: TuningField[] = [
+    {
+      key: 'voiceOverflow',
+      label: 'Voice overflow',
+      help:
+        'When the main voice model’s daily limit is reached, re-voice the WHOLE episode on the second model instead of waiting — consistent within the episode, slightly less expressive; lines already spoken on the main model are re-bought' +
+        (overflowCost.ok
+          ? `, ≈ ₹${overflowCost.inr.toFixed(2)} per Short at most (${overflowCost.chars} characters, the mean of the last ${overflowCost.episodes} voiced episode${overflowCost.episodes === 1 ? '' : 's'}, at the second model’s rate-card price).`
+          : ` (price — : ${overflowCost.reason}).`) +
+        ' If the second model is limited too, the episode waits as it does with this off. Off: the episode waits for the main model, exactly as before.',
+      kind: 'boolean',
+      builtIn: CHANNEL_FLAG_DEFAULTS.voiceOverflow,
+      labels: { on: 'On', off: 'Off' },
+    },
+  ];
   const stillsEnabled = policy.error ? null : (policy.data?.stills_enabled ?? null);
   const series = Object.values(cb.series).filter((s): s is NonNullable<typeof s> => !!s);
   const lead = cb.bible.characters[0];
@@ -76,6 +107,20 @@ export default async function GenerationSettingsPage() {
           </div>
         </Row>
         <TuningForm channelId={channel.id} fields={PICTURE_FIELDS} values={tuning.values} disabledReason={tuning.source === 'defaults' ? tuning.reason : null} path="/settings/generation" canEdit={canEdit} />
+      </Panel>
+
+      <Panel>
+        <div className="card-h">
+          <h3 className="h3">Voice</h3>
+        </div>
+        <TuningForm channelId={channel.id} fields={overflowFields} values={flags.values} disabledReason={flags.source === 'defaults' ? flags.reason : null} path="/settings/generation" canEdit={canEdit} target="flags" />
+      </Panel>
+
+      <Panel>
+        <div className="card-h">
+          <h3 className="h3">Trends relevance</h3>
+        </div>
+        <TuningForm channelId={channel.id} fields={RELEVANCE_FIELDS} values={flags.values} disabledReason={flags.source === 'defaults' ? flags.reason : null} path="/settings/generation" canEdit={canEdit} target="flags" />
       </Panel>
 
       <Panel>

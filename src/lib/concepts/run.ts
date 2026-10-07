@@ -10,6 +10,8 @@ import {
   proposeConcepts,
 } from './propose';
 import { scoreTotal, validateConcepts } from './schema';
+import { readChannelFlags } from '../settings/channel-flags';
+import { signalsForConcepts } from '../trends/relevance';
 
 /**
  * Stage 2 — concept generation, end to end.
@@ -128,11 +130,15 @@ export async function runConcepts(
   }
 
   // ── 3. What the model is shown ─────────────────────────────────────────────
-  const { data: signals } = await db
-    .from('trend_signals')
-    .select('source, term, region, velocity, volume')
-    .order('captured_at', { ascending: false })
-    .limit(SIGNAL_WINDOW);
+  //
+  // This channel's signals, the relevant ones first (0051, `signalsForConcepts`): at or above
+  // the channel's threshold by relevance, then never-scored ones, never the ones measured as
+  // off-niche. Before 0051 this read every channel's newest 25 — celebrities and tickers
+  // included — which is what a science channel's model was being asked to work from.
+  const flags = await readChannelFlags(db, channel.id);
+  const picked = await signalsForConcepts(db, channel.id, SIGNAL_WINDOW, flags.values.relevanceThreshold);
+  log.info('signals for concepts', { basis: picked.basis, count: picked.signals.length });
+  const signals = picked.signals;
 
   // Every non-killed concept, because a killed one is a judgement that this idea is not
   // wanted — re-proposing it is exactly what the operator said no to.
@@ -151,19 +157,8 @@ export async function runConcepts(
       {
         channel: { name: channel.name, platform: channel.platform, niche: channel.niche },
         count,
-        signals: (signals ?? []).map((s) => ({
-          source: s.source,
-          term: s.term,
-          region: s.region,
-          // Coerced at the boundary. `velocity` and `volume` are numeric columns and at
-          // least one live transport delivers numerics as strings, so without this the
-          // value satisfies the declared `number | null` type and is a string at runtime.
-          // Today it survives because the only consumer is template interpolation; the
-          // first `s.velocity > threshold` anywhere downstream would coerce silently and
-          // the type would have promised it could not.
-          velocity: s.velocity === null ? null : Number(s.velocity),
-          volume: s.volume === null ? null : Number(s.volume),
-        })),
+        // Coerced at the boundary in `signalsForConcepts` (numeric crosses as a string).
+        signals: signals.map((s) => ({ source: s.source, term: s.term, region: s.region, velocity: s.velocity, volume: s.volume })),
         recentTitles: (recent ?? []).map((r) => r.title),
         seed: payload.seed,
       },

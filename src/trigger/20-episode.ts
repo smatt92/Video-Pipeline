@@ -33,6 +33,9 @@ import { serverClient } from '@/lib/db/server';
 import { readTuning } from '@/lib/settings/tuning';
 import { STILL_CREDENTIAL_FIELD, STILL_INTEGRATION, submitStill, waitStill } from '@/lib/drivers/still-image';
 import { VOICE_CREDENTIAL_FIELDS, synthLine } from '@/lib/drivers/voice-synth';
+import type { TtsModelName } from '@/lib/drivers/voice-route';
+import { voiceWithOverflow } from '@/lib/bureau/voice-overflow';
+import { readChannelFlags } from '@/lib/settings/channel-flags';
 import { requireCredential } from '@/lib/integrations/credentials';
 import { usability, verifiedCredential } from '@/lib/integrations/verify';
 import { storage } from '@/lib/storage';
@@ -115,7 +118,7 @@ export const episodeTask = schemaTask({
       logger.info('shots planned', plan);
 
       // 3. Voice — before any video, because it sets the durations
-      const speak = () =>
+      const speak = (pass: { model?: TtsModelName; overflowReason?: string }) =>
         voiceStep(db, episodeId, {
           usdInrRate,
           // Verified, not merely present (the Settings banner's predicate); voiceStep refuses by name.
@@ -125,22 +128,30 @@ export const episodeTask = schemaTask({
           putBytes: put,
           presign,
           log: logger,
+          ...pass,
         });
-      let voice = await speak();
+      // Voice overflow (Settings → Generation, 0051): on → a main-model limit re-voices the whole
+      // episode on the second model (voiceWithOverflow decides; tested there). Read once per run.
+      const overflowOn = (await readChannelFlags(db, channelId)).values.voiceOverflow;
+      let attempt = await voiceWithOverflow(speak, overflowOn);
       // The vendor's daily task limit (S002, 07-Oct: "Your daily task limit has been reached").
       // It is a 24-hour ROLLING window, so capacity returns hour by hour as yesterday's tasks age
       // out; a halt asking Sahil to "fix the voice" was the wrong instruction. Wait (a Trigger
       // wait — no CPU, no money) and try again, up to a day. Lines already spoken are kept
-      // and re-used, so each retry only asks for what is still missing.
-      for (let n = 1; !voice.ok && voice.code === 'synth_rate_limited' && n <= RATE_LIMIT_RETRIES; n++) {
+      // and re-used, so each retry only asks for what is still missing. With overflow on this
+      // is reached only when BOTH models are limited.
+      for (let n = 1; attempt.wait && n <= RATE_LIMIT_RETRIES; n++) {
         const at = new Date(Date.now() + RATE_LIMIT_RETRY_MIN * 60_000 + 5.5 * 3_600_000).toISOString().slice(11, 16);
-        await setStatus(db, episodeId, 'voicing', `voice vendor's daily task limit reached — retrying at ${at} IST (try ${n} of ${RATE_LIMIT_RETRIES}); spoken lines are kept`);
+        const which = overflowOn ? 'both voice models’ daily limits reached' : "voice vendor's daily task limit reached";
+        await setStatus(db, episodeId, 'voicing', `${which} — retrying at ${at} IST (try ${n} of ${RATE_LIMIT_RETRIES}); spoken lines are kept`);
         await wait.for({ minutes: RATE_LIMIT_RETRY_MIN });
-        voice = await speak();
+        attempt = await voiceWithOverflow(speak, overflowOn);
       }
+      const voice = attempt.voice;
+      if (attempt.path === 'overflow' && voice.ok) logger.info('voiced on the second model (overflow)', { lines: voice.lines, respoken: voice.respoken });
       if (!voice.ok) {
         await setStatus(db, episodeId, 'halted', `${voice.code}: ${voice.detail}`);
-        const hint = voice.code === 'synth_rate_limited' ? `The voice vendor's daily limit held for 24 h; restart the run later.` : 'Fix the voice on Voices, then restart the run.';
+        const hint = voice.code === 'synth_rate_limited' ? `The voice vendor's daily limit held for 24 h${overflowOn ? ' on both models' : ''}; restart the run later.` : 'Fix the voice on Voices, then restart the run.';
         await notify(db, channelId, 'qc_failed', `Kiln stopped episode ${episodeId.slice(0, 8)} at voice: ${voice.detail} ${hint}`);
         return { halted: voice.code };
       }

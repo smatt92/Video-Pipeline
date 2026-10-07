@@ -7,6 +7,10 @@ Edit every `REPLACE` before the channel drafts anything. Series ids must be valu
 `bureau_series` enum (incident, desk_tour, pip, archive, myth, deep, complaint, long_form) —
 a new id is a migration. `trends.json` names the subreddits and YouTube Data API category ids /
 queries that stage 1 reads for this channel; empty lists mean that source is skipped for it.
+Not every YouTube category has a most-popular chart in every region (Education, 27, has none
+in IN — the API answers 404), and Google publishes no list; a category without one is recorded
+on /trends as "no most-popular chart" each run while the others still land. Search it as a
+query instead.
 Google Trends, Wikipedia and Hacker News need no key and are read unless turned off:
 `"google_trends": null`, `"wikipedia": null`, `"hn": null`. To tune them instead:
 `"google_trends": {"geo": ["IN"]}`, `"wikipedia": {"languages": ["en", "de"], "top_n": 50}`,

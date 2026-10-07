@@ -7,6 +7,7 @@ import { updateSeries, type AdminResult, type BibleActor } from '../channels/bib
 import type { Db } from '../db/server';
 import type { Json } from '../db/types';
 import { findOrphans } from './orphans';
+import { CHANNEL_FLAG_COLUMNS, ChannelFlagsSchema, readChannelFlags, type ChannelFlags } from './channel-flags';
 import { readTuning, TUNING_COLUMNS, TuningSchema, type Tuning } from './tuning';
 
 /**
@@ -69,6 +70,38 @@ export async function updateTuning(db: Db, actor: SettingsActor, channelId: stri
     after: Object.fromEntries(changes.map((k) => [TUNING_COLUMNS[k], parsed.data[k]])),
   });
   return { ok: true, message: `Saved ${changes.length} value${changes.length === 1 ? '' : 's'}. The next render uses ${changes.length === 1 ? 'it' : 'them'}; nothing already rendered changes.`, changed: changes.map((k) => TUNING_COLUMNS[k]) };
+}
+
+/**
+ * The relevance threshold and the voice overflow switch (0051) — read and written apart from
+ * the 0049 tuning so a database without 0051 keeps every tuned value (channel-flags.ts).
+ * Same contract: approver only, Zod-validated, every change in authorship_log.
+ */
+export async function updateChannelFlags(db: Db, actor: SettingsActor, channelId: string, raw: Partial<ChannelFlags>): Promise<AdminResult<{ changed: string[] }>> {
+  const denied = approverOnly(actor);
+  if (denied) return refuse(denied);
+  const parsed = ChannelFlagsSchema.partial().strict().safeParse(raw);
+  if (!parsed.success) return refuse(issues(parsed.error));
+  const keys = Object.keys(parsed.data) as (keyof ChannelFlags)[];
+  if (!keys.length) return refuse('Nothing to change.');
+  const before = await readChannelFlags(db, channelId);
+  if (before.source === 'defaults') return refuse(before.reason);
+  const changes = keys.filter((k) => before.values[k] !== parsed.data[k]);
+  if (!changes.length) return { ok: true, message: 'Nothing changed — those are the current values.', changed: [] };
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString(), updated_by: actor.profileId ? `${actor.via}:${actor.profileId}` : actor.via };
+  for (const k of changes) patch[CHANNEL_FLAG_COLUMNS[k]] = parsed.data[k];
+  const { error } = await db.from('channel_policy').update(patch as never).eq('channel_id', channelId);
+  if (error) return refuse(`Saving failed: ${error.message}`);
+  await log(db, actor, channelId, 'settings_update', 'channel_policy', channelId, {
+    before: Object.fromEntries(changes.map((k) => [CHANNEL_FLAG_COLUMNS[k], before.values[k]])),
+    after: Object.fromEntries(changes.map((k) => [CHANNEL_FLAG_COLUMNS[k], parsed.data[k]])),
+  });
+  const said = changes.map((k) =>
+    k === 'voiceOverflow'
+      ? `voice overflow ${parsed.data.voiceOverflow ? 'on — the next episode that hits the main voice model’s daily limit is re-voiced on the second model' : 'off — episodes wait out the daily limit'}`
+      : `relevance threshold ${parsed.data.relevanceThreshold} — /trends and the next concept run use it`,
+  );
+  return { ok: true, message: `Saved: ${said.join('; ')}.`, changed: changes.map((k) => CHANNEL_FLAG_COLUMNS[k]) };
 }
 
 /** IANA zones this runtime knows. Postgres reads the same tz database for `at time zone`. */

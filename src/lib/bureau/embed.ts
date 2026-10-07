@@ -18,7 +18,8 @@ const ENDPOINT = '/v1beta/models:batchEmbedContents';
 
 export type Embedder = (texts: string[]) => Promise<{ ok: true; model: string; vectors: number[][] } | { ok: false; detail: string }>;
 
-export function ledgeredEmbedder(db: Db, channelId: string, usdInrRate: number | null): Embedder {
+/** `stage` names who embedded on the ledger: the variation check ('20-embed') or trend relevance ('01-relevance'). */
+export function ledgeredEmbedder(db: Db, channelId: string, usdInrRate: number | null, stage: string = '20-embed'): Embedder {
   return async (texts) => {
     if (texts.length === 0) return { ok: true, model: EMBEDDING_MODEL, vectors: [] };
     if (usdInrRate === null) return { ok: false, detail: 'No USD→INR rate is set, so the call cannot be priced.' };
@@ -37,7 +38,7 @@ export function ledgeredEmbedder(db: Db, channelId: string, usdInrRate: number |
     const { error } = await db.from('cost_ledger').insert({
       channel_id: channelId,
       driver: EMBEDDING_INTEGRATION,
-      stage: '20-embed',
+      stage,
       entry_kind: 'estimate',
       unit: 'input_token',
       quantity: tokens,

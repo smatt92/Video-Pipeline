@@ -333,6 +333,40 @@ try {
   check(purge.deleted.sort().join() === [orphanA, nullSize].sort().join() && purge.kept.join() === orphanB, 'the worker deletes the two still orphaned and keeps the one referenced since', JSON.stringify({ deleted: purge.deleted.length, kept: purge.kept.length }));
   check(deletedKeys.sort().join() === 'renders/dead/a.mp4,x/no-size.png' && left.join() === orphanB, '  · bytes deleted by key, then the rows; the kept row is still there');
 
+  // ══ §11 (O5) ═══════════════════════════════════════════════════════════════
+  console.log('\n11. Relevance threshold and voice overflow (0051): approver only, ranged, logged, and apart from the 0049 values\n');
+  {
+    const F = require(`${B}/settings/channel-flags.js`);
+    const r0 = await F.readChannelFlags(db, CH);
+    check(r0.source === 'channel' && r0.values.relevanceThreshold === 0.65 && r0.values.voiceOverflow === false, 'the defaults from the migration: 0.65 and off', JSON.stringify(r0.values));
+    const ag = await S.updateChannelFlags(db, AGENT, CH, { voiceOverflow: true });
+    check(!ag.ok && ag.refused === 'Only the approver can change settings.', '  · an agent is refused', ag.ok ? 'saved' : ag.refused);
+    const out = await S.updateChannelFlags(db, APPROVER, CH, { relevanceThreshold: 1.5 });
+    check(!out.ok && /relevanceThreshold/.test(out.refused), '  · 1.5 is refused by the schema', out.ok ? 'saved' : out.refused);
+    let dbRefused = null;
+    try { await q(`update channel_policy set relevance_threshold = 1.5 where channel_id = $1`, [CH]); } catch (e) { dbRefused = e.message; }
+    check(/check constraint/.test(dbRefused ?? ''), '  · and by the CHECK for a caller that skips it', dbRefused);
+    const logBefore = Number((await q(`select count(*)::int n from authorship_log where channel_id = $1 and action = 'settings_update'`, [CH]))[0].n);
+    const w = await S.updateChannelFlags(db, APPROVER, CH, { voiceOverflow: true, relevanceThreshold: 0.7 });
+    const row = (await q(`select voice_overflow, relevance_threshold from channel_policy where channel_id = $1`, [CH]))[0];
+    const lg = (await q(`select payload from authorship_log where channel_id = $1 and action = 'settings_update' order by occurred_at desc limit 1`, [CH]))[0];
+    const logAfter = Number((await q(`select count(*)::int n from authorship_log where channel_id = $1 and action = 'settings_update'`, [CH]))[0].n);
+    check(w.ok && row.voice_overflow === true && row.relevance_threshold === '0.7' && logAfter === logBefore + 1 &&
+      lg.payload.before.relevance_threshold === 0.65 && lg.payload.before.voice_overflow === false && lg.payload.after.relevance_threshold === 0.7 && lg.payload.after.voice_overflow === true &&
+      Object.keys(lg.payload.before).length === 2 && Object.keys(lg.payload.after).length === 2,
+      'the approver’s change lands and is logged with before and after', JSON.stringify({ row, payload: lg.payload }));
+    const tuningStill = await T.readTuning(db, CH);
+    check(tuningStill.source === 'channel', '  · the 0049 values are read as before (a separate reader)', tuningStill.source);
+    // Without 0051: defaults and the reason; the tuning reader is unaffected.
+    await q(`alter table channel_policy drop column relevance_threshold, drop column voice_overflow`);
+    const r1 = await F.readChannelFlags(db, CH);
+    const t2 = await T.readTuning(db, CH);
+    check(r1.source === 'defaults' && r1.reason === F.FLAGS_NEED_0051 && r1.values.voiceOverflow === false && t2.source === 'channel',
+      'before 0051 is pasted: the built-in values and the reason; every 0049 value still read from the channel', `${r1.reason} · tuning ${t2.source}`);
+    const w2 = await S.updateChannelFlags(db, APPROVER, CH, { voiceOverflow: true });
+    check(!w2.ok && w2.refused === F.FLAGS_NEED_0051, '  · and a write refuses with the same sentence', w2.ok ? 'saved' : w2.refused);
+  }
+
   // ══ §10 ══════════════════════════════════════════════════════════════════
   console.log('\n10. Before 0049 is pasted: the constants, and the reason, on every screen\n');
   await q(`alter table channel_policy drop column seconds_per_picture, drop column max_pictures_per_shot, drop column line_gap_s, drop column tail_s,

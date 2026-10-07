@@ -11,11 +11,13 @@ import {
   updateSeriesDefaults,
   updateSlot,
   updateStillStyle,
+  updateChannelFlags,
   updateTuning,
   type AdminResult,
   type SettingsActor,
 } from './admin';
 import { findOrphans, type OrphanReport } from './orphans';
+import type { ChannelFlags } from './channel-flags';
 import type { Tuning } from './tuning';
 
 /**
@@ -48,6 +50,10 @@ async function asApprover<T>(f: (actor: SettingsActor) => Promise<AdminResult<T>
 
 export async function updateTuningAction(channelId: string, patch: Partial<Tuning>, path: string) {
   return asApprover((actor) => updateTuning(serverClient(), actor, channelId, patch), path);
+}
+
+export async function updateChannelFlagsAction(channelId: string, patch: Partial<ChannelFlags>, path: string) {
+  return asApprover((actor) => updateChannelFlags(serverClient(), actor, channelId, patch), path);
 }
 
 export async function updateSlotAction(channelId: string, input: { slotTime: string; timezone: string }) {

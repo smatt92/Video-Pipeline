@@ -128,7 +128,7 @@ export default async function CutsPage({ searchParams }: { searchParams: Promise
   const clips = Object.values(qcObj.clips ?? {});
   const lufs = qcObj.loudness_lufs ?? null;
   const gen = await episodeClips(db, e);
-  const voice = e.voice_detail as { unaligned?: number | null; lines?: number } | null;
+  const voice = e.voice_detail as { unaligned?: number | null; lines?: number; overflow?: boolean; overflow_reason?: string; respoken_lines?: number } | null;
   const unaligned = voice?.unaligned ?? null;
   const totalS = shots.reduce((n, s) => n + s.dur, 0);
   const policyStatus = (brief?.policy as { status?: string } | null)?.status ?? null;
@@ -298,6 +298,19 @@ export default async function CutsPage({ searchParams }: { searchParams: Promise
               ))}
             </div>
           </section>
+          {voice?.overflow === true && (
+            <div className="note" style={{ padding: '12px 14px' }}>
+              <Icon name="info" />
+              <div className="col" style={{ gap: 2 }}>
+                <span style={{ fontWeight: 600 }}>Voiced on the second model — main model’s daily limit</span>
+                <span className="t2">
+                  Every line of this episode is on the second voice model (Settings → Generation → Voice overflow), so it sounds the same throughout and slightly less
+                  expressive than usual. {voice.respoken_lines ? `${voice.respoken_lines} line${voice.respoken_lines === 1 ? ' was' : 's were'} re-bought from the main model’s takes.` : ''}
+                  {voice.overflow_reason ? ` Why: ${voice.overflow_reason}` : ''}
+                </span>
+              </div>
+            </div>
+          )}
           {unaligned !== null && unaligned > 0 && (
             <div className="note" style={{ padding: '12px 14px' }}>
               <Icon name="info" />

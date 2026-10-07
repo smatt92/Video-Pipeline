@@ -53,11 +53,21 @@ export interface RawSignal {
   readonly raw: unknown;
 }
 
+/** One part of a source (a YouTube category or query) that failed while the rest landed. */
+export interface SourcePartFailure {
+  readonly part: string;
+  /** 'no_chart' = the category has no most-popular chart in that region — configuration, not an outage. */
+  readonly kind: 'no_chart' | 'error';
+  readonly detail: string;
+}
+
 export interface SourceResult {
   readonly source: TrendSource;
+  /** False = the whole source failed or is not configured. True with `failures` = partial. */
   readonly ok: boolean;
   readonly signals: RawSignal[];
   readonly detail?: string;
+  readonly failures?: readonly SourcePartFailure[];
 }
 
 /**
@@ -99,7 +109,10 @@ export async function fetchYoutube(config: YoutubeTrendConfig, opts: YoutubeFetc
     volume: s.volume,
     raw: s.raw,
   }));
-  return r.ok ? { source: 'youtube', ok: true, signals } : { source: 'youtube', ok: false, signals, detail: r.detail };
+  const failures = r.failures.length ? { failures: r.failures } : {};
+  return r.ok
+    ? { source: 'youtube', ok: true, signals, ...(r.detail ? { detail: r.detail } : {}), ...failures }
+    : { source: 'youtube', ok: false, signals, detail: r.detail, ...failures };
 }
 
 /**
