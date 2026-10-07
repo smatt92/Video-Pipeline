@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 import { Hint } from '@/components/shell/hint';
+import { KilnMark, Wordmark } from '@/components/ui/logo';
 import { NAV, type NavItem } from '@/lib/nav';
 
 /**
@@ -74,16 +75,11 @@ export function Sidebar({ checklist, channelSwitcher }: { checklist?: React.Reac
       className="flex h-full flex-col border-r"
       style={{ background: 'var(--sidebar-bg)', borderColor: 'var(--border-subtle)' }}
     >
-      <div className="flex items-center gap-2 px-4" style={{ height: 'var(--topbar-height)' }}>
-        <span
-          aria-hidden
-          className="size-[7px] rounded-full"
-          style={{ background: 'var(--brand-mark)' }}
-        />
-        <span className="text-sm font-medium tracking-tight">Kiln</span>
-        <span className="ml-auto font-mono text-3xs" style={{ color: 'var(--text-faint)' }}>
-          phase 1
-        </span>
+      <div className="row sb" style={{ height: 'var(--topbar-height)', padding: '0 12px 0 14px' }}>
+        <Link href="/" className="lockup" style={{ fontSize: 19, textDecoration: 'none' }} aria-label="Kiln home">
+          <KilnMark size={22} />
+          <Wordmark />
+        </Link>
       </div>
 
       {channelSwitcher}

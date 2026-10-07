@@ -1,167 +1,122 @@
 /*
- * Kiln — design tokens.
+ * Kiln — design tokens, brand v2.
  *
- * Three layers, and the boundary between them is enforced by lint:
+ * Ported from the Claude Design canvas "Kiln — Studio Redesign"
+ * (docs/design/kiln-redesign/kiln.css `:root`, version 1791346901-1716). The names are the
+ * canvas's own — `--s1`, `--t3`, `--b2` — so an artboard and a component read the same, and
+ * a designer can lift a value from either without a lookup table.
  *
- *   1. PRIMITIVES  --k-*      raw OKLCH ramps. This file only. Never referenced by a
- *                             component, ever. `pnpm lint` fails the build if one appears
- *                             outside src/styles/.
- *   2. SEMANTIC    --surface-*, --text-*, --border-*, --accent, --state-*
- *                             what a thing means, not what colour it is. Components use
- *                             these and nothing else.
- *   3. COMPONENT   --sidebar-*, --glyph-*
- *                             where a single component needs a value the semantic layer
- *                             shouldn't have to know about.
+ * Two layers now, and the boundary is still enforced by lint:
  *
- * The point of the split is that swapping the accent is one line in the semantic layer,
- * not a search-and-replace through forty components. If you find yourself wanting a
- * primitive in a component, the semantic layer is missing a name — add the name.
+ *   1. TOKENS      surfaces, text, borders, accent ramp, states, paper set, motion
+ *                  — what a thing means. Components use these and nothing else; a raw
+ *                  oklch() / hex / rgba() in a component is a lint error
+ *                  (eslint-rules/no-primitive-tokens.mjs).
+ *   2. SCALE       --ui-scale and the type / space / corner steps that multiply it. The
+ *                  display-scaling preference moves these, and `pnpm check:scalable-sizes`
+ *                  keeps every font size on them.
  *
- * OKLCH rather than hex because lightness is perceptually uniform: L=0.6 looks equally
- * bright at every hue. That matters here specifically, because status colours sit next to
- * arbitrary video thumbnails and have to hold their weight against them.
+ * OKLCH because lightness is perceptually uniform: L=0.79 teal and L=0.82 amber hold the
+ * same weight next to an arbitrary video frame, which is where every state colour lives.
  */
 
 :root {
-  /* ══════════════════════════════════════════════════════════════════════════
-   * LAYER 1 — PRIMITIVES.  Nothing outside this file may reference these.
-   * ══════════════════════════════════════════════════════════════════════════ */
+  /* ── Surfaces — warm neutral, hue 70. `in` is the inset/rail, s0 the page, s3 raised. */
+  --in: oklch(0.125 0.006 70);
+  --s0: oklch(0.150 0.006 70);
+  --s1: oklch(0.180 0.006 70);
+  --s2: oklch(0.212 0.007 70);
+  --s3: oklch(0.252 0.008 70);
 
-  /* Neutral ramp. Slightly warm (hue 70) rather than pure grey — pure neutrals next to
-   * video thumbnails read as dead, and the warmth is what stops the chrome looking like
-   * every other dark dashboard. */
-  --k-neutral-0: oklch(0.145 0.006 70);
-  --k-neutral-1: oklch(0.178 0.007 70);
-  --k-neutral-2: oklch(0.213 0.008 70);
-  --k-neutral-3: oklch(0.255 0.009 70);
-  --k-neutral-4: oklch(0.312 0.009 70);
-  --k-neutral-5: oklch(0.392 0.009 70);
-  --k-neutral-6: oklch(0.487 0.008 70);
-  --k-neutral-7: oklch(0.586 0.007 70);
-  --k-neutral-8: oklch(0.682 0.006 70);
-  --k-neutral-9: oklch(0.772 0.005 70);
-  --k-neutral-10: oklch(0.855 0.004 70);
-  --k-neutral-11: oklch(0.925 0.003 70);
-  --k-neutral-12: oklch(0.975 0.002 70);
+  /* ── Text. t4 is for decoration and disabled labels only — it does not reach 4.5:1 on
+   *    s1 and must never carry a sentence somebody has to read. */
+  --t1: oklch(0.965 0.004 80);
+  --t2: oklch(0.800 0.006 80);
+  --t3: oklch(0.660 0.008 80);
+  --t4: oklch(0.520 0.008 80);
 
-  /* The accent ramp. Teal.
-   *
-   * Was ember (hue 48), which collided with the amber "needs review" state 30° away —
-   * the accent was competing with a status hue, which is the thing a single-accent
-   * discipline exists to prevent. Conventional meaning wins: amber keeps "needs
-   * attention", and the accent moves out of its way.
-   *
-   * The warmth of the product lives in the neutral ramp (hue 70), where it always did.
-   * A cool accent against warm chrome is a deliberate pairing, not a compromise. */
-  --k-teal-3: oklch(0.34 0.046 195);
-  --k-teal-5: oklch(0.52 0.072 195);
-  --k-teal-6: oklch(0.62 0.088 195);
-  --k-teal-7: oklch(0.702 0.101 195);
-  --k-teal-8: oklch(0.775 0.088 197);
-  --k-teal-10: oklch(0.885 0.052 200);
+  /* ── Borders */
+  --b1: oklch(1 0 0 / 0.065);
+  --b2: oklch(1 0 0 / 0.105);
+  --b3: oklch(1 0 0 / 0.170);
 
-  /* Status hues. Each is used for exactly one meaning; see the semantic layer. */
-  --k-amber-6: oklch(0.75 0.145 78);
-  --k-amber-3: oklch(0.36 0.062 78);
-  --k-blue-6: oklch(0.68 0.118 235);
-  --k-blue-3: oklch(0.34 0.055 235);
-  --k-green-6: oklch(0.72 0.135 152);
-  --k-green-3: oklch(0.34 0.055 152);
-  --k-red-6: oklch(0.655 0.185 22);
-  --k-red-3: oklch(0.34 0.085 22);
-  --k-violet-6: oklch(0.68 0.13 295);
-  --k-violet-3: oklch(0.34 0.06 295);
+  /* ── Accent — teal, the Bureau of Reality channel accent. Base = 500, unchanged in v2. */
+  --ac: oklch(0.790 0.120 182);
+  --ac-t: oklch(0.790 0.120 182 / 0.14);
+  --ac-ink: oklch(0.210 0.035 182);
+  --ac-100: oklch(0.95 0.035 182);
+  --ac-200: oklch(0.90 0.065 182);
+  --ac-300: oklch(0.85 0.095 182);
+  --ac-500: oklch(0.79 0.120 182);
+  --ac-600: oklch(0.70 0.115 182);
+  --ac-700: oklch(0.58 0.100 182);
+  --ac-800: oklch(0.45 0.080 182);
+  --ac-900: oklch(0.30 0.055 182);
+  --ac-hi: oklch(0.83 0.12 182);
+  --ac-lo: oklch(0.72 0.11 182);
+  --glow: oklch(0.83 0.12 182 / 0.55);
+  --ac-ring: oklch(0.79 0.12 182 / 0.5);
 
-  /* ══════════════════════════════════════════════════════════════════════════
-   * LAYER 2 — SEMANTIC.  Components use these.
-   * ══════════════════════════════════════════════════════════════════════════ */
+  /* ── Pipeline states — round dot = state. Each hue means exactly one thing. */
+  --draft: oklch(0.740 0.010 80);
+  --gen: oklch(0.740 0.150 295);
+  --rev: oklch(0.820 0.140 78);
+  --blk: oklch(0.690 0.190 25);
+  --blk-text: oklch(0.78 0.15 25);
+  --blk-wash: oklch(0.69 0.19 25 / 0.08);
+  --blk-line: oklch(0.69 0.19 25 / 0.3);
+  --rdy: oklch(0.740 0.130 248);
+  --live: oklch(0.800 0.160 152);
+  --live-wash: oklch(0.80 0.16 152 / 0.08);
+  --rev-wash: oklch(0.82 0.14 78 / 0.07);
 
-  /* Surfaces, darkest to lightest. -0 is the page, -3 is a raised popover. */
-  --surface-0: var(--k-neutral-0);
-  --surface-1: var(--k-neutral-1);
-  --surface-2: var(--k-neutral-2);
-  --surface-3: var(--k-neutral-3);
-  --surface-inset: oklch(0.125 0.006 70);
+  /* ── Blueprint world — the channel's 3D set, never the studio chrome. */
+  --navy: #0F1B30;
+  --navy2: #152640;
+  --chalk: #F2EFE8;
 
-  --text-primary: var(--k-neutral-12);
-  --text-secondary: var(--k-neutral-9);
-  --text-muted: var(--k-neutral-7);
-  --text-faint: var(--k-neutral-6);
-  --text-on-accent: var(--k-neutral-0);
+  /* ── Paper set — email, PDF bundle cover, the light logo. The app itself stays dark. */
+  --paper: oklch(0.975 0.005 80);
+  --paper-2: oklch(0.945 0.006 80);
+  --paper-b: oklch(0.88 0.006 80);
+  --ink: oklch(0.20 0.008 70);
+  --ink-2: oklch(0.43 0.008 70);
+  --ac-on-paper: oklch(0.50 0.095 182);
 
-  --border-subtle: var(--k-neutral-2);
-  --border-default: var(--k-neutral-3);
-  --border-strong: var(--k-neutral-4);
-  --border-focus: var(--k-teal-7);
+  /* ── Clay, for the 3D objects */
+  --clay-hi: #EEE9E0;
+  --clay: #C9C2B6;
+  --clay-lo: #6F685D;
 
-  /* ── The accent. Repointing these is the whole swap. ─────────────────────
-   *
-   * Moving ember → teal touched exactly this block, --border-focus, and the light
-   * theme's four-line equivalent. No component file changed, which is what the layer
-   * split was for. It was not literally one line — a new primitive ramp had to exist,
-   * because the old ramp contained no teal — but nothing above the token layer knew. */
-  --accent: var(--k-teal-7);
-  --accent-hover: var(--k-teal-8);
-  --accent-muted: var(--k-teal-3);
-  --accent-contrast: var(--text-on-accent);
+  /* ── Radii */
+  --r1: 6px;
+  --r2: 10px;
+  --r3: 14px;
+  --r4: 20px;
 
-  /* The brand mark. Inherits the accent so a swap carries, but is deliberately a
-   * separate name: a logo is neither actionable nor a status, and the form rule is
-   * about meaning rather than about which variable happens to hold the colour. The
-   * lint rule caught the brand dot wearing --accent on its first run. */
-  --brand-mark: var(--accent);
+  /* ── Type families. Geist ships with the `geist` package (see the app layout). */
+  --sans: var(--font-geist-sans), 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: var(--font-geist-mono), 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
-  /* ══════════════════════════════════════════════════════════════════════════
-   * THE FORM RULE
-   *
-   *   --accent*  may appear ONLY on interactive surfaces: buttons, links,
-   *              selection, focus. Things you can act on.
-   *   --state-*  may appear ONLY on non-interactive labels and glyphs. Things
-   *              that report.
-   *
-   *   Never the reverse.
-   *
-   * This is what keeps two colour systems legible in the same screen. Hue alone
-   * cannot do it — teal (195) and the "ready" blue (235) are only 40° apart, and
-   * at a glance across forty rows that is not a reliable distinction. Form is:
-   * a filled rounded rectangle you can press never means the same thing as a
-   * 9px dot that cannot be pressed, however similar their colour.
-   *
-   * Enforced by eslint-rules/token-form-rule.mjs, with the limits stated there.
-   * ══════════════════════════════════════════════════════════════════════════ */
+  /* ── Channel colour — overridden per channel on the element that shows it. */
+  --ch: var(--ac);
 
-  /* Pipeline states. One hue each, and the hue is the whole signal — nothing else in
-   * the interface is allowed to be coloured, which is what makes these readable at a
-   * glance across forty rows. */
-  --state-drafting: var(--k-neutral-7);
-  --state-drafting-bg: var(--k-neutral-2);
-  --state-generating: var(--k-violet-6);
-  --state-generating-bg: var(--k-violet-3);
-  --state-review: var(--k-amber-6);
-  --state-review-bg: var(--k-amber-3);
-  --state-blocked: var(--k-red-6);
-  --state-blocked-bg: var(--k-red-3);
-  --state-ready: var(--k-blue-6);
-  --state-ready-bg: var(--k-blue-3);
-  --state-live: var(--k-green-6);
-  --state-live-bg: var(--k-green-3);
-  --state-killed: var(--k-neutral-5);
-  --state-killed-bg: var(--k-neutral-1);
+  /* ── Motion. Named so code and design use the same curves. */
+  --e-out: cubic-bezier(.2, .8, .2, 1);
+  --e-io: cubic-bezier(.6, 0, .2, 1);
+  --e-fire: cubic-bezier(.4, 0, .1, 1);
+  --d1: 120ms;
+  --d2: 200ms;
+  --d3: 320ms;
+  --d4: 600ms;
 
-  --danger: var(--k-red-6);
-  --danger-muted: var(--k-red-3);
+  --scrim: oklch(0 0 0 / 0.55);
+  --shadow-raised: 0 12px 32px oklch(0 0 0 / .45), inset 0 1px 0 oklch(1 0 0 / .05);
 
-  /* ── Radii, named --corner-* rather than --radius-*.
-   *
-   *    Tailwind's font-size namespace is --text-* and its radius namespace is --radius-*.
-   *    A semantic token sharing a name with the namespace it is mapped INTO becomes
-   *    `--radius-xs: var(--radius-xs)` in a non-inline @theme, which is circular and
-   *    resolves to nothing. That is the actual reason the original used `@theme inline`,
-   *    and renaming is the fix that does not cost the indirection.
-   *
-   *    Deliberately not Tailwind's defaults — tighter, and the jump from
-   *    control to container is larger, which is most of what stops it reading as a
-   *    default install. ─────────────────────────────────────────────────────── */
+  /* ══ SCALE ══════════════════════════════════════════════════════════════════
+   * Multiplied by the display-scaling preference. Read before render in the app layout. */
+  --ui-scale: 1;
+
   --corner-xs: calc(0.1875rem * var(--ui-scale));
   --corner-sm: calc(0.3125rem * var(--ui-scale));
   --corner-md: calc(0.4375rem * var(--ui-scale));
@@ -169,40 +124,6 @@
   --corner-xl: calc(1rem * var(--ui-scale));
   --corner-full: 9999px;
 
-  /* ══════════════════════════════════════════════════════════════════════════
-   * SCALING — the user preference, and the two poles everything fluid is built from
-   *
-   * ── Why a preference and not only fluid type ──────────────────────────────
-   *
-   * The complaint that produced this was "UI too small on 4K", and the cause is not a
-   * missing media query. A 4K monitor at 100% OS scaling reports devicePixelRatio 1 with a
-   * 3840px CSS viewport: the browser is being told the window really is 3840 CSS pixels
-   * wide, so a 13px font is a *correct* 13 CSS pixels and there is nothing for a viewport
-   * query to react to that would not also fire on a 3840px window at DPR 2, where the same
-   * text is physically twice the size.
-   *
-   * No amount of fluid typography fixes that, because the browser cannot know how far away
-   * the screen is. Only the person looking at it knows. So the primary control is theirs —
-   * the same conclusion VS Code, Figma and Zed reached, and they all ship a percentage
-   * stepper rather than a clever formula.
-   *
-   * `--ui-scale` multiplies into every size and space token below. It is a plain number so
-   * it can be composed into a calc(); a length here would make every use site do unit
-   * arithmetic.
-   * ══════════════════════════════════════════════════════════════════════════ */
-
-  --ui-scale: 1;
-
-  /* ── Spacing. A 3px-derived scale rather than Tailwind's 4px, so density reads
-   *    slightly tighter than the default everyone recognises.
-   *
-   *    Now in rem rather than px, and multiplied by --ui-scale. rem so that a person who
-   *    has raised their browser's default font size gets a proportionally roomier layout
-   *    instead of larger text crammed into unchanged gutters — which is the failure mode
-   *    that makes "just zoom in" unsatisfying.
-   *
-   *    The base is 16px, so 3px = 0.1875rem. The odd-looking numbers are the original
-   *    scale converted exactly, not a redesign. ───────────────────────────────── */
   --space-1: calc(0.1875rem * var(--ui-scale));
   --space-2: calc(0.375rem * var(--ui-scale));
   --space-3: calc(0.5625rem * var(--ui-scale));
@@ -213,32 +134,8 @@
   --space-8: calc(3rem * var(--ui-scale));
   --space-9: calc(4.125rem * var(--ui-scale));
 
-  /* ══════════════════════════════════════════════════════════════════════════
-   * TYPE SCALE  (--type-*, not --text-*: --text-primary is a COLOUR in this file and
-   * overloading the prefix would make every rule about "text tokens" ambiguous)
-   *
-   * This did not exist. The codebase set 363 font sizes as arbitrary `text-[11.5px]`
-   * literals across twelve distinct values between 9.5px and 19px — which is not a scale,
-   * it is twelve independent decisions, and nothing can scale it because there is no single
-   * thing to multiply. Adding `--ui-scale` without this step would have shipped a
-   * preference control that visibly did nothing.
-   *
-   * Seven steps, generated Utopia-style between two poles: 1280px viewport at the small
-   * end, 2560px at the large. Each step is `clamp(min, min + slope·vw, max)`.
-   *
-   * ── The two hard rules, and why ───────────────────────────────────────────
-   *
-   * 1. The preferred value always carries a rem term. A size expressed purely in viewport
-   *    units cannot be enlarged by browser zoom — zoom changes the CSS pixel size of the
-   *    viewport and the vw value moves with it, so the text stays the same relative size
-   *    forever. That fails WCAG 1.4.4, which requires text to reach 200%.
-   * 2. max ≤ 2.5 × min. A wider ratio makes the same component unreadably small at one end
-   *    or cartoonish at the other, and it is where the "fluid type breaks at one specific
-   *    width" reports come from.
-   *
-   * Every step here is a ratio of about 1.15, well inside the rule.
-   * ══════════════════════════════════════════════════════════════════════════ */
-
+  /* Seven steps. Fluid between a floor and a ceiling so a 390px phone and a 4K panel both
+   * read; `check:scalable-sizes` fails any font size that is not one of these. */
   --type-3xs: calc(var(--ui-scale) * clamp(0.5938rem, 0.5583rem + 0.0444vw, 0.6563rem));
   --type-2xs: calc(var(--ui-scale) * clamp(0.6563rem, 0.6208rem + 0.0444vw, 0.7188rem));
   --type-xs:  calc(var(--ui-scale) * clamp(0.7188rem, 0.6656rem + 0.0664vw, 0.8125rem));
@@ -247,99 +144,73 @@
   --type-lg:  calc(var(--ui-scale) * clamp(0.9375rem, 0.8489rem + 0.1107vw, 1.0938rem));
   --type-xl:  calc(var(--ui-scale) * clamp(1.1875rem, 1.0634rem + 0.1551vw, 1.4063rem));
 
-  /* Line heights are unitless on purpose: they multiply whatever the computed size ends up
-     being, so they follow --ui-scale and the clamp without being restated. */
   --lh-tight: 1.25;
   --lh-snug: 1.4;
   --lh-normal: 1.55;
   --lh-relaxed: 1.7;
 
-  /* ── Motion. See the reduced-motion block at the bottom of this file. ─────── */
-  --duration-instant: 70ms;
-  --duration-fast: 130ms;
-  --duration-medium: 220ms;
-  --duration-slow: 400ms;
-  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --rail-width: 248px;
+  --tabbar-height: 84px;
 
-  --shadow-raised: 0 1px 2px oklch(0 0 0 / 0.4), 0 4px 16px oklch(0 0 0 / 0.28);
-  --shadow-overlay: 0 8px 40px oklch(0 0 0 / 0.55);
-  /* Dimmer behind a modal. Semantic because components must not write raw colour —
-     the lint rule caught exactly this on its first run. */
-  --overlay-scrim: oklch(0 0 0 / 0.55);
-
-  /* ══════════════════════════════════════════════════════════════════════════
-   * LAYER 3 — COMPONENT
-   * ══════════════════════════════════════════════════════════════════════════ */
-
-  --sidebar-width: calc(16.25rem * var(--ui-scale));
-  --sidebar-bg: var(--surface-1);
-  --sidebar-item-active-bg: var(--surface-3);
-
-  --glyph-size: calc(0.5625rem * var(--ui-scale));
-  --topbar-height: calc(3.25rem * var(--ui-scale));
-
-  /* ── Minimum hit target, WCAG 2.5.8 ────────────────────────────────────────
-   *
-   * Deliberately NOT scaled by --ui-scale. 24px is a floor expressed in physical-ish terms
-   * and shrinking it at 90% would take controls below the threshold — the accessibility
-   * minimum is not a design preference, so it does not get multiplied by one.
-   *
-   * `--hit-primary` is the larger target for primary controls. That one may grow with the
-   * preference, since growing a target never hurts. */
+  /* WCAG 2.5.8. --hit-min must NOT scale down; --hit-primary is the 44px mobile floor. */
   --hit-min: 24px;
   --hit-primary: max(2.75rem, calc(2.75rem * var(--ui-scale)));
 }
 
-/*
- * Light theme.
- *
- * Dark is the default and the design is built for it — video previews read better
- * against dark chrome, and status colour carries weight because nothing competes. Light
- * is a courtesy, so it remaps the semantic layer only. No component knows this exists.
- */
-:root[data-theme='light'] {
-  --surface-0: var(--k-neutral-12);
-  --surface-1: oklch(0.985 0.002 70);
-  --surface-2: var(--k-neutral-11);
-  --surface-3: var(--k-neutral-10);
-  --surface-inset: var(--k-neutral-11);
-
-  --text-primary: var(--k-neutral-1);
-  --text-secondary: var(--k-neutral-4);
-  --text-muted: var(--k-neutral-5);
-  --text-faint: var(--k-neutral-6);
-
-  --border-subtle: var(--k-neutral-10);
-  --border-default: var(--k-neutral-9);
-  --border-strong: var(--k-neutral-8);
-
-  --accent: var(--k-teal-6);
-  --accent-hover: var(--k-teal-5);
-  --accent-muted: var(--k-teal-10);
-  --accent-contrast: var(--k-neutral-12);
-
-  --sidebar-bg: var(--k-neutral-11);
-  --sidebar-item-active-bg: var(--k-neutral-12);
-
-  --shadow-raised: 0 1px 2px oklch(0 0 0 / 0.08), 0 4px 16px oklch(0 0 0 / 0.06);
-  --shadow-overlay: 0 8px 40px oklch(0 0 0 / 0.14);
-  --overlay-scrim: oklch(0.145 0.006 70 / 0.35);
+/* ══ v1 ALIASES — the names every screen used before brand v2. ══════════════════
+ * Pointed at the v2 tokens so an unmoved screen already wears the new palette. Delete this
+ * block when `grep -rn "var(--surface-\|var(--text-\|var(--state-\|var(--accent" src` is
+ * empty — not before, or an unmoved screen renders with no colour at all. */
+:root {
+  --surface-0: var(--s0);
+  --surface-1: var(--s1);
+  --surface-2: var(--s2);
+  --surface-3: var(--s3);
+  --surface-inset: var(--in);
+  --text-primary: var(--t1);
+  --text-secondary: var(--t2);
+  --text-muted: var(--t3);
+  --text-faint: var(--t3);
+  --text-on-accent: var(--ac-ink);
+  --on-accent: var(--ac-ink);
+  --border-subtle: var(--b1);
+  --border-default: var(--b2);
+  --border-strong: var(--b3);
+  --border-focus: var(--ac);
+  --accent: var(--ac);
+  --accent-hover: var(--ac-hi);
+  --accent-muted: var(--ac-t);
+  --accent-contrast: var(--ac-ink);
+  --brand-mark: var(--ac);
+  --state-drafting: var(--draft);
+  --state-generating: var(--gen);
+  --state-review: var(--rev);
+  --state-warn: var(--rev);
+  --state-blocked: var(--blk);
+  --state-blocked-bg: var(--blk-wash);
+  --state-ready: var(--rdy);
+  --state-live: var(--live);
+  --state-killed: var(--t4);
+  --danger: var(--blk-text);
+  --danger-muted: var(--blk-wash);
+  --duration-fast: var(--d1);
+  --duration-slow: var(--d3);
+  --ease-in-out: var(--e-io);
+  --ease-out: var(--e-out);
+  --overlay-scrim: var(--scrim);
+  --shadow-overlay: var(--shadow-raised);
+  --sidebar-bg: var(--in);
+  --sidebar-item-active-bg: var(--s2);
+  --sidebar-width: var(--rail-width);
+  --topbar-height: calc(3.25rem * var(--ui-scale));
 }
 
-/*
- * Reduced motion.
- *
- * 0.01ms, never 0. A zero-duration transition may not fire `transitionend` at all, and
- * anything driving a state machine off that event hangs forever — the accessibility fix
- * becomes a functional bug for exactly the users who asked for it.
- */
 @media (prefers-reduced-motion: reduce) {
   :root {
-    --duration-instant: 0.01ms;
-    --duration-fast: 0.01ms;
-    --duration-medium: 0.01ms;
-    --duration-slow: 0.01ms;
+    --d1: 0.01ms;
+    --d2: 0.01ms;
+    --d3: 0.01ms;
+    --d4: 0.01ms;
   }
 
   *,

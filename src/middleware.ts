@@ -108,6 +108,15 @@ const PUBLIC_PATHS = [
   '/about',
   '/_next',
   '/favicon.ico',
+  // Brand assets (icon.svg, apple-icon.png, the manifest and the PWA icons). The OS and the
+  // browser fetch these signed out — a home-screen icon that redirects to /login is no icon.
+  '/icon.svg',
+  '/apple-icon.png',
+  '/manifest.webmanifest',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-maskable-512.png',
+  '/favicon-32.png',
 ];
 
 /**
