@@ -74,7 +74,7 @@ export default async function ReviewQueuePage() {
   const queue = await readQueue(serverClient());
 
   return (
-    <div className="mx-auto w-full max-w-[1000px] px-6 py-8">
+    <div className="main">
       <SectionHeader
         title="Review"
         hint="Stage 8 — the editorial gate. A pass here is the row the publish trigger reads; there is no application-level way around it, and adding one would be removing a compliance control."

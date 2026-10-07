@@ -32,7 +32,6 @@ import { HEADLINE_BUCKET, readMeasureBoard } from '@/lib/measure/read';
  * of neglecting work that does not exist yet.
  */
 
-const MAX_W = 'mx-auto w-full max-w-[1400px]';
 
 const pct = (v: number | null, digits = 0) => (v === null ? '—' : `${v.toFixed(digits)}%`);
 const inr = (v: number | null) => (v === null ? '—' : `₹${v.toFixed(2)}`);
@@ -59,9 +58,9 @@ export default async function AnalyticsPage() {
   const outstanding = board.due.filter((d) => d.coverageState === 'outstanding');
 
   return (
-    <main className={`${MAX_W} px-6 py-8`}>
+    <main className="main">
       <header>
-        <h1 className="text-lg font-medium">Analytics</h1>
+        <h1 className="h1">Analytics</h1>
         <p className="mt-1 text-sm" style={{ color: 'var(--t3)' }}>
           Stage 11. 3-second retention is the hook metric; everything else is secondary.
           Figures are typed from the platform&rsquo;s own dashboard — Phase 1 has no

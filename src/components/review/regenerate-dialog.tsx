@@ -206,8 +206,7 @@ export function RegenerateDialog({
                 type="button"
                 disabled={pending}
                 onClick={confirm}
-                className="rounded-sm px-3 py-[7px] text-sm font-medium disabled:opacity-60"
-                style={{ background: 'var(--ac)', color: 'var(--ac-ink)' }}
+                className="btn pri"
               >
                 {pending ? 'Queueing…' : `Spend ₹${estimate.costInr.toFixed(2)}`}
               </button>

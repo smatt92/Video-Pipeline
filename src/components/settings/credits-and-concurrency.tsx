@@ -23,12 +23,7 @@ function Save({ label }: { label: string }) {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-sm px-[10px] py-[5px] text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
-      style={{
-        background: 'var(--ac)',
-        color: 'var(--ac-ink)',
-        transitionDuration: 'var(--d1)',
-      }}
+      className="btn pri sm"
     >
       {pending ? 'Saving…' : label}
     </button>

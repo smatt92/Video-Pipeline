@@ -19,8 +19,7 @@ export function RunNow({ channelId }: { channelId: string }) {
         type="button"
         disabled={pending}
         onClick={() => start(async () => setState(await runTrendsNowAction(channelId)))}
-        className="rounded-sm border px-3 py-1 text-xs"
-        style={{ borderColor: 'var(--b2)', color: 'var(--ac)' }}
+        className="btn sm"
       >
         {pending ? 'Starting…' : 'Run now'}
       </button>

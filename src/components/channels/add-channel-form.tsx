@@ -39,7 +39,7 @@ export function AddChannelForm() {
         <input name="instagram_account_id" className={field} style={fieldStyle} placeholder="Instagram professional account id (digits)" />
         <input name="instagram_handle" className={field} style={fieldStyle} placeholder="@instagram_handle" />
       </fieldset>
-      <button type="submit" disabled={pending} className="justify-self-start rounded-sm border px-3 py-1 text-sm" style={{ borderColor: 'var(--b3)', color: 'var(--t1)' }}>
+      <button type="submit" disabled={pending} className="btn" >
         {pending ? 'Adding…' : 'Add channel'}
       </button>
       {state.status !== 'idle' && (

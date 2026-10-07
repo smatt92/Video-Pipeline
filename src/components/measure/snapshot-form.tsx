@@ -96,8 +96,7 @@ export function SnapshotForm({ row, onDone }: { row: DueRow; onDone?: () => void
               // No `defaultValue`, and no `0`. An empty field must arrive empty — see the
               // note above on why a zero here is unrecoverable.
               placeholder={'hint' in f && f.hint ? f.hint : ''}
-              className="rounded-xs border px-2 py-1 font-mono text-xs"
-              style={{ borderColor: 'var(--b1)', background: 'var(--s2)' }}
+              className="input mono"
             />
           </label>
         ))}
@@ -107,8 +106,7 @@ export function SnapshotForm({ row, onDone }: { row: DueRow; onDone?: () => void
         <button
           type="submit"
           disabled={pending}
-          className="rounded-xs px-3 py-1 text-xs"
-          style={{ background: 'var(--ac)', color: 'var(--ac-ink)' }}
+          className="btn pri sm"
         >
           Record
         </button>
@@ -116,8 +114,7 @@ export function SnapshotForm({ row, onDone }: { row: DueRow; onDone?: () => void
         <input
           name="unavailableReason"
           placeholder="…or say why it could not be read"
-          className="min-w-[220px] flex-1 rounded-xs border px-2 py-1 text-xs"
-          style={{ borderColor: 'var(--b1)', background: 'var(--s2)' }}
+          className="input"
         />
         <button
           type="submit"
@@ -129,8 +126,7 @@ export function SnapshotForm({ row, onDone }: { row: DueRow; onDone?: () => void
             const form = e.currentTarget.form;
             if (form) submit(new FormData(form), 'unavailable');
           }}
-          className="rounded-xs border px-3 py-1 text-xs"
-          style={{ borderColor: 'var(--b1)', color: 'var(--t3)' }}
+          className="btn sm"
         >
           Not available
         </button>

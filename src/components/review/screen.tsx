@@ -500,12 +500,7 @@ function DecisionPanel({
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
           placeholder="What you saw, and why. This is the editorial record."
-          className="w-full resize-y rounded-sm border px-2 py-[7px] text-sm leading-relaxed outline-none"
-          style={{
-            background: 'var(--in)',
-            borderColor: 'var(--b1)',
-            color: 'var(--t1)',
-          }}
+          className="input"
         />
       </div>
 
@@ -521,8 +516,7 @@ function DecisionPanel({
           type="button"
           disabled={pending}
           onClick={() => onSubmit('pass', notes)}
-          className="rounded-sm px-3 py-[7px] text-sm font-medium disabled:opacity-60"
-          style={{ background: 'var(--ac)', color: 'var(--ac-ink)' }}
+          className="btn pri"
         >
           Pass
         </button>
@@ -531,8 +525,7 @@ function DecisionPanel({
           disabled={pending || marks.size === 0}
           onClick={() => onSubmit('reshoot', notes)}
           title={marks.size === 0 ? 'Mark the shots to reshoot first — press m on a shot.' : undefined}
-          className="rounded-sm border px-3 py-[7px] text-sm disabled:opacity-40"
-          style={{ borderColor: 'var(--b3)' }}
+          className="btn"
         >
           Reshoot {marks.size > 0 && `(${marks.size})`}
         </button>
@@ -550,8 +543,7 @@ function DecisionPanel({
           type="button"
           disabled={pending}
           onClick={() => onSubmit('kill', notes)}
-          className="rounded-sm border px-3 py-[7px] text-sm disabled:opacity-60"
-          style={{ borderColor: 'var(--b3)' }}
+          className="btn"
         >
           Kill
         </button>

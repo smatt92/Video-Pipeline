@@ -393,7 +393,7 @@ export default function PipelineBoard() {
           className={`${MAX_W} flex items-center gap-3 px-5`}
           style={{ height: 'var(--topbar-height)' }}
         >
-          <h1 className="text-md font-medium tracking-tight">Pipeline</h1>
+          <h1 className="h2">Script board</h1>
 
           {/* Nothing at all when both integrity counts are zero, which is every ordinary
               day. See the component for the third state. */}
@@ -404,12 +404,7 @@ export default function PipelineBoard() {
           <div className="ml-auto flex items-center gap-3">
             <Link
               href="/concepts"
-              className="rounded-sm px-[10px] py-[6px] text-xs font-medium transition-colors"
-              style={{
-                background: 'var(--ac)',
-                color: 'var(--ac-ink)',
-                transitionDuration: 'var(--d1)',
-              }}
+              className="btn pri sm"
             >
               New concept
             </Link>

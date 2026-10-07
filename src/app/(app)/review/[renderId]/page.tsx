@@ -71,7 +71,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ renderI
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] px-6 py-8">
+    <div className="main">
       <header className="mb-5 flex items-start gap-4">
         <div className="min-w-0">
           <div className="flex items-baseline gap-3">
@@ -151,7 +151,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ renderI
 
 function Broken({ headline, detail }: { headline: string; detail: string }) {
   return (
-    <div className="mx-auto w-full max-w-[900px] px-6 py-8">
+    <div className="main">
       <p className="text-sm" style={{ color: 'var(--blk)' }}>
         {headline}
       </p>

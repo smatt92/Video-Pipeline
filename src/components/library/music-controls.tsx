@@ -58,7 +58,7 @@ export function BedUpload({ bedId, accept }: { bedId: string; accept: readonly s
     <div className="flex flex-col gap-1">
       <div className="flex flex-wrap items-center gap-2">
         <input ref={file} type="file" accept={accept.join(',')} className="text-xs" />
-        <button type="button" onClick={upload} disabled={busy} className="rounded-sm border px-[8px] py-[4px] text-xs disabled:opacity-60" style={buttonStyle}>
+        <button type="button" onClick={upload} disabled={busy} className="btn sm" style={buttonStyle}>
           {busy ? 'Uploading…' : 'Upload'}
         </button>
       </div>
@@ -84,8 +84,7 @@ export function SeriesDefaultForm({ series, choices, current }: { series: string
         <select
           name="bed_id"
           defaultValue={current ?? choices[0]}
-          className="rounded-sm border px-2 py-[4px] font-mono text-xs"
-          style={{ background: 'var(--in)', borderColor: 'var(--b1)', color: 'var(--t1)' }}
+          className="input mono"
         >
           {choices.map((c) => (
             <option key={c} value={c}>
@@ -93,7 +92,7 @@ export function SeriesDefaultForm({ series, choices, current }: { series: string
             </option>
           ))}
         </select>
-        <button type="submit" className="rounded-sm border px-[8px] py-[4px] text-xs" style={buttonStyle}>
+        <button type="submit" className="btn sm" style={buttonStyle}>
           Set default
         </button>
       </form>

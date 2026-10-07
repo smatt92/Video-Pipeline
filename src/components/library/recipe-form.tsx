@@ -16,12 +16,7 @@ function Submit({ label, busy }: { label: string; busy: string }) {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-sm px-3 py-[7px] text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
-      style={{
-        background: 'var(--ac)',
-        color: 'var(--ac-ink)',
-        transitionDuration: 'var(--d1)',
-      }}
+      className="btn pri"
     >
       {pending ? busy : label}
     </button>
@@ -84,7 +79,7 @@ export function RecipeForm({ drivers }: { drivers: string[] }) {
             name="name"
             required
             placeholder="macro push-in, warm"
-            className="rounded-sm border px-[10px] py-[7px] text-sm outline-none"
+            className="input"
             style={inputStyle}
           />
         </label>
@@ -95,7 +90,7 @@ export function RecipeForm({ drivers }: { drivers: string[] }) {
             required
             list="known-drivers"
             defaultValue={drivers[0] ?? ''}
-            className="rounded-sm border px-[10px] py-[7px] font-mono text-sm outline-none"
+            className="input mono"
             style={inputStyle}
           />
           <datalist id="known-drivers">
@@ -110,7 +105,7 @@ export function RecipeForm({ drivers }: { drivers: string[] }) {
             name="model"
             required
             placeholder="dop-turbo"
-            className="rounded-sm border px-[10px] py-[7px] font-mono text-sm outline-none"
+            className="input mono"
             style={inputStyle}
           />
         </label>
@@ -123,7 +118,7 @@ export function RecipeForm({ drivers }: { drivers: string[] }) {
           required
           rows={3}
           defaultValue="{{description}}"
-          className="rounded-sm border px-[10px] py-[7px] font-mono text-sm outline-none"
+          className="input mono"
           style={inputStyle}
         />
         <span className="text-xs" style={{ color: 'var(--t3)' }}>
@@ -140,7 +135,7 @@ export function RecipeForm({ drivers }: { drivers: string[] }) {
           required
           rows={6}
           placeholder={'{\n  "motion_id": "…",\n  "aspect_ratio": "9:16",\n  "quality": "high",\n  "seed": 12345\n}'}
-          className="rounded-sm border px-[10px] py-[7px] font-mono text-xs outline-none"
+          className="input mono"
           style={inputStyle}
         />
         <span className="text-xs leading-relaxed" style={{ color: 'var(--t3)' }}>
@@ -187,7 +182,7 @@ export function RecipeForm({ drivers }: { drivers: string[] }) {
           <input
             name="sample_output_url"
             placeholder="https://…"
-            className="rounded-sm border px-[10px] py-[7px] text-sm outline-none"
+            className="input"
             style={inputStyle}
           />
         </label>
@@ -196,7 +191,7 @@ export function RecipeForm({ drivers }: { drivers: string[] }) {
           <select
             name="discovered_in"
             defaultValue="claude-code-mcp"
-            className="rounded-sm border px-[10px] py-[7px] text-sm outline-none"
+            className="input"
             style={inputStyle}
           >
             <option value="claude-code-mcp">claude-code-mcp</option>
@@ -333,13 +328,11 @@ export function RecipeRow({
             <input
               name="reason"
               placeholder="why retire it"
-              className="w-[220px] rounded-sm border bg-transparent px-2 py-[4px] text-xs outline-none"
-              style={{ borderColor: 'var(--b1)', color: 'var(--t1)' }}
+              className="input"
             />
             <button
               type="submit"
-              className="rounded-sm border px-[8px] py-[4px] text-xs"
-              style={{ borderColor: 'var(--b2)', color: 'var(--t3)' }}
+              className="btn sm"
             >
               Retire
             </button>
@@ -351,14 +344,12 @@ export function RecipeRow({
                 name="sample_output_url"
                 required
                 placeholder="URL of the clip you watched"
-                className="w-[260px] rounded-sm border bg-transparent px-2 py-[4px] text-xs outline-none"
-                style={{ borderColor: 'var(--b1)', color: 'var(--t1)' }}
+                className="input"
               />
             )}
             <button
               type="submit"
-              className="rounded-sm border px-[8px] py-[4px] text-xs"
-              style={{ borderColor: 'var(--b2)', color: 'var(--t3)' }}
+              className="btn sm"
             >
               Reinstate
             </button>

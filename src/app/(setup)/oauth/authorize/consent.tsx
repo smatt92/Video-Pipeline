@@ -188,8 +188,7 @@ export async function ConsentPage({
             type="submit"
             name="decision"
             value="approve"
-            className="rounded-sm px-4 py-2 text-sm font-medium"
-            style={{ background: 'var(--ac)', color: 'var(--ac-ink)' }}
+            className="btn pri"
           >
             Approve
           </button>
@@ -197,8 +196,7 @@ export async function ConsentPage({
             type="submit"
             name="decision"
             value="deny"
-            className="rounded-sm border px-4 py-2 text-sm"
-            style={{ borderColor: 'var(--b3)' }}
+            className="btn"
           >
             Deny
           </button>

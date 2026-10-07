@@ -76,7 +76,7 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
   const totalInr = (generations ?? []).reduce((n, g) => n + Number(g.cost_inr ?? 0), 0);
 
   return (
-    <div className="mx-auto w-full max-w-[1000px] px-6 py-8">
+    <div className="main">
       <SectionHeader title={concept.title} hint={concept.angle} />
 
       {!script ? (

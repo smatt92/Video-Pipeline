@@ -70,7 +70,7 @@ export default async function StudioPage() {
   const [list, cap] = await Promise.all([listSessions(serverClient()), proposedSessionCap()]);
 
   return (
-    <div className="mx-auto w-full max-w-[1000px] px-6 py-8">
+    <div className="main">
       <SectionHeader
         title="Studio"
         hint="A conversation that writes pipeline rows. Every tool call is costed, every turn is kept as editorial evidence, and the session stops at its spend cap rather than warning about it."

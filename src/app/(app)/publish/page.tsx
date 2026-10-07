@@ -30,7 +30,6 @@ import { QUEUE_PAGE, readPublishBoard } from '@/lib/publish/read';
  * since, which is what an alert is really asking.
  */
 
-const MAX_W = 'mx-auto w-full max-w-[1400px]';
 
 const BLOCKER_COPY: Record<string, string> = {
   review_not_passed: 'no passing review — the database gate refuses this, not the screen',
@@ -48,9 +47,9 @@ export default async function PublishPage() {
   const capped = board.queueTotal > shown;
 
   return (
-    <main className={`${MAX_W} px-6 py-8`}>
+    <main className="main">
       <header>
-        <h1 className="text-lg font-medium">Publish</h1>
+        <h1 className="h1">Publish</h1>
         <p className="mt-1 text-sm" style={{ color: 'var(--t3)' }}>
           Stage 10, YouTube. Uploads run on a worker and never through a route — a finished
           render is far past what a serverless function may carry. Every upload declares

@@ -105,8 +105,7 @@ export function ShotStrip(props: ShotStripProps) {
             type="button"
             disabled={pending}
             onClick={props.onSaveOrder}
-            className="ml-auto rounded-sm px-2 py-[4px] text-xs font-medium disabled:opacity-60"
-            style={{ background: 'var(--ac)', color: 'var(--ac-ink)' }}
+            className="btn pri sm"
           >
             Save order
           </button>
@@ -276,8 +275,7 @@ function HandleButton({
       title={title}
       aria-label={title}
       onClick={onClick}
-      className="rounded-sm border px-[6px] py-[2px] font-mono text-2xs"
-      style={{ borderColor: 'var(--b1)', color: 'var(--t3)' }}
+      className="btn sm"
     >
       {label}
     </button>

@@ -22,7 +22,7 @@ export default async function ConceptsPage() {
   const rows = await listConcepts(serverClient(), channel.id);
 
   return (
-    <div className="mx-auto w-full max-w-[1100px] px-6 py-8">
+    <div className="main">
       <SectionHeader title="Concepts" hint={`${channel.name}: the newest 100, with script, shots, spend and episode.`} />
       <Panel>
         {rows.length === 0 ? (

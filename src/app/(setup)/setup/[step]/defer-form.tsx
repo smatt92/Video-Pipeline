@@ -93,20 +93,14 @@ export function DeferForm({
               required
               minLength={3}
               placeholder="API access is gated to a paid tier; applied for it"
-              className="mt-1 w-full rounded-sm border px-2 py-1.5 text-xs"
-              style={{
-                borderColor: 'var(--b1)',
-                background: 'var(--s2)',
-                color: 'var(--t1)',
-              }}
+              className="input"
             />
           </label>
 
           <button
             type="submit"
             disabled={pending}
-            className="self-start rounded-sm border px-3 py-1.5 text-xs"
-            style={{ borderColor: 'var(--b3)', color: 'var(--t2)' }}
+            className="btn sm"
           >
             {pending ? 'Deferring…' : 'Defer this step'}
           </button>

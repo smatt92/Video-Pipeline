@@ -147,12 +147,7 @@ export function RateRow({ row }: { row: RateCardRow }) {
               type="button"
               onClick={save}
               disabled={pending || cost.trim() === '' || note.trim() === ''}
-              className="rounded-sm px-4 text-sm font-medium disabled:opacity-40"
-              style={{
-                background: 'var(--ac)',
-                color: 'var(--ac-ink)',
-                minHeight: 'var(--hit-primary)',
-              }}
+              className="btn pri"
             >
               {pending ? 'Saving…' : 'Record'}
             </button>

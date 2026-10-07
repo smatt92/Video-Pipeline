@@ -12,9 +12,9 @@ export default async function ChannelsPage() {
   const channels = await listChannels(db);
   const rows = await Promise.all(channels.map(async (c) => ({ c, t: await publishTargets(db, c.id) })));
   return (
-    <main className="mx-auto w-full max-w-[960px] px-4 py-6">
+    <main className="main">
       <div className="flex items-baseline gap-3">
-        <h1 className="text-lg font-medium">Channels</h1>
+        <h1 className="h1">Channels</h1>
         <Link href="/channels/new" className="text-sm" style={{ color: 'var(--ac)' }}>+ Add channel</Link>
       </div>
       <div className="mt-4 grid gap-4">

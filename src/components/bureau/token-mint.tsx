@@ -11,11 +11,11 @@ export function TokenMint() {
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-sm">
           <span className="text-text-muted">Name</span>
-          <input name="name" required placeholder="Sahil — claude.ai" className="rounded border border-border-default bg-surface-1 px-2 py-1" />
+          <input name="name" required placeholder="Sahil — claude.ai" className="input" />
         </label>
         <label className="flex flex-col gap-1 text-sm">
           <span className="text-text-muted">Scope</span>
-          <select name="scope" defaultValue="agent" className="rounded border border-border-default bg-surface-1 px-2 py-1">
+          <select name="scope" defaultValue="agent" className="input">
             <option value="agent">agent — Routines and scheduled tasks</option>
             <option value="approver">approver — you, in Claude chat</option>
           </select>

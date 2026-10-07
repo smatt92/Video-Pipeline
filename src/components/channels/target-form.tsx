@@ -17,7 +17,7 @@ export function TargetForm(props: { channelId: string; platform: 'youtube' | 'in
       <label className="flex items-center gap-1"><input type="checkbox" name="enabled" defaultChecked={props.enabled} /> on</label>
       <input name="handle" defaultValue={props.handle ?? ''} placeholder="@handle" className={field} style={fieldStyle} />
       <input name="external_id" defaultValue={props.externalId ?? ''} placeholder={props.platform === 'youtube' ? 'UC… channel id' : 'account id (digits)'} className={field} style={fieldStyle} />
-      <button type="submit" disabled={pending} className="rounded-sm border px-2 py-1" style={{ borderColor: 'var(--b3)' }}>{pending ? 'Saving…' : 'Save'}</button>
+      <button type="submit" disabled={pending} className="btn" >{pending ? 'Saving…' : 'Save'}</button>
       {state.status !== 'idle' && <span style={{ color: state.status === 'ok' ? 'var(--t2)' : 'var(--blk-text)' }}>{state.message}</span>}
     </form>
   );

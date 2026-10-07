@@ -28,12 +28,7 @@ function Submit({ label, busy }: { label: string; busy: string }) {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-sm px-3 py-[7px] text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
-      style={{
-        background: 'var(--ac)',
-        color: 'var(--ac-ink)',
-        transitionDuration: 'var(--d1)',
-      }}
+      className="btn pri"
     >
       {pending ? busy : label}
     </button>
@@ -66,7 +61,7 @@ export function StartSessionForm({ proposedCap }: { proposedCap: number | null }
         <input
           name="title"
           placeholder="What are you trying to make?"
-          className="rounded-sm border px-2 py-[7px] text-sm outline-none"
+          className="input"
           style={inputStyle}
         />
       </div>
@@ -85,7 +80,7 @@ export function StartSessionForm({ proposedCap }: { proposedCap: number | null }
           step={1}
           defaultValue={proposedCap ?? undefined}
           required
-          className="w-[160px] rounded-sm border px-2 py-[7px] font-mono text-sm outline-none"
+          className="input mono"
           style={inputStyle}
         />
         {/* Shown, not hidden behind a default. The cap stops the session dead when it is
@@ -134,7 +129,7 @@ export function Composer({ sessionId, disabled }: { sessionId: string; disabled:
         rows={3}
         required
         placeholder="Describe what you want to make, or ask what is possible."
-        className="resize-y rounded-sm border px-2 py-[7px] text-sm leading-relaxed outline-none"
+        className="input"
         style={inputStyle}
       />
       <div className="flex items-center gap-3">

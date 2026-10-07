@@ -66,12 +66,7 @@ export function HostVoiceControl({
           type="button"
           onClick={save}
           disabled={pending || value === (current ?? '')}
-          className="rounded-sm px-4 text-sm font-medium disabled:opacity-40"
-          style={{
-            background: 'var(--ac)',
-            color: 'var(--ac-ink)',
-            minHeight: 'var(--hit-primary)',
-          }}
+          className="btn pri"
         >
           {pending ? 'Saving…' : 'Save'}
         </button>

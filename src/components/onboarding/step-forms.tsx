@@ -35,12 +35,7 @@ function Submit({ label, busy }: { label: string; busy: string }) {
     <button
       type="submit"
       disabled={pending}
-      className="rounded-sm px-3 py-[7px] text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60"
-      style={{
-        background: 'var(--ac)',
-        color: 'var(--ac-ink)',
-        transitionDuration: 'var(--d1)',
-      }}
+      className="btn pri"
     >
       {pending ? busy : label}
     </button>
@@ -83,12 +78,7 @@ function Field({
         required={required}
         autoComplete={autoComplete}
         spellCheck={false}
-        className="w-full rounded-sm border px-[10px] py-[7px] text-sm outline-none"
-        style={{
-          background: 'var(--in)',
-          borderColor: 'var(--b1)',
-          color: 'var(--t1)',
-        }}
+        className="input"
       />
       {help && (
         <span className="text-xs leading-relaxed" style={{ color: 'var(--t3)' }}>

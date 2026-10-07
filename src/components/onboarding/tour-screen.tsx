@@ -166,8 +166,7 @@ export function TourScreen({
             <button
               type="button"
               onClick={back}
-              className="rounded-sm border px-4 text-sm"
-              style={{ borderColor: 'var(--b3)', minHeight: 'var(--hit-primary)' }}
+              className="btn"
             >
               Back
             </button>
@@ -175,12 +174,7 @@ export function TourScreen({
           <button
             type="button"
             onClick={next}
-            className="rounded-sm px-4 text-sm font-medium"
-            style={{
-              background: 'var(--ac)',
-              color: 'var(--ac-ink)',
-              minHeight: 'var(--hit-primary)',
-            }}
+            className="btn pri"
           >
             {last ? 'Done' : 'Next'}
           </button>

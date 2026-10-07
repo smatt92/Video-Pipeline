@@ -35,7 +35,7 @@ export default async function SessionPage({
   if (!read.ok) {
     if (read.detail.startsWith('No session')) notFound();
     return (
-      <div className="mx-auto w-full max-w-[1200px] px-6 py-8">
+      <div className="main">
         <p className="text-sm" style={{ color: 'var(--blk)' }}>
           This session could not be read.
         </p>
@@ -54,7 +54,7 @@ export default async function SessionPage({
       : 0;
 
   return (
-    <div className="mx-auto w-full max-w-[1200px] px-6 py-8">
+    <div className="main">
       <header className="mb-5 flex items-start gap-4">
         <div className="min-w-0">
           <div className="flex items-baseline gap-3">

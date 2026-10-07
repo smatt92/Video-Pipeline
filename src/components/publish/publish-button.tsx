@@ -51,8 +51,7 @@ export function PublishButton({
             );
           })
         }
-        className="rounded-xs px-3 py-1 text-xs"
-        style={{ background: 'var(--ac)', color: 'var(--ac-ink)' }}
+        className="btn pri sm"
       >
         Publish
       </button>

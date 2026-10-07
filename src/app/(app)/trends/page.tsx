@@ -241,7 +241,7 @@ function Stamp({ at }: { at: string }) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mb-6">
-      <h2 className="mb-2 text-xs" style={{ color: 'var(--t1)' }}>{title}</h2>
+      <h2 className="h3" style={{ marginBottom: 8 }}>{title}</h2>
       {children}
     </section>
   );
@@ -249,12 +249,19 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="px-6 py-5">
-      <h1 className="mb-1 text-sm" style={{ color: 'var(--t1)' }}>Trends</h1>
-      <p className="mb-4 text-2xs" style={{ color: 'var(--t3)' }}>
-        Stage 1 intake. What was captured, from where, and how recently.
-      </p>
-      {children}
-    </div>
+    <main className="main">
+      <header className="topbar">
+        <div className="col" style={{ gap: 4 }}>
+          <div className="crumb">
+            <span>Pipeline</span>
+            <span className="t4">/</span>
+            <span>Trends</span>
+          </div>
+          <h1 className="h1">Trends</h1>
+          <p className="sm t3">Stage 1 intake. What was captured, from where, and how recently.</p>
+        </div>
+      </header>
+      <div>{children}</div>
+    </main>
   );
 }
