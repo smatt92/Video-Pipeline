@@ -126,16 +126,20 @@ export async function runEpisodeVoice(scriptId: string, deps: VoiceDeps): Promis
   // changed on re-cut (S003, 07-Oct) re-speaks that character's lines and nothing else.
   const reusable = (line: ScriptLine) => (existing ?? []).find((t) => t.chunk_idx === line.idx && t.asset_id && t.voice_id === voiceKey(routes.get(line.speaker)!) && (t.text_in ?? '').trim() === line.text.trim());
   const toSpeak = lines.filter((l) => !reusable(l));
-  const priorRows = (existing ?? []).length;
+  // Lines spoken before and now to be spoken AGAIN (a changed voice or text). A line with no take
+  // at all is still covered by the first pass's whole-script estimate — including a run resuming
+  // after the vendor's daily limit stopped it halfway, which must not price those lines twice.
+  const respoken = toSpeak.filter((l) => (existing ?? []).some((t) => t.chunk_idx === l.idx && t.asset_id));
 
   // ── Price before speaking ──────────────────────────────────────────────────
   const rate = await currentRate(db, { ...TTS_RATE_KEY });
   if (!rate.found) return { ok: false, code: 'unpriced', detail: `Refusing to synthesise: ${rate.detail}` };
   // The first pass prices the whole script under '06-voice' (its natural key dedupes a retry).
   // A later pass that re-speaks lines — a voice changed on re-cut — prices only those, under a
-  // stage of its own, so the money moved has its row before the call (rule 5).
-  const respeak = priorRows > 0 && toSpeak.length > 0;
-  const chars = (respeak ? toSpeak : lines).reduce((n, l) => n + l.text.length, 0);
+  // stage of its own, so the money moved has its row before the call (rule 5). A retry of the
+  // same re-speak (the daily limit hit mid-way) lands on the same row via its idempotency key.
+  const respeak = respoken.length > 0;
+  const chars = (respeak ? respoken : lines).reduce((n, l) => n + l.text.length, 0);
   const costUsd = chars * rate.rate.unitCostUsd;
   const costInr = costUsd * deps.usdInrRate;
   let stage = '06-voice';
@@ -143,10 +147,13 @@ export async function runEpisodeVoice(scriptId: string, deps: VoiceDeps): Promis
     const { data: prior } = await db.from('cost_ledger').select('stage').eq('script_id', script.id);
     stage = `06-voice-r${(prior ?? []).filter((r) => (r.stage ?? '').startsWith('06-voice-r')).length + 1}`;
   }
-  const { error: ledgerError } = await db.from('cost_ledger').insert({
+  const respeakKey = respeak ? `voice-respeak:${script.id}:${respoken.map((l) => `${l.idx}=${voiceKey(routes.get(l.speaker)!)}`).join(',')}` : null;
+  const { data: already } = respeakKey ? await db.from('cost_ledger').select('id').eq('idempotency_key', respeakKey).maybeSingle() : { data: null };
+  const { error: ledgerError } = already ? { error: null } : await db.from('cost_ledger').insert({
     script_id: script.id,
     concept_id: script.concept_id,
     driver: TTS_RATE_KEY.driver,
+    idempotency_key: respeakKey,
     stage,
     entry_kind: 'estimate',
     unit: 'character',

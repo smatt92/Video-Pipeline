@@ -509,12 +509,19 @@ try {
   const notesVoice = await P.voiceStep(db, ep2, { usdInrRate: 88, apiKeyFor: async () => ({ ok: true, value: 'k' }), synth: (i) => { respoken.push(i.text); return synthFrom(() => i.text)(i); }, align: (i) => alignLine(i), putBytes, presign, routeFor: reroute });
   check(notesVoice.ok && respoken.length === changedLines.length && respoken.every((t, k) => t === changedLines[k].text) && notesVoice.reused === scr.beats.lines.length - changedLines.length,
     'LOAD-BEARING: only the re-voiced speaker\'s lines are spoken again; every other paid line is re-used', JSON.stringify({ respoken: respoken.length, expected: changedLines.length, reused: notesVoice.ok ? notesVoice.reused : notesVoice.detail }));
-  // Two re-speaks on this script: 7a's one restored line, then this voice change. Each is its own row.
+  // 7a restored a line whose take was missing: that line is covered by the first pass's estimate
+  // (the same path a run resuming after the vendor's daily limit takes), so no new row. The voice
+  // change re-speaks lines that WERE spoken: those are priced, once, under a stage of their own.
   const { rows: ledgerR } = await client.query(`select stage, quantity from cost_ledger where script_id = $1 and stage like '06-voice-r%' order by stage`, [beforeNotes.script_id]);
   const changedChars = changedLines.reduce((n, l) => n + l.text.length, 0);
-  const restoredChars = scr.beats.lines.find((l) => l.idx === 0).text.length;
-  check(ledgerR.length === 2 && ledgerR[0].stage === '06-voice-r1' && Number(ledgerR[0].quantity) === restoredChars && ledgerR[1].stage === '06-voice-r2' && Number(ledgerR[1].quantity) === changedChars,
-    'every re-speak is priced before speaking, for exactly the characters it speaks, under a stage of its own (rule 5) — before this a re-speak was never priced', JSON.stringify(ledgerR));
+  check(ledgerR.length === 1 && ledgerR[0].stage === '06-voice-r1' && Number(ledgerR[0].quantity) === changedChars,
+    'a re-voiced line is priced before speaking, for exactly the characters it speaks, under a stage of its own (rule 5); a missing line is not priced twice', JSON.stringify(ledgerR));
+  // A retry of the same re-speak (daily limit mid-way) must not add a second row.
+  await client.query('update episodes set voice_detail = null where id = $1', [ep2]);
+  await client.query(`delete from vo_takes where script_id = $1 and chunk_idx = $2`, [beforeNotes.script_id, changedLines[0].idx]);
+  await P.voiceStep(db, ep2, { usdInrRate: 88, apiKeyFor: async () => ({ ok: true, value: 'k' }), synth: (i) => synthFrom(() => i.text)(i), align: (i) => alignLine(i), putBytes, presign, routeFor: reroute });
+  const { rows: ledgerR2 } = await client.query(`select stage from cost_ledger where script_id = $1 and stage like '06-voice-r%'`, [beforeNotes.script_id]);
+  check(ledgerR2.length === 1, 'resuming after a stop prices nothing new — the lines still to speak were already priced', JSON.stringify(ledgerR2));
   const { rows: [paced] } = await client.query('select voice_detail from episodes where id = $1', [ep2]);
   check(paced.voice_detail?.pace === 'fast' && Number(paced.voice_detail.total_s) < spokenS, 'the re-cut track is at the fast pace and shorter than before', `${paced.voice_detail?.total_s} s vs ${spokenS} s`);
 

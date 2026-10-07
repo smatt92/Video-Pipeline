@@ -65,6 +65,14 @@ async function download(url: string, out: string) {
   await writeFile(out, Buffer.from(await res.arrayBuffer()));
 }
 
+/**
+ * Waiting out the voice vendor's daily limit: a try every 25 minutes for up to a day. 25, not 60,
+ * because each try rewrites the episode row, and a row silent for 30 minutes while 'voicing'
+ * reads as a dead worker (running.ts) — which would offer Restart on a run that is only waiting.
+ */
+const RATE_LIMIT_RETRY_MIN = 25;
+const RATE_LIMIT_RETRIES = Math.ceil((24 * 60) / RATE_LIMIT_RETRY_MIN);
+
 export const episodeTask = schemaTask({
   id: '20-episode',
   schema: Payload,
@@ -107,19 +115,33 @@ export const episodeTask = schemaTask({
       logger.info('shots planned', plan);
 
       // 3. Voice — before any video, because it sets the durations
-      const voice = await voiceStep(db, episodeId, {
-        usdInrRate,
-        // Verified, not merely present (the Settings banner's predicate); voiceStep refuses by name.
-        apiKeyFor: (provider) => verifiedCredential(db, provider, VOICE_CREDENTIAL_FIELDS[provider]),
-        synth: (i) => synthLine(i),
-        align: (i) => alignLine(i),
-        putBytes: put,
-        presign,
-        log: logger,
-      });
+      const speak = () =>
+        voiceStep(db, episodeId, {
+          usdInrRate,
+          // Verified, not merely present (the Settings banner's predicate); voiceStep refuses by name.
+          apiKeyFor: (provider) => verifiedCredential(db, provider, VOICE_CREDENTIAL_FIELDS[provider]),
+          synth: (i) => synthLine(i),
+          align: (i) => alignLine(i),
+          putBytes: put,
+          presign,
+          log: logger,
+        });
+      let voice = await speak();
+      // The vendor's daily task limit (S002, 07-Oct: "Your daily task limit has been reached").
+      // It is a 24-hour ROLLING window, so capacity returns hour by hour as yesterday's tasks age
+      // out; a halt asking Sahil to "fix the voice" was the wrong instruction. Wait (a Trigger
+      // wait — no CPU, no money) and try again, up to a day. Lines already spoken are kept
+      // and re-used, so each retry only asks for what is still missing.
+      for (let n = 1; !voice.ok && voice.code === 'synth_rate_limited' && n <= RATE_LIMIT_RETRIES; n++) {
+        const at = new Date(Date.now() + RATE_LIMIT_RETRY_MIN * 60_000 + 5.5 * 3_600_000).toISOString().slice(11, 16);
+        await setStatus(db, episodeId, 'voicing', `voice vendor's daily task limit reached — retrying at ${at} IST (try ${n} of ${RATE_LIMIT_RETRIES}); spoken lines are kept`);
+        await wait.for({ minutes: RATE_LIMIT_RETRY_MIN });
+        voice = await speak();
+      }
       if (!voice.ok) {
         await setStatus(db, episodeId, 'halted', `${voice.code}: ${voice.detail}`);
-        await notify(db, channelId, 'qc_failed', `Kiln stopped episode ${episodeId.slice(0, 8)} at voice: ${voice.detail} Fix the voice on Voices, then restart the run.`);
+        const hint = voice.code === 'synth_rate_limited' ? `The voice vendor's daily limit held for 24 h; restart the run later.` : 'Fix the voice on Voices, then restart the run.';
+        await notify(db, channelId, 'qc_failed', `Kiln stopped episode ${episodeId.slice(0, 8)} at voice: ${voice.detail} ${hint}`);
         return { halted: voice.code };
       }
 
