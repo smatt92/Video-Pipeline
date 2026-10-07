@@ -151,7 +151,9 @@ export function CommandPalette({
                 return (
                   <Command.Item
                     key={item.href}
-                    value={`${item.label} ${item.hint}`}
+                    // The section name is searchable too: "library" must find Characters, Voices,
+                    // Prompts and Music, not fuzzy-match a slot title (Sahil, 07-Oct).
+                    value={`${item.label} ${group.label} ${item.hint}`}
                     disabled={disabled}
                     onSelect={() => !disabled && go(item.href)}
                   >
