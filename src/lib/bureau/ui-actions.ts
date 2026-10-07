@@ -158,6 +158,16 @@ export async function regenerateAction(episodeId: string, shotIdx: number, note:
   });
 }
 
+/** Cuts → Redraw under one picture: approver only, logged, starts 25-redraw (redraw.ts). */
+export async function redrawAction(episodeId: string, shotIdx: number, part: number | null, note: string): Promise<ActionResult> {
+  return run('/bureau/cuts', { table: 'episodes', id: episodeId }, async (t) => {
+    const db = serverClient();
+    const { requestRedraw } = await import('./redraw');
+    const r = await requestRedraw(db, t, productionEffects(db), { episode_id: episodeId, shot: shotIdx, part: part ?? undefined, note });
+    return `Redrawing shot ${r.shot_idx}, ${r.parts.length === 1 ? `picture ${r.parts[0] + 1}` : `${r.parts.length} pictures`}. The cut can be decided once the new one is in.`;
+  });
+}
+
 export async function markScheduledAction(publicationId: string, at: string, videoUrl: string): Promise<ActionResult> {
   return run('/bureau/ready', { table: 'publications', id: publicationId }, async (t) => {
     const videoId = videoUrl ? youtubeVideoId(videoUrl) : null;
@@ -207,5 +217,15 @@ export async function markPostedAction(publicationId: string, permalink: string,
     const { markInstagramPosted } = await import('./instagram-draft');
     const r = await markInstagramPosted(serverClient(), t, { publication_id: publicationId, permalink, posted_at: new Date(postedAt).toISOString() });
     return `Marked posted (${r.shortcode}).`;
+  });
+}
+
+/** Ready → "Publish to Instagram now" / "at the slot" (decision 0023): approver only, gated in the database. */
+export async function publishInstagramAction(publicationId: string, when: 'now' | 'slot'): Promise<ActionResult> {
+  return run('/bureau/ready', { table: 'publications', id: publicationId }, async (t) => {
+    const db = serverClient();
+    const { requestInstagramPublish } = await import('./instagram-draft');
+    const r = await requestInstagramPublish(db, t, productionEffects(db), { publication_id: publicationId, when });
+    return when === 'now' ? 'Posting to Instagram now — the permalink appears here when Meta has published it (a few minutes).' : `Scheduled for ${new Date(r.at).toLocaleString('en-GB', { timeZone: 'Asia/Kolkata' })} IST; posted automatically at the slot.`;
   });
 }

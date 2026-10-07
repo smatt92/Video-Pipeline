@@ -242,10 +242,10 @@ export const BUREAU_TOOLS: BureauTool[] = [
   tool({
     name: 'shot_regenerate',
     title: 'Re-roll one shot',
-    description: 'Queue a re-roll of one generated shot (by idx or shot id) with a note for the prompt. Limited to the channel’s re-roll max (default 2). The cut still needs approval afterwards.',
+    description: 'Queue a re-roll of one generated shot (by idx or shot id) with a note for the prompt. Limited to the channel’s re-roll max (default 2). The cut still needs approval afterwards. For a picture (scene still) shot this redraws instead — approver only: `part` picks one picture (0-based), absent = every picture of the shot; the note steers the new picture; the cut cannot be approved or rejected until the new composite is in.',
     scope: 'any',
-    args: z.object({ episode: z.uuid(), shot: z.union([z.number().int().min(0), z.uuid()]), note: z.string().min(3) }).strict(),
-    run: (c, a) => regenerateShot(c.db, c.token, { episode_id: a.episode, shot: a.shot, note: a.note }),
+    args: z.object({ episode: z.uuid(), shot: z.union([z.number().int().min(0), z.uuid()]), note: z.string().min(3), part: z.number().int().min(0).optional() }).strict(),
+    run: (c, a) => regenerateShot(c.db, c.token, { episode_id: a.episode, shot: a.shot, note: a.note, part: a.part }, c.effects),
   }),
   tool({
     name: 'cut_approve',
@@ -342,7 +342,7 @@ export const BUREAU_TOOLS: BureauTool[] = [
   tool({
     name: 'caps_set',
     title: 'Set caps',
-    description: 'Change caps and thresholds: per_short_cap_inr, daily_cap_inr, daily_longform_cap_inr, monthly_cap_inr, monthly_cap_after_gate2_inr, daily_publish_cap, gate2_passed, variation_min_axes, similarity_max, hook_archetype_weekly_max, catchphrase_weekly_max, overlay_min_share, character_beat_max_s, money_shot_max, rerolls_max.',
+    description: 'Change caps and thresholds: per_short_cap_inr, daily_cap_inr, daily_longform_cap_inr, monthly_cap_inr, monthly_cap_after_gate2_inr, daily_publish_cap, gate2_passed, variation_min_axes, similarity_max, hook_archetype_weekly_max, catchphrase_weekly_max, overlay_min_share, character_beat_max_s, money_shot_max, rerolls_max, instagram_publish_enabled (posting Reels from Kiln to the channel’s own account — decision 0023; needs migration 0050).',
     scope: 'approver',
     args: z.object({ changes: z.record(z.string(), z.union([z.number(), z.boolean()])) }).strict(),
     run: (c, a) => setCaps(c.db, c.token, a.changes),

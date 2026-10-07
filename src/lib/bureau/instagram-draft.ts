@@ -139,3 +139,49 @@ export async function markInstagramPosted(
   if (error) throw new Error(error.message);
   return { ok: true, shortcode, status: 'live' };
 }
+
+/**
+ * Ready → "Publish to Instagram now" / "at the slot" (decision 0023). Approver only. Refused by
+ * name unless the channel can post (`instagramPublishReadiness`: the flag, the target, the
+ * verified integration). The row moves to `scheduled` through `bureau_mark_scheduled` — the
+ * review gate, kill switch, daily cap and authorship log, in the database — and then:
+ *   now   the post starts at once (`26-ig-post`, keyed per publication and attempt);
+ *   slot  the 15-minute slot cron (`23-ig-publish`) posts it when due.
+ * A failed post that never reached media_publish can be published again from here; one that
+ * may have posted cannot (publishReel refuses it — reconcile with Mark posted).
+ */
+export async function requestInstagramPublish(
+  db: Db,
+  token: BureauToken,
+  effects: { startInstagramPost?(publicationId: string, attempt: string): Promise<string | null> },
+  input: { publication_id: string; when: 'now' | 'slot'; now?: Date },
+): Promise<{ ok: true; status: 'scheduled'; at: string; run_id: string | null }> {
+  requireApprover(token, 'instagram_publish');
+  const { instagramPublishReadiness } = await import('../publish/ig-run');
+  const { data: pub } = await db.from('publications').select('id, channel_id, platform, status, bundle').eq('id', input.publication_id).maybeSingle();
+  if (!pub || pub.channel_id !== token.channelId) throw new Error('No such publication on this channel.');
+  if (pub.platform !== 'instagram') throw new Error('This is not the Instagram variant.');
+  const ready = await instagramPublishReadiness(db, pub.channel_id);
+  if (!ready.ready) throw new Error(`Not published: ${ready.reason}.`);
+  const bundle = (pub.bundle ?? {}) as { slot_time?: string | null; publish?: { publishing_at?: string; media_id?: string } };
+  if (bundle.publish?.media_id || bundle.publish?.publishing_at) throw new Error('This Reel may already be on the account (media_publish was called). Check Instagram and use Mark posted.');
+  if (pub.status === 'failed') {
+    // Back to draft so the gate function runs again — never straight to scheduled.
+    const { error } = await db.from('publications').update({ status: 'draft', error_detail: null }).eq('id', pub.id).eq('status', 'failed');
+    if (error) throw new Error(error.message);
+  } else if (pub.status !== 'draft') {
+    throw new Error(`This Reel is already ${pub.status}.`);
+  }
+  const now = input.now ?? new Date();
+  const at = input.when === 'now' ? now.toISOString() : bundle.slot_time ?? null;
+  if (!at) throw new Error('This bundle has no slot time; publish now instead.');
+  if (input.when === 'slot' && new Date(at).getTime() < now.getTime()) throw new Error(`The slot (${at}) has passed; publish now instead.`);
+  const { error } = await db.rpc('bureau_mark_scheduled', { p_token: token.id, p_publication: pub.id, p_at: at });
+  if (error) throw new Error(error.message.replace(/^(conflict|invalid|not_found|scope_denied): /, ''));
+  let runId: string | null = null;
+  if (input.when === 'now') {
+    if (!effects.startInstagramPost) throw new Error('Scheduled for now, but this deployment cannot start the post; the slot cron posts it within 15 minutes.');
+    runId = await effects.startInstagramPost(pub.id, String(now.getTime()));
+  }
+  return { ok: true, status: 'scheduled', at, run_id: runId };
+}

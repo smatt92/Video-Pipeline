@@ -26,6 +26,15 @@ export function productionEffects(db: Db): BureauSideEffects {
       const handle = await tasks.trigger('20-episode', { episodeId }, { idempotencyKey });
       return handle.id;
     },
+    async startRedraw(input) {
+      // One run per redraw request: the request id is the key, so a double submit starts one run.
+      const handle = await tasks.trigger('25-redraw', input, { idempotencyKey: `redraw:${input.redrawId}` });
+      return handle.id;
+    },
+    async startInstagramPost(publicationId, attempt) {
+      const handle = await tasks.trigger('26-ig-post', { publicationId }, { idempotencyKey: `igpost:${publicationId}:${attempt}` });
+      return handle.id;
+    },
     async completeWaitToken(tokenId, output) {
       await wait.completeToken(tokenId, output);
     },

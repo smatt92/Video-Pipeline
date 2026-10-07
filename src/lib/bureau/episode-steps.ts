@@ -551,12 +551,18 @@ export async function assembleEpisode(
   db: Db,
   episodeId: string,
   deps: AssembleDeps,
-  opts: { layers?: readonly ('composite' | 'clean_master' | 'caption_layer')[] } = {},
+  opts: {
+    layers?: readonly ('composite' | 'clean_master' | 'caption_layer')[];
+    /** A redraw (redraw.ts) re-renders while the episode stays awaiting_cut: progress goes to status_detail only. */
+    keepStatus?: boolean;
+    /** Appended to the render keys, so a re-render never overwrites the bytes an earlier render row points at. */
+    keyTag?: string;
+  } = {},
 ): Promise<{ ok: true; compositeRenderId: string | null; masterRenderId: string | null; captionRenderId: string | null; frames: number } | { ok: false; code: string; detail: string }> {
   const layers = opts.layers ?? (['composite', 'clean_master', 'caption_layer'] as const);
   const log = deps.log ?? quiet;
   const { e, b, cb } = await loadEpisode(db, episodeId);
-  await setStatus(db, episodeId, 'assembling');
+  if (!opts.keepStatus) await setStatus(db, episodeId, 'assembling');
   const { data: shots } = await db.from('shots').select('id, idx, render_route, duration_s, duration_source, overlay_spec').eq('script_id', e.script_id!).order('idx');
   if (!shots?.length) return { ok: false, code: 'no_shots', detail: 'nothing to assemble' };
   if (shots.some((s) => s.duration_source !== 'derived_from_vo')) {
@@ -662,7 +668,7 @@ export async function assembleEpisode(
       const r = await deps.render({ props: { ...base, layer }, durationInFrames: total, outputPath: out, serveUrl, onProgress });
       if (!r.ok) return r;
       serveUrl = r.serveUrl;
-      const key = `renders/${episodeId}/${layer}-en.${ext}`;
+      const key = `renders/${episodeId}/${layer}-en${opts.keyTag ? `-${opts.keyTag}` : ''}.${ext}`;
       const bytes = await deps.putBytes(key, createReadStream(out));
       const { data: asset } = await db.from('assets').insert({ kind: 'video', storage_key: key, bytes, duration_s: total / FPS, width: WIDTH, height: HEIGHT, meta: { layer, language: 'en' } as Json }).select('id').single();
       const { data: render } = await db

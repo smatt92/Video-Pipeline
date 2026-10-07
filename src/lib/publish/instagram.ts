@@ -3,29 +3,37 @@ import { z } from 'zod';
 import { httpJson } from '../drivers/http';
 
 /**
- * Instagram Reels through the Graph API: container → poll until FINISHED → media_publish.
+ * Instagram Reels through the Graph API (Facebook Login for Business, graph.facebook.com):
+ * container → status until FINISHED → media_publish → permalink.
  *
- * ── Built, and switched off ──────────────────────────────────────────────────
+ * ── On, for accounts we own (decision 0023) ──────────────────────────────────
  *
- * CLAUDE.md's current phase forbids auto-publish until Meta app review clears, and the
- * plan's "Instagram posts automatically" is the thing that rule is about. So every
- * function here exists and is driven by a harness against a stub, and the only caller —
- * `publishReel` in `src/lib/bureau/instagram-run.ts` — refuses unless
- * `channel_policy.instagram_publish_enabled` is true. Flipping that column is an approver
- * action (`caps_set`), never something an agent token can reach. Decision 0012.
+ * Meta's Instagram Platform overview (read 07-Oct-2026): "If your app only serves your
+ * Instagram professional account or an account you manage, Standard Access is all your app
+ * needs"; App Review and Business Verification are for Advanced Access, i.e. accounts you do
+ * not own. So publishing to the channel's own account needs no review. It is still gated:
+ * `publishReel` (ig-run.ts) refuses unless `channel_policy.instagram_publish_enabled`, the
+ * channel's Instagram target is enabled and the integration has verified, and the row only
+ * moves to `scheduled` through `bureau_mark_scheduled` — enforce_review_pass and
+ * enforce_channel_policy in the database, never bypassed.
  *
- * Constraints from Meta's documentation, enforced before any call: 9:16, 5–90 s, a public
- * `video_url` (a presigned GET from the bucket — bytes never pass through Vercel), and the
- * account's rolling publishing limit read from `content_publishing_limit` rather than
- * assumed, because the two figures in circulation (25 and 100) disagree.
+ * Every endpoint and field below was checked against Meta's docs on 07-Oct-2026
+ * (content-publishing guide; IG User /media and IG Media references): REELS containers take
+ * `video_url` and `cover_url` from a public server (a presigned bucket GET — bytes never pass
+ * through Vercel), `cover_url` wins over `thumb_offset`; container `status_code` is one of
+ * EXPIRED / ERROR / FINISHED / IN_PROGRESS / PUBLISHED; "100 API-published posts within a
+ * 24-hour moving period", read from `content_publishing_limit` rather than assumed; Reels are
+ * 3 s – 15 min, ≤ 300 MB, 9:16 recommended; IG Media exposes `permalink` and `shortcode`.
  *
- * Unverified against a real account — 0008 §B4.
+ * Unverified against a real account — 0008 §28.
  */
 
-export const GRAPH_BASE = 'https://graph.facebook.com/v23.0';
+/** The version Meta's examples use as of 07-Oct-2026. */
+export const GRAPH_BASE = 'https://graph.facebook.com/v25.0';
 
-export const REEL_MIN_S = 5;
-export const REEL_MAX_S = 90;
+/** Meta, IG User /media reference (07-Oct-2026): Reels 3 seconds minimum, 15 minutes maximum. */
+export const REEL_MIN_S = 3;
+export const REEL_MAX_S = 900;
 
 const Created = z.object({ id: z.string().min(1) });
 const ContainerStatus = z.object({
@@ -71,13 +79,15 @@ export async function publishingHeadroom(c: IgCreds): Promise<IgResult<{ used: n
 
 export async function createReelContainer(
   c: IgCreds,
-  input: { videoUrl: string; caption: string; shareToFeed?: boolean },
+  input: { videoUrl: string; caption: string; shareToFeed?: boolean; coverUrl?: string | null },
 ): Promise<IgResult<string>> {
   const body = new URLSearchParams({
     media_type: 'REELS',
     video_url: input.videoUrl,
     caption: input.caption,
     share_to_feed: String(input.shareToFeed ?? true),
+    // Absent → Meta uses the first frame (thumb_offset defaults to 0).
+    ...(input.coverUrl ? { cover_url: input.coverUrl } : {}),
   });
   const r = await httpJson(`${GRAPH_BASE}/${encodeURIComponent(c.igUserId)}/media`, {
     method: 'POST',
@@ -102,6 +112,16 @@ export async function containerStatus(c: IgCreds, containerId: string) {
     : { ok: false as const, code: 'upstream', detail: 'Unreadable container status.' };
 }
 
+const Permalink = z.object({ id: z.string(), permalink: z.string().url().optional(), shortcode: z.string().optional() });
+
+/** The published Reel's permalink and shortcode (IG Media fields), read back after media_publish. */
+export async function mediaPermalink(c: IgCreds, mediaId: string): Promise<IgResult<{ permalink: string | null; shortcode: string | null }>> {
+  const r = await httpJson(`${GRAPH_BASE}/${encodeURIComponent(mediaId)}?fields=id,permalink,shortcode`, { headers: { authorization: `Bearer ${c.accessToken}` }, fetchImpl: c.fetchImpl });
+  if (!r.ok) return { ok: false, code: r.code, detail: r.detail };
+  const p = Permalink.safeParse(r.json);
+  return p.success ? { ok: true, value: { permalink: p.data.permalink ?? null, shortcode: p.data.shortcode ?? null } } : { ok: false, code: 'upstream', detail: 'Unreadable media fields.' };
+}
+
 export async function publishContainer(c: IgCreds, containerId: string): Promise<IgResult<string>> {
   const r = await httpJson(`${GRAPH_BASE}/${encodeURIComponent(c.igUserId)}/media_publish`, {
     method: 'POST',
@@ -115,7 +135,7 @@ export async function publishContainer(c: IgCreds, containerId: string): Promise
 }
 
 /**
- * Settings probe — read-only, two checks, no publishing permission exercised.
+ * Settings probe (Save and test) — read-only, three checks; nothing is posted.
  *
  *   credentials  GET /{ig-user-id}?fields=id,username — the token reads the account. Only a
  *                professional (Business or Creator) account has an IG User node on the Graph
@@ -124,6 +144,9 @@ export async function publishContainer(c: IgCreds, containerId: string): Promise
  *                account is linked to a Facebook Page this token can see (the Facebook Login
  *                path decision 0020 submits for), and, when the channel's Instagram target
  *                names an account id, it is that one.
+ *   publish      GET /{ig-user-id}/content_publishing_limit — readable only with
+ *                instagram_content_publish, so it proves the token can publish (decision
+ *                0023) without posting, and reports the 24-hour headroom.
  */
 const IgUser = z.object({ id: z.string(), username: z.string().optional() });
 const Pages = z.object({
@@ -134,7 +157,7 @@ export async function probeInstagram(
   igUserId: string | undefined,
   token: string | undefined,
   opts: { expectedAccountId?: string | null; fetchImpl?: typeof fetch } = {},
-): Promise<{ name: 'credentials' | 'channel'; passed: boolean; required: boolean; detail: string }[]> {
+): Promise<{ name: 'credentials' | 'channel' | 'publish'; passed: boolean; required: boolean; detail: string }[]> {
   if (!igUserId || !token) {
     return [{ name: 'credentials', passed: false, required: true, detail: 'Account id and token are both required.' }];
   }
@@ -146,7 +169,7 @@ export async function probeInstagram(
   const user = IgUser.safeParse(me.json);
   if (!user.success) return [{ name: 'credentials', passed: false, required: true, detail: 'Unreadable account response.' }];
   const username = user.data.username ?? '(no username returned)';
-  const checks: { name: 'credentials' | 'channel'; passed: boolean; required: boolean; detail: string }[] = [
+  const checks: { name: 'credentials' | 'channel' | 'publish'; passed: boolean; required: boolean; detail: string }[] = [
     { name: 'credentials', passed: true, required: true, detail: `Account ${user.data.id} (@${username}) read.` },
   ];
 
@@ -166,6 +189,12 @@ export async function probeInstagram(
     return checks;
   }
   checks.push({ name: 'channel', passed: true, required: true, detail: `@${username} is linked to the Page "${page.name ?? '(unnamed)'}"${opts.expectedAccountId ? ' and is the active channel\'s target' : ' (no account id on the channel target to compare)'}.` });
+  const head = await publishingHeadroom({ igUserId, accessToken: token, fetchImpl: opts.fetchImpl });
+  checks.push(
+    head.ok
+      ? { name: 'publish', passed: true, required: true, detail: `Can publish: ${head.value.used} of ${head.value.total} API posts used in the last 24 h.` }
+      : { name: 'publish', passed: false, required: true, detail: `${head.detail} — the token cannot read the publishing limit; it needs instagram_content_publish (Standard Access is enough for an account you own — decision 0023).` },
+  );
   return checks;
 }
 

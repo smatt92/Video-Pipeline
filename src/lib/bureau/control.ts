@@ -4,6 +4,7 @@ import type { Db } from '../db/server';
 import type { Json } from '../db/types';
 import { getBrief, resolvePunchline } from './briefs';
 import type { BureauToken } from './tokens';
+import { redrawRefusal } from './redraw-state';
 import { stillsForRecut } from './recut';
 import { stalled } from './running';
 import { variationRefusal } from './variation';
@@ -40,6 +41,10 @@ export interface Effects {
   startEpisode(episodeId: string, attempt?: string): Promise<string | null>;
   /** Complete a Trigger wait token (the cut gate). */
   completeWaitToken(tokenId: string, output: Record<string, unknown>): Promise<void>;
+  /** Start `25-redraw` for one picture request (redraw.ts). Absent → redraws refuse by name. */
+  startRedraw?(input: { episodeId: string; shotId: string; parts: number[]; note: string | null; redrawId: string }): Promise<string | null>;
+  /** Start `26-ig-post` for one scheduled Reel (Ready → Publish now). */
+  startInstagramPost?(publicationId: string, attempt: string): Promise<string | null>;
   /** Post a Slack notification, recorded in `notifications`. */
   notify?(channelId: string, kind: string, text: string, dedupeKey?: string): Promise<void>;
 }
@@ -177,6 +182,11 @@ export async function decideCut(
   input: { episode_id: string; approve: boolean; note?: string },
 ) {
   requireApprover(token, input.approve ? 'cut_approve' : 'cut_reject');
+  // A picture being redrawn (redraw.ts): the cut is about to change, so neither decision can be
+  // made on it. bureau_cut_decide refuses the same (0050) for a caller that skips this.
+  const { data: ep } = await db.from('episodes').select('qc, channel_id').eq('id', input.episode_id).maybeSingle();
+  const busy = ep && ep.channel_id === token.channelId ? redrawRefusal(ep.qc) : null;
+  if (busy) throw new Error(busy);
   const { data, error } = await db.rpc('bureau_cut_decide', {
     p_token: token.id,
     p_episode: input.episode_id,

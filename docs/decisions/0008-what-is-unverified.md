@@ -1334,6 +1334,41 @@ either; read with the Supabase MCP, read-only); `/channels/new` in a browser; an
 the deployed app; `voice:lock` against the hosted database. Until 0048 is pasted every channel
 reads its folder and one log line per process says so.
 
+### 28. Redraw this picture (2026-10-07) — RUN locally (`verify:episode` §12), stub image vendor
+
+**What ran:** on an awaiting cut with two stills, through the connector and the lib: an agent
+token refused (shot_regenerate and requestRedraw); the approver's shot_regenerate on a still
+routed to a redraw of exactly shot 0 picture 0 with the note, logged in `authorship_log`;
+`cut_approve` refused while in flight AND `bureau_cut_decide` itself refused (0050); a second
+redraw refused; `runRedraw` wrote one new generation (attempt 1, `21-still.v4`, the note as
+`direction`), its ₹4.40 estimate row existed before the stub vendor was called, the note
+reached the rewrite as an APPROVER DIRECTION, a real 270×480 composite rendered under its own
+key (the old render's bytes untouched), `final_render_id` moved, shot 3's pictures unchanged,
+status `awaiting_cut` on the same token, loudness re-written; a frame of the new MP4 decodes to
+the new picture's colour. A refused redraw kept the previous picture and the cut. Approve then
+passed, woke the same token, and the review is of the redrawn composite.
+
+**What has NOT run:** `25-redraw` on the worker; a real redraw (vendor, bucket, 1080×1920
+render); the Cuts screen against the deployed app; 0050 on the hosted project (until it is
+pasted, only decideCut refuses — an MCP `cut_approve` still goes through decideCut, so the
+connector is covered; a raw RPC call is not).
+
+### 29. Instagram Reels publishing to our own account (2026-10-07, decision 0023) — RUN against a stub Graph API
+
+**What ran:** `verify:ig-publish` — agent, flag off, unverified integration, disabled target:
+refused, nothing moved; a reshoot review cannot be scheduled (the database, both via
+`bureau_mark_scheduled` and a direct update); Publish now → scheduled (logged) → run started →
+REELS container with the presigned MP4 and cover → IN_PROGRESS ×2 (two 60 s waits) → FINISHED →
+one media_publish → permalink + shortcode stored in the Mark-posted fields; replays (live, and
+an unrecorded media_publish) refuse with no Graph call; two racing runs post once; an ERROR
+container fails the row with Meta's message and Publish again makes a fresh container.
+`verify:channels` §6: Save and test now also proves `instagram_content_publish`
+(`content_publishing_limit`).
+
+**What has NOT run:** any real Graph API call; a Meta app; a token; the 3 h presigned URL being
+fetched by Meta; `26-ig-post` and `23-ig-publish` on the worker; `wait.for` checkpointing in the
+container wait; the Ready buttons in a browser. The first real post is one bundle Sahil picks.
+
 ## Gates, and where each can run
 
 | Gate | Runnable in this environment? |
@@ -1348,7 +1383,8 @@ reads its folder and one log line per process says so.
 | Agent connector — OAuth handshake on `/api/mcp/agent` (0018) | **No.** Only Sahil adding the second connector (§19). |
 | Worker env sync from Vercel (0017) | **No.** The first `pnpm trigger:deploy` with `VERCEL_ACCESS_TOKEN` (§17). |
 | YouTube "Save and test" against Google | **No.** Clicking it on the deploy (§18). |
-| Instagram "Save and test" against the Graph API | **No.** Needs a Meta token; read-only probe (§22). |
+| Instagram "Save and test" against the Graph API | **No.** Needs a Meta token; read-only probe (§22, §29). |
+| First real Reel through the API (0023) | **No.** Sahil's Meta app and token; one approved bundle he picks (§29). |
 | YouTube Data API trend intake | **No.** Needs `YOUTUBE_DATA_API_KEY` in Vercel production (§23). |
 
 ## Closing this file

@@ -22,7 +22,7 @@ import {
 import type { CredentialRefusal } from '../integrations/verify';
 import { usability } from '../integrations/verify';
 import { routed } from '../llm/router';
-import { STILL_NEGATIVE, STILL_PROMPT_REF, STILL_SYSTEM, stillUserMessage } from '../prompts/21-still.v3';
+import { STILL_NEGATIVE, STILL_PROMPT_REF, STILL_SYSTEM, stillUserMessage } from '../prompts/21-still.v4';
 import { normaliseOverlay } from '../../remotion/bureau/overlay-scene';
 import type { Bible } from './bible';
 import { fits, headroom } from './caps';
@@ -47,7 +47,7 @@ import { fits, headroom } from './caps';
  * ── The cast stays off-screen ─────────────────────────────────────────────────
  *
  * The shot description is rewritten by the cheapest model tier under a versioned prompt
- * (`prompts/21-still.v3.ts`), then checked by code: any cast name or slug in the rewrite is
+ * (`prompts/21-still.v4.ts`), then checked by code: any cast name or slug in the rewrite is
  * a refusal (`castNamesIn`). The style and the negative clause are appended here from the
  * bible, never by the model, so no rewrite can drop "no people".
  */
@@ -109,7 +109,7 @@ export type StillPrompt = { ok: true; prompt: string; scene: string; model: stri
  * The full still prompt for one shot, or why not. The model rewrites; code checks and composes.
  */
 export async function stillPromptFor(
-  input: { description: string; premise: string; cast: readonly { id: string; name: string }[]; world: Bible['world']; accent: string; narration?: string; part?: { index: number; of: number } },
+  input: { description: string; premise: string; cast: readonly { id: string; name: string }[]; world: Bible['world']; accent: string; narration?: string; part?: { index: number; of: number }; direction?: string },
   deps: { db: Db; apiKey: string | null; usdInrRate: number; subject: LlmCostSubject; client?: Pick<Anthropic, 'messages'> },
 ): Promise<StillPrompt> {
   if (!deps.apiKey) return { ok: false, reason: 'no model key to rewrite the shot without its cast' };
@@ -117,7 +117,7 @@ export async function stillPromptFor(
   let model: string;
   try {
     const r = await routed(
-      { task: 'still_prompt', system: STILL_SYSTEM, user: stillUserMessage({ description: input.description, premise: input.premise, cast: input.cast.map((c) => c.name), narration: input.narration, part: input.part }), schema: z.object({ scene: z.string().min(3).max(600) }), maxTokens: 300 },
+      { task: 'still_prompt', system: STILL_SYSTEM, user: stillUserMessage({ description: input.description, premise: input.premise, cast: input.cast.map((c) => c.name), narration: input.narration, part: input.part, direction: input.direction }), schema: z.object({ scene: z.string().min(3).max(600) }), maxTokens: 300 },
       { db: deps.db, apiKey: deps.apiKey, usdInrRate: deps.usdInrRate, subject: deps.subject, client: deps.client },
     );
     scene = r.data.scene;
@@ -183,6 +183,8 @@ export async function generateStillForShot(
     kind?: 'short' | 'long_form';
     /** Which of the shot's pictures this is (formats.ts), and the narration under it. Absent → the shot's only picture. */
     part?: { index: number; of: number; narration: string };
+    /** The approver's note on a redraw (Cuts → Redraw, redraw.ts): reaches the rewrite as a direction. */
+    direction?: string;
   },
   deps: StillDeps,
 ): Promise<StillResult> {
@@ -195,7 +197,7 @@ export async function generateStillForShot(
   const key = part === 0 ? `still:${shot.id}:${attempt}` : `still:${shot.id}:p${part}:${attempt}`;
 
   const p = await stillPromptFor(
-    { description: shot.description, premise: ctx.premise, cast: ctx.cast, world: ctx.world, accent: ctx.accent, narration: ctx.part?.narration || undefined, part: ctx.part ? { index: ctx.part.index, of: ctx.part.of } : undefined },
+    { description: shot.description, premise: ctx.premise, cast: ctx.cast, world: ctx.world, accent: ctx.accent, narration: ctx.part?.narration || undefined, part: ctx.part ? { index: ctx.part.index, of: ctx.part.of } : undefined, direction: ctx.direction },
     { db, apiKey: deps.llmKey, usdInrRate: deps.usdInrRate, client: deps.llmClient, subject: { kind: 'channel', channelId: ctx.channelId, idempotencyKey: `${key}:prompt`, stage: '20-still-prompt' } },
   );
   if (!p.ok) return { ok: false, reason: p.reason, spent: false };
@@ -220,7 +222,7 @@ export async function generateStillForShot(
       driver: STILL_PROVIDER,
       model: STILL_MODEL,
       attempt,
-      request_payload: { prompt: p.prompt, scene: p.scene, prompt_ref: STILL_PROMPT_REF, rewrite_model: p.model, ratio: STILL_RATIO, source_description: shot.description, part, parts: ctx.part?.of ?? 1, narration: ctx.part?.narration ?? null } as Json,
+      request_payload: { prompt: p.prompt, scene: p.scene, prompt_ref: STILL_PROMPT_REF, rewrite_model: p.model, ratio: STILL_RATIO, source_description: shot.description, part, parts: ctx.part?.of ?? 1, narration: ctx.part?.narration ?? null, direction: ctx.direction ?? null } as Json,
       idempotency_key: key,
       status: 'submitting',
       origin: 'pipeline',

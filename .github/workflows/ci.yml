@@ -277,6 +277,11 @@ jobs:
       - name: Two channels stay apart; the Instagram variant, draft, Mark posted and probe
         run: pnpm verify:channels "$DATABASE_URL"
 
+      # 0023: Reels to our own account against a stub Graph API — refusals, the review gate,
+      # container → FINISHED → publish → permalink, never twice, an ERROR container.
+      - name: Instagram Reels publish — gated, once, with the permalink
+        run: pnpm verify:ig-publish "$DATABASE_URL"
+
       # 0022: the Bureau folder imported equals the folder field by field (both the local import
       # and the SQL generated for the hosted paste); a second channel made entirely through the
       # approver actions, with no folder, voices its lines in the presets lockVoice wrote.

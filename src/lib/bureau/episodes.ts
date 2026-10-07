@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import type { Db } from '../db/server';
 import type { Json } from '../db/types';
+import type { RedrawEffects } from './redraw';
 import type { BureauToken } from './tokens';
 
 /**
@@ -31,7 +32,8 @@ async function log(db: Db, token: BureauToken, action: string, subjectType: stri
 export async function regenerateShot(
   db: Db,
   token: BureauToken,
-  input: { episode_id: string; shot: number | string; note: string },
+  input: { episode_id: string; shot: number | string; note: string; part?: number },
+  effects: RedrawEffects = {},
 ) {
   const { data: ep } = await db.from('episodes').select('id, channel_id, script_id, status').eq('id', input.episode_id).maybeSingle();
   if (!ep || ep.channel_id !== token.channelId) throw new Error(`Episode ${input.episode_id} does not exist on this channel.`);
@@ -47,9 +49,14 @@ export async function regenerateShot(
     throw new Error('Overlay shots are rendered in-house and re-render with the cut; there is nothing to re-roll.');
   }
   if (shot.render_route === 'still') {
-    // Not wired yet (0021): a still is made once by the episode's still step. Said plainly
-    // rather than queued as a video job that would generate the wrong thing.
-    throw new Error('Scene stills cannot be re-rolled from here yet. Reject the cut with a note; a re-run makes a new still for any shot whose still is missing.');
+    // A picture is redrawn, not re-rolled as a video job (redraw.ts): approver only, because
+    // it changes the cut awaiting a decision and holds that decision until it is in.
+    if (token.scope !== 'approver') {
+      throw new Error(`Shot ${shot.idx} is a picture. Redrawing it changes the cut awaiting the approver's call, so it needs the approver scope — ask on Cuts (Redraw) or with an approver token.`);
+    }
+    const { requestRedraw } = await import('./redraw');
+    const r = await requestRedraw(db, token, effects, { episode_id: ep.id, shot: shot.id, part: input.part, note: input.note });
+    return { ok: true as const, redraw_id: r.redraw_id, shot_idx: r.shot_idx, parts: r.parts, run_id: r.run_id, note: 'Redrawing; the cut cannot be approved or sent back until the new composite is in.' };
   }
 
   const r = await insertReroll(db, { channelId: token.channelId, episodeId: ep.id, shotId: shot.id, shotIdx: shot.idx, note: input.note });

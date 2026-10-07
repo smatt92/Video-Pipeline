@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { CutControls, RegenerateButton } from '@/components/bureau/cut-controls';
 import { LiveRefresh, LiveStatus } from '@/components/bureau/live-status';
 import { RecutForm } from '@/components/bureau/recut-form';
+import { RedrawPicture } from '@/components/bureau/redraw-picture';
 import { ScreenHeader } from '@/components/shell/screen-header';
 import { inr, Note } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
@@ -12,6 +13,9 @@ import { isVideoRoute } from '@/lib/bureau/estimate';
 import { FORMAT_INFO, VisualFormatSchema, type FormatSource, type VisualFormat } from '@/lib/bureau/formats';
 import { channelGeneration, episodeClips } from '@/lib/bureau/overlay-only';
 import { recutOptions } from '@/lib/bureau/recut';
+import { pictureSpansFor } from '@/lib/bureau/episode-steps';
+import { redrawInFlight, redrawRefusal, redrawsOf } from '@/lib/bureau/redraw-state';
+import { stillsByPart } from '@/lib/bureau/stills';
 import { isRunning } from '@/lib/bureau/running';
 import { requireChannel } from '@/lib/channels/active';
 import { serverClient } from '@/lib/db/server';
@@ -28,7 +32,8 @@ const ROUTE_LABEL: Record<string, string> = { overlay: 'overlay', still: 'scene 
 /**
  * Cuts (canvas: Cuts, Cuts-m) — the second gate. The composite in the 9:16 player with a scrub
  * segmented by shot, the shot list with the route of each and Regenerate where a re-roll exists
- * (video routes only; a still or an overlay has nothing to re-roll), QC against what was
+ * (video routes), each picture of an illustrated shot with Redraw (redraw.ts; the cut is held
+ * while one is redrawn), QC against what was
  * actually measured, and Approve / Send back. One cut at a time; `?id=` picks another.
  */
 export default async function CutsPage({ searchParams }: { searchParams: Promise<{ id?: string }> }) {
@@ -84,9 +89,31 @@ export default async function CutsPage({ searchParams }: { searchParams: Promise
     url = a ? await storage().presignGet({ key: a.storage_key, expiresIn: 3600 }).then((p) => p.url).catch(() => null) : null;
   }
   const { data: shotRows } = e.script_id
-    ? await db.from('shots').select('idx, render_route, duration_s, effective_duration_s, status, description').eq('script_id', e.script_id).order('idx')
+    ? await db.from('shots').select('id, idx, render_route, duration_s, effective_duration_s, status, description').eq('script_id', e.script_id).order('idx')
     : { data: [] };
   const shots = (shotRows ?? []).map((s) => ({ ...s, dur: Number(s.effective_duration_s ?? s.duration_s) }));
+  // Each picture of an illustrated shot, newest per part, as a presigned GET (rule 2: URLs
+  // through Vercel, never bytes) — shown with Redraw while the cut awaits a decision.
+  const redrawing = redrawInFlight(e.qc);
+  const holdCut = redrawRefusal(e.qc);
+  const lastRedraw = redrawsOf(e.qc).at(-1) ?? null;
+  const pictures = new Map<string, { part: number; url: string | null }[]>();
+  if (e.status === 'awaiting_cut' && e.script_id && shots.some((s) => s.render_route === 'still')) {
+    const spans = await pictureSpansFor(db, e.script_id);
+    for (const s of shots.filter((x) => x.render_route === 'still')) {
+      const have = await stillsByPart(db, s.id);
+      const n = Math.max(1, spans.get(s.id)?.length ?? 1, ...[...have.keys()].map((k) => k + 1));
+      pictures.set(
+        s.id,
+        await Promise.all(
+          [...Array(n).keys()].map(async (part) => {
+            const key = have.get(part)?.storageKey;
+            return { part, url: key ? await storage().presignGet({ key, expiresIn: 3600 }).then((p) => p.url).catch(() => null) : null };
+          }),
+        ),
+      );
+    }
+  }
   // v_episode_spend coalesces to 0, so an episode with no script (no ledger row can attach)
   // would read as free. Absent is not zero: without a script the figure is withheld.
   const { data: spendRow } = e.script_id ? await db.from('v_episode_spend').select('spent_inr, unpriced_rows').eq('episode_id', e.id).maybeSingle() : { data: null };
@@ -126,7 +153,7 @@ export default async function CutsPage({ searchParams }: { searchParams: Promise
 
   return (
     <main className="main">
-      <LiveRefresh active={list.some((x) => isRunning(x.status))} />
+      <LiveRefresh active={list.some((x) => isRunning(x.status)) || !!redrawing} />
       <header className="topbar desk-only">
         <div className="col" style={{ gap: 0, minWidth: 0 }}>
           <div className="crumb">
@@ -176,7 +203,18 @@ export default async function CutsPage({ searchParams }: { searchParams: Promise
 
         <div className="wide" style={{ flex: '999 1 420px' }}>
           {isRunning(e.status) && <LiveStatus status={e.status} detail={e.status_detail} updatedAt={e.updated_at} />}
-          {!isRunning(e.status) && e.status_detail && <Note>{e.status_detail}</Note>}
+          {redrawing && <LiveStatus status={e.status} running detail={e.status_detail ?? `redraw of shot ${redrawing.shot_idx} ${redrawing.state}…`} updatedAt={e.updated_at} />}
+          {!isRunning(e.status) && !redrawing && e.status_detail && <Note>{e.status_detail}</Note>}
+          {!redrawing && lastRedraw?.state === 'failed' && e.status === 'awaiting_cut' && (
+            <Note>
+              Redraw of shot {lastRedraw.shot_idx} failed: {lastRedraw.reason}
+            </Note>
+          )}
+          {!redrawing && lastRedraw?.state === 'done' && lastRedraw.render_id === e.final_render_id && (
+            <Note>
+              Shot {lastRedraw.shot_idx} redrawn{lastRedraw.note ? ` (“${lastRedraw.note}”)` : ''} — the player shows the new cut.{lastRedraw.reason ? ` ${lastRedraw.reason}.` : ''}
+            </Note>
+          )}
           {gen && e.final_render_id && gen.overlayOnly && (
             <Note>
               Overlay-only cut: {gen.generatedPlanned === 0 ? 'every shot was planned as an overlay' : `${gen.generatedPlanned} generated shot${gen.generatedPlanned === 1 ? '' : 's'} planned, none produced a clip, so each is drawn as its overlay`}.
@@ -208,6 +246,13 @@ export default async function CutsPage({ searchParams }: { searchParams: Promise
                   </span>
                   <span className="mono sm">{s.dur.toFixed(1)} s</span>
                   {isVideoRoute(s.render_route) && e.status === 'awaiting_cut' ? <RegenerateButton episodeId={e.id} shotIdx={s.idx} /> : <span />}
+                  {pictures.get(s.id) && (
+                    <div className="col" style={{ gap: 10, gridColumn: '1 / -1', paddingTop: 6 }}>
+                      {pictures.get(s.id)!.map((p, _i, all) => (
+                        <RedrawPicture key={p.part} episodeId={e.id} shotIdx={s.idx} part={p.part} of={all.length} url={p.url} disabled={holdCut} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -257,7 +302,7 @@ export default async function CutsPage({ searchParams }: { searchParams: Promise
                 <h2 className="h3">Your call</h2>
               </div>
               <div className="card-b">
-                <CutControls episodeId={e.id} slot={e.slot_id ?? 'this episode'} unaligned={unaligned} />
+                <CutControls episodeId={e.id} slot={e.slot_id ?? 'this episode'} unaligned={unaligned} blocked={holdCut} />
               </div>
             </section>
           ) : (

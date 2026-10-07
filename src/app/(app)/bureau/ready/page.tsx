@@ -1,4 +1,4 @@
-import { BuildInstagram, CopyButton, MarkPosted, MarkScheduled, QueueDubs } from '@/components/bureau/ready-controls';
+import { BuildInstagram, CopyButton, MarkPosted, MarkScheduled, PublishInstagram, QueueDubs } from '@/components/bureau/ready-controls';
 import { ScreenHeader } from '@/components/shell/screen-header';
 import { inr, Note } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
@@ -7,6 +7,7 @@ import { readyBundles } from '@/lib/bureau/read';
 import { requireChannel } from '@/lib/channels/active';
 import { publishTargets } from '@/lib/channels/list';
 import { serverClient } from '@/lib/db/server';
+import { instagramPublishReadiness } from '@/lib/publish/ig-run';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Ready' };
@@ -21,14 +22,20 @@ const PUB_LABEL: Record<string, string> = { draft: 'Ready', scheduled: 'Schedule
 /**
  * Ready to schedule (canvas: Ready, Ready-m) — one card per episode, one section per publish
  * target. YouTube: the upload API is unaudited, so download, paste, schedule in Studio at the
- * slot, then Mark scheduled with the link. Instagram: manual until Meta app review clears
- * (decision 0020) — the same MP4 posted as a Reel, then Mark posted with the permalink. The
- * review gate, kill switch and daily cap are checked by the database on both.
+ * slot, then Mark scheduled with the link. Instagram (decision 0023): "Publish now" / "at the
+ * slot" when the channel can post (flag, target, verified integration —
+ * instagramPublishReadiness); otherwise the manual card stays with the reason — post the MP4
+ * as a Reel, then Mark posted with the permalink. The review gate, kill switch and daily cap
+ * are checked by the database on both.
  */
 export default async function ReadyPage() {
   const channel = await requireChannel();
   const db = serverClient();
-  const [bundles, { targets }] = await Promise.all([readyBundles(db, channel.id), publishTargets(db, channel.id)]);
+  const [bundles, { targets }, igReady] = await Promise.all([readyBundles(db, channel.id), publishTargets(db, channel.id), instagramPublishReadiness(db, channel.id)]);
+  // What the post itself wrote: the permalink once live, Meta's reason when it failed.
+  const igIds = bundles.filter((b) => b.platform === 'instagram' && b.publication_id).map((b) => b.publication_id!);
+  const igRows = igIds.length ? (await db.from('publications').select('id, status, external_url, error_detail').in('id', igIds)).data ?? [] : [];
+  const igRow = new Map(igRows.map((r) => [r.id, r]));
   const igTarget = targets.find((t) => t.platform === 'instagram' && t.enabled) ?? null;
   const ytTarget = targets.find((t) => t.platform === 'youtube' && t.enabled) ?? null;
 
@@ -53,7 +60,10 @@ export default async function ReadyPage() {
         sub={`${groups.size} bundle${groups.size === 1 ? '' : 's'} · ${targetLine}`}
         actions={<span className="sm t3">Cut approved → bundle → you upload and schedule → mark it here</span>}
       />
-      <Note>Both targets are manual: the YouTube upload API is unaudited, and Instagram publishing waits on Meta app review. Kiln never uploads or publishes.</Note>
+      <Note>
+        YouTube is manual until Google’s audit of the upload API clears: download, schedule in Studio, then Mark scheduled. Instagram posts from Kiln to the channel’s own account only — behind the review gate —{' '}
+        {igReady.ready ? 'and is on for this channel.' : `but not for this channel yet: ${igReady.reason}. Post by hand and Mark posted until then.`}
+      </Note>
 
       {groups.size === 0 && (
         <div className="empty" style={{ padding: 40 }}>
@@ -89,7 +99,7 @@ export default async function ReadyPage() {
               <div className="plat">
                 <Icon name="publish" />
                 <span className="h3">Instagram Reels</span>
-                <span className="pill s-rev nodot">manual until Meta app review</span>
+                <span className={`pill nodot ${igReady.ready ? 's-live' : 's-rev'}`}>{igReady.ready ? 'posts from Kiln' : 'manual'}</span>
               </div>
               {g.instagram ? (
                 <InstagramFields b={g.instagram} />
@@ -155,6 +165,29 @@ export default async function ReadyPage() {
                   <div className="card-b">
                     <MarkScheduled publicationId={g.youtube.publication_id!} slotTime={meta.slot_time ?? null} />
                   </div>
+                </section>
+              )}
+              {g.instagram && (g.instagram.status === 'draft' || g.instagram.status === 'failed') && igReady.ready && (
+                <section className="card">
+                  <div className="card-h">
+                    <h2 className="h3">Publish · Instagram</h2>
+                  </div>
+                  <div className="card-b col" style={{ gap: 10 }}>
+                    {g.instagram.status === 'failed' && <span className="sm" style={{ color: 'var(--blk-text)' }}>Last attempt failed: {igRow.get(g.instagram.publication_id!)?.error_detail ?? 'no reason recorded'}</span>}
+                    <PublishInstagram publicationId={g.instagram.publication_id!} slotTime={((g.instagram.bundle ?? {}) as Bundle).slot_time ?? null} retry={g.instagram.status === 'failed'} />
+                  </div>
+                </section>
+              )}
+              {g.instagram && ['scheduled', 'uploading'].includes(g.instagram.status ?? '') && (
+                <section className="card card-b">
+                  <span className="sm t2">Instagram: {g.instagram.status === 'uploading' ? 'posting now — Meta is processing the video' : `scheduled for ${g.instagram.scheduled_for ? new Date(g.instagram.scheduled_for).toLocaleString('en-GB', { timeZone: 'Asia/Kolkata' }) + ' IST' : 'the slot'}`}.</span>
+                </section>
+              )}
+              {g.instagram?.status === 'live' && igRow.get(g.instagram.publication_id!)?.external_url && (
+                <section className="card card-b">
+                  <a className="btn sm" href={igRow.get(g.instagram.publication_id!)!.external_url!}>
+                    Open the Reel on Instagram
+                  </a>
                 </section>
               )}
               {g.instagram?.status === 'draft' && (

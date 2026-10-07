@@ -11,7 +11,7 @@ import { cutAction, regenerateAction } from '@/lib/bureau/ui-actions';
  * not align some lines, Approve waits for "I listened to all N lines": only a listen confirms
  * those lines say the script. Same server action as before the redesign.
  */
-export function CutControls({ episodeId, slot, unaligned }: { episodeId: string; slot: string; unaligned: number | null }) {
+export function CutControls({ episodeId, slot, unaligned, blocked = null }: { episodeId: string; slot: string; unaligned: number | null; /** Why neither decision can be made now (a picture is being redrawn). */ blocked?: string | null }) {
   const router = useRouter();
   const [note, setNote] = useState('');
   const [listened, setListened] = useState(false);
@@ -26,19 +26,24 @@ export function CutControls({ episodeId, slot, unaligned }: { episodeId: string;
     });
   return (
     <div className="col" style={{ gap: 12 }}>
+      {blocked && (
+        <p className="sm" role="status" style={{ color: 'var(--t2)' }}>
+          {blocked}
+        </p>
+      )}
       {needsListen && (
         <label className="row sm" style={{ gap: 10, minHeight: 44 }}>
           <input type="checkbox" checked={listened} onChange={(e) => setListened(e.target.checked)} style={{ width: 18, height: 18 }} />I listened to all {unaligned} unaligned line{unaligned === 1 ? '' : 's'}
         </label>
       )}
-      <button className="btn pri lg full" type="button" disabled={pending || (needsListen && !listened)} onClick={() => go(true)}>
+      <button className="btn pri lg full" type="button" disabled={pending || !!blocked || (needsListen && !listened)} onClick={() => go(true)}>
         {pending ? 'Working…' : 'Approve cut'}
       </button>
       <div className="field">
         <label htmlFor={`sb-${episodeId}`}>Send back with a note</label>
         <textarea id={`sb-${episodeId}`} className="input" value={note} onChange={(e) => setNote(e.target.value)} placeholder="What should change, and in which shot?" />
       </div>
-      <button className="btn full" type="button" disabled={pending || !note.trim()} onClick={() => go(false)}>
+      <button className="btn full" type="button" disabled={pending || !!blocked || !note.trim()} onClick={() => go(false)}>
         Send back
       </button>
       {msg && (

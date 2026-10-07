@@ -31,9 +31,9 @@ function ago(iso: string, now: number): string {
  * runs; the worker's own progress line (status_detail) beside it; "last update" so a stalled
  * run is visible as a growing number rather than a screen that merely looks still.
  */
-export function LiveStatus({ status, detail, updatedAt }: { status: string; detail: string | null; updatedAt: string }) {
+export function LiveStatus({ status, detail, updatedAt, running: force }: { status: string; detail: string | null; updatedAt: string; /** Work that runs without changing the status (a redraw on an awaiting cut). */ running?: boolean }) {
   const [now, setNow] = useState(() => Date.now());
-  const running = isRunning(status);
+  const running = force ?? isRunning(status);
   useEffect(() => {
     if (!running) return;
     const t = setInterval(() => setNow(Date.now()), 1_000);

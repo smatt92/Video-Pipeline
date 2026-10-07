@@ -186,7 +186,7 @@ try {
   check(one.hashtags.length === 2, 'an empty pool yields the 2 derived tags — fewer than 3 is visible, not padded with junk', one.hashtags.join());
   const long = buildInstagramVariant({ ...base, premise: 'x'.repeat(5000) });
   check(long.caption.length === CAPTION_MAX && long.caption.endsWith('#science #physics #IncidentReport #SecondDesk') && long.caption.includes('Source: https://oceanservice.noaa.gov/x'), 'a 5,000-character premise is cut so the caption is exactly 2,200 with the fact and tags intact', String(long.caption.length));
-  check(buildInstagramVariant({ ...base, render: { width: 1080, height: 1920, durationS: 95 } }).reels_api_problem === 'Reels via the API must be 5–90 s; this is 95 s.', 'a 95 s cut is flagged against the API limit');
+  check(buildInstagramVariant({ ...base, render: { width: 1080, height: 1920, durationS: 950 } }).reels_api_problem === 'Reels via the API must be 3–900 s; this is 950 s.', 'a 950 s cut is flagged against the API limit (Meta: 3 s – 15 min)');
   check(instagramShortcode('https://www.instagram.com/reel/C9xYz_12AB/?igsh=abc') === 'C9xYz_12AB' && instagramShortcode('https://instagram.com/p/AbCdE12/') === 'AbCdE12' && instagramShortcode('https://youtube.com/shorts/abc') === null, 'permalinks parse; anything else is null');
 
   // ── §5 The Instagram draft ────────────────────────────────────────────────
@@ -267,8 +267,11 @@ try {
   check(unlinked[0].passed && unlinked[0].detail === 'Account 1784 (@desk) read.' && !unlinked[1].passed && /not linked to any Facebook Page/.test(unlinked[1].detail), 'an account no visible Page links fails the channel check', unlinked[1].detail);
   const wrong = await probeInstagram('1784', 'tok', { expectedAccountId: '17841400000000001', fetchImpl: graph({ '1784': { status: 200, body: { id: '1784', username: 'desk' } }, accounts: { status: 200, body: { data: [{ name: 'Desk Page', instagram_business_account: { id: '1784' } }] } } }) });
   check(!wrong[1].passed && /active channel's Instagram target is 17841400000000001/.test(wrong[1].detail), "a token for another account than the channel's target fails", wrong[1].detail);
-  const good = await probeInstagram('1784', 'tok', { expectedAccountId: '1784', fetchImpl: graph({ '1784': { status: 200, body: { id: '1784', username: 'desk' } }, accounts: { status: 200, body: { data: [{ name: 'Desk Page', instagram_business_account: { id: '1784' } }] } } }) });
-  check(good.every((c) => c.passed) && good[1].detail === `@desk is linked to the Page "Desk Page" and is the active channel's target.`, 'a linked professional account that is the target passes both', good[1].detail);
+  const linked = { '1784': { status: 200, body: { id: '1784', username: 'desk' } }, accounts: { status: 200, body: { data: [{ name: 'Desk Page', instagram_business_account: { id: '1784' } }] } } };
+  const noPublish = await probeInstagram('1784', 'tok', { expectedAccountId: '1784', fetchImpl: graph({ ...linked, content_publishing_limit: { status: 403, body: { error: { message: '(#10) Application does not have permission for this action' } } } }) });
+  check(noPublish[1].passed && noPublish[2]?.name === 'publish' && !noPublish[2].passed && /instagram_content_publish/.test(noPublish[2].detail), 'a token without the publish permission fails the publish check, naming the permission', noPublish[2]?.detail);
+  const good = await probeInstagram('1784', 'tok', { expectedAccountId: '1784', fetchImpl: graph({ ...linked, content_publishing_limit: { status: 200, body: { data: [{ quota_usage: 2, config: { quota_total: 100, quota_duration: 86400 } }] } } }) });
+  check(good.length === 3 && good.every((c) => c.passed) && good[1].detail === `@desk is linked to the Page "Desk Page" and is the active channel's target.` && good[2].detail === 'Can publish: 2 of 100 API posts used in the last 24 h.', 'a linked professional account that is the target and can publish passes all three', good[2].detail);
 
   // ── §7 Overlay-only, said plainly ─────────────────────────────────────────
   console.log('\n7. Overlay-only cuts, and why\n');

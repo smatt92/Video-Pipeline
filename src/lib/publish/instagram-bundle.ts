@@ -13,7 +13,7 @@ import { reelPreflight } from './instagram';
  * Limits, from Instagram's own documentation as of 2026-10 (verify at submission):
  *   - caption ≤ 2,200 characters; Instagram's own advice is 3–5 relevant hashtags, so this
  *     builds 3–5, never 30;
- *   - Reels published through the API are 5–90 s, 9:16 (`reelPreflight`) — the manual app
+ *   - Reels published through the API are 3 s – 15 min, 9:16 (`reelPreflight`) — the manual app
  *     allows longer, but a variant that the API path would refuse is flagged, not hidden, so
  *     the day publishing switches on nothing changes shape.
  */

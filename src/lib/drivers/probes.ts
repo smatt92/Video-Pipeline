@@ -36,7 +36,7 @@ import { probeYoutube } from '../publish/youtube-probe';
  */
 
 export interface CheckResult {
-  name: 'credentials' | 'round_trip' | 'voices' | 'models' | 'channel';
+  name: 'credentials' | 'round_trip' | 'voices' | 'models' | 'channel' | 'publish';
   passed: boolean;
   /** Shown to the user. Must never contain credential material. */
   detail: string;

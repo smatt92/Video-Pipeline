@@ -610,4 +610,10 @@ about this container** — it is the instrument rule again, one layer further ou
 
 ## Current phase
 
-Phase 1 — see `docs/ROADMAP.md`. Publishing is manual (download + copy metadata). Do not build auto-publish until Meta app review clears.
+Phase 1 — see `docs/ROADMAP.md`. **YouTube publishing is manual** (download + copy metadata,
+then Mark scheduled) until Google's audit of the upload API clears — it uploads private-only
+until then. **Instagram Reels publish from Kiln, only to accounts we own and only behind the
+`enforce_review_pass` gate** (decision 0023): Meta's Standard Access covers an app that serves
+only its owners' professional accounts, so no App Review is needed — the old "wait for Meta app
+review" line rested on a premise that does not hold for our own account. Serving an account we
+do not own would need Advanced Access and is out of scope.

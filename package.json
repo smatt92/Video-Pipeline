@@ -58,6 +58,7 @@
     "verify:outlier": "tsc -p tsconfig.verify.json && node scripts/verify-outlier.mjs",
     "verify:trends": "tsc -p tsconfig.verify.json && node scripts/verify-trends.mjs",
     "verify:channels": "tsc -p tsconfig.verify.json && node scripts/verify-channels.mjs",
+    "verify:ig-publish": "tsc -p tsconfig.verify.json && node scripts/verify-ig-publish.mjs",
     "verify:channel-bible": "tsc -p tsconfig.verify.json && node scripts/verify-channel-bible.mjs",
     "verify:library": "tsc -p tsconfig.verify.json && node scripts/verify-library.mjs",
     "verify:submit": "tsc -p tsconfig.verify.json && node scripts/verify-submit.mjs",

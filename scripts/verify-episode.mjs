@@ -54,7 +54,9 @@ const { BUREAU_CHANNEL_ID } = require(`${B}/fixtures/seed-channel.js`);
 const P = require(`${B}/bureau/episode-steps.js`);
 const LF = require(`${B}/bureau/longform.js`);
 const LF_CB = require(`${B}/bureau/bible.js`).bibleForSlug('bureau-of-reality');
-const { restartHaltedEpisode } = require(`${B}/bureau/control.js`);
+const { restartHaltedEpisode, decideCut } = require(`${B}/bureau/control.js`);
+const { requestRedraw, runRedraw } = require(`${B}/bureau/redraw.js`);
+const { stillsByPart } = require(`${B}/bureau/stills.js`);
 const { runDubJob } = require(`${B}/bureau/dubs.js`);
 const { verifiedCredential } = require(`${B}/integrations/verify.js`);
 const { dispatchProvider, advanceSubmitted, settleEpisodes } = require(`${B}/bureau/dispatch.js`);
@@ -126,6 +128,8 @@ const effects = {
   woken: [],
   async startEpisode(id) { this.started.push(id); return `run_${id.slice(0, 8)}`; },
   async completeWaitToken(token, output) { this.woken.push({ token, output }); },
+  redraws: [],
+  async startRedraw(input) { this.redraws.push(input); return `run_redraw_${this.redraws.length}`; },
   async notify() {},
   presign: async (key) => presign(key),
   // Embeddings are an input here (variation_check must have run before a brief can be
@@ -682,6 +686,107 @@ try {
     }
     // ═══ 11b. The episode estimate prices stills against the cap ═══
     check(Math.abs(Number(ep3row.estimate_inr) - (Number(ep3row.qc.plan.estimate.voice_inr) + 4 * stillInr)) < 0.011, 'the episode estimate is the voice plus four stills, under the cap', `₹${ep3row.estimate_inr}`);
+
+    // ═══ 12. Redraw one picture of an awaiting cut ═══
+    // Seeded: the cut waiting on its token (the run's own write in production). Driven: the
+    // connector's shot_regenerate on a still shot, the decision functions, and runRedraw with a
+    // stubbed image vendor and the real renderer. Asserted against what those wrote.
+    console.log('\n12. Redraw this picture\n');
+    await client.query(`update episodes set status = 'awaiting_cut', cut_wait_token = 'waitpoint_cut3' where id = $1`, [ep3]);
+    const shot0 = shots3[0];
+    const shot3 = shots3[3];
+    const before0 = await stillsByPart(db, shot0.id);
+    const before3 = await stillsByPart(db, shot3.id);
+    const { rows: [pre] } = await client.query('select final_render_id, cut_wait_token from episodes where id = $1', [ep3]);
+
+    const byAgent = await call('shot_regenerate', { episode: ep3, shot: 0, note: 'show the Moon bigger', part: 0 }, agent.plaintext);
+    check((byAgent.isError || byAgent.result?.ok === false) && effects.redraws.length === 0 && /approver scope/.test(JSON.stringify(byAgent.result)), 'an agent token cannot redraw a picture: refused by name, nothing started', JSON.stringify(byAgent.result).slice(0, 160));
+    let agentLib = null;
+    try { await requestRedraw(db, { id: agent.id, name: 'Routine C', scope: 'agent', channelId: BUREAU_CHANNEL_ID, profileId: null }, effects, { episode_id: ep3, shot: 0 }); } catch (err) { agentLib = err.message; }
+    check(/approver scope/.test(agentLib ?? '') && effects.redraws.length === 0, 'requestRedraw refuses the agent scope too (the web action’s path)', agentLib);
+
+    const asked = await call('shot_regenerate', { episode: ep3, shot: 0, note: 'show the Moon bigger', part: 0 }, approver.plaintext);
+    const req = effects.redraws.at(-1);
+    check(asked.result?.ok === true && asked.result?.parts?.join() === '0' && req?.shotId === shot0.id && req.parts.join() === '0' && req.note === 'show the Moon bigger',
+      'shot_regenerate on a picture shot routes to the redraw: one run started for exactly shot 0, picture 0, with the note', JSON.stringify(asked.result));
+    const { rows: [logRow] } = await client.query(`select actor_scope, exact_text, payload from authorship_log where action = 'still_redraw' and subject_id = $1`, [shot0.id]);
+    check(logRow?.actor_scope === 'approver' && logRow.exact_text === 'show the Moon bigger' && logRow.payload.render_id === pre.final_render_id, 'the redraw is in the authorship log, with the note and the render it was asked on', JSON.stringify(logRow));
+
+    const heldMcp = await call('cut_approve', { id: ep3 }, approver.plaintext);
+    check((heldMcp.isError || heldMcp.result?.ok === false) && /being redrawn/.test(JSON.stringify(heldMcp.result)) && !effects.woken.some((w) => w.token === 'waitpoint_cut3'), 'cut_approve over the connector is refused while the picture is redrawn, and the run is not woken', JSON.stringify(heldMcp.result).slice(0, 160));
+    let heldDb = null;
+    try { await client.query(`select bureau_cut_decide($1, $2, false, 'too dark')`, [approver.id, ep3]); } catch (err) { heldDb = err.message; }
+    check(/being redrawn/.test(heldDb ?? ''), 'LOAD-BEARING: bureau_cut_decide itself refuses (0050) — a caller that skips decideCut cannot decide the cut either', heldDb);
+    const second = await call('shot_regenerate', { episode: ep3, shot: 3, note: 'no arrows' }, approver.plaintext);
+    check((second.isError || second.result?.ok === false) && effects.redraws.length === 1, 'a second redraw while one is in flight is refused', JSON.stringify(second.result).slice(0, 120));
+
+    const bluePng = join(work, 'blue.png');
+    await run('ffmpeg', ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=0x1F4FD8:s=720x1280', '-frames:v', '1', bluePng]);
+    const blueServer = createServer((q2, r2) => { r2.writeHead(200, { 'content-type': 'image/png' }); createReadStream(bluePng).pipe(r2); });
+    await new Promise((r) => blueServer.listen(0, '127.0.0.1', r));
+    const blueUrl = `http://127.0.0.1:${blueServer.address().port}/blue.png`;
+    const rewriteInputs = [];
+    const redrawLlm = { messages: { parse: async (body) => { rewriteInputs.push(String(body.messages[0].content)); return { usage: { input_tokens: 320, output_tokens: 40 }, stop_reason: 'end_turn', parsed_output: { scene: 'a very large full Moon over a calm sea, a small globe in the corner' } }; } } };
+    const redrawSubmits = [];
+    const asmDeps = {
+      usdInrRate: 88, presign, putBytes, download,
+      normaliseAudio: async (i, o) => run('ffmpeg', ['-v', 'error', '-y', '-i', i, '-af', 'loudnorm=I=-14:TP=-1.5:LRA=11', '-c:a', 'aac', o]),
+      render: (i) => renderBureau({ ...i, width: 270, height: 480, fps: 30, browserExecutable: shell }),
+    };
+    const stillDeps = (outcome) => ({
+      usdInrRate: 88, llmKey: 'test-llm-key', llmClient: redrawLlm,
+      apiKey: async () => ({ ok: true, value: 'test-key' }),
+      submit: async (i) => {
+        const key = `still:${shot0.id}:${before0.size ? 1 + redrawSubmits.length : 0}:estimate`;
+        const n = Number((await client.query('select count(*) n from cost_ledger where idempotency_key = $1', [key])).rows[0].n);
+        redrawSubmits.push({ ...i, estimateBefore: n, key });
+        return outcome === 'refuse' ? { ok: false, code: 'content_rejected', detail: 'stub: refused' } : { ok: true, taskId: `redraw_${redrawSubmits.length}` };
+      },
+      wait: async () => ({ state: 'succeeded', outputUrl: blueUrl, charged: { quantity: 5, unit: 'credit', usd: 0.05 } }),
+      fetchBytes: async (url) => Buffer.from(await (await fetch(url)).arrayBuffer()),
+      putBytes,
+    });
+    try {
+      const out = await runRedraw(db, req, { still: stillDeps('ok'), assemble: asmDeps, measureLoudness: async () => -14.3 });
+      check(out.ok && out.made === 1 && Math.abs(out.costInr - 4.4) < 1e-9, 'the redraw made one picture at ₹4.40 and re-rendered', JSON.stringify(out));
+      check(rewriteInputs.length === 1 && /APPROVER DIRECTION FOR THIS REDRAW[^\n]*show the Moon bigger/.test(rewriteInputs[0]), 'the note reached the rewrite as an approver direction (prompt v4)', rewriteInputs[0]?.split('\n').at(-1));
+      check(redrawSubmits.length === 1 && redrawSubmits[0].estimateBefore === 1, 'LOAD-BEARING: the estimate row for still:<shot>:1 existed when the vendor was called (rule 5), keyed per shot + part + attempt (rule 6)', JSON.stringify(redrawSubmits.map((x) => [x.key, x.estimateBefore])));
+      const { rows: gens0 } = await client.query(`select id, attempt, idempotency_key, request_payload from generations where shot_id = $1 and kind = 'image' order by attempt`, [shot0.id]);
+      const newGen = gens0.at(-1);
+      check(gens0.length === 2 && newGen.attempt === 1 && newGen.request_payload.part === 0 && newGen.request_payload.direction === 'show the Moon bigger' && newGen.request_payload.prompt_ref === '21-still.v4',
+        'exactly one new generation, for shot 0 picture 0, attempt 1, carrying the note and prompt v4', JSON.stringify(gens0.map((g) => [g.attempt, g.idempotency_key])));
+      const after0 = await stillsByPart(db, shot0.id);
+      const after3b = await stillsByPart(db, shot3.id);
+      check(after0.get(0)?.assetId !== before0.get(0)?.assetId && JSON.stringify([...after3b]) === JSON.stringify([...before3]), 'stillsByPart now draws the new picture for shot 0 and leaves shot 3 exactly as it was');
+      const { rows: [post] } = await client.query('select status, final_render_id, cut_wait_token, qc, status_detail from episodes where id = $1', [ep3]);
+      const entry = post.qc.redraws.at(-1);
+      check(out.ok && post.final_render_id === out.renderId && post.final_render_id !== pre.final_render_id, 'final_render_id moved to the new composite', `${pre.final_render_id?.slice(0, 8)} → ${post.final_render_id?.slice(0, 8)}`);
+      check(post.status === 'awaiting_cut' && post.cut_wait_token === 'waitpoint_cut3' && post.status_detail === null && entry.state === 'done' && post.qc.loudness_lufs === -14.3,
+        'the episode stays awaiting_cut on the SAME wait token; the entry is done and the loudness re-measured', JSON.stringify({ status: post.status, token: post.cut_wait_token, state: entry.state, lufs: post.qc.loudness_lufs }));
+      const { rows: renders } = await client.query(`select r.layer, a.storage_key from renders r join assets a on a.id = r.asset_id where r.id = any($1)`, [[pre.final_render_id, post.final_render_id]]);
+      check(renders.length === 2 && renders.every((r) => r.layer === 'composite') && new Set(renders.map((r) => r.storage_key)).size === 2, 'only a composite was rendered, under its own key — the earlier render’s bytes are not overwritten', renders.map((r) => r.storage_key).join(' · '));
+      if (out.ok) {
+        const outR = join(work, 'redrawn.mp4');
+        const [{ storage_key: k }] = renders.filter((r) => r.storage_key.includes('-r'));
+        await download(await presign(k), outR);
+        const { stdout: rgb } = await run('ffmpeg', ['-v', 'error', '-ss', '0.5', '-i', outR, '-frames:v', '1', '-vf', 'crop=20:20:125:230,scale=1:1', '-f', 'rawvideo', '-pix_fmt', 'rgb24', 'pipe:1'], { encoding: 'buffer' });
+        check(rgb[2] > 150 && rgb[0] < 110, 'a frame of shot 0 in the new composite is the redrawn picture’s blue (decoded from the MP4)', `rgb ${[...rgb.subarray(0, 3)].join(',')}`);
+      }
+
+      // A failed redraw keeps the previous picture and says why.
+      const failedReq = await requestRedraw(db, { id: approver.id, name: 'Sahil', scope: 'approver', channelId: BUREAU_CHANNEL_ID, profileId: prof[0].id }, effects, { episode_id: ep3, shot: 0, part: 0, note: 'no arrows' });
+      const failed = await runRedraw(db, effects.redraws.at(-1), { still: stillDeps('refuse'), assemble: asmDeps, measureLoudness: async () => -14.3 });
+      const { rows: [post2] } = await client.query('select final_render_id, qc from episodes where id = $1', [ep3]);
+      const fEntry = post2.qc.redraws.find((r) => r.id === failedReq.redraw_id);
+      check(!failed.ok && fEntry.state === 'failed' && /content_rejected/.test(fEntry.reason) && /previous picture stays/.test(fEntry.reason) && post2.final_render_id === post.final_render_id && (await stillsByPart(db, shot0.id)).get(0)?.assetId === after0.get(0)?.assetId,
+        'a failed redraw keeps the previous picture and the cut, and says why', fEntry?.reason);
+
+      const ok = await call('cut_approve', { id: ep3 }, approver.plaintext);
+      const { rows: [rv] } = await client.query('select r.render_id from reviews r join episodes e on e.review_id = r.id where e.id = $1', [ep3]);
+      check(ok.result?.decision === 'pass' && effects.woken.some((w) => w.token === 'waitpoint_cut3') && rv?.render_id === post.final_render_id, 'once it is in, cut_approve passes, wakes the same token, and the review is of the redrawn composite', JSON.stringify(ok.result));
+    } finally {
+      blueServer.close();
+    }
   } finally {
     stillServer.close();
   }

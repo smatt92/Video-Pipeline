@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
-import { buildInstagramDraftAction, markPostedAction, markScheduledAction, queueDubsAction } from '@/lib/bureau/ui-actions';
+import { buildInstagramDraftAction, markPostedAction, markScheduledAction, publishInstagramAction, queueDubsAction } from '@/lib/bureau/ui-actions';
 
 export function CopyButton({ text, label }: { text: string; label: string }) {
   const [done, setDone] = useState(false);
@@ -97,6 +97,42 @@ export function MarkPosted({ publicationId }: { publicationId: string }) {
         {pending ? 'Saving…' : 'Mark posted'}
       </button>
       {msg && <p className="sm t2" role="status">{msg}</p>}
+    </div>
+  );
+}
+
+/**
+ * Publish to Instagram from Kiln (decision 0023). Shown only when the channel can post — the
+ * flag on, the target enabled, the integration verified; the server refuses otherwise anyway.
+ * "At the slot" only when the bundle has a slot still ahead.
+ */
+export function PublishInstagram({ publicationId, slotTime, retry }: { publicationId: string; slotTime: string | null; retry: boolean }) {
+  const router = useRouter();
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [pending, start] = useTransition();
+  const slotAhead = slotTime !== null && new Date(slotTime).getTime() > Date.now();
+  const go = (when: 'now' | 'slot') =>
+    start(async () => {
+      const r = await publishInstagramAction(publicationId, when);
+      setMsg({ ok: r.ok, text: r.message });
+      if (r.ok) router.refresh();
+    });
+  return (
+    <div className="col" style={{ gap: 10 }}>
+      <button type="button" className="btn pri full" disabled={pending} onClick={() => go('now')}>
+        {pending ? 'Working…' : retry ? 'Publish to Instagram again now' : 'Publish to Instagram now'}
+      </button>
+      {slotAhead && (
+        <button type="button" className="btn full" disabled={pending} onClick={() => go('slot')}>
+          Publish at the slot
+        </button>
+      )}
+      {msg && (
+        <p className="sm" role="status" style={{ color: msg.ok ? 'var(--t2)' : 'var(--blk-text)' }}>
+          {msg.text}
+        </p>
+      )}
+      <p className="xs t3">Posts this Reel with its caption and cover to the channel’s own account. The review gate, kill switch and daily cap are checked by the database first.</p>
     </div>
   );
 }

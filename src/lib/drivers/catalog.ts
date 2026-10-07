@@ -47,7 +47,7 @@ export interface SecretFieldDescriptor {
 }
 
 export interface CheckDescriptor {
-  readonly name: 'credentials' | 'round_trip' | 'voices' | 'models' | 'channel';
+  readonly name: 'credentials' | 'round_trip' | 'voices' | 'models' | 'channel' | 'publish';
   readonly label: string;
   /** What the check actually does. Never "validates the format". */
   readonly detail: string;
@@ -337,8 +337,8 @@ export const INTEGRATION_CATALOG: readonly IntegrationDescriptor[] = [
     ],
   },
   {
-    // Reels mirror. Publishing stays behind channel_policy.instagram_publish_enabled = false
-    // until Meta app review clears (CLAUDE.md, current phase) — decision 0012.
+    // Reels publishing to accounts we own (decision 0023): Standard Access, no app review.
+    // Still behind channel_policy.instagram_publish_enabled and the review gate.
     slug: 'instagram',
     label: 'Instagram (Reels)',
     kind: 'channel',
@@ -348,7 +348,7 @@ export const INTEGRATION_CATALOG: readonly IntegrationDescriptor[] = [
       {
         key: 'META_ACCESS_TOKEN',
         label: 'Long-lived access token',
-        help: 'A long-lived token from the Facebook Login flow with instagram_basic and pages_show_list (enough for Save and test). Publishing would also need instagram_content_publish — app review, decision 0020.',
+        help: 'A long-lived token from Facebook Login for Business with instagram_basic, instagram_content_publish, pages_show_list and pages_read_engagement. Standard Access is enough for an account you own — no app review (decision 0023).',
       },
     ],
     checks: [
@@ -356,11 +356,16 @@ export const INTEGRATION_CATALOG: readonly IntegrationDescriptor[] = [
       {
         name: 'channel',
         label: 'Professional account linked to a Page',
-        detail: 'Reads the Pages the token can see and finds the one linked to this account; compares the account id with the active channel\'s Instagram target. Read-only: no publish permission is exercised.',
+        detail: 'Reads the Pages the token can see and finds the one linked to this account; compares the account id with the active channel\'s Instagram target.',
+      },
+      {
+        name: 'publish',
+        label: 'Can publish Reels',
+        detail: 'Reads the account\'s content_publishing_limit, which needs instagram_content_publish. Proves the token can publish without posting anything.',
       },
     ],
     capabilities: { creditBalance: false, planTierConcurrency: false },
-    notes: ['Manual posting today: Ready to schedule → copy, post, Mark posted. Container → poll FINISHED → media_publish exists and stays off until app review clears (0020).'],
+    notes: ['Publishing: Ready → "Publish to Instagram now" or "at the slot" once this verifies and the channel\'s instagram_publish_enabled is on (0023). Otherwise Ready keeps the manual card: post by hand, then Mark posted.'],
     rates: [],
   },
   {
