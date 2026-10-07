@@ -1,9 +1,9 @@
-import { RecipeForm, RecipeRow } from '@/components/library/recipe-form';
-import { LibraryHeader } from '@/components/library/library-header';
-import { Panel } from '@/components/settings/parts';
-import { currentChannel } from '@/lib/channels/active';
-import { serverClient } from '@/lib/db/server';
-import { INTEGRATION_CATALOG } from '@/lib/drivers/catalog';
+import { RecipeForm, RecipeRow } from "@/components/library/recipe-form";
+import { LibraryHeader } from "@/components/library/library-header";
+import { Panel } from "@/components/settings/parts";
+import { currentChannel } from "@/lib/channels/active";
+import { serverClient } from "@/lib/db/server";
+import { INTEGRATION_CATALOG } from "@/lib/drivers/catalog";
 import {
   activationProblem,
   kindCoverage,
@@ -11,8 +11,8 @@ import {
   recipeGaps,
   recipeRate,
   unresolvedShots,
-} from '@/lib/prompts/library';
-import { shotKind } from '@/lib/shots/kinds';
+} from "@/lib/prompts/library";
+import { shotKind } from "@/lib/shots/kinds";
 
 /**
  * The prompt library — and the worklist that says what it is missing.
@@ -23,9 +23,9 @@ import { shotKind } from '@/lib/shots/kinds';
  * it answers anything else. Hence the gaps table first and the form last.
  */
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
-export const metadata = { title: 'Prompts' };
+export const metadata = { title: "Prompts" };
 
 export default async function PromptLibraryPage() {
   const db = serverClient();
@@ -42,14 +42,16 @@ export default async function PromptLibraryPage() {
   const rates = await Promise.all(recipes.map((r) => recipeRate(db, r)));
 
   const drivers = [
-    ...new Set(INTEGRATION_CATALOG.filter((i) => i.kind === 'video').map((i) => i.slug)),
+    ...new Set(
+      INTEGRATION_CATALOG.filter((i) => i.kind === "video").map((i) => i.slug),
+    ),
   ];
   const active = recipes.filter((r) => r.isActive).length;
 
   return (
     <main className="main">
       <LibraryHeader
-        channel={channel ?? { name: 'Workspace' }}
+        channel={channel ?? { name: "Workspace" }}
         active="Prompts"
         sub="Recipes proven in an exploratory session. Production selects from here and never improvises — a prompt that has never produced a watchable clip is a guess that costs credits to disprove."
       />
@@ -58,30 +60,132 @@ export default async function PromptLibraryPage() {
       <Panel className="mb-6">
         <div
           className="flex items-baseline gap-3 border-b px-4 py-3"
-          style={{ borderColor: 'var(--b1)' }}
+          style={{ borderColor: "var(--b1)" }}
         >
           <span className="text-md font-medium">What is blocked</span>
-          <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
-            {blocked.length} shot{blocked.length === 1 ? '' : 's'} cannot compile · {active} active
-            recipe{active === 1 ? '' : 's'}
+          <span className="font-mono text-2xs" style={{ color: "var(--t3)" }}>
+            {blocked.length} shot{blocked.length === 1 ? "" : "s"} cannot
+            compile · {active} active recipe{active === 1 ? "" : "s"}
           </span>
         </div>
 
         {gaps.length === 0 ? (
-          <p className="px-4 py-4 text-sm" style={{ color: 'var(--t3)' }}>
+          <p className="px-4 py-4 text-sm" style={{ color: "var(--t3)" }}>
             {blocked.length === 0
-              ? 'Nothing waiting. Every shot has compiled against a recipe.'
-              : 'Shots are waiting, but none carries a shot kind — they were written before the vocabulary existed. Re-running stage 4 on their scripts assigns one.'}
+              ? "Nothing waiting. Every shot has compiled against a recipe."
+              : "Shots are waiting, but none carries a shot kind — they were written before the vocabulary existed. Re-running stage 4 on their scripts assigns one."}
           </p>
         ) : (
+          <div className="tscroll">
+            <table className="w-full text-xs">
+              <thead>
+                <tr style={{ color: "var(--t3)" }}>
+                  {["shot kind", "shots", "scripts", "seconds", "recipes"].map(
+                    (h, i) => (
+                      <th
+                        key={h}
+                        className={`px-4 py-2 font-mono text-3xs font-normal uppercase tracking-[0.08em] ${
+                          i === 0 ? "text-left" : "text-right"
+                        }`}
+                      >
+                        {h}
+                      </th>
+                    ),
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {gaps.map((g) => {
+                  const kind = shotKind(g.shotKind);
+                  const unserved = g.activeRecipes === 0;
+                  return (
+                    <tr key={g.shotKind} style={{ color: "var(--t2)" }}>
+                      <td className="px-4 py-2 align-top">
+                        <span
+                          className="font-mono text-xs"
+                          style={{ color: "var(--t1)" }}
+                        >
+                          {g.shotKind}
+                        </span>
+                        {kind && (
+                          <div
+                            className="mt-[2px] max-w-[46ch] text-xs"
+                            style={{ color: "var(--t3)" }}
+                          >
+                            {kind.note}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-right align-top font-mono">
+                        {g.shotsWaiting}
+                      </td>
+                      <td className="px-4 py-2 text-right align-top font-mono">
+                        {g.scriptsBlocked}
+                      </td>
+                      <td className="px-4 py-2 text-right align-top font-mono">
+                        {g.secondsWaiting.toFixed(1)}s
+                      </td>
+                      <td
+                        className="px-4 py-2 text-right align-top font-mono"
+                        style={{
+                          color: unserved ? "var(--blk)" : "var(--live)",
+                        }}
+                      >
+                        {g.activeRecipes}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {gaps.some((g) => g.activeRecipes === 0) && (
+          <p
+            className="border-t px-4 py-3 text-xs leading-relaxed"
+            style={{ borderColor: "var(--b1)", color: "var(--t3)" }}
+          >
+            A zero in the last column is a shot kind nothing serves yet, ordered
+            by how much each is holding up. That is a queue for an exploratory
+            session, not an error state.
+          </p>
+        )}
+      </Panel>
+
+      {/* ── Coverage: one recipe is a warning, not a tick ─────────────────── */}
+      <Panel className="mb-6">
+        <div
+          className="flex flex-wrap items-baseline gap-3 border-b px-4 py-3"
+          style={{ borderColor: "var(--b1)" }}
+        >
+          <span className="text-md font-medium">Coverage per shot kind</span>
+          <span
+            className="max-w-[62ch] text-xs leading-relaxed"
+            style={{ color: "var(--t3)" }}
+          >
+            One recipe is a warning. Every shot of that kind, in every video,
+            gets the same camera — and repeated camera moves are more legible to
+            a policy reviewer than beat structure is, because a reviewer watches
+            rather than diffs.
+          </span>
+        </div>
+
+        <div className="tscroll">
           <table className="w-full text-xs">
             <thead>
-              <tr style={{ color: 'var(--t3)' }}>
-                {['shot kind', 'shots', 'scripts', 'seconds', 'recipes'].map((h, i) => (
+              <tr style={{ color: "var(--t3)" }}>
+                {[
+                  "shot kind",
+                  "recipes",
+                  "compiled",
+                  "shipped",
+                  "top share",
+                ].map((h, i) => (
                   <th
                     key={h}
                     className={`px-4 py-2 font-mono text-3xs font-normal uppercase tracking-[0.08em] ${
-                      i === 0 ? 'text-left' : 'text-right'
+                      i === 0 ? "text-left" : "text-right"
                     }`}
                   >
                     {h}
@@ -90,130 +194,61 @@ export default async function PromptLibraryPage() {
               </tr>
             </thead>
             <tbody>
-              {gaps.map((g) => {
-                const kind = shotKind(g.shotKind);
-                const unserved = g.activeRecipes === 0;
+              {coverage.map((c) => {
+                // Nothing, one, or several. The middle case is the one that needs a colour.
+                const tone =
+                  c.activeRecipes === 0
+                    ? "var(--t3)"
+                    : c.activeRecipes === 1
+                      ? "var(--rev)"
+                      : "var(--live)";
+                // Concentration only means something once there is a choice to concentrate.
+                const concentrated =
+                  c.activeRecipes > 1 &&
+                  c.topRecipeShare !== null &&
+                  c.topRecipeShare > 0.6;
+
                 return (
-                  <tr key={g.shotKind} style={{ color: 'var(--t2)' }}>
-                    <td className="px-4 py-2 align-top">
-                      <span
-                        className="font-mono text-xs"
-                        style={{ color: 'var(--t1)' }}
-                      >
-                        {g.shotKind}
-                      </span>
-                      {kind && (
-                        <div
-                          className="mt-[2px] max-w-[46ch] text-xs"
-                          style={{ color: 'var(--t3)' }}
-                        >
-                          {kind.note}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 text-right align-top font-mono">{g.shotsWaiting}</td>
-                    <td className="px-4 py-2 text-right align-top font-mono">{g.scriptsBlocked}</td>
-                    <td className="px-4 py-2 text-right align-top font-mono">
-                      {g.secondsWaiting.toFixed(1)}s
+                  <tr key={c.shotKind} style={{ color: "var(--t2)" }}>
+                    <td className="px-4 py-2 font-mono text-xs">
+                      {c.shotKind}
                     </td>
                     <td
-                      className="px-4 py-2 text-right align-top font-mono"
-                      style={{ color: unserved ? 'var(--blk)' : 'var(--live)' }}
+                      className="px-4 py-2 text-right font-mono"
+                      style={{ color: tone }}
                     >
-                      {g.activeRecipes}
+                      {c.activeRecipes}
+                      {c.activeRecipes === 1 && " · one camera"}
+                    </td>
+                    <td className="px-4 py-2 text-right font-mono">
+                      {c.compiles}
+                    </td>
+                    <td className="px-4 py-2 text-right font-mono">
+                      {c.ships}
+                    </td>
+                    <td
+                      className="px-4 py-2 text-right font-mono"
+                      style={{ color: concentrated ? "var(--rev)" : undefined }}
+                    >
+                      {c.topRecipeShare === null
+                        ? "—"
+                        : `${(c.topRecipeShare * 100).toFixed(0)}%`}
                     </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
-        )}
-
-        {gaps.some((g) => g.activeRecipes === 0) && (
-          <p
-            className="border-t px-4 py-3 text-xs leading-relaxed"
-            style={{ borderColor: 'var(--b1)', color: 'var(--t3)' }}
-          >
-            A zero in the last column is a shot kind nothing serves yet, ordered by how much
-            each is holding up. That is a queue for an exploratory session, not an error
-            state.
-          </p>
-        )}
-      </Panel>
-
-      {/* ── Coverage: one recipe is a warning, not a tick ─────────────────── */}
-      <Panel className="mb-6">
-        <div
-          className="flex items-baseline gap-3 border-b px-4 py-3"
-          style={{ borderColor: 'var(--b1)' }}
-        >
-          <span className="text-md font-medium">Coverage per shot kind</span>
-          <span
-            className="max-w-[62ch] text-xs leading-relaxed"
-            style={{ color: 'var(--t3)' }}
-          >
-            One recipe is a warning. Every shot of that kind, in every video, gets the same
-            camera — and repeated camera moves are more legible to a policy reviewer than
-            beat structure is, because a reviewer watches rather than diffs.
-          </span>
         </div>
-
-        <table className="w-full text-xs">
-          <thead>
-            <tr style={{ color: 'var(--t3)' }}>
-              {['shot kind', 'recipes', 'compiled', 'shipped', 'top share'].map((h, i) => (
-                <th
-                  key={h}
-                  className={`px-4 py-2 font-mono text-3xs font-normal uppercase tracking-[0.08em] ${
-                    i === 0 ? 'text-left' : 'text-right'
-                  }`}
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {coverage.map((c) => {
-              // Nothing, one, or several. The middle case is the one that needs a colour.
-              const tone =
-                c.activeRecipes === 0
-                  ? 'var(--t3)'
-                  : c.activeRecipes === 1
-                    ? 'var(--rev)'
-                    : 'var(--live)';
-              // Concentration only means something once there is a choice to concentrate.
-              const concentrated =
-                c.activeRecipes > 1 && c.topRecipeShare !== null && c.topRecipeShare > 0.6;
-
-              return (
-                <tr key={c.shotKind} style={{ color: 'var(--t2)' }}>
-                  <td className="px-4 py-2 font-mono text-xs">{c.shotKind}</td>
-                  <td className="px-4 py-2 text-right font-mono" style={{ color: tone }}>
-                    {c.activeRecipes}
-                    {c.activeRecipes === 1 && ' · one camera'}
-                  </td>
-                  <td className="px-4 py-2 text-right font-mono">{c.compiles}</td>
-                  <td className="px-4 py-2 text-right font-mono">{c.ships}</td>
-                  <td
-                    className="px-4 py-2 text-right font-mono"
-                    style={{ color: concentrated ? 'var(--rev)' : undefined }}
-                  >
-                    {c.topRecipeShare === null ? '—' : `${(c.topRecipeShare * 100).toFixed(0)}%`}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
 
         <p
           className="border-t px-4 py-3 text-xs leading-relaxed"
-          style={{ borderColor: 'var(--b1)', color: 'var(--t3)' }}
+          style={{ borderColor: "var(--b1)", color: "var(--t3)" }}
         >
-          Top share is how much of a kind&rsquo;s use went to its busiest recipe. High with
-          several recipes available means rotation is not spreading — which is a bug, not a
-          preference. Shipped stays at zero until stage 10 exists.
+          Top share is how much of a kind&rsquo;s use went to its busiest
+          recipe. High with several recipes available means rotation is not
+          spreading — which is a bug, not a preference. Shipped stays at zero
+          until stage 10 exists.
         </p>
       </Panel>
 
@@ -222,7 +257,7 @@ export default async function PromptLibraryPage() {
         <Panel className="mb-6">
           <div
             className="border-b px-4 py-3 text-md font-medium"
-            style={{ borderColor: 'var(--b1)' }}
+            style={{ borderColor: "var(--b1)" }}
           >
             Shots waiting on a recipe
           </div>
@@ -230,38 +265,41 @@ export default async function PromptLibraryPage() {
             <div
               key={s.shotId}
               className="border-b px-4 py-[10px] last:border-b-0"
-              style={{ borderColor: 'var(--b1)' }}
+              style={{ borderColor: "var(--b1)" }}
             >
               <div className="flex flex-wrap items-baseline gap-2 text-xs">
-                <span className="font-mono" style={{ color: 'var(--t3)' }}>
+                <span className="font-mono" style={{ color: "var(--t3)" }}>
                   {s.channelName} · shot {s.idx} · {s.durationS}s
                 </span>
                 <span
                   className="rounded-xs px-[5px] py-[1px] font-mono text-2xs"
                   style={{
-                    background: 'var(--s2)',
-                    color: s.matchingRecipes > 0 ? 'var(--live)' : 'var(--blk)',
+                    background: "var(--s2)",
+                    color: s.matchingRecipes > 0 ? "var(--live)" : "var(--blk)",
                   }}
                 >
-                  {s.shotKind ?? 'no kind'}
+                  {s.shotKind ?? "no kind"}
                 </span>
-                <span style={{ color: 'var(--t3)' }}>{s.conceptTitle}</span>
+                <span style={{ color: "var(--t3)" }}>{s.conceptTitle}</span>
               </div>
               <p
                 className="mt-1 max-w-[80ch] text-xs"
-                style={{ color: 'var(--t2)' }}
+                style={{ color: "var(--t2)" }}
               >
                 {s.description}
               </p>
               {s.compileNote && (
-                <p className="mt-1 max-w-[80ch] text-2xs" style={{ color: 'var(--t3)' }}>
+                <p
+                  className="mt-1 max-w-[80ch] text-2xs"
+                  style={{ color: "var(--t3)" }}
+                >
                   {s.compileNote}
                 </p>
               )}
             </div>
           ))}
           {blocked.length > 20 && (
-            <p className="px-4 py-2 text-xs" style={{ color: 'var(--t3)' }}>
+            <p className="px-4 py-2 text-xs" style={{ color: "var(--t3)" }}>
               {blocked.length - 20} more not shown.
             </p>
           )}
@@ -272,19 +310,20 @@ export default async function PromptLibraryPage() {
       <Panel className="mb-6">
         <div
           className="border-b px-4 py-3 text-md font-medium"
-          style={{ borderColor: 'var(--b1)' }}
+          style={{ borderColor: "var(--b1)" }}
         >
           Recipes
         </div>
         {recipes.length === 0 ? (
           <p
             className="max-w-[80ch] px-4 py-4 text-sm leading-relaxed"
-            style={{ color: 'var(--t3)' }}
+            style={{ color: "var(--t3)" }}
           >
-            Empty. Nothing downstream of stage 4 can run until something is here, and the
-            only way something gets here is an exploratory session against the vendor,
-            watching real clips. That is deliberate: a recipe is a claim that a parameter set
-            produces watchable video, and only someone who watched it can make that claim.
+            Empty. Nothing downstream of stage 4 can run until something is
+            here, and the only way something gets here is an exploratory session
+            against the vendor, watching real clips. That is deliberate: a
+            recipe is a claim that a parameter set produces watchable video, and
+            only someone who watched it can make that claim.
           </p>
         ) : (
           recipes.map((r, i) => (
@@ -302,7 +341,7 @@ export default async function PromptLibraryPage() {
       <Panel>
         <div
           className="border-b px-4 py-3 text-md font-medium"
-          style={{ borderColor: 'var(--b1)' }}
+          style={{ borderColor: "var(--b1)" }}
         >
           Record a recipe
         </div>

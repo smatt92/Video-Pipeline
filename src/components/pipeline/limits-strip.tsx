@@ -1,5 +1,9 @@
-import { Hint } from '@/components/shell/hint';
-import type { CreditPosition, DriverLimit, QuotaLimit } from '@/lib/pipeline/limits';
+import { Hint } from "@/components/shell/hint";
+import type {
+  CreditPosition,
+  DriverLimit,
+  QuotaLimit,
+} from "@/lib/pipeline/limits";
 
 /**
  * Limits and the credit clock, on the board.
@@ -22,8 +26,8 @@ import type { CreditPosition, DriverLimit, QuotaLimit } from '@/lib/pipeline/lim
  */
 
 const box = {
-  borderColor: 'var(--b1)',
-  background: 'var(--s1)',
+  borderColor: "var(--b1)",
+  background: "var(--s1)",
 };
 
 export function LimitsStrip({
@@ -56,8 +60,8 @@ export function LimitsStrip({
 function QuotaCard({ quotas }: { quotas: QuotaLimit[] }) {
   return (
     <div className="rounded-md border" style={box}>
-      <div className="border-b px-4 py-2" style={{ borderColor: 'var(--b1)' }}>
-        <span className="text-2xs uppercase" style={{ color: 'var(--t3)' }}>
+      <div className="border-b px-4 py-2" style={{ borderColor: "var(--b1)" }}>
+        <span className="text-2xs uppercase" style={{ color: "var(--t3)" }}>
           Daily quota
         </span>
       </div>
@@ -67,27 +71,30 @@ function QuotaCard({ quotas }: { quotas: QuotaLimit[] }) {
           return (
             <div key={q.slug} className="text-xs">
               <div>
-                <span className="font-medium">{q.slug}</span>{' '}
+                <span className="font-medium">{q.slug}</span>{" "}
                 <span className="font-mono">
-                  {q.unitsUsed.toLocaleString('en-IN')} / {q.ceiling.toLocaleString('en-IN')}
-                </span>{' '}
-                <span style={{ color: 'var(--t3)' }}>used</span>
+                  {q.unitsUsed.toLocaleString("en-IN")} /{" "}
+                  {q.ceiling.toLocaleString("en-IN")}
+                </span>{" "}
+                <span style={{ color: "var(--t3)" }}>used</span>
               </div>
-              <div className="mt-1" style={{ color: 'var(--t3)' }}>
+              <div className="mt-1" style={{ color: "var(--t3)" }}>
                 {/* Two epistemic states in one sentence, because collapsing them is how a
                     documented ceiling starts being quoted as a measurement. */}
-                Usage counted from our own calls ({q.callsMade}); ceiling is{' '}
-                {q.ceilingSource}. Resets{' '}
+                Usage counted from our own calls ({q.callsMade}); ceiling is{" "}
+                {q.ceilingSource}. Resets{" "}
                 {new Date(q.windowResetsAt).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
+                  hour: "2-digit",
+                  minute: "2-digit",
                 })}
-                {' — '}
-                {uploadsLeft} upload{uploadsLeft === 1 ? '' : 's'} fit in what remains.
+                {" — "}
+                {uploadsLeft} upload{uploadsLeft === 1 ? "" : "s"} fit in what
+                remains.
               </div>
               {q.unitsWasted > 0 && (
-                <div className="mt-1" style={{ color: 'var(--rev)' }}>
-                  {q.unitsWasted.toLocaleString('en-IN')} units spent on calls that failed.
+                <div className="mt-1" style={{ color: "var(--rev)" }}>
+                  {q.unitsWasted.toLocaleString("en-IN")} units spent on calls
+                  that failed.
                 </div>
               )}
             </div>
@@ -107,89 +114,117 @@ function LimitsCard({ limits }: { limits: DriverLimit[] }) {
 
   return (
     <div className="rounded-md border" style={box}>
-      <header className="flex items-baseline gap-2 border-b px-4 py-2.5" style={box}>
+      <header
+        className="flex items-baseline gap-2 border-b px-4 py-2.5"
+        style={box}
+      >
         <h2 className="text-sm font-medium">Vendor limits</h2>
         <Hint content="A concurrency ceiling is not a window, so nothing here counts down. The hit columns are what make this useful: in-flight reads 0 on a workspace that has never generated and would stay 0 for ever.">
-          <span className="text-2xs" style={{ color: 'var(--t3)' }}>
-            {anySubmits ? `${everLimited} refusals across ${limits.length} drivers` : 'nothing submitted yet'}
+          <span className="text-2xs" style={{ color: "var(--t3)" }}>
+            {anySubmits
+              ? `${everLimited} refusals across ${limits.length} drivers`
+              : "nothing submitted yet"}
           </span>
         </Hint>
       </header>
 
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-2xs" style={{ color: 'var(--t3)' }}>
-            <th className="px-4 py-2 font-normal">Driver</th>
-            <th className="px-4 py-2 text-right font-normal">In flight</th>
-            <th className="px-4 py-2 text-right font-normal">Ceiling</th>
-            <th className="px-4 py-2 text-right font-normal">Queued out</th>
-            <th className="px-4 py-2 text-right font-normal">Slowed</th>
-            <th className="px-4 py-2 font-normal">Last hit</th>
-          </tr>
-        </thead>
-        <tbody>
-          {limits.map((l) => (
-            <tr key={l.slug} className="border-t" style={box}>
-              <td className="px-4 py-2">
-                {l.slug}{' '}
-                <span className="text-2xs" style={{ color: 'var(--t3)' }}>
-                  {l.kind}
-                </span>
-              </td>
+      <div className="tscroll">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-2xs" style={{ color: "var(--t3)" }}>
+              <th className="px-4 py-2 font-normal">Driver</th>
+              <th className="px-4 py-2 text-right font-normal">In flight</th>
+              <th className="px-4 py-2 text-right font-normal">Ceiling</th>
+              <th className="px-4 py-2 text-right font-normal">Queued out</th>
+              <th className="px-4 py-2 text-right font-normal">Slowed</th>
+              <th className="px-4 py-2 font-normal">Last hit</th>
+            </tr>
+          </thead>
+          <tbody>
+            {limits.map((l) => (
+              <tr key={l.slug} className="border-t" style={box}>
+                <td className="px-4 py-2">
+                  {l.slug}{" "}
+                  <span className="text-2xs" style={{ color: "var(--t3)" }}>
+                    {l.kind}
+                  </span>
+                </td>
 
-              <td className="px-4 py-2 text-right font-mono">
-                {l.hasSubmitted ? l.inFlight : <span style={{ color: 'var(--t3)' }}>—</span>}
-              </td>
+                <td className="px-4 py-2 text-right font-mono">
+                  {l.hasSubmitted ? (
+                    l.inFlight
+                  ) : (
+                    <span style={{ color: "var(--t3)" }}>—</span>
+                  )}
+                </td>
 
-              {/* Unknown, not guessed. `default` is our fallback and says so. */}
-              <td className="px-4 py-2 text-right font-mono">
-                {l.ceiling === null ? (
-                  <span style={{ color: 'var(--t3)' }}>unknown</span>
-                ) : (
-                  <>
-                    {l.ceiling}
-                    {l.ceilingSource === 'default' && (
-                      <span className="ml-1 text-2xs" style={{ color: 'var(--t3)' }}>
-                        fallback
-                      </span>
-                    )}
-                  </>
-                )}
-              </td>
+                {/* Unknown, not guessed. `default` is our fallback and says so. */}
+                <td className="px-4 py-2 text-right font-mono">
+                  {l.ceiling === null ? (
+                    <span style={{ color: "var(--t3)" }}>unknown</span>
+                  ) : (
+                    <>
+                      {l.ceiling}
+                      {l.ceilingSource === "default" && (
+                        <span
+                          className="ml-1 text-2xs"
+                          style={{ color: "var(--t3)" }}
+                        >
+                          fallback
+                        </span>
+                      )}
+                    </>
+                  )}
+                </td>
 
-              {/*
+                {/*
                 Counted apart, because the driver layer treats them apart: a concurrency
                 refusal wants a queue and a rate refusal wants backoff, and merging them
                 is how a retry storm gets built on top of a ceiling.
               */}
-              <td className="px-4 py-2 text-right font-mono">
-                {l.hasSubmitted ? (
-                  l.hitsConcurrency
-                ) : (
-                  <span style={{ color: 'var(--t3)' }}>—</span>
-                )}
-              </td>
-              <td className="px-4 py-2 text-right font-mono">
-                {l.hasSubmitted ? l.hitsRate : <span style={{ color: 'var(--t3)' }}>—</span>}
-              </td>
+                <td className="px-4 py-2 text-right font-mono">
+                  {l.hasSubmitted ? (
+                    l.hitsConcurrency
+                  ) : (
+                    <span style={{ color: "var(--t3)" }}>—</span>
+                  )}
+                </td>
+                <td className="px-4 py-2 text-right font-mono">
+                  {l.hasSubmitted ? (
+                    l.hitsRate
+                  ) : (
+                    <span style={{ color: "var(--t3)" }}>—</span>
+                  )}
+                </td>
 
-              <td className="px-4 py-2 text-2xs" style={{ color: 'var(--t3)' }}>
-                {l.lastHitAt
-                  ? new Date(l.lastHitAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
-                  : l.hasSubmitted
-                    ? `never, in ${l.submitsTotal} submit${l.submitsTotal === 1 ? '' : 's'}`
-                    : 'never submitted'}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                <td
+                  className="px-4 py-2 text-2xs"
+                  style={{ color: "var(--t3)" }}
+                >
+                  {l.lastHitAt
+                    ? new Date(l.lastHitAt).toLocaleString("en-IN", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })
+                    : l.hasSubmitted
+                      ? `never, in ${l.submitsTotal} submit${l.submitsTotal === 1 ? "" : "s"}`
+                      : "never submitted"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {!anySubmits && (
-        <p className="border-t px-4 py-2 text-2xs" style={{ ...box, color: 'var(--t3)' }}>
-          No generation has been submitted to any driver, so in-flight and the hit counts are
-          em dashes rather than zeros — nothing has had the chance to be limited yet. Ceilings
-          are read from the account when an integration verifies.
+        <p
+          className="border-t px-4 py-2 text-2xs"
+          style={{ ...box, color: "var(--t3)" }}
+        >
+          No generation has been submitted to any driver, so in-flight and the
+          hit counts are em dashes rather than zeros — nothing has had the
+          chance to be limited yet. Ceilings are read from the account when an
+          integration verifies.
         </p>
       )}
     </div>
@@ -205,82 +240,103 @@ function CreditsCard({
 }) {
   return (
     <div className="rounded-md border" style={box}>
-      <header className="flex items-baseline gap-2 border-b px-4 py-2.5" style={box}>
+      <header
+        className="flex items-baseline gap-2 border-b px-4 py-2.5"
+        style={box}
+      >
         <h2 className="text-sm font-medium">Credit position</h2>
         <Hint content="Credits expire about 90 days after purchase whether or not anything used them, and nothing is billed at the moment they evaporate — so the cost ledger structurally cannot see the loss. That is why the clock belongs here rather than only in Settings.">
-          <span className="text-2xs" style={{ color: 'var(--t3)' }}>
+          <span className="text-2xs" style={{ color: "var(--t3)" }}>
             the 90-day clock
           </span>
         </Hint>
       </header>
 
       {noPurchases ? (
-        <p className="px-4 py-3 text-sm" style={{ color: 'var(--t3)' }}>
-          No credit purchase has been recorded. That is an empty ledger rather than an empty
-          account — the balance is unknown from here, not zero. Settings → Integrations records
-          a purchase and starts its expiry clock.
+        <p className="px-4 py-3 text-sm" style={{ color: "var(--t3)" }}>
+          No credit purchase has been recorded. That is an empty ledger rather
+          than an empty account — the balance is unknown from here, not zero.
+          Settings → Integrations records a purchase and starts its expiry
+          clock.
         </p>
       ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-2xs" style={{ color: 'var(--t3)' }}>
-              <th className="px-4 py-2 font-normal">Driver</th>
-              <th className="px-4 py-2 text-right font-normal">Unexpired</th>
-              <th className="px-4 py-2 text-right font-normal">Expiring 30d</th>
-              <th className="px-4 py-2 text-right font-normal">Expired</th>
-              <th className="px-4 py-2 font-normal">Next expiry</th>
-              <th className="px-4 py-2 text-right font-normal">Spent</th>
-            </tr>
-          </thead>
-          <tbody>
-            {credits
-              .filter((c) => c.purchases > 0)
-              .map((c) => (
-                <tr key={c.slug} className="border-t" style={box}>
-                  <td className="px-4 py-2">{c.slug}</td>
-                  <td className="px-4 py-2 text-right font-mono">{c.creditsUnexpired}</td>
-                  <td
-                    className="px-4 py-2 text-right font-mono"
-                    style={{
-                      color: c.creditsExpiring30d > 0 ? 'var(--rev)' : 'var(--t3)',
-                    }}
-                  >
-                    {c.creditsExpiring30d}
-                  </td>
-                  <td
-                    className="px-4 py-2 text-right font-mono"
-                    style={{ color: c.creditsExpired > 0 ? 'var(--blk)' : 'var(--t3)' }}
-                  >
-                    {c.creditsExpired}
-                  </td>
-                  <td className="px-4 py-2 text-2xs" style={{ color: 'var(--t3)' }}>
-                    {c.daysUntilExpiry === null
-                      ? 'nothing unexpired'
-                      : `${c.daysUntilExpiry} day${c.daysUntilExpiry === 1 ? '' : 's'} — ${c.nextExpiry}`}
-                  </td>
-                  {/*
+        <div className="tscroll">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-2xs" style={{ color: "var(--t3)" }}>
+                <th className="px-4 py-2 font-normal">Driver</th>
+                <th className="px-4 py-2 text-right font-normal">Unexpired</th>
+                <th className="px-4 py-2 text-right font-normal">
+                  Expiring 30d
+                </th>
+                <th className="px-4 py-2 text-right font-normal">Expired</th>
+                <th className="px-4 py-2 font-normal">Next expiry</th>
+                <th className="px-4 py-2 text-right font-normal">Spent</th>
+              </tr>
+            </thead>
+            <tbody>
+              {credits
+                .filter((c) => c.purchases > 0)
+                .map((c) => (
+                  <tr key={c.slug} className="border-t" style={box}>
+                    <td className="px-4 py-2">{c.slug}</td>
+                    <td className="px-4 py-2 text-right font-mono">
+                      {c.creditsUnexpired}
+                    </td>
+                    <td
+                      className="px-4 py-2 text-right font-mono"
+                      style={{
+                        color:
+                          c.creditsExpiring30d > 0 ? "var(--rev)" : "var(--t3)",
+                      }}
+                    >
+                      {c.creditsExpiring30d}
+                    </td>
+                    <td
+                      className="px-4 py-2 text-right font-mono"
+                      style={{
+                        color:
+                          c.creditsExpired > 0 ? "var(--blk)" : "var(--t3)",
+                      }}
+                    >
+                      {c.creditsExpired}
+                    </td>
+                    <td
+                      className="px-4 py-2 text-2xs"
+                      style={{ color: "var(--t3)" }}
+                    >
+                      {c.daysUntilExpiry === null
+                        ? "nothing unexpired"
+                        : `${c.daysUntilExpiry} day${c.daysUntilExpiry === 1 ? "" : "s"} — ${c.nextExpiry}`}
+                    </td>
+                    {/*
                     Not a balance. `generations.credits_spent` has no writer, so the purchase
                     total is not what is left, and rendering it as one would be a stale
                     constant shown as a live figure.
                   */}
-                  <td className="px-4 py-2 text-right font-mono">
-                    {c.consumptionObserved ? (
-                      c.creditsSpent
-                    ) : (
-                      <span style={{ color: 'var(--t3)' }}>not recorded</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
+                    <td className="px-4 py-2 text-right font-mono">
+                      {c.consumptionObserved ? (
+                        c.creditsSpent
+                      ) : (
+                        <span style={{ color: "var(--t3)" }}>not recorded</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {!noPurchases && credits.some((c) => !c.consumptionObserved) && (
-        <p className="border-t px-4 py-2 text-2xs" style={{ ...box, color: 'var(--t3)' }}>
-          Consumption is not recorded — nothing writes a credit figure back onto a generation
-          yet — so what is left is unknown rather than equal to what is unexpired. The expiry
-          columns are exact; the balance is not shown because there is not one.
+        <p
+          className="border-t px-4 py-2 text-2xs"
+          style={{ ...box, color: "var(--t3)" }}
+        >
+          Consumption is not recorded — nothing writes a credit figure back onto
+          a generation yet — so what is left is unknown rather than equal to
+          what is unexpired. The expiry columns are exact; the balance is not
+          shown because there is not one.
         </p>
       )}
     </div>
