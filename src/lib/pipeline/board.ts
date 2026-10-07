@@ -45,6 +45,8 @@ export type ConceptState =
 
 export interface BoardRow {
   id: string;
+  /** The board is workspace-wide; /concepts/[id] opens only the active channel's concepts. */
+  channelId: string;
   title: string;
   state: ConceptState;
   /** Null when nothing has been priced yet — distinct from zero, which means free. */
@@ -137,7 +139,7 @@ export async function readBoard(client?: Db): Promise<BoardResult> {
 
     const { data: concepts, error } = await db
       .from('concepts')
-      .select('id, title, status, created_at')
+      .select('id, channel_id, title, status, created_at')
       .order('created_at', { ascending: false })
       // One more than the board shows, so truncation is detectable rather than silent.
       .limit(BOARD_LIMIT + 1);
@@ -273,6 +275,7 @@ export async function readBoard(client?: Db): Promise<BoardResult> {
       const money = cost.get(c.id);
       return {
         id: c.id,
+        channelId: c.channel_id,
         title: c.title,
         state: deriveState({ status: c.status, ...t, blocker: blocked.get(c.id) ?? null }),
         blocker: blocked.get(c.id) ?? null,

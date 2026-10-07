@@ -2,6 +2,7 @@ import 'server-only';
 
 import { z } from 'zod';
 
+import { currentRate } from '../cost/rate-card';
 import type { Db } from '../db/server';
 import type { Json } from '../db/types';
 import { fillTemplate } from '../shots/compile';
@@ -246,13 +247,73 @@ export async function retireRecipe(db: Db, id: string, reason: string): Promise<
   if (error) throw new Error(`Retiring the recipe failed: ${error.message}`);
 }
 
-export async function reinstateRecipe(db: Db, id: string): Promise<void> {
+/**
+ * Why a recipe may not be made active, or null when it may.
+ *
+ * Activation is the claim "somebody watched a clip from these params and it was good", and
+ * the sample output URL is that claim's evidence. 0044's two generation-lane recipes were inserted
+ * retired with "watch the clip, then activate" as their reason; before this, the Reinstate
+ * button activated them with nothing watched, which is the outcome their retired_reason warns
+ * against. One predicate, used by `reinstateRecipe` and by the screen that disables the button.
+ */
+export function activationProblem(r: { sampleOutputUrl: string | null }): string | null {
+  return r.sampleOutputUrl && /^https?:\/\//.test(r.sampleOutputUrl)
+    ? null
+    : 'no sample output recorded — activate a recipe only after watching a clip it produced, and give that clip’s URL';
+}
+
+/**
+ * Make a retired recipe active again. Refuses, changing nothing, when there is no watched
+ * sample: the stored one, or one supplied now (which is recorded with the activation).
+ */
+export async function reinstateRecipe(
+  db: Db,
+  id: string,
+  sampleOutputUrl?: string,
+): Promise<{ ok: true } | { ok: false; problem: string }> {
+  const { data: row, error: readError } = await db.from('prompts').select('sample_output_url').eq('id', id).maybeSingle();
+  if (readError) throw new Error(`Reading the recipe failed: ${readError.message}`);
+  if (!row) return { ok: false, problem: 'Not reinstated: no such recipe.' };
+
+  const supplied = sampleOutputUrl?.trim() || null;
+  if (supplied && !z.url().safeParse(supplied).success) {
+    return { ok: false, problem: `Not reinstated: "${supplied}" is not a URL.` };
+  }
+  const sample = supplied ?? row.sample_output_url;
+  const problem = activationProblem({ sampleOutputUrl: sample });
+  if (problem) return { ok: false, problem: `Not reinstated: ${problem}.` };
+
   const { error } = await db
     .from('prompts')
-    .update({ is_active: true, retired_at: null, retired_reason: null })
+    .update({ is_active: true, retired_at: null, retired_reason: null, sample_output_url: sample })
     .eq('id', id);
 
   if (error) throw new Error(`Reinstating the recipe failed: ${error.message}`);
+  return { ok: true };
+}
+
+export type RecipeRate =
+  | { priced: true; label: string }
+  | { priced: false; reason: string };
+
+/**
+ * What one second of this recipe bills at, from the rate card — the same two lookups, in the
+ * same order, as the episode estimator (`bureau/estimate.ts routeRateInr`): per second, else
+ * per credit × the recipe's own `credits_per_second`. USD, as the card stores it; the rupee
+ * figure needs a day's FX and belongs to the estimate, not to the library.
+ */
+export async function recipeRate(
+  db: Db,
+  r: { driver: string; model: string; params: Record<string, unknown> },
+): Promise<RecipeRate> {
+  const perSecond = await currentRate(db, { driver: r.driver, model: r.model, endpoint: null, unit: 'second' });
+  if (perSecond.found) return { priced: true, label: `USD ${perSecond.rate.unitCostUsd} per second (rate card)` };
+  const cps = Number(r.params.credits_per_second);
+  const perCredit = await currentRate(db, { driver: r.driver, model: r.model, endpoint: null, unit: 'credit' });
+  if (perCredit.found && Number.isFinite(cps) && cps > 0) {
+    return { priced: true, label: `USD ${perCredit.rate.unitCostUsd} per credit × ${cps} credits/s (rate card)` };
+  }
+  return { priced: false, reason: perSecond.detail };
 }
 
 export async function listRecipes(db: Db): Promise<Recipe[]> {

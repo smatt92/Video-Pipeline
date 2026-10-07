@@ -277,6 +277,9 @@ jobs:
       - name: Stage 1 — trend intake deduplicates and reports what it could not reach
         run: pnpm verify:trends "$DATABASE_URL"
 
+      - name: Library — voices route as the stage reads, music and concepts refuse by name
+        run: pnpm verify:library "$DATABASE_URL"
+
       # ── Stage 5, which had no caller until it had a harness ──────────────
       # Wiring submitShots to a task without proving it would have moved it from "built,
       # tested, unreachable" to "built, untested, reachable" — strictly worse, because it

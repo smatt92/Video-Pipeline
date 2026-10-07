@@ -26,11 +26,10 @@ export interface NavGroup {
 }
 
 const ready = (): NavStatus => ({ kind: 'ready' });
-const blocked = (phase: string, reason: string): NavStatus => ({
-  kind: 'disabled',
-  reason,
-  phase,
-});
+// No route is disabled today (07-Oct-2026: Concepts and the three Library screens went ready).
+// A route that needs to be disabled again gets `{ kind: 'disabled', reason, phase }` inline —
+// the sidebar and the command palette still render that state with its reason.
+
 
 export const NAV: readonly NavGroup[] = [
   {
@@ -67,8 +66,10 @@ export const NAV: readonly NavGroup[] = [
       {
         href: '/concepts',
         label: 'Concepts',
-        hint: 'Concept queue, script editor, shotlist',
-        status: blocked('1c', 'Needs the script generation leg'),
+        hint: 'Concepts per channel: script, shots, spend, episode',
+        // Ready: lists the active channel's concepts from rows (script, shot count, ledger spend
+        // with no-row as an em dash, the episode link), and /concepts/[id] refuses another channel's.
+        status: ready(),
       },
       {
         href: '/studio',
@@ -90,20 +91,26 @@ export const NAV: readonly NavGroup[] = [
       {
         href: '/library/prompts',
         label: 'Prompts',
-        hint: 'Shot recipes, win rate, provenance',
-        status: blocked('1b', 'Needs the driver implementations'),
+        hint: 'Shot recipes, params, rate, provenance',
+        // Ready: list, params, retire/reinstate behind the watched-sample guard, and the rate each
+        // recipe bills at from the rate card ("unpriced — why" when there is none).
+        status: ready(),
       },
       {
         href: '/library/voices',
         label: 'Voices',
-        hint: 'Host voice, pronunciation dictionary, model policy',
-        status: blocked('1b', 'Needs the audio driver'),
+        hint: 'Each character’s voice, override, last take',
+        // Ready: shows the route the voice stage will use (routeForCharacter, the same predicate),
+        // and writes channel_voice_overrides, which the voice stage already reads.
+        status: ready(),
       },
       {
         href: '/library/music',
         label: 'Music',
-        hint: 'Beds and SFX',
-        status: blocked('2', 'Assembly phase'),
+        hint: 'Beds per series: upload, preview, default',
+        // Ready as a record: uploads (presigned PUT) and series defaults are written; the page says
+        // plainly that the assembler does not mix a bed yet.
+        status: ready(),
       },
     ],
   },

@@ -5,7 +5,7 @@ import { useFormStatus } from 'react-dom';
 
 import type { LibraryState } from '@/lib/prompts/actions';
 import { reinstateRecipeAction, retireRecipeAction, saveRecipeAction } from '@/lib/prompts/actions';
-import type { Recipe } from '@/lib/prompts/library';
+import type { Recipe, RecipeRate } from '@/lib/prompts/library';
 import { SHOT_KINDS } from '@/lib/shots/kinds';
 
 const IDLE: LibraryState = { status: 'idle' };
@@ -214,7 +214,17 @@ export function RecipeForm({ drivers }: { drivers: string[] }) {
   );
 }
 
-export function RecipeRow({ recipe }: { recipe: Recipe }) {
+export function RecipeRow({
+  recipe,
+  rate,
+  activationBlocked,
+}: {
+  recipe: Recipe;
+  /** From the rate card, computed on the server. Never a ₹0 stand-in: unpriced says why. */
+  rate: RecipeRate;
+  /** `activationProblem` for this recipe, computed on the server; null when it may be reinstated as is. */
+  activationBlocked: string | null;
+}) {
   const [retireState, retire] = useActionState(retireRecipeAction.bind(null, recipe.id), IDLE);
   const [reinstateState, reinstate] = useActionState(
     reinstateRecipeAction.bind(null, recipe.id),
@@ -283,6 +293,25 @@ export function RecipeRow({ recipe }: { recipe: Recipe }) {
         </span>
       </div>
 
+      <p className="mt-2 font-mono text-2xs" style={{ color: rate.priced ? 'var(--text-muted)' : 'var(--state-review)' }}>
+        {rate.priced ? `bills at ${rate.label}` : `unpriced — ${rate.reason}`}
+      </p>
+      {recipe.sampleOutputUrl ? (
+        <a
+          href={recipe.sampleOutputUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-1 inline-block text-2xs underline"
+          style={{ color: 'var(--text-muted)' }}
+        >
+          watched sample
+        </a>
+      ) : (
+        <p className="mt-1 text-2xs" style={{ color: 'var(--text-faint)' }}>
+          no watched sample recorded
+        </p>
+      )}
+
       <pre
         className="mt-2 overflow-x-auto rounded-sm px-2 py-[6px] font-mono text-2xs leading-relaxed"
         style={{ background: 'var(--surface-inset)', color: 'var(--text-secondary)' }}
@@ -316,7 +345,16 @@ export function RecipeRow({ recipe }: { recipe: Recipe }) {
             </button>
           </form>
         ) : (
-          <form action={reinstate}>
+          <form action={reinstate} className="flex items-center gap-2">
+            {activationBlocked && (
+              <input
+                name="sample_output_url"
+                required
+                placeholder="URL of the clip you watched"
+                className="w-[260px] rounded-sm border bg-transparent px-2 py-[4px] text-xs outline-none"
+                style={{ borderColor: 'var(--border-subtle)', color: 'var(--text-primary)' }}
+              />
+            )}
             <button
               type="submit"
               className="rounded-sm border px-[8px] py-[4px] text-xs"
@@ -328,6 +366,11 @@ export function RecipeRow({ recipe }: { recipe: Recipe }) {
         )}
         <Result state={retireState.status !== 'idle' ? retireState : reinstateState} />
       </div>
+      {!recipe.isActive && activationBlocked && (
+        <p className="mt-1 text-2xs" style={{ color: 'var(--text-faint)' }}>
+          Reinstating needs a watched clip: {activationBlocked}.
+        </p>
+      )}
     </div>
   );
 }

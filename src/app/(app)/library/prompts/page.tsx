@@ -2,7 +2,14 @@ import { RecipeForm, RecipeRow } from '@/components/library/recipe-form';
 import { Panel, SectionHeader } from '@/components/settings/parts';
 import { serverClient } from '@/lib/db/server';
 import { INTEGRATION_CATALOG } from '@/lib/drivers/catalog';
-import { kindCoverage, listRecipes, recipeGaps, unresolvedShots } from '@/lib/prompts/library';
+import {
+  activationProblem,
+  kindCoverage,
+  listRecipes,
+  recipeGaps,
+  recipeRate,
+  unresolvedShots,
+} from '@/lib/prompts/library';
 import { shotKind } from '@/lib/shots/kinds';
 
 /**
@@ -26,6 +33,9 @@ export default async function PromptLibraryPage() {
     unresolvedShots(db),
     kindCoverage(db),
   ]);
+
+  // One rate-card lookup per recipe. A library is tens of rows, not thousands.
+  const rates = await Promise.all(recipes.map((r) => recipeRate(db, r)));
 
   const drivers = [
     ...new Set(INTEGRATION_CATALOG.filter((i) => i.kind === 'video').map((i) => i.slug)),
@@ -272,7 +282,14 @@ export default async function PromptLibraryPage() {
             produces watchable video, and only someone who watched it can make that claim.
           </p>
         ) : (
-          recipes.map((r) => <RecipeRow key={r.id} recipe={r} />)
+          recipes.map((r, i) => (
+            <RecipeRow
+              key={r.id}
+              recipe={r}
+              rate={rates[i]!}
+              activationBlocked={activationProblem(r)}
+            />
+          ))
         )}
       </Panel>
 

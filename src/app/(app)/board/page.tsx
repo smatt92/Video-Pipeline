@@ -6,6 +6,7 @@ import { LimitsStrip } from '@/components/pipeline/limits-strip';
 import { PathStrip } from '@/components/pipeline/path-strip';
 import { Hint } from '@/components/shell/hint';
 import { StateGlyph } from '@/components/shell/state-glyph';
+import { currentChannel } from '@/lib/channels/active';
 import type { VideoState } from '@/lib/fixtures/pipeline';
 import { deferralState, inertBecause } from '@/lib/onboarding/deferred';
 import { readLimits } from '@/lib/pipeline/limits';
@@ -84,21 +85,34 @@ const STATE_ORDER: ConceptState[] = [
 
 const GRID = '1fr 130px 150px 120px';
 
+const rowStyle = {
+  gridTemplateColumns: GRID,
+  borderColor: 'var(--border-subtle)',
+  transitionDuration: 'var(--duration-fast)',
+} as const;
+
 function formatInr(n: number): string {
   return `₹${n.toFixed(2)}`;
 }
 
-function Row({ row }: { row: BoardRow }) {
+function RowShell({ opens, href, children }: { opens: boolean; href: string; children: React.ReactNode }) {
+  return opens ? (
+    <Link href={href} className="grid items-center gap-5 border-b px-5 py-3 transition-colors" style={rowStyle}>
+      {children}
+    </Link>
+  ) : (
+    <div className="grid items-center gap-5 border-b px-5 py-3" style={rowStyle} title="On another channel — switch channel in the sidebar to open it.">
+      {children}
+    </div>
+  );
+}
+
+function Row({ row, activeChannelId }: { row: BoardRow; activeChannelId: string | null }) {
+  // The board is workspace-wide and /concepts/[id] opens only the active channel's concepts,
+  // so a row of another channel is not a link — a link that 404s is a dead end with a URL.
+  const opens = row.channelId === activeChannelId;
   return (
-    <Link
-      href={`/concepts/${row.id}`}
-      className="grid items-center gap-5 border-b px-5 py-3 transition-colors"
-      style={{
-        gridTemplateColumns: GRID,
-        borderColor: 'var(--border-subtle)',
-        transitionDuration: 'var(--duration-fast)',
-      }}
-    >
+    <RowShell opens={opens} href={`/concepts/${row.id}`}>
       <span className="truncate text-sm">{row.title}</span>
 
       <span
@@ -140,16 +154,17 @@ function Row({ row }: { row: BoardRow }) {
           </>
         )}
       </span>
-    </Link>
+    </RowShell>
   );
 }
 
 async function Board() {
-  const [result, deferrals, limits, path] = await Promise.all([
+  const [result, deferrals, limits, path, channels] = await Promise.all([
     readBoard(),
     deferralState(),
     readLimits(),
     readPath(),
+    currentChannel(),
   ]);
 
   if (!result.ok) {
@@ -363,7 +378,7 @@ async function Board() {
 
       <div className={MAX_W}>
         {sorted.map((row) => (
-          <Row key={row.id} row={row} />
+          <Row key={row.id} row={row} activeChannelId={channels.active?.id ?? null} />
         ))}
       </div>
     </>

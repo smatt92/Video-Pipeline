@@ -1,6 +1,9 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { Panel, SectionHeader } from '@/components/settings/parts';
+import { requireChannel } from '@/lib/channels/active';
+import { conceptOnChannel } from '@/lib/concepts/by-channel';
 import { serverClient } from '@/lib/db/server';
 
 /**
@@ -24,6 +27,11 @@ const STATE_TOKEN: Record<string, string> = {
 export default async function ConceptPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const db = serverClient();
+
+  // A concept of another channel is not this screen's to show: the active channel decides
+  // what every list links to, and a pasted id must not reach past it.
+  const channel = await requireChannel();
+  if (!(await conceptOnChannel(db, id, channel.id))) notFound();
 
   const { data: concept } = await db
     .from('concepts')
@@ -109,7 +117,9 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
             >
               <span className="text-md font-medium">Shots</span>
               <span className="ml-auto font-mono text-2xs" style={{ color: 'var(--text-faint)' }}>
-                {anyUnpriced
+                {(generations ?? []).length === 0
+                  ? '— no generations yet'
+                  : anyUnpriced
                   ? `unpriced · ${generations?.length ?? 0} generations, no verified rate`
                   : `₹${totalInr.toFixed(2)} across ${generations?.length ?? 0} generations`}
               </span>
@@ -183,19 +193,6 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
                         {g.error_detail ? ` · ${g.error_detail}` : ''}
                       </p>
                     ))}
-
-                    <button
-                      type="button"
-                      disabled={!generatable}
-                      className="mt-2 rounded-sm px-[10px] py-[4px] text-xs font-medium transition-colors disabled:cursor-not-allowed"
-                      style={{
-                        background: generatable ? 'var(--accent)' : 'var(--surface-2)',
-                        color: generatable ? 'var(--accent-contrast)' : 'var(--text-faint)',
-                        transitionDuration: 'var(--duration-fast)',
-                      }}
-                    >
-                      Regenerate
-                    </button>
                   </div>
                 );
               })
@@ -203,9 +200,15 @@ export default async function ConceptPage({ params }: { params: Promise<{ id: st
           </Panel>
 
           <p className="mt-4 max-w-[80ch] text-xs leading-relaxed" style={{ color: 'var(--text-faint)' }}>
-            Regenerate is inert until Gate 4. It bumps the attempt counter, which mints a new
-            idempotency key and therefore a new charge — so it is wired only once a real
-            submit has been watched end to end.
+            Regenerating a shot happens on its render, on the{' '}
+            <Link href="/review" className="underline">
+              Review
+            </Link>{' '}
+            screen (pipeline lane) or on{' '}
+            <Link href="/bureau/cuts" className="underline">
+              Cuts
+            </Link>{' '}
+            (Bureau lane): each re-roll mints a new idempotency key and therefore a new charge, so it lives where the clip can be watched first.
           </p>
         </>
       )}

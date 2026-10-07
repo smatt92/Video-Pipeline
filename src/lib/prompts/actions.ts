@@ -94,12 +94,14 @@ export async function retireRecipeAction(
 export async function reinstateRecipeAction(
   id: string,
   _prev: LibraryState,
+  formData: FormData,
 ): Promise<LibraryState> {
   try {
     await requireUser();
-    await reinstateRecipe(serverClient(), id);
+    const result = await reinstateRecipe(serverClient(), id, String(formData.get('sample_output_url') ?? ''));
+    if (!result.ok) return { status: 'error', message: result.problem };
     refresh();
-    return { status: 'ok', message: 'Reinstated.' };
+    return { status: 'ok', message: 'Reinstated. Production can select it from the next compile.' };
   } catch (err) {
     return { status: 'error', message: err instanceof Error ? err.message : String(err) };
   }
