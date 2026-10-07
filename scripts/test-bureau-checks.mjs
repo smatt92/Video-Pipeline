@@ -298,6 +298,16 @@ console.log('\nscene stills (0021)\n');
   check(formatOf({ seriesFormat: 'diagram' }).format === 'diagram' && formatOf({ seriesFormat: 'diagram', approvedEdits: { visual_format: 'cinematic' } }).source === 'episode', 'the approver overrides the series default');
   check(formatOf({ seriesFormat: 'bogus', approvedEdits: { visual_format: 42 } }).format === 'illustrated', 'a bad stored value never throws and never becomes a format');
   {
+    const chr = routesForFormat(shots, 'characters', true);
+    check(JSON.stringify(chr.shots) === JSON.stringify(ill.shots) && chr.swaps.every((x) => /cartoon characters format/.test(x.reason)), 'characters routes exactly as illustrated (so it prices identically), and its swaps say which format', JSON.stringify(chr.swaps.map((x) => x.reason)));
+    check(formatOf({ approvedEdits: { visual_format: 'characters' } }).format === 'characters', 'characters is a format the approver can pick');
+    const { sheetTag, pictureCast } = require(`${B}/bureau/picture-cast.js`);
+    const tags = CB.bible.characters.map((c) => sheetTag(c));
+    check(tags.every((t) => /^[A-Za-z][A-Za-z0-9_]{2,15}$/.test(t)) && new Set(tags).size === tags.length, 'every cast member has a distinct tag of the vendor’s shape', tags.join(','));
+    const none = pictureCast(CB.bible.characters, ['pip', 'ohm']);
+    check(none.refs.length === 0 && none.excluded.length === 2, 'the folder bible locks nobody (placeholders are not sheets): nobody is drawn', JSON.stringify(none.excluded.map((x) => x.slug)));
+  }
+  {
     // 18 s shot at 30 fps starting at 3 s; words every 0.5 s.
     const words = Array.from({ length: 60 }, (_, i) => ({ w: `w${i}`, start: i * 0.5, end: i * 0.5 + 0.4 }));
     const spans = pictureSpans({ startFrame: 90, frames: 540 }, 3, words, 30);

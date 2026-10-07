@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { ScreenHeader } from '@/components/shell/screen-header';
 
 const TABS = [
+  { href: '/library/characters', label: 'Characters' },
   { href: '/library/voices', label: 'Voices' },
   { href: '/library/prompts', label: 'Prompts' },
   { href: '/library/music', label: 'Music' },

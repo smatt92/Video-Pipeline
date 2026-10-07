@@ -282,6 +282,12 @@ jobs:
       - name: Instagram Reels publish — gated, once, with the permalink
         run: pnpm verify:ig-publish "$DATABASE_URL"
 
+      # 0024: Cartoon characters against a stub image vendor — a sheet generated (ledger first)
+      # and locked into reference_frame; each picture carries exactly its characters' locked
+      # sheets; no sheet → offered disabled and planned as illustrated; Ohm is only the lamp.
+      - name: Cartoon characters — sheets, the lock, the cast in each picture
+        run: pnpm verify:characters "$DATABASE_URL"
+
       # 0022: the Bureau folder imported equals the folder field by field (both the local import
       # and the SQL generated for the hosted paste); a second channel made entirely through the
       # approver actions, with no folder, voices its lines in the presets lockVoice wrote.

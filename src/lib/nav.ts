@@ -63,6 +63,7 @@ export const NAV: readonly NavGroup[] = [
   {
     label: 'Library',
     items: [
+      { href: '/library/characters', label: 'Characters', hint: 'Each character’s locked sheet: generate, look, lock', status: ready(), icon: 'characters' },
       { href: '/library/voices', label: 'Voices', hint: 'Each character’s voice, override, last take', status: ready(), icon: 'voices' },
       { href: '/library/prompts', label: 'Prompts', hint: 'Shot recipes, params, rate, provenance', status: ready(), icon: 'prompts' },
       { href: '/library/music', label: 'Music', hint: 'Beds per series: upload, preview, default', status: ready(), icon: 'music' },

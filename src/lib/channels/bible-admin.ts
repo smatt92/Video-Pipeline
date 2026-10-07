@@ -7,6 +7,7 @@ import {
   CharacterSchema,
   characterRow,
   getBible,
+  isUsableReference,
   PolicySchema,
   SeriesSchema,
   syncCast,
@@ -325,6 +326,40 @@ export async function lockVoice(db: Db, actor: BibleActor, channelId: string, ra
   await syncCast(db as unknown as Parameters<typeof syncCast>[0], channelId, back);
   await log(db, actor, channelId, 'voice_lock', 'character', characterSlug, { from: prev, to: voice });
   return { ok: true, message: `${cur.name} now speaks as ${presetId}. The next voice run uses it — no deploy.`, slug: characterSlug, presetId };
+}
+
+/**
+ * Lock a character's reference frame — the Characters screen's "Lock" on a sheet Sahil has
+ * looked at (character-sheets.ts). Writes the SAME field `pnpm frame:lock` writes
+ * (`channel_characters.reference_frame`), replacing it with this one reference, so the sheet
+ * is what every later picture of the character is drawn from and what a character beat
+ * animates from. `ref` must be usable (`storage:<key>` or https); a placeholder never is.
+ */
+export async function lockReferenceFrame(
+  db: Db,
+  actor: BibleActor,
+  channelId: string,
+  input: { characterSlug: string; ref: string; source: Record<string, unknown> },
+): Promise<AdminResult<{ slug: string; ref: string }>> {
+  const denied = approverOnly(actor);
+  if (denied) return refuse(denied);
+  if (!isUsableReference(input.ref)) return refuse(`"${input.ref}" is not a reference the generator can be given (storage:<key> or https).`);
+  const has = await requireDbBible(db, channelId);
+  if (typeof has === 'string') return refuse(has);
+  const { data: cur } = await db.from('channel_characters').select('id, name, reference_frame').eq('channel_id', channelId).eq('slug', input.characterSlug).maybeSingle();
+  if (!cur) return refuse(`No character "${input.characterSlug}" in this channel's cast.`);
+  const prev = cur.reference_frame;
+  const { error } = await db.from('channel_characters').update({ reference_frame: [input.ref] as unknown as Json, updated_at: new Date().toISOString() }).eq('id', cur.id);
+  if (error) return refuse(`Locking the sheet failed: ${error.message}`);
+  const back = await proveReadable(db, channelId);
+  if (typeof back === 'string') {
+    await db.from('channel_characters').update({ reference_frame: prev as Json }).eq('id', cur.id);
+    return refuse(`The lock was rolled back — the bible would no longer read: ${back}`);
+  }
+  await bump(db, channelId, actor);
+  await syncCast(db as unknown as Parameters<typeof syncCast>[0], channelId, back);
+  await log(db, actor, channelId, 'reference_frame_lock', 'character', input.characterSlug, { from: prev, to: [input.ref], ...input.source });
+  return { ok: true, message: `${cur.name}'s sheet is locked. Every picture of ${cur.name} is drawn from it from the next one on — no deploy.`, slug: input.characterSlug, ref: input.ref };
 }
 
 /**

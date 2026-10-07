@@ -121,7 +121,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
   }, {});
   const policyStatus = status(b.policy);
   const variationStatus = status(b.variation);
-  const fmts = await formatOptions(db, channel.id, { series: b.series, shot_list: b.shot_list, script_text: b.script_text });
+  const fmts = await formatOptions(db, channel.id, { series: b.series, shot_list: b.shot_list, script_text: b.script_text, lead_character: b.lead_character });
   const seriesName = slot?.seriesName ?? bible?.series[b.series as keyof typeof bible.series]?.name ?? b.series;
 
   const briefCard = (

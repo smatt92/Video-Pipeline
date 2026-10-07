@@ -28,6 +28,7 @@ import { measureLoudness, normaliseLoudness, sampleFrames, signalQc, visionQc } 
 import { renderBureau } from '@/lib/bureau/layer-render';
 import { requireUsdInrRate } from '@/lib/cost/fx';
 import { PROVIDER_INTEGRATION, ROUTE_PROVIDERS } from '@/lib/drivers/jobs';
+import { refResolver } from '@/lib/bureau/picture-cast';
 import { serverClient } from '@/lib/db/server';
 import { readTuning } from '@/lib/settings/tuning';
 import { STILL_CREDENTIAL_FIELD, STILL_INTEGRATION, submitStill, waitStill } from '@/lib/drivers/still-image';
@@ -136,6 +137,8 @@ export const episodeTask = schemaTask({
             return Buffer.from(await res.arrayBuffer());
           },
           putBytes: put,
+          // 'characters' format: each locked sheet as a presigned URL, minted at submit.
+          resolveRef: refResolver(presign),
           log: logger,
         });
         logger.info('stills', st);

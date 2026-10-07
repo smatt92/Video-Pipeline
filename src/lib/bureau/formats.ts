@@ -13,6 +13,10 @@ import { z } from 'zod';
  *                seconds_per_picture seconds (Settings → Generation; default SECONDS_PER_PICTURE) of narration — the default
  *   diagram      the in-house chalk diagrams only: nothing generated but the voice
  *   cinematic    generated video where a usable recipe exists; pictures everywhere else
+ *   characters   pictures like illustrated, with the cast IN them — each drawn from its locked
+ *                character sheet (character-sheets.ts), so a character looks the same in
+ *                every picture. A character with no locked sheet is left out of the picture,
+ *                and an episode with none at all is planned as illustrated (07-Oct-2026)
  *
  * ── Where the choice lives ───────────────────────────────────────────────────
  *
@@ -22,7 +26,7 @@ import { z } from 'zod';
  * the decision it belongs to, and no migration was needed to ship it.
  */
 
-export const VISUAL_FORMATS = ['illustrated', 'diagram', 'cinematic'] as const;
+export const VISUAL_FORMATS = ['illustrated', 'diagram', 'cinematic', 'characters'] as const;
 export type VisualFormat = (typeof VISUAL_FORMATS)[number];
 export const VisualFormatSchema = z.enum(VISUAL_FORMATS);
 export const DEFAULT_VISUAL_FORMAT: VisualFormat = 'illustrated';
@@ -31,7 +35,11 @@ export const FORMAT_INFO: Record<VisualFormat, { label: string; blurb: string }>
   illustrated: { label: 'Illustrated', blurb: 'Cartoon pictures of the topic, a new one every ~6 s of narration' },
   diagram: { label: 'Chalk diagrams', blurb: 'In-house drawn diagrams; only the voice is generated' },
   cinematic: { label: 'Cinematic', blurb: 'Generated video where a recipe is active; pictures elsewhere' },
+  characters: { label: 'Cartoon characters', blurb: 'The cast appears as consistent cartoon characters, a new picture every ~6 s' },
 };
+
+/** Formats whose every shot is a picture (routesForFormat). They price identically. */
+export const PICTURE_FORMATS: readonly VisualFormat[] = ['illustrated', 'characters'];
 
 /**
  * Narration seconds each picture covers in an illustrated shot — the DEFAULT. A channel's own
@@ -86,9 +94,11 @@ export function routesForFormat<T extends { route: string }>(
       return { ...s, route: 'overlay' };
     }
     if (!stillsAvailable) return s;
-    if (format === 'illustrated') {
+    if (PICTURE_FORMATS.includes(format)) {
+      // 'characters' routes exactly as illustrated: the difference is inside the still prompt
+      // (picture-cast.ts), so the estimate and the plan cannot disagree about its price.
       if (s.route === 'still') return s;
-      if (s.route !== 'overlay') swaps.push({ idx, from: s.route, to: 'still', reason: 'illustrated format — a picture of the topic instead' });
+      if (s.route !== 'overlay') swaps.push({ idx, from: s.route, to: 'still', reason: format === 'characters' ? 'cartoon characters format — a picture with the cast drawn from their sheets instead' : 'illustrated format — a picture of the topic instead' });
       return { ...s, route: 'still' };
     }
     // cinematic: generated routes stay (the planner swaps any it cannot make); drawn ones become pictures.
@@ -107,6 +117,12 @@ export interface PictureSpan {
   frames: number;
   /** The narration spoken under this picture — what the picture is drawn to show. */
   narration: string;
+  /**
+   * Who is speaking under this picture, longest-speaking first (character slugs). Filled by
+   * `pictureSpansFor` from the timed takes; absent from the pure split. The 'characters'
+   * format draws the first one in the foreground.
+   */
+  speakers?: string[];
 }
 
 /**

@@ -7,6 +7,7 @@ import { getBible } from './bible';
 import { requireApprover } from './control';
 import { assembleEpisode, pictureSpansFor, type AssembleDeps } from './episode-steps';
 import { generateStillForShot, stillsByPart, type StillDeps } from './stills';
+import { pictureCast, plannedFormat, wantedFor } from './picture-cast';
 import { redrawInFlight, redrawsOf, type RedrawEntry } from './redraw-state';
 import type { BureauToken } from './tokens';
 
@@ -154,24 +155,26 @@ async function redrawOnce(db: Db, input: RedrawInput, deps: RunRedrawDeps): Prom
     return entry.state === 'done' && entry.render_id ? { ok: true, renderId: entry.render_id, made: 0, failed: 0, costInr: 0 } : { ok: false, reason: entry.reason ?? 'already failed', made: 0, costInr: 0 };
   }
   if (e.status !== 'awaiting_cut') return fail(`the episode moved to ${e.status} before the redraw ran`);
-  const { data: b } = await db.from('briefs').select('premise, lead_character').eq('id', e.brief_id).single();
-  const { data: shot } = await db.from('shots').select('id, idx, description, script_id, render_route').eq('id', input.shotId).single();
+  const { data: b } = await db.from('briefs').select('premise, lead_character, series, approved_edits').eq('id', e.brief_id).single();
+  const { data: shot } = await db.from('shots').select('id, idx, description, script_id, render_route, character_slugs').eq('id', input.shotId).single();
   if (!b || !shot || shot.script_id !== e.script_id || shot.render_route !== 'still') return fail('the shot is no longer a picture of this episode');
   const cb = await getBible(db, e.channel_id);
   const lead = cb.characterBySlug(b.lead_character);
   if (!lead) return fail(`lead "${b.lead_character}" is not in the ${cb.slug} cast`);
   const spans = (await pictureSpansFor(db, e.script_id!, await pictureTuning(db, e.channel_id))).get(shot.id) ?? [{ from: 0, frames: 0, narration: '' }];
   const cast = cb.bible.characters.map((c) => ({ id: c.id, name: c.name }));
+  // A redraw in a 'characters' episode draws the cast from their sheets, exactly as the run did.
+  const withCast = plannedFormat(e.qc, { approvedEdits: b.approved_edits, seriesFormat: cb.seriesFor(b.series as never)?.visual_format }).format === 'characters';
 
   await patchRedraw(db, e.id, entry.id, { state: 'drawing' });
   const results: NonNullable<RedrawEntry['results']> = [];
   let costInr = 0;
   for (const [n, k] of input.parts.entries()) {
     await db.from('episodes').update({ status_detail: `redrawing shot ${shot.idx}, picture ${k + 1}${input.parts.length > 1 ? ` (${n + 1} of ${input.parts.length})` : ''}`, updated_at: new Date().toISOString() }).eq('id', e.id);
-    const span = spans[k] ?? { narration: '' };
+    const span: { narration: string; speakers?: string[] } = spans[k] ?? { narration: '' };
     const r = await generateStillForShot(
       db,
-      { shot, channelId: e.channel_id, premise: b.premise, cast, world: cb.bible.world, accent: lead.accent_hex, kind: e.kind === 'long_form' ? 'long_form' : 'short', part: { index: k, of: spans.length, narration: span.narration }, direction: input.note ?? undefined },
+      { shot, channelId: e.channel_id, premise: b.premise, cast, world: cb.bible.world, accent: lead.accent_hex, kind: e.kind === 'long_form' ? 'long_form' : 'short', part: { index: k, of: spans.length, narration: span.narration }, direction: input.note ?? undefined, pictureCast: withCast ? pictureCast(cb.bible.characters, wantedFor(span.speakers, shot.character_slugs)) : undefined },
       deps.still,
     );
     if (r.ok) costInr += r.costInr;

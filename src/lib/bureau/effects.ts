@@ -7,6 +7,7 @@ import { requireCredential } from '../integrations/credentials';
 import { judgeLint } from './brief-generator';
 import type { Db } from '../db/server';
 import { ledgeredEmbedder } from './embed';
+import type { SheetEffects } from './character-sheets';
 import type { BureauSideEffects } from './mcp/surface';
 import { notify, type NotificationKind } from './alerts';
 
@@ -56,6 +57,16 @@ export function productionEffects(db: Db): BureauSideEffects {
     async embedderFor(d, ch) {
       const fx = await readUsdInrRate(d);
       return ledgeredEmbedder(d, ch, fx.ok ? fx.rate : null);
+    },
+  };
+}
+
+/** Library → Characters → "Generate sheet": starts 27-character-sheet, one run per request. */
+export function productionSheetEffects(): Required<SheetEffects> {
+  return {
+    async startSheet(input) {
+      const handle = await tasks.trigger('27-character-sheet', input, { idempotencyKey: `sheet:${input.requestId}` });
+      return handle.id;
     },
   };
 }

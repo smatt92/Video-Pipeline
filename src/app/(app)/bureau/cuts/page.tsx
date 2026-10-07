@@ -81,6 +81,11 @@ export default async function CutsPage({ searchParams }: { searchParams: Promise
   const storedFormat = ((e.qc ?? {}) as { plan?: { format?: { format?: unknown; source?: unknown } } }).plan?.format;
   const parsedFormat = VisualFormatSchema.safeParse(storedFormat?.format);
   const planFormat: { format: VisualFormat; source: FormatSource } | null = parsedFormat.success ? { format: parsedFormat.data, source: (storedFormat?.source as FormatSource) ?? 'default' } : null;
+  // Cartoon characters: why it fell back, and who was drawn in / left out of each picture (picture-cast.ts).
+  const planObj = ((e.qc ?? {}) as { plan?: { format?: { requested?: string; fallback_reason?: string }; cast?: { idx: number; part: number; drawn: string[]; excluded: { slug: string; reason: string }[] }[] } }).plan;
+  const castFallback = planObj?.format?.requested === 'characters' ? planObj.format.fallback_reason ?? 'no locked character sheets' : null;
+  const castByShot = new Map<number, { part: number; drawn: string[]; excluded: { slug: string; reason: string }[] }[]>();
+  for (const c of planObj?.cast ?? []) castByShot.set(c.idx, [...(castByShot.get(c.idx) ?? []), c]);
   let url: string | null = null;
   let dims: { w: number; h: number; dur: number | null } | null = null;
   if (e.final_render_id) {
@@ -192,6 +197,7 @@ export default async function CutsPage({ searchParams }: { searchParams: Promise
         </nav>
       )}
 
+      {castFallback && <Note>Cartoon characters was picked, but this episode was made as Illustrated: {castFallback}.</Note>}
       {readiness.summary && planFormat?.format === 'cinematic' && <Note>{readiness.summary} Those shots are drawn as pictures or diagrams instead; nothing is spent on video.</Note>}
 
       <div className="split">
@@ -243,6 +249,12 @@ export default async function CutsPage({ searchParams }: { searchParams: Promise
                       {qc && (
                         <span style={{ color: qc.passed ? 'var(--live)' : 'var(--blk-text)' }}> · QC {qc.passed ? 'pass' : `${qc.action}: ${qc.reasons.join(', ')}`}</span>
                       )}
+                      {(castByShot.get(s.idx) ?? []).map((c) => (
+                        <span key={c.part} style={{ display: 'block' }}>
+                          picture {c.part + 1}: {c.drawn.length ? `drawn — ${c.drawn.join(', ')}` : 'nobody drawn'}
+                          {c.excluded.length > 0 && ` · left out — ${c.excluded.map((x) => `${x.slug} (${x.reason})`).join('; ')}`}
+                        </span>
+                      ))}
                     </span>
                   </span>
                   <span className="mono sm">{s.dur.toFixed(1)} s</span>

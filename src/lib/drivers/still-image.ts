@@ -33,6 +33,17 @@ export const STILL_HEIGHT = 1280;
 export const STILL_WAIT_MS = 180_000;
 /** The vendor's prompt limit; a still prompt over it is refused, never clipped. */
 export const STILL_PROMPT_MAX = PROMPT_MAX;
+/**
+ * Reference images one still may carry, and the tag shape the prompt names them by
+ * (`@Pip`). Read from the vendor's SDK typings for text-to-image (sdk-node main,
+ * `TextToImageCreateParams`, re-read 07-Oct-2026 for decision 0024): "one to three images";
+ * a tag "must be 3-16 characters, start with a letter, and use only letters, digits, and
+ * underscores"; a uri is "a HTTPS URL, Runway upload URI, or base64 data URI … up to 5MB".
+ * `imageRequestBody` enforces the same limits before anything is ledgered.
+ */
+export const STILL_MAX_REFERENCES = 3;
+export const STILL_REFERENCE_MAX_BYTES = 5 * 1024 * 1024;
+export const STILL_TAG = /^[A-Za-z][A-Za-z0-9_]{2,15}$/;
 
 /** Where the still's price lives in `rate_card` — the row the estimate and the ledger read. */
 export const STILL_RATE_KEY = {
@@ -55,9 +66,9 @@ export type StillOutcome =
 const charged = (credits: number | null | undefined): Charged | null =>
   credits === null || credits === undefined ? null : { quantity: credits, unit: 'credit', usd: credits * CREDIT_USD };
 
-export async function submitStill(input: { prompt: string; apiKey: string; seed?: number; fetchImpl?: typeof fetch; baseUrl?: string }): Promise<StillSubmitted> {
+export async function submitStill(input: { prompt: string; apiKey: string; seed?: number; references?: { uri: string; tag: string }[]; fetchImpl?: typeof fetch; baseUrl?: string }): Promise<StillSubmitted> {
   const call: RunwayCall = { apiKey: input.apiKey, fetchImpl: input.fetchImpl, baseUrl: input.baseUrl };
-  const r = await submitImage({ model: STILL_MODEL, prompt: input.prompt, ratio: STILL_RATIO, references: [], seed: input.seed }, call);
+  const r = await submitImage({ model: STILL_MODEL, prompt: input.prompt, ratio: STILL_RATIO, references: input.references ?? [], seed: input.seed }, call);
   return r.ok ? { ok: true, taskId: r.taskId } : { ok: false, code: r.code, detail: r.detail };
 }
 

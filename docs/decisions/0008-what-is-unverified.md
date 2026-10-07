@@ -1393,6 +1393,26 @@ are parsed strictly so a difference is reported by name on /trends); the paste o
 project; any Settings screen in a signed-in browser; the `99-purge-orphans` task against the
 real bucket.
 
+### 31. Cartoon characters (2026-10-07, decision 0024) — RUN against a stub image vendor; ONE real sheet
+
+**What ran:** `verify:characters` (CI) — zero locked sheets: Approvals disables the type with the
+reason, the planner plans it as illustrated recording `requested` and the reason, and those
+pictures carry no reference and the no-people clause. A sheet: agent refused, request logged
+verbatim, the worker started with the request id, estimate row present at the vendor call,
+stored under `characters/pip/`, **not** locked, a replay pays nothing; Ohm's sheet is the lamp.
+Lock: agent refused, another character's sheet refused, `reference_frame` = `storage:<key>`,
+logged with what it replaced, cast re-synced. **LOAD-BEARING:** a characters episode (Pip,
+Marlo, Mrs. Iyer, Director Ohm; sheets for Pip, Marlo, Ohm) submits picture 1 with exactly
+@Pip's sheet URI, picture 2 with @Marlo then @Pip, picture 3 with nothing (Iyer left out and
+recorded), picture 4 with @Ohm as an object only — expected URIs read from the rows the lock
+wrote. Mutating `generateStillForShot` to drop `references` fails three checks. `verify:episode`
+(stills, redraw) still green.
+
+**What has NOT run:** a real picture with a reference image (the vendor honouring `@Tag` and
+the reference's look); the Characters screen and Lock in a browser against the deployed app;
+`27-character-sheet` beyond the one probe; a characters episode end to end; whether three
+references in one picture keep each character distinct.
+
 ## Gates, and where each can run
 
 | Gate | Runnable in this environment? |

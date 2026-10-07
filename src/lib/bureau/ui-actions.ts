@@ -8,7 +8,7 @@ import { serverClient } from '../db/server';
 import { youtubeVideoId } from '../publish/yt-analytics';
 import { approveBrief, decideCut, markScheduled, rejectBrief, restartHaltedEpisode, setKillSwitch, startQueuedEpisode } from './control';
 import { lockVoice } from '../channels/bible-admin';
-import { productionEffects } from './effects';
+import { productionEffects, productionSheetEffects } from './effects';
 import { applyRecutNotes } from './recut';
 import { VisualFormatSchema, VoicePaceSchema } from './formats';
 import { queueDubs, regenerateShot, type DubLanguage } from './episodes';
@@ -227,5 +227,26 @@ export async function publishInstagramAction(publicationId: string, when: 'now' 
     const { requestInstagramPublish } = await import('./instagram-draft');
     const r = await requestInstagramPublish(db, t, productionEffects(db), { publication_id: publicationId, when });
     return when === 'now' ? 'Posting to Instagram now — the permalink appears here when Meta has published it (a few minutes).' : `Scheduled for ${new Date(r.at).toLocaleString('en-GB', { timeZone: 'Asia/Kolkata' })} IST; posted automatically at the slot.`;
+  });
+}
+
+/**
+ * Library → Characters → "Generate sheet" (character-sheets.ts): approver only, logged, starts
+ * 27-character-sheet. Spends one image (the one-time sheet price shown on the screen).
+ */
+export async function requestSheetAction(channelId: string, slug: string, note: string): Promise<ActionResult> {
+  return run('/library/characters', { channelId }, async (t) => {
+    const { requestCharacterSheet } = await import('./character-sheets');
+    const r = await requestCharacterSheet(serverClient(), t, productionSheetEffects(), { slug, note });
+    return `Drawing a sheet for ${r.name}. It appears here in about a minute — look at it before you lock it.`;
+  });
+}
+
+/** Library → Characters → "Lock": this sheet becomes the character's reference frame. */
+export async function lockSheetAction(channelId: string, slug: string, generationId: string): Promise<ActionResult> {
+  return run('/library/characters', { channelId }, async (t) => {
+    const { lockCharacterSheet } = await import('./character-sheets');
+    const r = await lockCharacterSheet(serverClient(), t, { slug, generationId });
+    return r.message;
   });
 }

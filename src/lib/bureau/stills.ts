@@ -23,9 +23,11 @@ import type { CredentialRefusal } from '../integrations/verify';
 import { usability } from '../integrations/verify';
 import { routed } from '../llm/router';
 import { STILL_NEGATIVE, STILL_PROMPT_REF, STILL_SYSTEM, stillUserMessage } from '../prompts/21-still.v4';
+import { STILL_CAST_PROMPT_REF, STILL_CAST_SYSTEM, stillCastNegative, stillCastUserMessage } from '../prompts/21-still.v5';
 import { normaliseOverlay } from '../../remotion/bureau/overlay-scene';
 import type { Bible } from './bible';
 import { fits, headroom } from './caps';
+import type { PictureCast, PictureRef } from './picture-cast';
 
 /**
  * Scene stills (decision 0021): one generated picture per shot, nobody in it.
@@ -103,21 +105,59 @@ export function composeStillPrompt(input: { scene: string; world: Bible['world']
   return `${scene}. ${stillStyle(input.world)} Use ${input.accent} as the highlight colour on the single most important element. Avoid: ${input.world.negative_prompt}, ${STILL_NEGATIVE}.`;
 }
 
-export type StillPrompt = { ok: true; prompt: string; scene: string; model: string | null } | { ok: false; reason: string };
+/**
+ * The character clause of a 'characters' picture, written by code from the bible so no rewrite
+ * can drop a tag or a prop. `detail` false is the compact form, used only when the full one
+ * would not fit the vendor's prompt limit.
+ */
+export function castClause(refs: readonly PictureRef[], detail = true): string {
+  const people = refs.filter((r) => !r.objectOnly);
+  const objects = refs.filter((r) => r.objectOnly);
+  const parts: string[] = [];
+  if (people.length) {
+    const each = people.map((r) => {
+      const where = r.foreground ? 'in front' : 'smaller, beside or behind';
+      return detail ? `@${r.tag} ${where} (${[r.silhouette, ...r.props].join('; ')}; accent ${r.accent})` : `@${r.tag} ${where}`;
+    });
+    parts.push(`Characters drawn exactly as in their reference images: ${each.join(', ')}.`);
+  }
+  for (const r of objects) parts.push(`@${r.tag} is only the object in its reference image${detail && r.props.length ? ` (${r.props.join('; ')})` : ''} — never a body, arms, hands or a face.`);
+  return parts.join(' ');
+}
+
+/** Scene + the character clause + bible style + accent + negatives, for a picture with the cast in it. Pure. */
+export function composeCharacterStillPrompt(input: { scene: string; world: Bible['world']; accent: string; refs: readonly PictureRef[]; detail?: boolean }): string {
+  const scene = input.scene.trim().replace(/[.\s]+$/, '');
+  return `${scene}. ${castClause(input.refs, input.detail ?? true)} ${stillStyle(input.world)} Use ${input.accent} as the highlight colour on the single most important element. Avoid: ${input.world.negative_prompt}, ${stillCastNegative(input.refs.map((r) => r.tag))}.`;
+}
+
+/** The text with every `@Tag` of the referenced characters removed — what the cast-name check reads. */
+export function withoutTags(text: string, refs: readonly PictureRef[]): string {
+  let out = text;
+  for (const r of refs) out = out.replace(new RegExp(`@${escape(r.tag)}(?![A-Za-z0-9_])`, 'g'), ' ');
+  return out;
+}
+
+export type StillPrompt = { ok: true; prompt: string; scene: string; model: string | null; promptRef: string } | { ok: false; reason: string };
 
 /**
  * The full still prompt for one shot, or why not. The model rewrites; code checks and composes.
  */
 export async function stillPromptFor(
-  input: { description: string; premise: string; cast: readonly { id: string; name: string }[]; world: Bible['world']; accent: string; narration?: string; part?: { index: number; of: number }; direction?: string },
+  input: { description: string; premise: string; cast: readonly { id: string; name: string }[]; world: Bible['world']; accent: string; narration?: string; part?: { index: number; of: number }; direction?: string; refs?: readonly PictureRef[] },
   deps: { db: Db; apiKey: string | null; usdInrRate: number; subject: LlmCostSubject; client?: Pick<Anthropic, 'messages'> },
 ): Promise<StillPrompt> {
   if (!deps.apiKey) return { ok: false, reason: 'no model key to rewrite the shot without its cast' };
+  const refs = input.refs ?? [];
+  const withCast = refs.length > 0;
   let scene: string;
   let model: string;
   try {
+    const user = withCast
+      ? stillCastUserMessage({ description: input.description, premise: input.premise, cast: input.cast.map((c) => c.name), characters: refs.map((r) => ({ tag: r.tag, foreground: r.foreground, objectOnly: r.objectOnly, role: r.role })), narration: input.narration, part: input.part, direction: input.direction })
+      : stillUserMessage({ description: input.description, premise: input.premise, cast: input.cast.map((c) => c.name), narration: input.narration, part: input.part, direction: input.direction });
     const r = await routed(
-      { task: 'still_prompt', system: STILL_SYSTEM, user: stillUserMessage({ description: input.description, premise: input.premise, cast: input.cast.map((c) => c.name), narration: input.narration, part: input.part, direction: input.direction }), schema: z.object({ scene: z.string().min(3).max(600) }), maxTokens: 300 },
+      { task: 'still_prompt', system: withCast ? STILL_CAST_SYSTEM : STILL_SYSTEM, user, schema: z.object({ scene: z.string().min(3).max(600) }), maxTokens: 300 },
       { db: deps.db, apiKey: deps.apiKey, usdInrRate: deps.usdInrRate, subject: deps.subject, client: deps.client },
     );
     scene = r.data.scene;
@@ -125,11 +165,20 @@ export async function stillPromptFor(
   } catch (err) {
     return { ok: false, reason: `the rewrite failed: ${err instanceof Error ? err.message : String(err)}` };
   }
-  const named = castNamesIn(scene, input.cast);
-  if (named.length) return { ok: false, reason: `the rewrite still names ${named.join(', ')} — refused, the cast stays off-screen` };
-  const prompt = composeStillPrompt({ scene, world: input.world, accent: input.accent });
-  if (prompt.length > STILL_PROMPT_MAX) return { ok: false, reason: `the still prompt is ${prompt.length} characters; the limit is ${STILL_PROMPT_MAX}` };
-  return { ok: true, prompt, scene, model };
+  // Only the characters referenced in THIS picture may appear, and only through their tags.
+  // Everyone else in the cast is refused by any form of their name, exactly as before.
+  const referenced = new Set(refs.map((r) => r.slug));
+  const named = castNamesIn(withoutTags(scene, refs), input.cast.filter((c) => !referenced.has(c.id)));
+  if (named.length) return { ok: false, reason: withCast ? `the rewrite names ${named.join(', ')}, who is not referenced in this picture — refused, nobody is drawn without their sheet` : `the rewrite still names ${named.join(', ')} — refused, the cast stays off-screen` };
+  if (!withCast) {
+    const prompt = composeStillPrompt({ scene, world: input.world, accent: input.accent });
+    if (prompt.length > STILL_PROMPT_MAX) return { ok: false, reason: `the still prompt is ${prompt.length} characters; the limit is ${STILL_PROMPT_MAX}` };
+    return { ok: true, prompt, scene, model, promptRef: STILL_PROMPT_REF };
+  }
+  const full = composeCharacterStillPrompt({ scene, world: input.world, accent: input.accent, refs });
+  const prompt = full.length <= STILL_PROMPT_MAX ? full : composeCharacterStillPrompt({ scene, world: input.world, accent: input.accent, refs, detail: false });
+  if (prompt.length > STILL_PROMPT_MAX) return { ok: false, reason: `the still prompt is ${prompt.length} characters even with the short character clause; the limit is ${STILL_PROMPT_MAX}` };
+  return { ok: true, prompt, scene, model, promptRef: STILL_CAST_PROMPT_REF };
 }
 
 export interface StillDeps {
@@ -140,11 +189,17 @@ export interface StillDeps {
   llmClient?: Pick<Anthropic, 'messages'>;
   /** The image integration's key if it has verified, else the refusal by name. */
   apiKey(): Promise<{ ok: true; value: string } | CredentialRefusal>;
-  submit(input: { prompt: string; apiKey: string; seed: number }): Promise<StillSubmitted>;
+  submit(input: { prompt: string; apiKey: string; seed: number; references?: { uri: string; tag: string }[] }): Promise<StillSubmitted>;
   wait(input: { apiKey: string; taskId: string }): Promise<StillOutcome>;
   /** The finished image's bytes (the vendor's short-lived URL, read once, on the worker). */
   fetchBytes(url: string): Promise<Buffer>;
   putBytes(key: string, body: Readable): Promise<number>;
+  /**
+   * A locked sheet (`storage:<key>` or https) as a URL the image model can fetch, minted at
+   * submit and never stored. Absent → this caller cannot put the cast in a picture, and a
+   * 'characters' picture is drawn with nobody in it, saying so.
+   */
+  resolveRef?(ref: string): Promise<string>;
   log?: { info(m: string, d?: unknown): void; error(m: string, d?: unknown): void };
 }
 
@@ -156,7 +211,7 @@ export interface StillShot {
 }
 
 export type StillResult =
-  | { ok: true; generationId: string; assetId: string; storageKey: string; costInr: number; prompt: string }
+  | { ok: true; generationId: string; assetId: string; storageKey: string; costInr: number; prompt: string; drawn: string[]; excluded: { slug: string; reason: string }[] }
   | { ok: false; reason: string; spent: boolean };
 
 function sniff(bytes: Buffer): { ext: string; type: string } {
@@ -185,10 +240,20 @@ export async function generateStillForShot(
     part?: { index: number; of: number; narration: string };
     /** The approver's note on a redraw (Cuts → Redraw, redraw.ts): reaches the rewrite as a direction. */
     direction?: string;
+    /** 'characters' format: who is drawn in this picture from their locked sheets, and who was left out (picture-cast.ts). */
+    pictureCast?: PictureCast;
   },
   deps: StillDeps,
 ): Promise<StillResult> {
   const { shot } = ctx;
+  // Who is in the picture. A caller that cannot mint a URL for a sheet draws nobody — never a
+  // character without its sheet — and the reason is recorded with the rest of the exclusions.
+  let refs = ctx.pictureCast?.refs ?? [];
+  const excluded = [...(ctx.pictureCast?.excluded ?? [])];
+  if (refs.length && !deps.resolveRef) {
+    excluded.push(...refs.map((r) => ({ slug: r.slug, reason: 'this run cannot read character sheets — drawn with nobody in it' })));
+    refs = [];
+  }
   const part = ctx.part?.index ?? 0;
   // Attempts count per picture: a shot's second picture starts at attempt 0 too.
   const { data: prior } = await db.from('generations').select('request_payload').eq('shot_id', shot.id).eq('kind', 'image');
@@ -197,7 +262,7 @@ export async function generateStillForShot(
   const key = part === 0 ? `still:${shot.id}:${attempt}` : `still:${shot.id}:p${part}:${attempt}`;
 
   const p = await stillPromptFor(
-    { description: shot.description, premise: ctx.premise, cast: ctx.cast, world: ctx.world, accent: ctx.accent, narration: ctx.part?.narration || undefined, part: ctx.part ? { index: ctx.part.index, of: ctx.part.of } : undefined, direction: ctx.direction },
+    { description: shot.description, premise: ctx.premise, cast: ctx.cast, world: ctx.world, accent: refs[0]?.accent ?? ctx.accent, narration: ctx.part?.narration || undefined, part: ctx.part ? { index: ctx.part.index, of: ctx.part.of } : undefined, direction: ctx.direction, refs },
     { db, apiKey: deps.llmKey, usdInrRate: deps.usdInrRate, client: deps.llmClient, subject: { kind: 'channel', channelId: ctx.channelId, idempotencyKey: `${key}:prompt`, stage: '20-still-prompt' } },
   );
   if (!p.ok) return { ok: false, reason: p.reason, spent: false };
@@ -213,6 +278,15 @@ export async function generateStillForShot(
   const cred = await deps.apiKey();
   if (!cred.ok) return { ok: false, reason: `${cred.code}: ${cred.reason}`, spent: false };
 
+  // Every sheet is minted a URL before any money moves: a sheet that cannot be read refuses
+  // the picture here, unpaid, rather than reaching the vendor without it.
+  let references: { uri: string; tag: string }[] = [];
+  try {
+    references = await Promise.all(refs.map(async (r) => ({ uri: await deps.resolveRef!(r.ref), tag: r.tag })));
+  } catch (err) {
+    return { ok: false, reason: `a character sheet could not be read: ${err instanceof Error ? err.message : String(err)}`, spent: false };
+  }
+
   // ── The money, before the call ────────────────────────────────────────────
   const { data: gen, error: gErr } = await db
     .from('generations')
@@ -222,7 +296,7 @@ export async function generateStillForShot(
       driver: STILL_PROVIDER,
       model: STILL_MODEL,
       attempt,
-      request_payload: { prompt: p.prompt, scene: p.scene, prompt_ref: STILL_PROMPT_REF, rewrite_model: p.model, ratio: STILL_RATIO, source_description: shot.description, part, parts: ctx.part?.of ?? 1, narration: ctx.part?.narration ?? null, direction: ctx.direction ?? null } as Json,
+      request_payload: { prompt: p.prompt, scene: p.scene, prompt_ref: p.promptRef, rewrite_model: p.model, cast: refs.map((r) => ({ slug: r.slug, tag: r.tag, ref: r.ref, foreground: r.foreground })), cast_excluded: excluded, ratio: STILL_RATIO, source_description: shot.description, part, parts: ctx.part?.of ?? 1, narration: ctx.part?.narration ?? null, direction: ctx.direction ?? null } as Json,
       idempotency_key: key,
       status: 'submitting',
       origin: 'pipeline',
@@ -252,7 +326,7 @@ export async function generateStillForShot(
     await db.from('generations').update({ status: 'failed', error_code: code, error_detail: detail.slice(0, 1000), completed_at: new Date().toISOString() }).eq('id', gen.id);
   };
 
-  const started = await deps.submit({ prompt: p.prompt, apiKey: cred.value, seed: shot.idx + 1 + attempt * 101 + part * 7 });
+  const started = await deps.submit({ prompt: p.prompt, apiKey: cred.value, seed: shot.idx + 1 + attempt * 101 + part * 7, ...(references.length ? { references } : {}) });
   if (!started.ok) {
     await failGen(started.code, started.detail);
     return { ok: false, reason: `the vendor refused the still: ${started.code} ${started.detail}`, spent: true };
@@ -299,7 +373,7 @@ export async function generateStillForShot(
   const stored = await deps.putBytes(storageKey, R.from(bytes));
   const { data: asset, error: aErr } = await db
     .from('assets')
-    .insert({ kind: 'image', storage_key: storageKey, bytes: stored, width: STILL_WIDTH, height: STILL_HEIGHT, generation_id: gen.id, meta: { shot_idx: shot.idx, part, content_type: kind.type, prompt_ref: STILL_PROMPT_REF } as Json })
+    .insert({ kind: 'image', storage_key: storageKey, bytes: stored, width: STILL_WIDTH, height: STILL_HEIGHT, generation_id: gen.id, meta: { shot_idx: shot.idx, part, content_type: kind.type, prompt_ref: p.promptRef, cast: refs.map((r) => r.slug) } as Json })
     .select('id')
     .single();
   if (aErr || !asset) {
@@ -307,7 +381,7 @@ export async function generateStillForShot(
     return { ok: false, reason: `the still was stored but its asset row was not: ${aErr?.message}`, spent: true };
   }
   await db.from('generations').update({ status: 'succeeded', confirmed_at: new Date().toISOString(), completed_at: new Date().toISOString() }).eq('id', gen.id);
-  return { ok: true, generationId: gen.id, assetId: asset.id, storageKey, costInr, prompt: p.prompt };
+  return { ok: true, generationId: gen.id, assetId: asset.id, storageKey, costInr, prompt: p.prompt, drawn: refs.map((r) => r.slug), excluded };
 }
 
 /** Which picture of its shot a still generation is (legacy rows, made before parts, are picture 0). */

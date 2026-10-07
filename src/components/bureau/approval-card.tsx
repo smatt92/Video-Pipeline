@@ -57,7 +57,8 @@ export function ApprovalDesk({
   const [choice, setChoice] = useState<string | null>(null);
   const [custom, setCustom] = useState('');
   const [premise, setPremise] = useState(brief.premise);
-  const [format, setFormat] = useState<VisualFormat>(defaultFormat);
+  // A disabled default (Cartoon characters with no locked sheet) is never pre-selected.
+  const [format, setFormat] = useState<VisualFormat>(formats.find((f) => f.format === defaultFormat)?.disabled ? (formats.find((f) => !f.disabled)?.format ?? defaultFormat) : defaultFormat);
   const [pace, setPace] = useState<VoicePace>(defaultPace);
   const [reason, setReason] = useState<string>(REASONS[0]);
   const [reasonText, setReasonText] = useState('');
@@ -128,7 +129,9 @@ export function ApprovalDesk({
                 role="radio"
                 aria-checked={format === f.format}
                 className={`radio-card${format === f.format ? ' on' : ''}`}
-                disabled={pending}
+                disabled={pending || !!f.disabled}
+                aria-disabled={!!f.disabled}
+                title={f.disabled ?? undefined}
                 onClick={() => setFormat(f.format)}
               >
                 <span className="col" style={{ gap: 2, flex: 1 }}>
@@ -137,6 +140,7 @@ export function ApprovalDesk({
                     {f.format === defaultFormat && <span className="xs t3"> · series default</span>}
                   </span>
                   <span className="sm t2">{f.blurb}</span>
+                  {f.disabled && <span className="xs" style={{ color: 'var(--blk-text)' }}>Unavailable: {f.disabled}</span>}
                   {f.note && <span className="xs t3">{f.note}</span>}
                 </span>
                 <span className="mono" style={{ fontWeight: 600 }} title={f.inr === null ? 'Not priced — see the note' : 'Estimate, before the cap fitter'}>

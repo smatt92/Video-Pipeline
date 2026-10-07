@@ -1,0 +1,77 @@
+name: Sheet probe (one real character sheet)
+
+# Manual only, and it SPENDS: one generated image (~₹4.40 at 0044's verified rate). It makes ONE
+# character sheet through the production path (decision 0024) — by default by triggering the
+# deployed 27-character-sheet task, exactly as Library → Characters → "Generate sheet" does —
+# against the hosted database, the real vendor and the real bucket. It never locks the sheet:
+# Sahil looks at it on the Characters screen and locks it himself. See scripts/sheet-probe.mjs.
+#
+# Why here: the hosted database, the vendor and Trigger.dev are outside the dev container's
+# egress (0008), and this runner reaches them. The environment is read from Vercel production
+# exactly as the worker's deploy reads it (0017).
+
+on:
+  workflow_dispatch:
+    inputs:
+      character:
+        description: 'character slug (pip, marlo, iyer, nib, kaz, ohm, complaint_box, auditor)'
+        required: true
+        type: string
+      via:
+        description: 'worker (trigger the deployed task) or function (run the lib function here)'
+        default: 'worker'
+        type: string
+      max_inr:
+        description: 'Refuse if one sheet is priced above this'
+        default: '5'
+        type: string
+
+concurrency:
+  group: sheet-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VERCEL_ACCESS_TOKEN: ${{ secrets.VERCEL_ACCESS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
+      - name: Production environment from Vercel (values masked)
+        run: |
+          node --input-type=module -e '
+            const team = "team_2UHmmkh8jSZXWBQg8dIICYP5";
+            const want = ["NEXT_PUBLIC_SUPABASE_URL","SUPABASE_SERVICE_ROLE_KEY","SUPABASE_S3_ACCESS_KEY_ID","SUPABASE_S3_SECRET_ACCESS_KEY","SUPABASE_STORAGE_BUCKET","SUPABASE_S3_REGION","SUPABASE_S3_ENDPOINT","RUNWAY_API_KEY","TRIGGER_SECRET_KEY"];
+            const r = await fetch(`https://api.vercel.com/v8/projects/video-pipeline/env?target=production&decrypt=true&teamId=${team}`, { headers: { authorization: `Bearer ${process.env.VERCEL_ACCESS_TOKEN}` } });
+            if (!r.ok) { console.log(`::error::Vercel env read failed: HTTP ${r.status}`); process.exit(1); }
+            const { envs } = await r.json();
+            const fs = await import("node:fs");
+            const missing = [];
+            for (const k of want) {
+              const e = envs.find((x) => x.key === k && (x.target ?? []).includes("production") && !x.gitBranch);
+              if (!e || typeof e.value !== "string" || !e.value) { missing.push(k); continue; }
+              console.log(`::add-mask::${e.value}`);
+              fs.appendFileSync(process.env.GITHUB_ENV, `${k}<<__KILN_EOF__\n${e.value}\n__KILN_EOF__\n`);
+            }
+            console.log(`read ${want.length - missing.length} of ${want.length}${missing.length ? `; without a value: ${missing.join(", ")}` : ""}`);
+          '
+
+      - name: One sheet, through the production path (not locked)
+        run: pnpm probe:sheet "${{ inputs.character }}" --via "${{ inputs.via }}" --max-inr "${{ inputs.max_inr }}"
+
+      - name: The sheet, full size
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sheet-${{ inputs.character }}
+          path: out/sheet-probe/
+          if-no-files-found: ignore

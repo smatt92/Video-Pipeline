@@ -8,6 +8,7 @@ import { renderBureau } from '@/lib/bureau/layer-render';
 import { measureLoudness, normaliseLoudness } from '@/lib/bureau/qc';
 import { runRedraw } from '@/lib/bureau/redraw';
 import { requireUsdInrRate } from '@/lib/cost/fx';
+import { refResolver } from '@/lib/bureau/picture-cast';
 import { serverClient } from '@/lib/db/server';
 import { STILL_CREDENTIAL_FIELD, STILL_INTEGRATION, submitStill, waitStill } from '@/lib/drivers/still-image';
 import { requireCredential } from '@/lib/integrations/credentials';
@@ -85,6 +86,8 @@ export const redrawTask = schemaTask({
           return Buffer.from(await res.arrayBuffer());
         },
         putBytes: put,
+        // A redraw in a 'characters' episode passes the same locked sheets the run did.
+        resolveRef: refResolver(presign),
         log: logger,
       },
       assemble,

@@ -154,7 +154,7 @@ export const BUREAU_TOOLS: BureauTool[] = [
     name: 'brief_approve',
     title: 'Approve a brief',
     description:
-      'Approve a pending brief with a punchline: "A", "B" or "C" picks a drafted one, any other text is used verbatim. Optional edits: premise, script_text, pinned_comment, visual_format ("illustrated" | "diagram" | "cinematic"; default: the series\' format, else illustrated), voice_pace ("normal" | "brisk" | "fast"; default brisk). Writes the authorship log and starts the episode run.',
+      'Approve a pending brief with a punchline: "A", "B" or "C" picks a drafted one, any other text is used verbatim. Optional edits: premise, script_text, pinned_comment, visual_format ("illustrated" | "diagram" | "cinematic" | "characters"; default: the series\' format, else illustrated; "characters" draws the cast from their locked sheets and is planned as illustrated when none of the episode\'s cast has one), voice_pace ("normal" | "brisk" | "fast"; default brisk). Writes the authorship log and starts the episode run.',
     scope: 'approver',
     args: z.object({
       id: z.uuid(),

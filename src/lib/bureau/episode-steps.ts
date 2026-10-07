@@ -23,6 +23,7 @@ import { estimateEpisode, fitToCap, isVideoRoute, PlannedShotSchema, recipeForRo
 import { formatOf, paceOf, pictureSpans, picturesFor, routesForFormat, type PictureSpan } from './formats';
 import { fallBackToOverlay, generateStillForShot, stillsAvailability, stillsByPart, type StillDeps } from './stills';
 import { pictureTuning, readTuning, syntheticFlag, type PictureTuning } from '../settings/tuning';
+import { castAvailability, episodeCastSlugs, pictureCast, plannedFormat, wantedFor, type PlannedFormat } from './picture-cast';
 import { parseScript, punchlineTurns, type Cast, type ScriptLine } from './script-lines';
 
 /**
@@ -249,7 +250,15 @@ export async function planShots(
   // (0021) are only offered when the channel can have them; otherwise the reason is recorded
   // and the plan is what it was before stills existed.
   const stills = await stillsAvailability(db, e.channel_id);
-  const fmt = formatOf({ approvedEdits: b.approved_edits, seriesFormat: series.visual_format });
+  const asked = formatOf({ approvedEdits: b.approved_edits, seriesFormat: series.visual_format });
+  // Cartoon characters needs at least one locked sheet among the episode's cast; with none
+  // every picture would have nobody in it, so it is planned as illustrated and says why
+  // (picture-cast.ts — the same predicate Approvals disables the option with).
+  let fmt: PlannedFormat = asked;
+  if (asked.format === 'characters') {
+    const avail = castAvailability(cb, episodeCastSlugs({ lead: b.lead_character, speakers: lines.map((l) => l.speaker), shotCharacters: planned.map((s) => s.characters) }));
+    if (!avail.available) fmt = { format: 'illustrated', source: asked.source, requested: 'characters', fallback_reason: avail.reason };
+  }
   const routed = routesForFormat(planned, fmt.format, stills.available);
 
   // Pre-swaps the cap fitter cannot know about. A shot the planner cannot make falls back to
@@ -337,10 +346,13 @@ export async function generateStills(
 ): Promise<{ made: number; reused: number; pictures: number; fellBack: { idx: number; reason: string }[]; partial: { idx: number; missing: number[] }[]; costInr: number }> {
   const log = deps.log ?? quiet;
   const { e, b, cb } = await loadEpisode(db, episodeId);
-  const { data: shots } = await db.from('shots').select('id, idx, description, script_id').eq('script_id', e.script_id!).eq('render_route', 'still').order('idx');
+  const { data: shots } = await db.from('shots').select('id, idx, description, script_id, character_slugs').eq('script_id', e.script_id!).eq('render_route', 'still').order('idx');
   const spans = await pictureSpansFor(db, e.script_id!, await pictureTuning(db, e.channel_id));
   const lead = leadOf(cb, b.lead_character);
   const cast = cb.bible.characters.map((c) => ({ id: c.id, name: c.name }));
+  // 'characters' format: who is drawn in each picture, from their locked sheets (picture-cast.ts).
+  const withCast = plannedFormat(e.qc, { approvedEdits: b.approved_edits, seriesFormat: cb.seriesFor(b.series as never)?.visual_format }).format === 'characters';
+  const castLog: { idx: number; part: number; drawn: string[]; excluded: { slug: string; reason: string }[] }[] = [];
   const total = (shots ?? []).reduce((n, s) => n + (spans.get(s.id)?.length ?? 1), 0);
   let made = 0;
   let reused = 0;
@@ -362,11 +374,13 @@ export async function generateStills(
       }
       // Progress on the board: the stills step is the longest silent stretch of a run otherwise.
       await setStatus(db, episodeId, 'generating', `drawing picture ${done} of ${total}`);
+      const pc = withCast ? pictureCast(cb.bible.characters, wantedFor(span.speakers, s.character_slugs)) : undefined;
       const r = await generateStillForShot(
         db,
-        { shot: s, channelId: e.channel_id, premise: b.premise, cast, world: cb.bible.world, accent: lead.accent_hex, kind: e.kind === 'long_form' ? 'long_form' : 'short', part: parts.length > 1 || span.narration ? { index: k, of: parts.length, narration: span.narration } : undefined },
+        { shot: s, channelId: e.channel_id, premise: b.premise, cast, world: cb.bible.world, accent: lead.accent_hex, kind: e.kind === 'long_form' ? 'long_form' : 'short', part: parts.length > 1 || span.narration ? { index: k, of: parts.length, narration: span.narration } : undefined, pictureCast: pc },
         deps,
       );
+      if (r.ok && withCast) castLog.push({ idx: s.idx, part: k, drawn: r.drawn, excluded: r.excluded });
       if (r.ok) {
         made++;
         costInr += r.costInr;
@@ -387,6 +401,13 @@ export async function generateStills(
     if (missing.length) partial.push({ idx: s.idx, missing });
     await db.from('shots').update({ status: 'ready', compiled_params: { still_prompts: prompts, pictures: parts.length } as Json, compiled_at: new Date().toISOString() }).eq('id', s.id);
   }
+  if (castLog.length) {
+    // Who was drawn in each picture and who was left out, where Cuts reads the plan.
+    const { data: cur } = await db.from('episodes').select('qc').eq('id', episodeId).single();
+    const qc = (cur?.qc ?? {}) as { plan?: Record<string, unknown> } & Record<string, unknown>;
+    const prev = ((qc.plan?.cast as typeof castLog | undefined) ?? []).filter((x) => !castLog.some((y) => y.idx === x.idx && y.part === x.part));
+    await db.from('episodes').update({ qc: { ...qc, plan: { ...(qc.plan ?? {}), cast: [...prev, ...castLog].sort((a, b2) => a.idx - b2.idx || a.part - b2.part) } } as unknown as Json }).eq('id', episodeId);
+  }
   return { made, reused, pictures: total, fellBack, partial, costInr: Math.round(costInr * 100) / 100 };
 }
 
@@ -397,21 +418,58 @@ export async function generateStills(
  * `pictures` is the channel's setting (`pictureTuning`); both callers read it the same way.
  */
 export async function pictureSpansFor(db: Db, scriptId: string, pictures: PictureTuning): Promise<Map<string, PictureSpan[]>> {
-  const { data: shots } = await db.from('shots').select('id, idx, render_route, duration_s, duration_source').eq('script_id', scriptId).order('idx');
+  const { data: shots } = await db.from('shots').select('id, idx, render_route, duration_s, duration_source, vo_char_start, vo_char_end').eq('script_id', scriptId).order('idx');
   const out = new Map<string, PictureSpan[]>();
   if (!shots?.length) return out;
   const { data: takes } = await db.from('vo_takes').select('chunk_idx, word_timings, offset_s, text_in, duration_s').eq('script_id', scriptId).eq('language', 'en').order('chunk_idx');
+  const { data: script } = await db.from('scripts').select('beats').eq('id', scriptId).maybeSingle();
+  const lines = ((script?.beats ?? {}) as { lines?: ScriptLine[] }).lines ?? [];
+  const speakerOf = new Map(lines.map((l) => [l.idx, l.speaker]));
   const words: WordTiming[] = (takes ?? []).flatMap((t) => shiftBy(takeWords(t), Number(t.offset_s)));
   const timed = shots.every((s) => s.duration_source === 'derived_from_vo');
   const frames = shotFrames(shots.map((s) => Number(s.duration_s)));
   let start = 0;
   for (const [i, s] of shots.entries()) {
     if (s.render_route === 'still') {
-      out.set(s.id, timed ? pictureSpans({ startFrame: start, frames: frames[i] }, picturesFor(Number(s.duration_s), pictures), words, FPS) : [{ from: 0, frames: frames[i], narration: '' }]);
+      const spans = timed ? pictureSpans({ startFrame: start, frames: frames[i] }, picturesFor(Number(s.duration_s), pictures), words, FPS) : [{ from: 0, frames: frames[i], narration: '' }];
+      out.set(
+        s.id,
+        spans.map((sp) => ({
+          ...sp,
+          speakers: timed
+            ? speakersByTime((start + sp.from) / FPS, (start + sp.from + sp.frames) / FPS, takes ?? [], speakerOf)
+            : speakersByText(s.vo_char_start, s.vo_char_end, lines),
+        })),
+      );
     }
     start += frames[i];
   }
   return out;
+}
+
+/** Speakers whose take overlaps [a, b) seconds by at least a quarter second, longest first. */
+function speakersByTime(a: number, b: number, takes: readonly { chunk_idx: number; offset_s: number | string; duration_s: number | string | null }[], speakerOf: ReadonlyMap<number, string>): string[] {
+  const total = new Map<string, number>();
+  for (const t of takes) {
+    const who = speakerOf.get(t.chunk_idx);
+    const off = Number(t.offset_s);
+    const dur = t.duration_s === null ? null : Number(t.duration_s);
+    if (!who || dur === null || !Number.isFinite(off) || !Number.isFinite(dur)) continue;
+    const overlap = Math.min(b, off + dur) - Math.max(a, off);
+    if (overlap > 0) total.set(who, (total.get(who) ?? 0) + overlap);
+  }
+  return [...total.entries()].filter(([, s]) => s >= 0.25).sort((x, y) => y[1] - x[1]).map(([w]) => w);
+}
+
+/** Before the voice is timed: the speakers of the lines the shot covers, by character offset. */
+function speakersByText(from: number | null, to: number | null, lines: readonly ScriptLine[]): string[] {
+  if (from === null || to === null) return [];
+  const total = new Map<string, number>();
+  for (const l of lines) {
+    const overlap = Math.min(to, l.voEnd) - Math.max(from, l.voStart);
+    if (overlap > 0) total.set(l.speaker, (total.get(l.speaker) ?? 0) + overlap);
+  }
+  return [...total.entries()].sort((x, y) => y[1] - x[1]).map(([w]) => w);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
