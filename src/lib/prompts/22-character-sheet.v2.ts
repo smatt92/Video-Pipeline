@@ -11,6 +11,10 @@
  * the outcome this feature exists to prevent. v2:
  *
  *   - says what the image is in fewer words, and drops duplicates from the negative list;
+ *   - never puts the character's NAME in the prompt: the v1 Pip sheet came back with "Pip"
+ *     lettered across the top (the prompt said "Character reference sheet of … Pip"), and on
+ *     a cyan panel inside a white margin instead of the plain background — so v2 says "no
+ *     name, no lettering, no panel, no border" and that the background fills the frame;
  *   - makes the STYLE mandatory: if it cannot fit, the prompt is refused ("shorten the note"),
  *     never sent without it;
  *   - cuts, in order, only the attitude line and then the extra negatives v2 adds beyond the
@@ -34,8 +38,8 @@ function parts(c: SheetCharacter, world: SheetWorld, note: string | undefined, o
   const v = c.visual_lock;
   const props = v.props.length ? v.props.join(', ') : 'none';
   const head = c.on_screen
-    ? `One original cartoon character, ${c.name} (${c.role}), full body head to shoes, standing, front three-quarter view, centred, alone on a plain flat ${world.palette.paper} background.`
-    : `An OBJECT, not a person — the only visible presence of ${c.name}: ${v.line}. The object alone, centred on a plain flat ${world.palette.paper} background; no body, no arms, no hands, no face, no eyes, no person.`;
+    ? `One original cartoon character (${c.role}), full body head to shoes, standing, front three-quarter view, centred, alone on a plain flat ${world.palette.paper} background filling the frame; no name, no lettering, no panel, no border.`
+    : `An OBJECT, not a person: ${v.line}. The object alone, centred on a plain flat ${world.palette.paper} background filling the frame; no body, no arms, no hands, no face, no eyes, no person, no lettering.`;
   const lock = c.on_screen
     ? `Look: ${v.silhouette}; props: ${props}; head-to-body ratio ${v.head_body_ratio}; ${v.line_weight} outlines; single accent colour ${c.accent_hex}.`
     : `Details: ${props}; accent colour ${c.accent_hex}.`;

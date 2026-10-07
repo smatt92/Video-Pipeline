@@ -40,7 +40,9 @@ Gemini image models' `subject: 'human' | 'object'` reference hint (a different m
    to fit the 1000-character limit, and with the Bureau's bible every on-screen character ran
    over (1089–1101), so the one real sheet (Pip, v1) was drawn without the cartoon style. v2
    says the same in fewer words, cuts only the attitude line and its own extra negatives, and
-   refuses ("shorten the note") rather than send a sheet prompt without the style. One `gen4_image` 720:1280 image,
+   refuses ("shorten the note") rather than send a sheet prompt without the style. It also
+   never names the character (the v1 Pip sheet came back with "Pip" lettered on it) and says
+   the background fills the frame with no panel or border. One `gen4_image` 720:1280 image,
    priced by the same verified rate row as a picture (USD 0.05 → ₹4.40 at ₹88). A character the
    bible says is never seen (`on_screen: false` — Director Ohm) gets an **object** sheet: the
    brass lamp, "no body, no arms, no hands, no face".

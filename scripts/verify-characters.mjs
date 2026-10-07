@@ -201,8 +201,10 @@ try {
   const [{ world: dbWorld }] = await q('select world from channel_bibles where channel_id = $1', [CH]);
   check(sp.includes(dbWorld.still_style) && /22-character-sheet\.v2/.test((await q(`select request_payload->>'prompt_ref' r from generations where idempotency_key = $1`, [`sheet:${CH}:pip:${req.requestId}`]))[0].r), 'LOAD-BEARING: Pip’s sheet carries the channel’s still style (the bible’s, read from the row), under 22-character-sheet.v2', String(sp.length));
   const allCast = await q('select slug from channel_characters where channel_id = $1 order by slug', [CH]);
-  const noStyle = allCast.map((r) => [r.slug, S.sheetPromptFor(cbFolder, r.slug, null)]).filter(([, r]) => !r.ok || !r.prompt.includes(dbWorld.still_style) || r.prompt.length > 1000);
-  check(allCast.length === 8 && noStyle.length === 0, 'every cast member’s sheet prompt fits the limit WITH the style', JSON.stringify(noStyle.map(([s2, r]) => [s2, r.ok ? r.prompt.length : r.reason])));
+  const allNames = new Map(cbFolder.bible.characters.map((c) => [c.id, c.name]));
+  // No name either: the real v1 Pip sheet came back with "Pip" lettered across it.
+  const noStyle = allCast.map((r) => [r.slug, S.sheetPromptFor(cbFolder, r.slug, null)]).filter(([slug, r]) => !r.ok || !r.prompt.includes(dbWorld.still_style) || r.prompt.length > 1000 || r.prompt.includes(allNames.get(slug)) || !/no lettering/.test(r.prompt));
+  check(allCast.length === 8 && noStyle.length === 0, 'every cast member’s sheet prompt fits the limit WITH the style, never names the character, and says no lettering', JSON.stringify(noStyle.map(([s2, r]) => [s2, r.ok ? r.prompt.length : r.reason])));
   const longNote = S.sheetPromptFor(cbFolder, 'complaint_box', 'x'.repeat(200));
   check(!longNote.ok && /shorten the note/.test(longNote.reason), 'a note that would push the style out is refused, not sent without the style', longNote.ok ? String(longNote.prompt.length) : longNote.reason);
   const [gen] = await q(`select g.shot_id, g.kind, g.status, g.idempotency_key, g.request_payload from generations g where g.request_payload->>'purpose' = 'character_sheet'`);

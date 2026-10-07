@@ -1416,7 +1416,16 @@ Generation `822abc6e…`, `characters/pip/sheet-822abc6e.png` (506 KB), ledger e
 (`reference_frame` still `PLACEHOLDER_PIP_REF_1`). Reading its prompt back from the row found a
 defect no harness had asserted: v1 dropped the still style for every on-screen character.
 Fixed in v2 and asserted (`verify:characters` §2: every cast member's sheet prompt fits WITH
-the style).
+the style). **Looked at** (`--via show`, the stored PNG downscaled, copy in
+`docs/bureau/sheet-pip-v1-108x192.jpg`): a clean thin-line cartoon of a young intern, front-on,
+in white top and trousers and white sneakers, an ID card on a cyan lanyard (chest length, not
+"past the knees"), and a long cyan scarf worn **wrapped over the head like a headscarf** and
+trailing to the knees — the bible's "cyan scarf line" read literally. No forward lean. Drawn on
+a **cyan panel inside a white margin**, not the navy background, and with **"Pip" lettered
+across the top**. So: consistent-looking and usable as a reference, but not in the channel's
+bold style, the wrong background, and with text — all three are prompt defects of v1 (no style
+line; the name and "reference sheet" in the prompt; the background given only as a hex). v2
+drops the name, says "no lettering, no panel, no border" and keeps the style; asserted.
 
 **What has NOT run:** a v2 sheet for real; a real picture with a reference image (the vendor honouring `@Tag` and
 the reference's look); the Characters screen and Lock in a browser against the deployed app;
