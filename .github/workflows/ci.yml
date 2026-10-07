@@ -277,6 +277,12 @@ jobs:
       - name: Two channels stay apart; the Instagram variant, draft, Mark posted and probe
         run: pnpm verify:channels "$DATABASE_URL"
 
+      # 0022: the Bureau folder imported equals the folder field by field (both the local import
+      # and the SQL generated for the hosted paste); a second channel made entirely through the
+      # approver actions, with no folder, voices its lines in the presets lockVoice wrote.
+      - name: Channel bible in the database — import, paste SQL, a channel made in the app
+        run: pnpm verify:channel-bible "$DATABASE_URL"
+
       - name: Stage 1 — trend intake deduplicates and reports what it could not reach
         run: pnpm verify:trends "$DATABASE_URL"
 

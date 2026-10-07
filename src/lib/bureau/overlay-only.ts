@@ -1,6 +1,6 @@
 import type { Db } from '../db/server';
 import { isUsableReference } from './bible';
-import { recipeForRoute } from './estimate';
+import { isVideoRoute, recipeForRoute } from './estimate';
 
 /**
  * Is a cut overlay-only, and why — said plainly on Board and Cuts.
@@ -43,10 +43,14 @@ export async function channelGeneration(db: Db, channelId: string): Promise<Chan
 }
 
 export interface EpisodeClips {
-  /** Shots planned on a generated route. */
+  /** Shots planned on a generated VIDEO route. */
   generatedPlanned: number;
   /** Shots with a succeeded generation whose clip was normalised (what the assembler uses). */
   clips: number;
+  /** Shots planned as scene stills (0021), and how many have a stored image. */
+  stillsPlanned: number;
+  stills: number;
+  /** No clip and no still reached the cut: chalk overlays only. */
   overlayOnly: boolean;
   /** This episode's own planning swaps, verbatim. */
   swaps: string[];
@@ -56,7 +60,18 @@ export async function episodeClips(db: Db, ep: { script_id: string | null; qc: u
   if (!ep.script_id) return null;
   const { data: shots } = await db.from('shots').select('id, render_route').eq('script_id', ep.script_id);
   if (!shots?.length) return null;
-  const generated = shots.filter((s) => s.render_route && s.render_route !== 'overlay');
+  const generated = shots.filter((s) => isVideoRoute(s.render_route));
+  const stillShots = shots.filter((s) => s.render_route === 'still');
+  let stills = 0;
+  if (stillShots.length) {
+    const { data: gens } = await db.from('generations').select('id, shot_id').in('shot_id', stillShots.map((s) => s.id)).eq('kind', 'image').eq('status', 'succeeded');
+    const ids = (gens ?? []).map((g) => g.id);
+    if (ids.length) {
+      const { data: assets } = await db.from('assets').select('generation_id').in('generation_id', ids).eq('kind', 'image');
+      const withImage = new Set((assets ?? []).map((a) => a.generation_id));
+      stills = new Set((gens ?? []).filter((g) => withImage.has(g.id)).map((g) => g.shot_id)).size;
+    }
+  }
   let clips = 0;
   if (generated.length) {
     const { data: gens } = await db.from('generations').select('id, shot_id').in('shot_id', generated.map((s) => s.id)).eq('status', 'succeeded');
@@ -67,7 +82,7 @@ export async function episodeClips(db: Db, ep: { script_id: string | null; qc: u
       clips = new Set((gens ?? []).filter((g) => withClip.has(g.id)).map((g) => g.shot_id)).size;
     }
   }
-  const plan = ((ep.qc ?? {}) as { plan?: { swaps?: { idx: number; from: string; reason: string }[] } }).plan;
-  const swaps = (plan?.swaps ?? []).map((s) => `shot ${s.idx}: ${s.from} → overlay — ${s.reason}`);
-  return { generatedPlanned: generated.length, clips, overlayOnly: clips === 0, swaps };
+  const plan = ((ep.qc ?? {}) as { plan?: { swaps?: { idx: number; from: string; reason: string; to?: string }[] } }).plan;
+  const swaps = (plan?.swaps ?? []).map((s) => `shot ${s.idx}: ${s.from} → ${s.to ?? 'overlay'} — ${s.reason}`);
+  return { generatedPlanned: generated.length, clips, stillsPlanned: stillShots.length, stills, overlayOnly: clips === 0 && stills === 0, swaps };
 }

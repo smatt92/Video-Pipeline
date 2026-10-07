@@ -4,7 +4,7 @@ import type { Db } from '../db/server';
 import { hookPattern } from '../db/enums';
 import { routed, type RouterDeps } from '../llm/router';
 import { BRIEF_SYSTEM, briefUserMessage, JUDGE_SYSTEM } from '../prompts/20-bureau.v1';
-import { bibleForChannel } from './bible';
+import { getBible } from './bible';
 import { briefInputSchema, type BriefInput } from './briefs';
 import { SHOT_ROUTES } from './estimate';
 import type { LintResult } from './policy-lint';
@@ -61,7 +61,7 @@ export async function draftBriefForSlot(db: Db, slotId: string, deps: Omit<Route
     .maybeSingle();
   if (!slot) return { ok: false, error: `No slot ${slotId} on this channel.` };
   if (slot.series === 'sequel') return { ok: false, error: 'Sequel slots are drafted by the weekly review, not here.' };
-  const cb = await bibleForChannel(db, deps.channelId);
+  const cb = await getBible(db, deps.channelId);
   const series = cb.seriesFor(slot.series);
 
   const leads = cb.leadsFromCalendar(slot.lead);

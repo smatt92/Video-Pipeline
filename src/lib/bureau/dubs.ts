@@ -139,11 +139,11 @@ export async function runDubJob(jobId: string, deps: DubDeps): Promise<{ ok: tru
       const { data: srt } = await db.from('assets').insert({ kind: 'caption', storage_key: srtKey, meta: { language: lang, timing: 'line' } as Json }).select('id').single();
       await db.from('dub_jobs').update({ srt_asset_id: srt!.id, translated_lines: translated as unknown as Json }).eq('id', jobId);
       if (deps.renderCaptions && voice.total_s) {
-        const mov = join(work, `${lang}.mov`);
+        const mov = join(work, `${lang}.webm`);
         const frames = Math.round(voice.total_s * 30);
         const r = await deps.renderCaptions({ layer: 'caption_layer', shots: [], audioUrl: null, musicUrl: null, cues, hook: null, safeBox: { x: 54, y: 154, width: 875, height: 1382 } }, frames, mov);
         if (r.ok) {
-          const key = `dubs/${ep.id}/${lang}-captions.mov`;
+          const key = `dubs/${ep.id}/${lang}-captions.webm`;
           const b = await deps.putBytes(key, createReadStream(mov));
           const { data: a } = await db.from('assets').insert({ kind: 'video', storage_key: key, bytes: b, meta: { layer: 'caption_layer', language: lang } as Json }).select('id').single();
           const { data: rr } = await db

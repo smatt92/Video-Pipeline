@@ -437,6 +437,127 @@ export type Database = {
           },
         ]
       }
+      channel_bibles: {
+        Row: {
+          channel_id: string
+          policy: Json
+          publishing: Json | null
+          series: Json
+          trend_sources: Json
+          updated_at: string
+          updated_by: string
+          version: number
+          world: Json
+        }
+        Insert: {
+          channel_id: string
+          policy: Json
+          publishing?: Json | null
+          series?: Json
+          trend_sources?: Json
+          updated_at?: string
+          updated_by: string
+          version?: number
+          world: Json
+        }
+        Update: {
+          channel_id?: string
+          policy?: Json
+          publishing?: Json | null
+          series?: Json
+          trend_sources?: Json
+          updated_at?: string
+          updated_by?: string
+          version?: number
+          world?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_bibles_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: true
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channel_characters: {
+        Row: {
+          accent_hex: string
+          active: boolean
+          catchphrase: Json
+          channel_id: string
+          desk: string
+          id: string
+          name: string
+          never_do: Json
+          on_screen: boolean
+          personality: string
+          reference_frame: Json
+          role: string
+          season_introduced: number
+          slug: string
+          sort: number
+          speech_rules: Json
+          updated_at: string
+          visual_lock: Json
+          voice: Json
+          voice_brief: string
+        }
+        Insert: {
+          accent_hex: string
+          active?: boolean
+          catchphrase: Json
+          channel_id: string
+          desk?: string
+          id?: string
+          name: string
+          never_do: Json
+          on_screen?: boolean
+          personality: string
+          reference_frame?: Json
+          role: string
+          season_introduced?: number
+          slug: string
+          sort?: number
+          speech_rules: Json
+          updated_at?: string
+          visual_lock: Json
+          voice: Json
+          voice_brief: string
+        }
+        Update: {
+          accent_hex?: string
+          active?: boolean
+          catchphrase?: Json
+          channel_id?: string
+          desk?: string
+          id?: string
+          name?: string
+          never_do?: Json
+          on_screen?: boolean
+          personality?: string
+          reference_frame?: Json
+          role?: string
+          season_introduced?: number
+          slug?: string
+          sort?: number
+          speech_rules?: Json
+          updated_at?: string
+          visual_lock?: Json
+          voice?: Json
+          voice_brief?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_characters_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       channel_policy: {
         Row: {
           catchphrase_weekly_max: number
@@ -461,6 +582,7 @@ export type Database = {
           similarity_max: number
           similarity_window: number
           slot_timezone: string
+          stills_enabled: boolean
           updated_at: string
           updated_by: string | null
           variation_min_axes: number
@@ -490,6 +612,7 @@ export type Database = {
           similarity_max?: number
           similarity_window?: number
           slot_timezone?: string
+          stills_enabled?: boolean
           updated_at?: string
           updated_by?: string | null
           variation_min_axes?: number
@@ -519,6 +642,7 @@ export type Database = {
           similarity_max?: number
           similarity_window?: number
           slot_timezone?: string
+          stills_enabled?: boolean
           updated_at?: string
           updated_by?: string | null
           variation_min_axes?: number
@@ -5789,6 +5913,7 @@ export type Database = {
           similarity_max: number
           similarity_window: number
           slot_timezone: string
+          stills_enabled: boolean
           updated_at: string
           updated_by: string | null
           variation_min_axes: number
@@ -5836,6 +5961,7 @@ export type Database = {
           similarity_max: number
           similarity_window: number
           slot_timezone: string
+          stills_enabled: boolean
           updated_at: string
           updated_by: string | null
           variation_min_axes: number

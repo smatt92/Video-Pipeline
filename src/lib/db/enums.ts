@@ -302,8 +302,9 @@ export const episodeStatus = z.enum([
   'assembling', 'awaiting_cut', 'cut_approved', 'cut_rejected', 'bundled', 'scheduled',
   'live', 'failed', 'halted',
 ]);
-export const renderRoute = z.enum(['overlay', 'character_beat', 'acted_beat', 'money_shot']);
-/** Overlays never enter the generation queue — they are rendered in-house. */
+export const renderRoute = z.enum(['overlay', 'still', 'character_beat', 'acted_beat', 'money_shot']);
+/** Overlays never enter the generation queue — they are rendered in-house. Nor do stills (0021):
+ *  one image each, made by the episode's still step with a bounded wait. */
 export const queuedRoute = z.enum(['character_beat', 'acted_beat', 'money_shot']);
 export const renderLayer = z.enum(['composite', 'clean_master', 'caption_layer', 'longform']);
 export const genJobStatus = z.enum([

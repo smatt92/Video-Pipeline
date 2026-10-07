@@ -1,6 +1,6 @@
 import type { Db } from '../db/server';
 import type { Json } from '../db/types';
-import { bibleForChannel } from './bible';
+import { getBible } from './bible';
 import { characterMentions, complaintScore, isQuestion } from './comments';
 
 /**
@@ -97,7 +97,7 @@ export async function pullBureauMetrics(deps: MetricsDeps) {
       const c = await deps.comments(p.external_post_id!);
       if (c.ok && c.comments.length) {
         // The publication's channel's cast — a mention of Pip is a Bureau mention only.
-        const cast = await bibleForChannel(db, p.channel_id).catch(() => null);
+        const cast = await getBible(db, p.channel_id).catch(() => null);
         const rows = c.comments.map((x) => ({
           channel_id: p.channel_id,
           publication_id: p.id,

@@ -41,6 +41,7 @@ export const CHARGING_STAGES: readonly { stage: string; label: string; what: str
   { stage: '04-shotlist', label: 'Shotlist', what: 'one Anthropic call per script' },
   { stage: '06-voice', label: 'Voice', what: 'characters of speech, per take' },
   { stage: '05-generate', label: 'Generate', what: 'vendor credits, per shot' },
+  { stage: '05-still', label: 'Stills', what: 'one generated scene image per shot (0021)' },
   { stage: '09-metadata', label: 'Metadata', what: 'one Anthropic call per render' },
   { stage: 'studio', label: 'Studio', what: 'tokens, per turn of an operator session' },
 ];

@@ -104,4 +104,21 @@ if (replaced === block) {
 }
 writeFileSync(path, text.slice(0, start) + replaced + text.slice(end));
 JSON.parse(readFileSync(path, 'utf8'));
-console.log(`Locked ${c.name} → ${ref}\nCommit channels/${CHANNEL_SLUG}/characters.json to make it live (syncCast copies it on the next episode run).`);
+console.log(`Locked ${c.name} → ${ref} in channels/${CHANNEL_SLUG}/characters.json (the folder: import source and fallback).`);
+
+// The database bible (0022) is what the pipeline reads when the channel has one. Written too,
+// so a frame locked here is not silently ignored for a channel whose bible lives in the tables.
+if (process.env.DATABASE_URL) {
+  const pg = (await import('pg')).default;
+  const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+  await client.connect();
+  const r = await client.query(
+    `update channel_characters cc set reference_frame = $3::jsonb, updated_at = now()
+       from channels ch where ch.id = cc.channel_id and ch.slug = $1 and cc.slug = $2 returning cc.id`,
+    [CHANNEL_SLUG, character, JSON.stringify(next)],
+  ).catch((err) => ({ rowCount: 0, error: err }));
+  await client.end();
+  console.log(r.rowCount ? 'Also written to the database bible; the next episode run syncs it.' : `Not in a database bible${r.error ? ` (${r.error.message})` : ''} — commit the folder for a folder-bible channel.`);
+} else {
+  console.log('No DATABASE_URL: if this channel\'s bible is in the database, run again with it set, or the change is ignored there.');
+}

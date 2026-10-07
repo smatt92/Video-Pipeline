@@ -1,4 +1,4 @@
-import { bibleForSlug, type TrendsConfig } from '../bureau/bible';
+import { getBible, type TrendsConfig } from '../bureau/bible';
 import { listChannels } from '../channels/list';
 import type { Db } from '../db/server';
 
@@ -37,7 +37,8 @@ export interface StartTrendsRunDeps {
   /** Enqueues `01-trends-now`. The action passes the task's `trigger`; a harness, a recorder. */
   trigger(payload: TrendsNowPayload): Promise<{ id: string }>;
   /** Defaults to the build's bible folders. */
-  trendsFor?: (slug: string) => TrendsConfig;
+  /** By channel id; production reads `getBible` (database first, 0022). */
+  trendsFor?: (channelId: string) => TrendsConfig | Promise<TrendsConfig>;
 }
 
 export async function startTrendsRun(db: Db, channelId: string, deps: StartTrendsRunDeps): Promise<TrendsState> {
@@ -51,11 +52,11 @@ export async function startTrendsRun(db: Db, channelId: string, deps: StartTrend
 
   const ch = (await listChannels(db)).find((c) => c.id === channelId);
   if (!ch) return refuse(`channel ${channelId} is not an active channel.`);
-  if (!ch.slug || !ch.hasBible) {
-    return refuse(`“${ch.name}” has no bible folder in this build (slug ${ch.slug ?? 'unset'}), so it has no trends.json — nothing to collect from.`);
+  if (!ch.hasBible) {
+    return refuse(`“${ch.name}” has no bible (slug ${ch.slug ?? 'unset'}), so it has no trend sources — nothing to collect from.`);
   }
 
-  const trends = (deps.trendsFor ?? ((s: string) => bibleForSlug(s).trends))(ch.slug);
+  const trends = await (deps.trendsFor ?? (async (id: string) => (await getBible(db, id)).trends))(ch.id);
   const yt = trends.youtube;
   const ytConfigured = !!yt && (yt.category_ids.length > 0 || yt.queries.length > 0);
   const payload: TrendsNowPayload = {
@@ -66,7 +67,7 @@ export async function startTrendsRun(db: Db, channelId: string, deps: StartTrend
 
   if (payload.subreddits.length === 0 && !ytConfigured) {
     return refuse(
-      `channels/${ch.slug}/trends.json lists no subreddits and no YouTube categories or queries. Stage 1 fetches nothing rather than guessing what the channel is about.`,
+      `${ch.name}'s trend sources list no subreddits and no YouTube categories or queries. Stage 1 fetches nothing rather than guessing what the channel is about.`,
     );
   }
 

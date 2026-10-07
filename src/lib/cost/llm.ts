@@ -187,6 +187,7 @@ export type PipelineStage =
   | '20-script-polish'
   | '20-shotlist'
   | '20-qc'
+  | '20-still-prompt'
   | '20-strategy'
   | '24-comments'
   | '24-dub-captions';

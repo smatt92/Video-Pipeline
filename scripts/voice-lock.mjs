@@ -1,45 +1,54 @@
 #!/usr/bin/env node
 /**
- * pnpm voice:lock <character> <preset> — write Sahil's audition pick into characters.json.
+ * pnpm voice:lock <character> <preset> [--channel <slug>] — lock Sahil's audition pick.
  *
- * The only writer of `voice.preset_id`. Edits the one line in place (formatting preserved),
- * validates the preset against the vendor's list, and leaves the commit to you: the bible is
- * source-controlled, and a locked voice is an editorial decision with an author.
+ * Since 0022 this writes the DATABASE bible (`channel_characters.voice`) through `lockVoice`,
+ * the same action the app's Cast step calls: validated against the vendor's preset list,
+ * recorded in authorship_log, read by the voice stage on its next run — no commit, no deploy.
+ * It used to edit channels/<slug>/characters.json in place; that folder is now the import
+ * source and the fallback, and editing it changes nothing for a channel whose bible is in the
+ * database.
+ *
+ *   DATABASE_URL=… pnpm voice:lock pip Chad [--channel bureau-of-reality]
  */
-import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { TTS_PRESET_IDS } = require(new URL('../.verify-build/src/lib/drivers/voice-route.js', import.meta.url).pathname);
+const so = require.resolve('server-only');
+require.cache[so] = { id: so, filename: so, loaded: true, exports: {}, paths: [], children: [] };
+const B = new URL('../.verify-build/src/lib', import.meta.url).pathname;
+const { TTS_PRESET_IDS } = require(`${B}/drivers/voice-route.js`);
+const { lockVoice } = require(`${B}/channels/bible-admin.js`);
 
 const [character, preset] = process.argv.slice(2);
-if (!character || !preset) {
-  console.error('usage: pnpm voice:lock <character> <preset>');
+if (!character || !preset || character.startsWith('--')) {
+  console.error('usage: pnpm voice:lock <character> <preset> [--channel <slug>]');
   process.exit(2);
 }
 if (!TTS_PRESET_IDS.includes(preset)) {
-  console.error(`"${preset}" is not a Runway preset. Known: ${TTS_PRESET_IDS.join(', ')}`);
+  console.error(`"${preset}" is not a known preset. Known: ${TTS_PRESET_IDS.join(', ')}`);
   process.exit(2);
 }
-// --channel <slug>; the Bureau when omitted.
-const CHANNEL_SLUG = process.argv.includes('--channel') ? process.argv[process.argv.indexOf('--channel') + 1] : 'bureau-of-reality';
-const path = new URL(`../channels/${CHANNEL_SLUG}/characters.json`, import.meta.url).pathname;
-const text = readFileSync(path, 'utf8');
-const data = JSON.parse(text);
-const c = data.characters.find((x) => x.id === character);
-if (!c) {
-  console.error(`No character "${character}". Known: ${data.characters.map((x) => x.id).join(', ')}`);
+const slug = process.argv.includes('--channel') ? process.argv[process.argv.indexOf('--channel') + 1] : 'bureau-of-reality';
+const dbUrl = process.env.DATABASE_URL;
+if (!dbUrl) {
+  console.error('DATABASE_URL is required: the voice is locked in the database bible (0022). From the app: Channels → Cast → Lock voice.');
   process.exit(2);
 }
-// Replace the voice line inside this character's block only.
-const start = text.indexOf(`"id": "${character}"`);
-const end = text.indexOf('"never_do"', start);
-const block = text.slice(start, end);
-const next = block.replace(/"voice": \{ "provider": "runway", "preset_id": (null|"[A-Za-z]+") \}/, `"voice": { "provider": "runway", "preset_id": "${preset}" }`);
-if (next === block) {
-  console.error(`${character}'s voice is not on the runway provider (or the line is not in the expected shape); edit it by hand.`);
+const pg = (await import('pg')).default;
+const client = new pg.Client({ connectionString: dbUrl });
+await client.connect();
+const { supabaseShim } = await import('./lib/supabase-shim.mjs');
+const db = supabaseShim(client);
+const [ch] = (await client.query('select id from channels where slug = $1', [slug])).rows;
+if (!ch) {
+  console.error(`No channel with slug ${slug}.`);
+  process.exit(2);
+}
+const r = await lockVoice(db, { scope: 'approver', profileId: null, via: 'script:voice-lock' }, ch.id, { characterSlug: character, presetId: preset });
+await client.end();
+if (!r.ok) {
+  console.error(r.refused.includes('no database bible') ? `${r.refused}\n  → node scripts/bible-import.mjs --channel ${slug} --db "$DATABASE_URL"` : r.refused);
   process.exit(1);
 }
-writeFileSync(path, text.slice(0, start) + next + text.slice(end));
-JSON.parse(readFileSync(path, 'utf8'));
-console.log(`Locked ${c.name} → ${preset}. Commit channels/${CHANNEL_SLUG}/characters.json to make it live.`);
+console.log(r.message);

@@ -1,8 +1,9 @@
-import { AbsoluteFill, Audio, OffthreadVideo, Sequence, useCurrentFrame, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Audio, Img, OffthreadVideo, Sequence, useCurrentFrame, useVideoConfig } from 'remotion';
 
 import type { CaptionCue } from '@/lib/review/timeline';
 
-import { PAPER, projectOverlay, type OverlaySpec } from './overlay-scene';
+import { PAPER, projectOverlay, type CameraMove, type OverlaySpec } from './overlay-scene';
+import { kenBurns } from './ken-burns';
 
 /**
  * The Bureau of Reality composition. One component, three layers (renders.layer):
@@ -11,13 +12,15 @@ import { PAPER, projectOverlay, type OverlaySpec } from './overlay-scene';
  *   clean_master   shots + VO, NO text — the base every language is built on
  *   caption_layer  text only, transparent — one per language, laid over the master
  *
- * Shots are either clips (generated, ingested, presigned http URLs) or overlays (chalk-line
- * Three.js scenes projected to SVG — see overlay-scene.ts for why not WebGL).
+ * Shots are clips (generated, ingested, presigned http URLs), stills (one generated scene
+ * image, drawn full-bleed with a slow deterministic camera move — decision 0021) or overlays
+ * (chalk-line Three.js scenes projected to SVG — see overlay-scene.ts for why not WebGL).
  */
 
 export type BureauShot =
   | { type: 'clip'; url: string; frames: number; /** 'contain' pillarboxes a 9:16 master inside a 16:9 long-form. */ fit?: 'cover' | 'contain' }
-  | { type: 'overlay'; overlay: OverlaySpec; frames: number };
+  | { type: 'overlay'; overlay: OverlaySpec; frames: number }
+  | { type: 'still'; url: string; camera: CameraMove; accent: string; seed: number; frames: number };
 
 export type BureauLayer = 'composite' | 'clean_master' | 'caption_layer';
 
@@ -46,7 +49,13 @@ export function BureauVideo(props: BureauVideoProps) {
           if (s.frames <= 0) return null;
           return (
             <Sequence key={i} from={from} durationInFrames={s.frames}>
-              {s.type === 'clip' ? <OffthreadVideo src={s.url} muted style={{ width: '100%', height: '100%', objectFit: s.fit ?? 'cover' }} /> : <Overlay spec={s.overlay} frames={s.frames} />}
+              {s.type === 'clip' ? (
+                <OffthreadVideo src={s.url} muted style={{ width: '100%', height: '100%', objectFit: s.fit ?? 'cover' }} />
+              ) : s.type === 'still' ? (
+                <Still shot={s} />
+              ) : (
+                <Overlay spec={s.overlay} frames={s.frames} />
+              )}
             </Sequence>
           );
         })}
@@ -89,6 +98,35 @@ function Overlay({ spec, frames }: { spec: OverlaySpec; frames: number }) {
           <circle key={`d${i}`} cx={d.x} cy={d.y} r={d.r} fill={d.color} />
         ))}
       </svg>
+    </AbsoluteFill>
+  );
+}
+
+/**
+ * A scene still: the image full-bleed (cover, 9:16), moved slowly by the shot's camera field,
+ * with a faint chalk grid over it and one short accent rule in the lead's colour. The move
+ * is a pure function of (camera, seed, progress) — identical on every render of the cut.
+ */
+function Still({ shot }: { shot: Extract<BureauShot, { type: 'still' }> }) {
+  const frame = useCurrentFrame();
+  const { width, height } = useVideoConfig();
+  const m = kenBurns(shot.camera, shot.seed, shot.frames > 1 ? frame / (shot.frames - 1) : 1);
+  return (
+    <AbsoluteFill style={{ backgroundColor: PAPER.paper, overflow: 'hidden' }}>
+      <Img
+        src={shot.url}
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          transform: `translate(${(m.x * 100).toFixed(3)}%, ${(m.y * 100).toFixed(3)}%) scale(${m.scale.toFixed(4)}) rotate(${m.rotateDeg.toFixed(3)}deg)`,
+          transformOrigin: '50% 50%',
+        }}
+      />
+      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ position: 'absolute', inset: 0, opacity: 0.35 }}>
+        <Grid width={width} height={height} />
+      </svg>
+      <div style={{ position: 'absolute', left: Math.round(width * 0.06), bottom: Math.round(height * 0.04), width: Math.round(width * 0.14), height: Math.max(2, Math.round(height * 0.004)), backgroundColor: shot.accent, borderRadius: 2 }} />
     </AbsoluteFill>
   );
 }

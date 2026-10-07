@@ -7,7 +7,7 @@ import { addChannelAction, type AddChannelState } from '@/lib/channels/actions';
 const field = 'w-full rounded-sm border px-2 py-1 text-sm';
 const fieldStyle = { background: 'var(--surface-2)', borderColor: 'var(--border-default)', color: 'var(--text-primary)' } as const;
 
-export function AddChannelForm({ slugs }: { slugs: string[] }) {
+export function AddChannelForm() {
   const [state, action, pending] = useActionState<AddChannelState, FormData>(addChannelAction, { status: 'idle' });
   return (
     <form action={action} className="mt-4 grid max-w-[560px] gap-3">
@@ -16,17 +16,20 @@ export function AddChannelForm({ slugs }: { slugs: string[] }) {
         <input name="name" required className={field} style={fieldStyle} placeholder="Bureau of Reality" />
       </label>
       <label className="grid gap-1 text-sm">
-        Slug — the bible folder under channels/
-        <input name="slug" required className={field} style={fieldStyle} list="bible-slugs" placeholder="my-channel" />
-        <datalist id="bible-slugs">{slugs.map((s) => <option key={s} value={s} />)}</datalist>
+        Slug — lowercase letters, digits and hyphens
+        <input name="slug" required className={field} style={fieldStyle} placeholder="my-channel" />
       </label>
       <label className="grid gap-1 text-sm">
         Handle
         <input name="handle" className={field} style={fieldStyle} placeholder="@handle" />
       </label>
       <label className="grid gap-1 text-sm">
-        Niche (optional — defaults to the bible&apos;s premise)
+        Niche (optional — becomes the bible&apos;s premise)
         <input name="niche" className={field} style={fieldStyle} />
+      </label>
+      <label className="grid gap-1 text-sm">
+        Accent colour (optional — the host&apos;s accent)
+        <input name="accent_hex" className={field} style={fieldStyle} placeholder="hex colour, six digits after the hash" />
       </label>
       <fieldset className="grid gap-2 rounded-sm border p-3 text-sm" style={{ borderColor: 'var(--border-default)' }}>
         <legend className="px-1 text-2xs" style={{ color: 'var(--text-muted)' }}>Platform accounts</legend>

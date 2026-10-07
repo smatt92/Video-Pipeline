@@ -2,9 +2,9 @@
 /**
  * verify:channels — two channels in one database, and the Instagram variant.
  *
- *   §1 Add channel: a slug with no bible folder is refused by name and writes nothing; a slug
- *      with one creates the row, policy, both publish targets and the cast — through
- *      `addChannel`, the function the form calls.
+ *   §1 Add channel: a taken slug and an unknown template are refused by name and write nothing;
+ *      a new slug creates the row, policy, both publish targets, the bible IN THE DATABASE
+ *      (0022) and the cast — through `createChannel`, the function the form calls. No folder.
  *   §2 Isolation, screens: a brief, an episode and a cost row on channel B never appear in
  *      channel A's reads (the functions the Bureau pages and tools call), and do in B's.
  *   §3 Isolation, tools: an agent token for A asked about B's brief/episode/shot is refused; an
@@ -33,7 +33,10 @@ if (!dbUrl) {
   process.exit(2);
 }
 const B = new URL('../.verify-build/src/lib', import.meta.url).pathname;
-const { addChannel, setPublishTarget } = require(`${B}/channels/add.js`);
+const { setPublishTarget } = require(`${B}/channels/add.js`);
+const { createChannel } = require(`${B}/channels/bible-admin.js`);
+const APPROVER = { scope: 'approver', profileId: null, via: 'harness' };
+const addChannel = (db, input) => createChannel(db, APPROVER, input);
 const { listChannels, pickActive, publishTargets } = require(`${B}/channels/list.js`);
 const { BUREAU_CHANNEL_ID } = require(`${B}/fixtures/seed-channel.js`);
 const { pendingBriefs, getBrief } = require(`${B}/bureau/briefs.js`);
@@ -73,33 +76,39 @@ try {
   // ── §1 Add channel ─────────────────────────────────────────────────────────
   console.log('\n1. Add channel\n');
   const before = Number((await q('select count(*) from channels'))[0].count);
-  const noFolder = await addChannel(db, { name: 'Ghost', slug: 'ghost-channel', targets: ['youtube'] });
-  check(!noFolder.ok && /No bible folder channels\/ghost-channel\//.test(noFolder.refused) && /pnpm channel:new ghost-channel/.test(noFolder.refused), 'a slug without a folder is refused by name, with the command', noFolder.refused);
+  const noTemplate = await addChannel(db, { name: 'Ghost', slug: 'ghost-channel', targets: ['youtube'], template: 'no-such-folder' });
+  check(!noTemplate.ok && /No template "no-such-folder"/.test(noTemplate.refused), 'an unknown template is refused by name', noTemplate.refused);
   check(Number((await q('select count(*) from channels'))[0].count) === before, 'and writes no channel row');
   const taken = await addChannel(db, { name: 'Again', slug: 'bureau-of-reality', targets: ['youtube'] });
   check(!taken.ok && /already belongs to channel "Bureau of Reality"/.test(taken.refused), 'a slug another channel holds is refused', taken.refused);
+  const asAgent = await createChannel(db, { ...APPROVER, scope: 'agent' }, { name: 'Sneaky', slug: 'sneaky', targets: ['youtube'] });
+  check(!asAgent.ok && /Only the approver/.test(asAgent.refused), 'an agent cannot create a channel', asAgent.refused);
 
-  // The only bible folder in the build is the Bureau's, which the seed channel holds. Free it
-  // on A (A keeps every row; it just has no bible) so B can be added through the real path.
+  // A gives up its slug (it keeps every row; it just has no bible now) so the isolation checks
+  // below can tell "A has no bible" from "A read B's". B is created from the Bureau's bible as
+  // a template — its own copy, in the database, under its own slug.
   await q('update channels set slug = null where id = $1', [A]);
   const added = await addChannel(db, {
     name: 'Second Desk',
-    slug: 'bureau-of-reality',
+    slug: 'second-desk',
+    template: 'bureau-of-reality',
     handle: 'seconddesk',
     youtube_channel_id: 'UCabcdefghijklmnopqrstuv',
     instagram_account_id: '17841400000000001',
     instagram_handle: 'second.desk',
     targets: ['youtube', 'instagram'],
   });
-  check(added.ok, 'a slug with a folder is added', JSON.stringify(added));
+  check(added.ok, 'a new slug is added, with no folder for it anywhere', JSON.stringify(added));
   const CB = added.channelId;
   const [row] = await q('select name, slug, handle, platform, external_id from channels where id = $1', [CB]);
-  check(row.slug === 'bureau-of-reality' && row.handle === '@seconddesk' && row.platform === 'youtube' && row.external_id === 'UCabcdefghijklmnopqrstuv', 'the row carries the slug, the normalised handle and the primary account', JSON.stringify(row));
+  check(row.slug === 'second-desk' && row.handle === '@seconddesk' && row.platform === 'youtube' && row.external_id === 'UCabcdefghijklmnopqrstuv', 'the row carries the slug, the normalised handle and the primary account', JSON.stringify(row));
   check((await q('select 1 from channel_policy where channel_id = $1', [CB])).length === 1, 'its policy row exists');
   const t = await publishTargets(db, CB);
   check(t.fromTable && JSON.stringify(t.targets.map((x) => [x.platform, x.externalId, x.handle])) === JSON.stringify([['instagram', '17841400000000001', '@second.desk'], ['youtube', 'UCabcdefghijklmnopqrstuv', '@seconddesk']]), 'both publish targets, each with its own account', JSON.stringify(t.targets));
   const castB = await q('select slug from characters where channel_id = $1 order by slug', [CB]);
   check(added.cast === 8 && castB.length === 8, 'the cast is synced onto B from its bible', `${added.cast} / ${castB.length}`);
+  check((await q('select count(*)::int n from channel_characters where channel_id = $1', [CB]))[0].n === 8 && (await q('select 1 from channel_bibles where channel_id = $1', [CB])).length === 1, "B's bible and cast are rows in the database");
+  check((await q(`select count(*)::int n from authorship_log where channel_id = $1 and action = 'channel_create'`, [CB]))[0].n === 1, 'the creation is in authorship_log');
   const all = await listChannels(db);
   check(pickActive(all, CB)?.id === CB && pickActive(all, 'not-a-channel')?.id === CB && pickActive(all, null)?.id === CB, 'the cookie picks B; a stale cookie and no cookie fall to the oldest channel WITH a bible (B, since A has none now)');
 
@@ -149,7 +158,7 @@ try {
   const resA = await sA.resources.read('kiln://bible/characters');
   const resB = await sB.resources.read('kiln://bible/characters');
   check(JSON.parse(resA.text).refused === true && /has no slug/.test(JSON.parse(resA.text).summary), "A (no bible now) is refused its bible by name — never handed B's", resA.text.slice(0, 120));
-  check(JSON.parse(resB.text).channel === 'bureau-of-reality', "B's token reads B's bible");
+  check(JSON.parse(resB.text).channel === 'second-desk', "B's token reads B's bible (its database copy)");
   const lintA = await call(sA, 'policy_lint', { script_text: 'Pip: hi.' });
   check(lintA.refused === true, 'policy_lint refuses on a channel without a bible rather than linting with another channel’s', JSON.stringify(lintA));
   check(sA.serverInfo.title === 'Kiln — Bureau of Reality' && sB.serverInfo.title === 'Kiln — Second Desk', 'each server names its token’s channel', `${sA.serverInfo.title} | ${sB.serverInfo.title}`);
