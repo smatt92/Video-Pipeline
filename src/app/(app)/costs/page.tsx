@@ -225,7 +225,7 @@ export default async function CostsPage({ searchParams }: { searchParams: Promis
                   </thead>
                   <tbody>
                     {stages.rows.map((s) => (
-                      <tr key={s.stage} style={{ opacity: s.hasRun ? 1 : 0.6 }}>
+                      <tr key={s.stage}>
                         <td>
                           {s.label} <span className="mono xs t3">{s.stage}</span>
                         </td>

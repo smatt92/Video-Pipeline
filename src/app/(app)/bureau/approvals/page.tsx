@@ -266,7 +266,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
           <span className="lbl">Fact + source</span>
           <p>{fact.claim ?? '—'}</p>
           {fact.source_url ? (
-            <a className="sm" href={fact.source_url} target="_blank" rel="noreferrer">
+            <a className="sm tlink" href={fact.source_url} target="_blank" rel="noreferrer">
               {fact.source_title ?? new URL(fact.source_url).hostname} ↗
             </a>
           ) : (

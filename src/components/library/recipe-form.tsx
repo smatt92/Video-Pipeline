@@ -229,7 +229,7 @@ export function RecipeRow({
   return (
     <div
       className="border-b px-4 py-3"
-      style={{ borderColor: 'var(--b1)', opacity: recipe.isActive ? 1 : 0.6 }}
+      style={{ borderColor: 'var(--b1)' }}
     >
       <div className="flex flex-wrap items-baseline gap-3">
         <span className="text-sm font-medium">{recipe.name}</span>

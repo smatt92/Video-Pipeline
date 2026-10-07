@@ -402,7 +402,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           <div className="card">
             <div className="card-h">
               <h2 className="h3">Spend vs cap</h2>
-              <Link className="xs" href="/costs">
+              <Link className="xs tlink" href="/costs">
                 Ledger
               </Link>
             </div>

@@ -37,7 +37,7 @@ export function ScreenHeader({
             ) : (
               <span>All channels</span>
             )}
-            <span className="t4" aria-hidden="true">
+            <span className="t3" aria-hidden="true">
               /
             </span>
             <span>{crumb}</span>
