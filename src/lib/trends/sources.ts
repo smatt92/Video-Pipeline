@@ -2,21 +2,25 @@ import 'server-only';
 
 import { z } from 'zod';
 
+import { fetchYoutubeTrends, type YoutubeFetchOptions, type YoutubeTrendConfig } from '../drivers/trends-youtube';
+
 /**
  * Stage 1 — where trend signals come from.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * These are not vendors, and that is a real distinction rather than a loophole
+ * Reddit is not a vendor, and that is a real distinction rather than a loophole
  * ─────────────────────────────────────────────────────────────────────────────
  *
  * CLAUDE.md rule 1 puts the video, voice and storage vendors behind driver interfaces
  * because they are *config values that rotate*: a model changes quarterly, and the loop is
- * the durable asset. These are public read-only feeds with no credential, no cost, no
- * account and no webhook. There is nothing to isolate — no key to rotate, no bill to
- * attribute, no interface a second implementation would satisfy differently.
+ * the durable asset. Reddit's listing is a public read-only feed with no credential, no
+ * cost, no account and no webhook. There is nothing to isolate — no key to rotate, no bill
+ * to attribute, no interface a second implementation would satisfy differently.
  *
- * `check:vendors` agrees: it enforces the names the rule actually lists, and none of these
- * is one of them.
+ * YouTube is different only in where its API lives: the host is a rule-1 name, so the
+ * fetching is in `src/lib/drivers/trends-youtube.ts` and this file maps its result. It needs
+ * a key (`YOUTUBE_DATA_API_KEY`) and is free within the Data API's daily quota — no cost
+ * row, for the same reason as Reddit.
  *
  * What they do share with a vendor is unreliability, so they are treated the same way:
  * every fetch is bounded by a timeout, a failure is one source's failure and not the run's,
@@ -89,6 +93,8 @@ const RedditListing = z.object({
           created_utc: z.number(),
           num_comments: z.number().optional(),
           subreddit: z.string().optional(),
+          // Kept so a reader (the Bureau's `trends_recent`) can link back to the post.
+          permalink: z.string().optional(),
         }),
       }),
     ),
@@ -144,16 +150,40 @@ export async function fetchReddit(
 }
 
 /**
- * The two sources that are not built, named rather than omitted.
+ * YouTube, through the driver (its API host is a rule-1 name). The key is passed in, never
+ * defaulted here — see `YoutubeFetchOptions.apiKey`. A missing key comes back as a refusal
+ * naming `YOUTUBE_DATA_API_KEY`, not as an empty list.
+ */
+export async function fetchYoutube(config: YoutubeTrendConfig, opts: YoutubeFetchOptions): Promise<SourceResult> {
+  const r = await fetchYoutubeTrends(config, opts);
+  const signals: RawSignal[] = r.signals.map((s) => ({
+    source: 'youtube',
+    term: s.term,
+    region: s.region,
+    velocity: s.velocity,
+    volume: s.volume,
+    raw: s.raw,
+  }));
+  return r.ok ? { source: 'youtube', ok: true, signals } : { source: 'youtube', ok: false, signals, detail: r.detail };
+}
+
+/**
+ * The source that is not built, named rather than omitted.
  *
- * YouTube's trending list needs a Data API key, which is a credential and therefore a
- * setup step; Google Trends has no supported public JSON endpoint and the unofficial one
- * changes without notice. Both are real work rather than oversights, and a `TrendSource`
- * union that quietly listed only Reddit would hide that the schema already expects three.
+ * Google Trends has no supported public API endpoint. Google announced an official Trends
+ * API in 2025, and it is an alpha available only to allow-listed testers — not generally
+ * available, so there is nothing a key could be requested for. The unofficial JSON the
+ * website uses is undocumented and changes without notice. A `TrendSource` union that
+ * quietly listed only the built sources would hide that the schema already expects this one.
  *
- * They return an explicit refusal rather than an empty list, because an empty list from a
+ * It returns an explicit refusal rather than an empty list, because an empty list from a
  * source that was never implemented is indistinguishable from a quiet day.
  */
+export const GOOGLE_TRENDS_UNAVAILABLE =
+  'Google has no supported public Trends API endpoint — the official Google Trends API ' +
+  'announced in 2025 is alpha and allow-listed only, not generally available, and the ' +
+  'unofficial endpoint the website uses is undocumented and changes without notice';
+
 export function notImplemented(source: TrendSource, why: string): SourceResult {
   return { source, ok: false, signals: [], detail: `not implemented: ${why}` };
 }

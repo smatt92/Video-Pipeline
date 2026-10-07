@@ -1,59 +1,85 @@
-import { logger, schemaTask } from '@trigger.dev/sdk';
+import { logger, queue, schedules, schemaTask } from '@trigger.dev/sdk';
 import { z } from 'zod';
 
+import { TrendsConfigSchema } from '@/lib/bureau/bible';
 import { serverClient } from '@/lib/db/server';
-import { runTrends, type TrendRunResult } from '@/lib/trends/run';
+import { youtubeApiKeyFromEnv } from '@/lib/drivers/trends-youtube';
+import { runTrends, runTrendsForAllChannels, type TrendRunResult } from '@/lib/trends/run';
 
 /**
- * Stage 1 — collect trend signals.
+ * Stage 1 — collect trend signals. Two tasks, one lib function (`src/lib/trends/run.ts`).
  *
- * A wrapper, like every other stage. Logic in `src/lib/trends/run.ts`.
+ * ── Callers ──────────────────────────────────────────────────────────────────
  *
- * ── The only stage with no credential and no charge ──────────────────────────
+ *   `01-trends`      — the Trigger schedule below (deployed with the worker), four times a
+ *                      day per ARCHITECTURE §4. Every active channel with a bible, each from
+ *                      its own `channels/<slug>/trends.json`, each writing its own channel_id.
+ *   `01-trends-now`  — the Run now button on /trends → `runTrendsNowAction` → `startTrendsRun`,
+ *                      for the active channel only.
  *
- * Public read-only feeds. No `requireCredential`, no `cost_ledger` write, and both absences
- * are deliberate rather than forgotten — see the note in `run.ts`, which says so where a
- * reader auditing rule 5 will look.
+ * ── No charge, and one credential ────────────────────────────────────────────
  *
- * ── Its caller would be a button, and the button is unbuilt ─────────────────
- *
- * `runTrendsNowAction` invokes this — **and nothing invokes that**, so this task is still
- * unreachable and this paragraph used to claim otherwise. The chain got one link longer and
- * still ends in nothing; see CLAUDE.md on a caller that is itself uncalled. The button is
- * unbuilt. §4 of ARCHITECTURE says stage 1 is cron four times
- * daily and it will be; a schedule is a decision about how often to hit somebody else's
- * public feed, and that decision has not been made. What mattered immediately is that this
- * task had no caller at all, which is the category three other modules were just pulled out
- * of — a stage reachable only from the Trigger dashboard gets reported as built and is not.
+ * No `cost_ledger` write, deliberately: Reddit is a public feed and the YouTube Data API is
+ * free within its daily quota — see the note in `run.ts`, where a reader auditing rule 5
+ * will look. The YouTube key is resolved here from the environment and handed down; the
+ * refusal when it is absent lives in the lib, where `verify:trends` reaches it.
  *
  * ── Concurrency 1, and not for the usual reason ──────────────────────────────
  *
  * Every other stage limits concurrency to protect a paid account from a fan-out. This one
  * limits it because two simultaneous runs would race the read-then-write dedup and write
- * the same term twice. A duplicate observation is noise rather than a defect, but noise in
- * the table stage 2 reads from is noise in stage 2's judgement.
+ * the same term twice. Both tasks share one queue, so a Run now that lands during the
+ * scheduled run waits for it rather than racing it.
  */
 
-const Payload = z.object({
-  subreddits: z.array(z.string().min(2).max(40)).max(20).default([]),
+// One named queue, declared once with `queue()` and referenced by both tasks, so the limit of
+// one is shared between the schedule and Run now rather than being one each.
+const trendsQueue = queue({ name: '01-trends', concurrencyLimit: 1 });
+
+function warnOnFailedSources(channel: string, result: TrendRunResult) {
+  const failed = result.sources.filter((s) => !s.ok);
+  if (failed.length > 0) {
+    // Warned, not thrown. Google Trends is deliberately unimplemented and one feed being down
+    // is not a failed run — but a silent partial collection is how stage 2 ends up scoring a
+    // week-old picture of the world without anyone noticing.
+    logger.warn('some sources returned nothing', { channel, failed });
+  }
+  if (result.channelColumnMissing) logger.warn(result.channelColumnMissing, { channel });
+}
+
+export const trendsTask = schedules.task({
+  id: '01-trends',
+  // 00:40, 06:40, 12:40 and 18:40 UTC = 06:10, 12:10, 18:10 and 00:10 IST. Written in UTC:
+  // Trigger.dev's deploy rejected the zone name 'Asia/Kolkata' ("Invalid IANA timezone"),
+  // and India has no daylight saving, so UTC+05:30 is exact all year. Minute 40 rather than
+  // :00 so this does not queue behind every other job scheduled on the hour, and so the
+  // 06:10 IST run has landed before 19-draft-briefs (06:45 IST) drafts against it.
+  cron: '40 0,6,12,18 * * *',
+  queue: trendsQueue,
+
+  run: async () => {
+    const outcomes = await runTrendsForAllChannels({ db: serverClient(), youtubeApiKey: youtubeApiKeyFromEnv(), log: logger });
+    for (const o of outcomes) {
+      if (o.ran) warnOnFailedSources(o.channel, o.result);
+      else logger.warn('channel skipped', { channel: o.channel, why: o.skipped });
+    }
+    return outcomes;
+  },
 });
 
-export const trendsTask = schemaTask({
-  id: '01-trends',
-  schema: Payload,
-  queue: { concurrencyLimit: 1 },
+const NowPayload = TrendsConfigSchema.extend({ channelId: z.uuid() });
+
+export const trendsNowTask = schemaTask({
+  id: '01-trends-now',
+  schema: NowPayload,
+  queue: trendsQueue,
 
   run: async (payload): Promise<TrendRunResult> => {
-    const result = await runTrends(payload, { db: serverClient(), log: logger });
-
-    const failed = result.sources.filter((s) => !s.ok);
-    if (failed.length > 0) {
-      // Warned, not thrown. Two of the three sources are deliberately unimplemented and one
-      // feed being down is not a failed run — but a silent partial collection is how stage 2
-      // ends up scoring a week-old picture of the world without anyone noticing.
-      logger.warn('some sources returned nothing', { failed });
-    }
-
+    const result = await runTrends(
+      { channelId: payload.channelId, subreddits: payload.subreddits, youtube: payload.youtube ?? null },
+      { db: serverClient(), youtubeApiKey: youtubeApiKeyFromEnv(), log: logger },
+    );
+    warnOnFailedSources(payload.channelId, result);
     return result;
   },
 });

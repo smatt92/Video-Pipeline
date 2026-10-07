@@ -374,6 +374,7 @@ export const ENUM_CONSTRAINT_MAP = {
   'gen_jobs.render_route': queuedRoute,
   'gen_jobs.status': genJobStatus,
   'publications.platform': socialPlatform,
+  'channel_publish_targets.platform': socialPlatform,
   'dub_jobs.language': dubLanguage,
   'dub_jobs.status': dubStatus,
   'dub_jobs.requested_by': briefCreator,

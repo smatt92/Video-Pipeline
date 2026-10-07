@@ -85,6 +85,10 @@ export const driverEnvSchema = z.object({
   // On: the dormant vendors above follow it as failover. Read by `failoverEnabled()` in
   // jobs.ts, which parses this same enum.
   GENERATION_FAILOVER: z.enum(['off', 'on']).default('off'),
+  // Stage 1's YouTube source (Data API v3, free within its daily quota — no cost row).
+  // Optional: without it that one source refuses by naming this variable; Reddit still runs.
+  // Read by `youtubeApiKeyFromEnv()` in trends-youtube.ts.
+  YOUTUBE_DATA_API_KEY: nonEmpty('YOUTUBE_DATA_API_KEY').optional(),
   // Notifications (briefs pending, cuts ready, cap at 80%, policy and QC alerts).
   SLACK_WEBHOOK_URL: z.url().optional(),
   // Reels mirror; publishing stays disabled by channel_policy until app review clears.

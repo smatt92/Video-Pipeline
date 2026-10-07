@@ -40,6 +40,15 @@ export const driverWorkerEnv: readonly WorkerEnvVar[] = [
       + 'wizard was not finished, which is the thing to fix instead.',
   },
   {
+    name: 'YOUTUBE_DATA_API_KEY',
+    required: false,
+    refusedBy:
+      'Stage 1 (01-trends, 01-trends-now) collects Reddit without it and reports the YouTube '
+      + 'source as refused, naming this variable, for every channel whose trends.json has a '
+      + 'youtube block. From Google Cloud console: enable "YouTube Data API v3" on the project, '
+      + 'then Credentials → API key, restricted to that API. Free within the daily quota.',
+  },
+  {
     name: 'HIGGSFIELD_API_BASE_URL',
     required: false,
     refusedBy:

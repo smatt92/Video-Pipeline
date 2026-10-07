@@ -1,4 +1,8 @@
-import { readTrendBoard, type SourceHealth, type TrendTerm } from '@/lib/trends/read';
+import { bibleOrNull, requireChannel } from '@/lib/channels/active';
+import type { ChannelSummary } from '@/lib/channels/list';
+import { youtubeApiKeyFromEnv } from '@/lib/drivers/trends-youtube';
+import { RunNow } from '@/components/trends/run-now';
+import { readTrendBoard, type SourceHealth, type TrendBoard, type TrendTerm } from '@/lib/trends/read';
 
 /**
  * Trends — what stage 1 has captured, and whether it is still capturing.
@@ -22,36 +26,108 @@ import { readTrendBoard, type SourceHealth, type TrendTerm } from '@/lib/trends/
  * the task has ever run, to whether the feeds are returning anything, and to one source's
  * configuration — and they are now three different messages.
  *
- * ── There is no Run now button, deliberately ─────────────────────────────────
+ * ── Per channel, with Run now ────────────────────────────────────────────────
  *
- * `runTrendsNowAction` exists and is not called from here. Stage 1 hits somebody else's
- * public feed, and how often to do that is a decision nobody has made — §4 of ARCHITECTURE
- * says cron four times daily. A button would make the unmade decision look made. This screen
- * is the reader that had to exist first; the trigger follows the schedule decision.
+ * Everything here is for the active channel (the sidebar switcher): its sources as its
+ * `channels/<slug>/trends.json` configures them, and the signals written under its
+ * channel_id. Signals with no channel predate 0046; they are shown labelled "workspace-wide
+ * (before multichannel)", so they are neither silently mixed in nor silently hidden. The schedule
+ * (`01-trends`, four times a day) collects for every channel; Run now collects for this one,
+ * approver only — the action refuses anyone else.
  */
 
 export const dynamic = 'force-dynamic';
 
 export default async function TrendsPage() {
-  const result = await readTrendBoard();
-
-  if (!result.ok) {
+  let channel: ChannelSummary;
+  try {
+    channel = await requireChannel();
+  } catch (err) {
     return (
       <Shell>
-        <p style={{ color: 'var(--state-blocked)' }}>{result.error}</p>
-        <p className="mt-1" style={{ color: 'var(--text-muted)' }}>{result.hint}</p>
+        <p style={{ color: 'var(--state-blocked)' }}>{err instanceof Error ? err.message : String(err)}</p>
       </Shell>
     );
   }
-
-  const { board } = result;
+  const result = await readTrendBoard(channel.id);
 
   return (
     <Shell>
+      <ChannelSources channel={channel} />
+      {!result.ok ? (
+        <>
+          <p style={{ color: 'var(--state-blocked)' }}>{result.error}</p>
+          <p className="mt-1" style={{ color: 'var(--text-muted)' }}>{result.hint}</p>
+        </>
+      ) : (
+        <Board board={result.board} channelName={channel.name} />
+      )}
+    </Shell>
+  );
+}
+
+/** What this channel collects from, read from its bible — the same config Run now sends. */
+function ChannelSources({ channel }: { channel: ChannelSummary }) {
+  const cb = bibleOrNull(channel);
+  const yt = cb?.trends.youtube ?? null;
+  const keySet = youtubeApiKeyFromEnv() !== null;
+  return (
+    <Section title={`Channel · ${channel.name}`}>
+      {!cb ? (
+        <p className="text-2xs" style={{ color: 'var(--state-blocked)' }}>
+          No bible folder for slug {channel.slug ?? '(unset)'} in this build, so no trends.json —
+          neither the schedule nor Run now collects anything for this channel.
+        </p>
+      ) : (
+        <div className="text-2xs" style={{ color: 'var(--text-muted)' }}>
+          <p>
+            Reddit:{' '}
+            {cb.trends.subreddits.length ? cb.trends.subreddits.map((s) => `r/${s}`).join(', ') : 'none configured'}
+          </p>
+          <p className="mt-0.5">
+            YouTube:{' '}
+            {yt
+              ? `region ${yt.region_code} · categories ${yt.category_ids.join(', ') || 'none'} · queries ${
+                  yt.queries.map((q) => `“${q}”`).join(', ') || 'none'
+                }`
+              : 'not configured'}
+            {yt && keySet && <span> — YOUTUBE_DATA_API_KEY is set</span>}
+            {yt && !keySet && (
+              <span style={{ color: 'var(--state-blocked)' }}> — YOUTUBE_DATA_API_KEY is not set, so this source refuses</span>
+            )}
+          </p>
+          <p className="mt-0.5">Google Trends: not implemented — no generally available public API.</p>
+          <p className="mt-0.5" style={{ color: 'var(--text-faint)' }}>
+            From channels/{cb.slug}/trends.json. Collected automatically at 06:10, 12:10, 18:10 and 00:10 IST.
+          </p>
+          <div className="mt-2">
+            <RunNow channelId={channel.id} />
+          </div>
+        </div>
+      )}
+    </Section>
+  );
+}
+
+function Board({ board, channelName }: { board: TrendBoard; channelName: string }) {
+  return (
+    <>
+      {board.scope === 'workspace' && (
+        <p className="mb-3 text-2xs" style={{ color: 'var(--state-blocked)' }}>
+          This database has no trend_signals.channel_id (migration 0046 not applied), so the board below
+          is every channel&rsquo;s signals, not {channelName}&rsquo;s alone.
+        </p>
+      )}
+      {board.scope === 'channel' && board.workspaceWideInWindow > 0 && (
+        <p className="mb-3 text-2xs" style={{ color: 'var(--text-faint)' }}>
+          {board.workspaceWideInWindow} of these signal{board.workspaceWideInWindow === 1 ? '' : 's'} have
+          no channel — captured before per-channel intake — and are marked workspace-wide below.
+        </p>
+      )}
       {board.everCapturedAt === null ? (
         <p style={{ color: 'var(--text-muted)' }}>
-          Stage 1 has never captured anything. Not &ldquo;no trends today&rdquo; — no intake has ever run
-          against this workspace. That is a task that has not been triggered, not a set of
+          Stage 1 has never captured anything for this channel. Not &ldquo;no trends today&rdquo; — no
+          intake has ever written a signal under it. That is a task that has not run, not a set of
           feeds that returned nothing.
         </p>
       ) : (
@@ -105,20 +181,21 @@ export default async function TrendsPage() {
                 </thead>
                 <tbody>
                   {board.terms.map((t) => (
-                    <TermRow key={`${t.source}-${t.term}`} term={t} />
+                    <TermRow key={`${t.workspaceWide ? 'w' : 'c'}-${t.source}-${t.term}`} term={t} showScope={board.scope === 'channel'} />
                   ))}
                 </tbody>
               </table>
               <p className="mt-2 text-2xs" style={{ color: 'var(--text-faint)' }}>
                 Days seen, not fetches — intake keeps one reading per term per day. Velocity
-                is a source-normalised proxy, not a measurement; an em dash means the source
-                did not supply one, which is different from zero.
+                is a source-normalised proxy (Reddit: score per hour; YouTube: views per hour
+                since publish), not a measurement; an em dash means the source did not supply
+                one, which is different from zero.
               </p>
             </Section>
           )}
         </>
       )}
-    </Shell>
+    </>
   );
 }
 
@@ -138,10 +215,15 @@ function SourceRow({ source, windowDays }: { source: SourceHealth; windowDays: n
   );
 }
 
-function TermRow({ term }: { term: TrendTerm }) {
+function TermRow({ term, showScope }: { term: TrendTerm; showScope: boolean }) {
   return (
     <tr>
-      <td className="py-0.5">{term.term}</td>
+      <td className="py-0.5">
+        {term.term}
+        {showScope && term.workspaceWide && (
+          <span style={{ color: 'var(--text-faint)' }}> · workspace-wide (before multichannel)</span>
+        )}
+      </td>
       <td className="py-0.5" style={{ color: 'var(--text-muted)' }}>{term.source}</td>
       <td className="py-0.5 text-right">{term.timesSeen}</td>
       <td className="py-0.5 text-right">{term.velocity === null ? '—' : term.velocity}</td>

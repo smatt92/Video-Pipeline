@@ -20,6 +20,7 @@ import {
 } from '../read';
 import type { BureauToken } from '../tokens';
 import { youtubeVideoId } from '../../publish/yt-analytics';
+import { TrendsRecentArgs, trendsRecent } from '../../trends/recent';
 import {
   checkVariation,
   loadVariationHistory,
@@ -320,6 +321,14 @@ export const BUREAU_TOOLS: BureauTool[] = [
       if (!a.episode_id) return { ok: false, error: 'add needs episode_id.' };
       return queueDubs(c.db, c.token, { episode_id: a.episode_id, languages: a.languages ?? [...DUB_LANGUAGES] });
     },
+  }),
+  tool({
+    name: 'trends_recent',
+    title: 'Recent trend signals',
+    description: 'Top stage-1 trend signals for this token’s channel over the last `days` (1–30, default 7), highest velocity first (nulls last), up to `limit` (1–50, default 20): source, term, velocity (a proxy — Reddit score/hour, YouTube views/hour), volume, captured_at and a link where one is known. `channel` (slug or id) must be this token’s channel or the call is refused.',
+    scope: 'any',
+    args: TrendsRecentArgs,
+    run: (c, a) => trendsRecent(c.db, c.token.channelId, a),
   }),
   tool({
     name: 'costs_ledger',

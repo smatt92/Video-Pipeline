@@ -170,7 +170,33 @@ try {
   const approverList = (await rpc('tools/list', {}, approver.plaintext)).body.result.tools.map((t) => t.name);
   check(agentList.every((n) => !approverOnly.includes(n)), 'tools/list hides every approver tool from an agent', `${agentList.length} tools`);
   check(approverList.length === BUREAU_TOOLS.length, 'the approver sees every tool', `${approverList.length}`);
-  check(approverList.length === 21, 'there are 21 Bureau tools', `${approverList.length}`);
+  check(approverList.length === 22, 'there are 22 Bureau tools', `${approverList.length}`);
+
+  // trends_recent over real HTTP, as the agent: its channel's signals only, and another
+  // channel's slug is refused rather than silently answered for this one. Exact cases are
+  // in verify:trends; this proves the tool is reachable by an agent token through serveMcp.
+  {
+    const OTHER = 'b0000000-0000-4000-8000-0000000000f7';
+    await client.query(
+      `insert into channels (id, name, platform, niche, is_active, slug) values ($1, 'Other', 'youtube', 'x', true, 'verify-bureau-other')`,
+      [OTHER],
+    );
+    await client.query(
+      `insert into trend_signals (source, term, velocity, volume, channel_id) values
+         ('reddit', 'A Bureau-channel signal for the agent', 12.5, 100, $1),
+         ('reddit', 'Another channel signal that must not show', 999, 9, $2)`,
+      [BUREAU_CHANNEL_ID, OTHER],
+    );
+    check(agentList.includes('trends_recent'), 'an agent token lists trends_recent');
+    const mine = await call('trends_recent', {}, agent.plaintext);
+    check(
+      mine.result?.ok === true && JSON.stringify(mine.result.signals.map((s) => [s.term, s.velocity, s.volume])) === JSON.stringify([['A Bureau-channel signal for the agent', 12.5, 100]]),
+      '  · it returns exactly the token channel’s one signal, numbers as numbers',
+      JSON.stringify(mine.result?.signals ?? mine),
+    );
+    const other = await call('trends_recent', { channel: 'verify-bureau-other' }, agent.plaintext);
+    check(other.result?.ok === false && other.result?.refused === true && other.result.summary.startsWith('trends_recent answers for this token’s channel only'), '  · another channel’s slug is refused', other.result?.summary);
+  }
 
   // ═══════════════════════════════════════════════════════════════════════════
   // 3. Drafting as the agent
