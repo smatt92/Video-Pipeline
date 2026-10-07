@@ -2,6 +2,8 @@ import { bibleOrNull, requireChannel } from '@/lib/channels/active';
 import type { ChannelSummary } from '@/lib/channels/list';
 import { serverClient } from '@/lib/db/server';
 import { DEFAULT_GOOGLE_TRENDS_GEOS } from '@/lib/drivers/trends-google';
+import { DEFAULT_HN_TOP_N } from '@/lib/drivers/trends-hn';
+import { DEFAULT_WIKIPEDIA_LANGUAGES, DEFAULT_WIKIPEDIA_TOP_N } from '@/lib/drivers/trends-wikipedia';
 import { redditCredentialsFromEnv } from '@/lib/drivers/trends-reddit';
 import { youtubeApiKeyFromEnv } from '@/lib/drivers/trends-youtube';
 import { RunNow } from '@/components/trends/run-now';
@@ -80,6 +82,8 @@ function ChannelSources({ channel }: { channel: ChannelSummary }) {
   // (0017), so after setting them the worker needs one redeploy before a run can use them.
   const redditSet = redditCredentialsFromEnv() !== null;
   const gt = cb?.trends.google_trends;
+  const wiki = cb?.trends.wikipedia;
+  const hn = cb?.trends.hn;
   return (
     <Section title={`Channel · ${channel.name}`}>
       {!cb ? (
@@ -124,6 +128,18 @@ function ChannelSources({ channel }: { channel: ChannelSummary }) {
               ? 'off for this channel (google_trends: null)'
               : `trending searches in ${(gt?.geo ?? DEFAULT_GOOGLE_TRENDS_GEOS).join(', ')}${gt ? '' : ' (default)'} — the public RSS feed, no key; volume is its approximate traffic, a lower bound`}
           </p>
+          <p className="mt-0.5">
+            Wikipedia:{' '}
+            {wiki === null
+              ? 'off for this channel (wikipedia: null)'
+              : `yesterday’s ${wiki?.top_n ?? DEFAULT_WIKIPEDIA_TOP_N} most-viewed articles in ${(wiki?.languages ?? DEFAULT_WIKIPEDIA_LANGUAGES).join(', ')}${wiki ? '' : ' (default)'} — no key; volume is views, velocity the change against the day before (blank when the article was not in that day’s list)`}
+          </p>
+          <p className="mt-0.5">
+            Hacker News:{' '}
+            {hn === null
+              ? 'off for this channel (hn: null)'
+              : `top ${hn?.top_n ?? DEFAULT_HN_TOP_N} stories${hn ? '' : ' (default)'} — no key; volume is score, velocity score per hour since posted`}
+          </p>
           <p className="mt-0.5" style={{ color: 'var(--t3)' }}>
             From channels/{cb.slug}/trends.json. Collected automatically at 06:10, 12:10, 18:10 and 00:10 IST.
           </p>
@@ -153,7 +169,7 @@ function LastRun({ last }: { last: LatestTrendRun }) {
           <ul className="mt-1">
             {last.run.sources.map((s) => (
               <li key={s.source} style={{ color: s.ok ? undefined : /^not configured/.test(s.detail ?? '') ? 'var(--t3)' : 'var(--blk)' }}>
-                {SOURCE_LABEL[s.source] ?? s.source}: {s.ok ? `${s.count} signal${s.count === 1 ? '' : 's'}` : s.detail ?? 'failed, no reason recorded'}
+                {SOURCE_LABEL[s.source] ?? s.source}: {s.ok ? `${s.count} signal${s.count === 1 ? '' : 's'}${s.detail ? ` — ${s.detail}` : ''}` : s.detail ?? 'failed, no reason recorded'}
               </li>
             ))}
           </ul>

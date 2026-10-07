@@ -7,7 +7,9 @@ import type { Json, TablesInsert } from '../db/types';
 import { DEFAULT_GOOGLE_TRENDS_GEOS } from '../drivers/trends-google';
 import type { RedditCredentials } from '../drivers/trends-reddit';
 import type { YoutubeTrendConfig } from '../drivers/trends-youtube';
-import { fetchGoogleTrends, fetchReddit, fetchYoutube, type RawSignal, type SourceResult } from './sources';
+import { DEFAULT_HN_TOP_N } from '../drivers/trends-hn';
+import { DEFAULT_WIKIPEDIA_LANGUAGES, DEFAULT_WIKIPEDIA_TOP_N } from '../drivers/trends-wikipedia';
+import { fetchGoogleTrends, fetchHn, fetchReddit, fetchWikipedia, fetchYoutube, type RawSignal, type SourceResult } from './sources';
 import { isChannelColumnMissing } from './recent';
 
 /**
@@ -21,7 +23,8 @@ import { isChannelColumnMissing } from './recent';
  * otherwise absolute, and a reader who finds a stage with no ledger write should be able to
  * tell "free" from "forgotten". Reddit's Data API (an app's client credentials) and
  * YouTube's (`YOUTUBE_DATA_API_KEY`) are free within their quotas, and the Google Trends RSS
- * feed needs nothing — quota running out is reported by name, never as an empty list.
+ * feed, Wikipedia's pageviews API and Hacker News' API need nothing — no key, no account, no
+ * charge. Quota running out is reported by name, never as an empty list.
  *
  * ── Per channel (0046) ───────────────────────────────────────────────────────
  *
@@ -56,6 +59,10 @@ export interface TrendRunPayload {
    * key, so a channel reads it unless it says not to. Null → not read.
    */
   readonly googleTrends?: { readonly geo: readonly string[] } | null;
+  /** Wikipedia's most-viewed articles. Absent → on, `en`, 50 each (no key needed); null → not read. */
+  readonly wikipedia?: { readonly languages: readonly string[]; readonly top_n?: number } | null;
+  /** Hacker News top stories. Absent → on, top 30 (no key needed); null → not read. */
+  readonly hn?: { readonly top_n: number } | null;
 }
 
 export interface TrendRunDeps {
@@ -69,6 +76,10 @@ export interface TrendRunDeps {
   readonly redditCredentials: RedditCredentials | null;
   /** The Google Trends feed host; a harness points it at a stub. */
   readonly googleTrendsBaseUrl?: string;
+  /** The Wikimedia API host; a harness points it at a stub. */
+  readonly wikipediaBaseUrl?: string;
+  /** The Hacker News API host; a harness points it at a stub. */
+  readonly hnBaseUrl?: string;
   /** Recorded on the trend_runs row: the schedule, Run now, or a harness. Default 'schedule'. */
   readonly runKind?: 'schedule' | 'now' | 'harness';
   /**
@@ -153,6 +164,24 @@ export async function runTrends(
   } else {
     const geos = payload.googleTrends?.geo ?? DEFAULT_GOOGLE_TRENDS_GEOS;
     results.push(await fetchGoogleTrends(geos, { baseUrl: deps.googleTrendsBaseUrl }));
+  }
+
+  if (payload.wikipedia === null) {
+    results.push({ source: 'wikipedia', ok: false, signals: [], detail: 'not configured: this channel’s trend sources turn Wikipedia off (wikipedia: null)' });
+  } else {
+    results.push(
+      await fetchWikipedia(payload.wikipedia?.languages ?? DEFAULT_WIKIPEDIA_LANGUAGES, {
+        baseUrl: deps.wikipediaBaseUrl,
+        now: deps.now,
+        topN: payload.wikipedia?.top_n ?? DEFAULT_WIKIPEDIA_TOP_N,
+      }),
+    );
+  }
+
+  if (payload.hn === null) {
+    results.push({ source: 'hn', ok: false, signals: [], detail: 'not configured: this channel’s trend sources turn Hacker News off (hn: null)' });
+  } else {
+    results.push(await fetchHn({ baseUrl: deps.hnBaseUrl, now: deps.now, topN: payload.hn?.top_n ?? DEFAULT_HN_TOP_N }));
   }
 
   let inserted = 0;
@@ -272,6 +301,8 @@ export function trendsPayloadFor(channelId: string, trends: TrendsConfig): Trend
     subreddits: [...trends.subreddits],
     youtube: trends.youtube ?? null,
     ...(trends.google_trends !== undefined ? { googleTrends: trends.google_trends } : {}),
+    ...(trends.wikipedia !== undefined ? { wikipedia: trends.wikipedia } : {}),
+    ...(trends.hn !== undefined ? { hn: trends.hn } : {}),
   };
 }
 

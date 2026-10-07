@@ -67,6 +67,8 @@ export type TrendsRecentResult =
 
 const RedditRaw = z.object({ permalink: z.string().regex(/^\/r\//) });
 const YoutubeRaw = z.object({ id: z.string().regex(/^[A-Za-z0-9_-]{6,20}$/) });
+const WikipediaRaw = z.object({ url: z.string().regex(/^https:\/\/[a-z-]+\.wikipedia\.org\/wiki\//) });
+const HnRaw = z.object({ url: z.string().regex(/^https?:\/\//).nullable(), hn_url: z.string().regex(/^https:\/\/news\.ycombinator\.com\//) });
 
 function urlFor(source: string, raw: unknown): string | null {
   if (source === 'reddit') {
@@ -76,6 +78,15 @@ function urlFor(source: string, raw: unknown): string | null {
   if (source === 'youtube') {
     const r = YoutubeRaw.safeParse(raw);
     return r.success ? `https://www.youtube.com/watch?v=${r.data.id}` : null;
+  }
+  if (source === 'wikipedia') {
+    const r = WikipediaRaw.safeParse(raw);
+    return r.success ? r.data.url : null;
+  }
+  if (source === 'hn') {
+    // The story's own link where it has one; an Ask HN has none, so its discussion page.
+    const r = HnRaw.safeParse(raw);
+    return r.success ? (r.data.url ?? r.data.hn_url) : null;
   }
   return null;
 }

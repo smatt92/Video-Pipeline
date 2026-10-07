@@ -20,6 +20,11 @@
  *          falls back to unfiltered, both saying so; and no
  *          `cost_ledger` row is written, because nothing here costs money.
  *
+ * ALSO (§15): Wikipedia and Hacker News map exactly (seeded feed → asserted rows), filter
+ *          non-articles and non-stories, ask yesterday and the day before with the descriptive
+ *          User-Agent, keep velocity null where it is absent, and a 500 from either is named
+ *          while the other lands.
+ *
  * DOES NOT: prove the real feeds return this shape. Reddit's listing is public and
  *           unversioned, and the Data API stubs here are written from its documentation — a
  *           real call with a real key is what closes that (rule 8).
@@ -160,6 +165,69 @@ const gtServer = createServer((req, res) => {
 await new Promise((r) => gtServer.listen(0, '127.0.0.1', r));
 const gtUrl = `http://127.0.0.1:${gtServer.address().port}`;
 
+// ── The stub Wikimedia pageviews API ────────────────────────────────────────
+// Shape from the API's documentation (items[0].articles[{article, views, rank}]). Every request
+// is recorded with its User-Agent, because Wikimedia's policy is the one requirement it has.
+/** 'empty' (no articles — the default, so other sections' counts are unchanged) | 'ok' | 'down' | 'noprev'. */
+let wikiMode = 'empty';
+const wikiRequests = [];
+const wikiTop = (y, m, d, articles) => ({ items: [{ project: 'en.wikipedia', access: 'all-access', year: y, month: m, day: d, articles }] });
+const WIKI_YESTERDAY = [
+  { article: 'Main_Page', views: 5_000_000, rank: 1 },
+  { article: 'Special:Search', views: 900_000, rank: 2 },
+  { article: '-', views: 400_000, rank: 3 },
+  { article: 'Oumuamua_(interstellar_object)', views: 120_000, rank: 4 },
+  { article: 'Wikipedia:Featured_pictures', views: 90_000, rank: 5 },
+  { article: 'Dune:_Part_Two', views: 80_000, rank: 6 },
+  { article: 'File:Black_hole_M87.jpg', views: 70_000, rank: 7 },
+  { article: 'Superconductivity', views: 60_000, rank: 8 },
+];
+const WIKI_DAY_BEFORE = [
+  { article: 'Main_Page', views: 4_900_000, rank: 1 },
+  { article: 'Superconductivity', views: 75_000, rank: 2 },
+  { article: 'Oumuamua_(interstellar_object)', views: 20_000, rank: 3 },
+];
+const wikiServer = createServer((req, res) => {
+  const u = new URL(req.url, 'http://stub');
+  wikiRequests.push({ path: u.pathname, ua: req.headers['user-agent'] ?? null });
+  const send = (status, body) => res.writeHead(status, { 'content-type': 'application/json' }).end(JSON.stringify(body));
+  const m = /^\/api\/rest_v1\/metrics\/pageviews\/top\/([a-z-]+)\.wikipedia\/all-access\/(\d{4})\/(\d{2})\/(\d{2})$/.exec(u.pathname);
+  if (!m) return send(404, { title: 'Not found.' });
+  if (wikiMode === 'down') return send(500, { title: 'Internal error' });
+  // NOW is 2026-08-03 12:00 UTC: yesterday is 08/02, the day before 08/01.
+  if (`${m[2]}/${m[3]}/${m[4]}` === '2026/08/02') return send(200, wikiTop(m[2], m[3], m[4], wikiMode === 'empty' ? [] : WIKI_YESTERDAY));
+  if (`${m[2]}/${m[3]}/${m[4]}` === '2026/08/01' && wikiMode === 'ok') return send(200, wikiTop(m[2], m[3], m[4], WIKI_DAY_BEFORE));
+  return send(404, { title: 'Not found.', detail: 'The date(s) you used are valid, but we either do not have data for those date(s), or the project you asked for is not loaded yet.' });
+});
+await new Promise((r) => wikiServer.listen(0, '127.0.0.1', r));
+const wikiUrl = `http://127.0.0.1:${wikiServer.address().port}`;
+
+// ── The stub Hacker News API ────────────────────────────────────────────────
+/** 'empty' (no ids — the default) | 'ok' | 'down'. */
+let hnMode = 'empty';
+const hnRequests = [];
+const HN_NOW_S = NOW / 1000;
+// 106 is a story too: beyond top_n 5 in §15d, and the third story when the default top 30 is read.
+const HN_ITEMS = {
+  101: { id: 101, type: 'story', by: 'a', title: 'A room-temperature superconductor claim, examined', score: 600, time: HN_NOW_S - 3 * 3600, url: 'https://example.org/sc', descendants: 200 },
+  102: { id: 102, type: 'job', by: 'b', title: 'Stub Corp is hiring physicists', score: 1, time: HN_NOW_S - 3600 },
+  103: { id: 103, type: 'story', by: 'c', title: 'This story was flagged and is dead now', score: 50, time: HN_NOW_S - 3600, dead: true },
+  104: { id: 104, deleted: true, type: 'story', time: HN_NOW_S - 3600 },
+  105: { id: 105, type: 'story', by: 'd', title: 'Ask HN: How do tides work on a lake?', score: 30, time: HN_NOW_S - 600, descendants: 10 },
+  106: { id: 106, type: 'story', by: 'e', title: 'Beyond the top 5, fetched only at the default', score: 999, time: HN_NOW_S - 3600, url: 'https://example.org/x' },
+};
+const hnServer = createServer((req, res) => {
+  const u = new URL(req.url, 'http://stub');
+  hnRequests.push(u.pathname);
+  const send = (status, body) => res.writeHead(status, { 'content-type': 'application/json' }).end(JSON.stringify(body));
+  if (hnMode === 'down') return send(500, { error: 'down' });
+  if (u.pathname === '/v0/topstories.json') return send(200, hnMode === 'ok' ? [101, 102, 103, 104, 105, 106] : []);
+  const m = /^\/v0\/item\/(\d+)\.json$/.exec(u.pathname);
+  return send(200, m ? (HN_ITEMS[m[1]] ?? null) : null);
+});
+await new Promise((r) => hnServer.listen(0, '127.0.0.1', r));
+const hnUrl = `http://127.0.0.1:${hnServer.address().port}`;
+
 process.env.APP_URL ??= 'https://harness.invalid';
 process.env.WEBHOOK_CALLBACK_BASE_URL ??= 'https://harness.invalid';
 process.env.ALLOWED_EMAIL ??= 'harness@invalid.test';
@@ -172,6 +240,7 @@ const { runTrends, runTrendsForAllChannels } = require(`${BUILD}/trends/run.js`)
 const { startTrendsRun } = require(`${BUILD}/trends/run-now.js`);
 const { latestTrendRun } = require(`${BUILD}/trends/runs.js`);
 const { parseApproxTraffic } = require(`${BUILD}/drivers/trends-google.js`);
+const { isArticle, WIKIPEDIA_USER_AGENT } = require(`${BUILD}/drivers/trends-wikipedia.js`);
 const { BUREAU_TOOLS, NO_EFFECTS } = require(`${BUILD}/bureau/mcp/surface.js`);
 const { supabaseShim } = await import('./lib/supabase-shim.mjs');
 const { scratchDatabase } = await import('./lib/scratch.mjs');
@@ -215,7 +284,7 @@ const asListing = (posts) => ({ data: { children: posts } });
 // `youtubeApiKey` is a required dep and passed explicitly — the refusal for a missing key is
 // §8, and a harness that leaned on the environment could not reach it.
 const CREDS = { clientId: 'harness-client', clientSecret: 'harness-secret' };
-const DEPS = { db, baseUrl: feedUrl, redditCredentials: CREDS, youtubeApiKey: 'harness-key', youtubeBaseUrl: ytUrl, googleTrendsBaseUrl: gtUrl, runKind: 'harness', now: NOW };
+const DEPS = { db, baseUrl: feedUrl, redditCredentials: CREDS, youtubeApiKey: 'harness-key', youtubeBaseUrl: ytUrl, googleTrendsBaseUrl: gtUrl, wikipediaBaseUrl: wikiUrl, hnBaseUrl: hnUrl, runKind: 'harness', now: NOW };
 const ROAD_SALT = 'Road salt is dissolving bridge decks faster than expected';
 const ROAD_SALT_LINK = '/r/infrastructure/comments/abc123/road_salt_is_dissolving/';
 
@@ -456,14 +525,22 @@ console.log('\n9. Run now: approver only, then the task gets the channel and its
     ['an unknown channel', await startTrendsRun(db, 'c0000000-0000-4000-8000-0000000000d4', { trigger, user: { id: approverId, emailAllowed: true } }), 'refused: channel c0000000-0000-4000-8000-0000000000d4 is not an active channel'],
     [
       'trend sources with nothing in them',
-      await startTrendsRun(db, A, { trigger, user: { id: approverId, emailAllowed: true }, trendsFor: () => ({ subreddits: [], youtube: { region_code: 'IN', category_ids: [], queries: [] }, google_trends: null }) }),
-      `refused: Bureau of Reality's trend sources list no subreddits, no YouTube categories or queries, and turn Google Trends off`,
+      await startTrendsRun(db, A, { trigger, user: { id: approverId, emailAllowed: true }, trendsFor: () => ({ subreddits: [], youtube: { region_code: 'IN', category_ids: [], queries: [] }, google_trends: null, wikipedia: null, hn: null }) }),
+      `refused: Bureau of Reality's trend sources list no subreddits, no YouTube categories or queries, and turn Google Trends, Wikipedia and Hacker News off`,
     ],
   ];
   for (const [what, res, prefix] of refusals) {
     check(res.status === 'error' && (res.message ?? '').startsWith(prefix) && res.runId === undefined, `${what} is refused by name`, res.message);
   }
   check(calls.length === 1, '  · and none of those six reached trigger', `${calls.length} call(s) in total`);
+  // The accepting branch: a channel whose only source is keyless Wikipedia still runs, and the
+  // task receives the block exactly as configured (hn: null carried, not dropped to "default on").
+  const wikiOnly = await startTrendsRun(db, A, { trigger, user: { id: approverId, emailAllowed: true }, trendsFor: () => ({ subreddits: [], youtube: null, google_trends: null, wikipedia: { languages: ['en', 'de'] }, hn: null }) });
+  check(
+    wikiOnly.status === 'ok' && wikiOnly.message === 'Collecting for Bureau of Reality from Wikipedia (en, de). Reload in a minute to see the signals.' && JSON.stringify(calls.at(-1)) === JSON.stringify({ channelId: A, subreddits: [], youtube: null, google_trends: null, wikipedia: { languages: ['en', 'de'] }, hn: null }),
+    'Wikipedia alone is enough to run, and the task gets the block as configured (hn: null kept)',
+    `${wikiOnly.message} · ${JSON.stringify(calls.at(-1))}`,
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -547,7 +624,7 @@ console.log('\n13. Every source says what happened, and the run records it (tren
   const last = await latestTrendRun(db, A);
   const recorded = last.ok && last.run ? last.run.sources.find((x) => x.source === 'reddit') : null;
   check(
-    last.ok && last.run?.trigger === 'harness' && recorded?.detail === r?.detail && last.run.sources.map((x) => x.source).join() === 'reddit,youtube,google_trends',
+    last.ok && last.run?.trigger === 'harness' && recorded?.detail === r?.detail && last.run.sources.map((x) => x.source).join() === 'reddit,youtube,google_trends,wikipedia,hn',
     '  · the trend_runs row the screen reads carries every source, Reddit’s refusal word for word',
     JSON.stringify(last.ok ? last.run?.sources : last),
   );
@@ -608,6 +685,108 @@ console.log('\n13. Every source says what happened, and the run records it (tren
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+console.log('\n15. Wikipedia and Hacker News: free, keyless, mapped exactly, and one failing never fails the run\n');
+{
+  // Seed the feeds (the stubs above), drive runTrends, assert the rows it wrote.
+  const OFF = { subreddits: [], youtube: null, googleTrends: null };
+  await client.query(`delete from trend_signals where source in ('wikipedia', 'hn')`);
+
+  // a. Wikipedia: yesterday, non-articles out, views as volume, change vs the day before.
+  check(
+    ['Main_Page', '-', 'Special:Search', 'Spezial:Suche', 'Wikipedia:Featured_pictures', 'Wikipédia:Accueil_principal', 'File:X.jpg', 'Portal:Science'].every((t) => !isArticle(t)) &&
+      ['Dune:_Part_Two', 'Superconductivity', 'Oumuamua_(interstellar_object)'].every(isArticle),
+    'non-articles are filtered by namespace in any language; titles with a colon and a space stay',
+  );
+  wikiMode = 'ok';
+  wikiRequests.length = 0;
+  const w = await runTrends({ channelId: A, ...OFF, hn: null }, DEPS);
+  const ws = w.sources.find((x) => x.source === 'wikipedia');
+  check(ws?.ok === true && ws.count === 3 && w.inserted === 3, 'Wikipedia: 3 articles of 8 pages land (main page, Special:, "-", Wikipedia:, File: dropped)', JSON.stringify(ws));
+  check(
+    wikiRequests.map((r) => r.path).join() ===
+      '/api/rest_v1/metrics/pageviews/top/en.wikipedia/all-access/2026/08/02,/api/rest_v1/metrics/pageviews/top/en.wikipedia/all-access/2026/08/01',
+    '  · yesterday (UTC) for the list and the day before for the change, en by default — two calls',
+    wikiRequests.map((r) => r.path).join(' '),
+  );
+  check(wikiRequests.every((r) => r.ua === WIKIPEDIA_USER_AGENT) && /sahil\.matt@gmail\.com/.test(WIKIPEDIA_USER_AGENT), '  · every request carries the descriptive User-Agent with contact details', wikiRequests[0]?.ua);
+  const wrows = (await client.query(`select term, region, velocity, volume, raw->>'url' as url, raw->>'rank' as rank from trend_signals where source = 'wikipedia' and channel_id = $1 order by volume desc`, [A])).rows;
+  check(
+    JSON.stringify(wrows.map((x) => [x.term, x.region, x.velocity === null ? null : Number(x.velocity), Number(x.volume)])) ===
+      JSON.stringify([['Oumuamua (interstellar object)', null, 100000, 120000], ['Dune: Part Two', null, null, 80000], ['Superconductivity', null, -15000, 60000]]),
+    '  · each row exactly: title with spaces, views as volume, change as velocity (null where the day before had no reading, negative when falling)',
+    JSON.stringify(wrows),
+  );
+  check(wrows[0]?.url === 'https://en.wikipedia.org/wiki/Oumuamua_(interstellar_object)' && wrows[0]?.rank === '4', '  · the article URL and its rank are kept in raw', `${wrows[0]?.url} · ${wrows[0]?.rank}`);
+
+  // b. The day before unreadable: the views still land, every velocity is null, and it is said.
+  wikiMode = 'noprev';
+  const np = await runTrends({ channelId: A, ...OFF, hn: null }, DEPS);
+  const nps = np.sources.find((x) => x.source === 'wikipedia');
+  const npv = (await client.query(`select count(*)::int as n from trend_signals where source = 'wikipedia' and channel_id = $1 and velocity is not null`, [A])).rows[0].n;
+  check(nps?.ok === true && nps.count === 3 && npv === 0 && (nps.detail ?? '').startsWith('velocity unavailable for en (en 2026/08/01: HTTP 404'), 'the day before missing: views land, velocity is null (absent, not zero), and the result says why', `${npv} non-null · ${nps?.detail}`);
+
+  // c. Languages and size from the channel's config.
+  wikiMode = 'ok';
+  wikiRequests.length = 0;
+  const de = await runTrends({ channelId: A, ...OFF, hn: null, wikipedia: { languages: ['de'], top_n: 1 } }, DEPS);
+  check(de.sources.find((x) => x.source === 'wikipedia')?.count === 1 && wikiRequests[0]?.path.includes('/top/de.wikipedia/'), '  · a channel’s own languages and top_n replace the default', wikiRequests[0]?.path);
+
+  // d. Hacker News: stories only, score as volume, score per hour as velocity, URL kept.
+  hnMode = 'ok';
+  hnRequests.length = 0;
+  const h = await runTrends({ channelId: A, ...OFF, wikipedia: null, hn: { top_n: 5 } }, DEPS);
+  const hs = h.sources.find((x) => x.source === 'hn');
+  check(hs?.ok === true && hs.count === 2, 'Hacker News: of the top 5, 2 stories land (a job, a dead and a deleted item dropped)', JSON.stringify(hs));
+  check(!hnRequests.includes('/v0/item/106.json') && hnRequests.filter((p) => p.startsWith('/v0/item/')).length === 5, '  · only the top N items are fetched', hnRequests.join(' '));
+  const hrows = (await client.query(`select term, region, velocity, volume, raw->>'url' as url, raw->>'hn_url' as hn_url from trend_signals where source = 'hn' and channel_id = $1 order by volume desc`, [A])).rows;
+  check(
+    JSON.stringify(hrows.map((x) => [x.term, x.region, Number(x.velocity), Number(x.volume), x.url, x.hn_url])) ===
+      JSON.stringify([
+        ['A room-temperature superconductor claim, examined', null, 200, 600, 'https://example.org/sc', 'https://news.ycombinator.com/item?id=101'],
+        // 10 minutes old: the one-hour floor, so 30 points reads as 30/h rather than 180/h.
+        ['Ask HN: How do tides work on a lake?', null, 30, 30, null, 'https://news.ycombinator.com/item?id=105'],
+      ]),
+    '  · each row exactly: score as volume, score per hour as velocity (600 in 3 h = 200), URL in raw',
+    JSON.stringify(hrows),
+  );
+  hnRequests.length = 0;
+  await runTrends({ channelId: A, ...OFF, wikipedia: null }, DEPS);
+  check(hnRequests.filter((p) => p.startsWith('/v0/item/')).length === 6, '  · no hn block: on by default, top 30 asked (the stub has 6)', String(hnRequests.length));
+
+  // e. A 500 from one source is recorded by name; the other lands in the same run.
+  await client.query(`delete from trend_signals where source in ('wikipedia', 'hn')`);
+  wikiMode = 'down';
+  const d1 = await runTrends({ channelId: A, ...OFF }, DEPS);
+  const d1w = d1.sources.find((x) => x.source === 'wikipedia');
+  const d1h = d1.sources.find((x) => x.source === 'hn');
+  check(d1.ok && d1w?.ok === false && d1w.detail === 'en 2026/08/02: HTTP 500 — the pageviews API did not answer' && d1h?.ok === true && d1h.count === 3 && d1.inserted === 3, 'Wikipedia 500: named on the result; Hacker News (default top 30, 3 stories in the stub) in the same run lands its 3', `${d1w?.detail} · ${JSON.stringify(d1h)}`);
+  const last1 = await latestTrendRun(db, A);
+  const rec1 = last1.ok && last1.run ? last1.run.sources.find((x) => x.source === 'wikipedia') : null;
+  check(rec1?.ok === false && rec1.detail === d1w?.detail, '  · and the trend_runs row the screen reads carries it word for word', JSON.stringify(rec1));
+  wikiMode = 'ok';
+  hnMode = 'down';
+  await client.query(`delete from trend_signals where source in ('wikipedia', 'hn')`);
+  const d2 = await runTrends({ channelId: A, ...OFF }, DEPS);
+  const d2h = d2.sources.find((x) => x.source === 'hn');
+  check(d2.ok && d2h?.ok === false && d2h.detail === 'topstories: HTTP 500' && d2.sources.find((x) => x.source === 'wikipedia')?.count === 3 && d2.inserted === 3, 'Hacker News 500: named on the result; Wikipedia in the same run lands its 3', `${d2h?.detail} · inserted ${d2.inserted}`);
+
+  // f. Turned off by name; and neither writes a cost row.
+  const off = await runTrends({ channelId: A, ...OFF, wikipedia: null, hn: null }, DEPS);
+  check(
+    off.sources.find((x) => x.source === 'wikipedia')?.detail === 'not configured: this channel’s trend sources turn Wikipedia off (wikipedia: null)' &&
+      off.sources.find((x) => x.source === 'hn')?.detail === 'not configured: this channel’s trend sources turn Hacker News off (hn: null)',
+    'wikipedia: null / hn: null say so, by the field that turned each off',
+  );
+  const ledger = Number((await client.query(`select count(*)::int as n from cost_ledger`)).rows[0].n);
+  check(ledger === 0, 'no cost_ledger rows: both are free and keyless', String(ledger));
+
+  wikiMode = 'empty';
+  hnMode = 'empty';
+  // §12 orders by velocity, and Wikipedia rows can be null: removed for the same reason as Google's.
+  await client.query(`delete from trend_signals where source in ('wikipedia', 'hn')`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 console.log('\n12. A database without 0046’s column still collects, and says so\n');
 {
   // Hosted may not have 0046 pasted yet. Dropped on the scratch database only.
@@ -642,6 +821,8 @@ console.log('\n14. A database without trend_runs (0049 not pasted) still collect
 feed.close();
 ytServer.close();
 gtServer.close();
+wikiServer.close();
+hnServer.close();
 await scratch.release();
 
 if (failures > 0) {

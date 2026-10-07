@@ -1,7 +1,9 @@
 import 'server-only';
 
 import { fetchGoogleTrending, type GoogleTrendsOptions } from '../drivers/trends-google';
+import { fetchHnTop, type HnOptions } from '../drivers/trends-hn';
 import { fetchRedditHot, type RedditFetchOptions } from '../drivers/trends-reddit';
+import { fetchWikipediaTop, type WikipediaOptions } from '../drivers/trends-wikipedia';
 import { fetchYoutubeTrends, type YoutubeFetchOptions, type YoutubeTrendConfig } from '../drivers/trends-youtube';
 
 /**
@@ -15,8 +17,13 @@ import { fetchYoutubeTrends, type YoutubeFetchOptions, type YoutubeTrendConfig }
  *                  REDDIT_CLIENT_SECRET); unauthenticated reads are refused since 28-May-2026
  *   YouTube        drivers/trends-youtube.ts — the Data API (YOUTUBE_DATA_API_KEY)
  *   Google Trends  drivers/trends-google.ts — the public trending-searches RSS feed, no key
+ *   Wikipedia      drivers/trends-wikipedia.ts — Wikimedia's pageviews "top" API, no key
+ *                  (a descriptive User-Agent with contact details is its only requirement)
+ *   Hacker News    drivers/trends-hn.ts — the official Firebase API, no key
  *
- * All three are free (Reddit and YouTube within their quotas) — no cost row.
+ * All five are free (Reddit and YouTube within their quotas) — no cost row. Wikipedia and
+ * Hacker News also need no credential and no approval, which is why a science-explainer
+ * channel reads them by default: Reddit's commercial use needs written approval.
  *
  * What they do share with a vendor is unreliability, so they are treated the same way:
  * every fetch is bounded by a timeout, a failure is one source's failure and not the run's,
@@ -32,7 +39,7 @@ import { fetchYoutubeTrends, type YoutubeFetchOptions, type YoutubeTrendConfig }
  * building it third.
  */
 
-export type TrendSource = 'youtube' | 'reddit' | 'google_trends';
+export type TrendSource = 'youtube' | 'reddit' | 'google_trends' | 'wikipedia' | 'hn';
 
 export interface RawSignal {
   readonly source: TrendSource;
@@ -104,4 +111,33 @@ export async function fetchGoogleTrends(geos: readonly string[], opts: GoogleTre
   const r = await fetchGoogleTrending(geos, opts);
   const signals: RawSignal[] = r.items.map((i) => ({ source: 'google_trends', term: i.term, region: i.geo, velocity: null, volume: i.approxTraffic, raw: i.raw }));
   return r.ok ? { source: 'google_trends', ok: true, signals } : { source: 'google_trends', ok: false, signals, detail: r.detail };
+}
+
+/**
+ * Wikipedia's most-viewed articles yesterday (`drivers/trends-wikipedia.ts`). Volume is the
+ * day's views; velocity is the change against the day before in views per day — null when
+ * the article was not in that day's list (absent, not zero). Region is null: a language is
+ * not a country, and the language is in `raw.lang`.
+ */
+export async function fetchWikipedia(languages: readonly string[], opts: WikipediaOptions = {}): Promise<SourceResult> {
+  const r = await fetchWikipediaTop(languages, opts);
+  const signals: RawSignal[] = r.articles.map((a) => ({ source: 'wikipedia', term: a.title, region: null, velocity: a.change, volume: a.views, raw: a.raw }));
+  return r.ok
+    ? { source: 'wikipedia', ok: true, signals, ...(r.detail ? { detail: r.detail } : {}) }
+    : { source: 'wikipedia', ok: false, signals, detail: r.detail };
+}
+
+/**
+ * Hacker News top stories (`drivers/trends-hn.ts`). Volume is the score; velocity is score
+ * per hour since posted — a proxy, like Reddit's, with the same one-hour floor so a story
+ * minutes old does not read as infinitely fast. The story's URL is in `raw.url`.
+ */
+export async function fetchHn(opts: HnOptions & { now?: number } = {}): Promise<SourceResult> {
+  const now = opts.now ?? Date.now();
+  const r = await fetchHnTop(opts);
+  const signals: RawSignal[] = r.stories.map((s) => {
+    const ageHours = Math.max(1, (now / 1000 - s.time) / 3600);
+    return { source: 'hn', term: s.title, region: null, velocity: Math.round((s.score / ageHours) * 100) / 100, volume: s.score, raw: s.raw };
+  });
+  return r.ok ? { source: 'hn', ok: true, signals, ...(r.detail ? { detail: r.detail } : {}) } : { source: 'hn', ok: false, signals, detail: r.detail };
 }

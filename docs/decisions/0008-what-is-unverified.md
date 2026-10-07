@@ -1413,6 +1413,30 @@ the reference's look); the Characters screen and Lock in a browser against the d
 `27-character-sheet` beyond the one probe; a characters episode end to end; whether three
 references in one picture keep each character distinct.
 
+### 32. Wikipedia and Hacker News as trend sources (2026-10-07) — RUN locally against stubs
+
+Why: Reddit's Responsible Builder Policy needs explicit approval, and written approval for
+commercial use, so the science-explainer channel reads two free, keyless, open sources
+instead. Both are on by default (absent in trend sources → on; `wikipedia: null` /
+`hn: null` → off), no migration (`trend_signals.source` has no CHECK, 0036), no cost row.
+
+**What has run:** `verify:trends` §15 (local Postgres 16): a seeded Wikimedia top list of 8
+pages lands exactly 3 article rows (main page, `Special:`, `-`, `Wikipedia:`, `File:`
+dropped; `Dune:_Part_Two` kept), views as volume, velocity = views(d) − views(d−1) — null
+where the article was not in the day before's list, negative when falling; requests go to
+yesterday and the day before (UTC) with the descriptive User-Agent; the day before missing →
+views land, velocity all null, said in the result. Hacker News: top N only, job/dead/deleted
+dropped, score as volume, score per hour (1-hour floor) as velocity, URL and HN link in raw.
+A 500 from either is named on the result and on `trend_runs`; the other lands in the same
+run. Run now with Wikipedia as the only source is accepted and carries `hn: null` to the
+task. `pnpm check` exit 0; `verify:bureau`, `verify:concepts`, `verify:outlier`,
+`verify:channel-bible` green.
+
+**What has NOT run:** the real Wikimedia and Hacker News APIs from this container (WebFetch
+permission was not answered in an unattended run; the response shapes are from their
+documentation and parsed with Zod). The real run after deploy is the check — see
+HANDOVER-PROMPT-O3.
+
 ## Gates, and where each can run
 
 | Gate | Runnable in this environment? |

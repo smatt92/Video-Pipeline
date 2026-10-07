@@ -61,6 +61,8 @@ const SOURCES: { slug: TrendSource; label: string }[] = [
   { slug: 'youtube', label: 'YouTube' },
   { slug: 'reddit', label: 'Reddit' },
   { slug: 'google_trends', label: 'Google Trends' },
+  { slug: 'wikipedia', label: 'Wikipedia' },
+  { slug: 'hn', label: 'Hacker News' },
 ];
 
 export interface SourceHealth {

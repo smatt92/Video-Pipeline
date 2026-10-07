@@ -1,6 +1,8 @@
 import { getBible, type TrendsConfig } from '../bureau/bible';
 import { listChannels } from '../channels/list';
 import { DEFAULT_GOOGLE_TRENDS_GEOS } from '../drivers/trends-google';
+import { DEFAULT_HN_TOP_N } from '../drivers/trends-hn';
+import { DEFAULT_WIKIPEDIA_LANGUAGES } from '../drivers/trends-wikipedia';
 import type { Db } from '../db/server';
 
 /**
@@ -26,6 +28,9 @@ export interface TrendsNowPayload {
   readonly youtube: NonNullable<TrendsConfig['youtube']> | null;
   /** Present only when the channel's trend sources say; absent → the default countries. */
   readonly google_trends?: TrendsConfig['google_trends'];
+  /** Present only when the channel's trend sources say; absent → on with the defaults. */
+  readonly wikipedia?: TrendsConfig['wikipedia'];
+  readonly hn?: TrendsConfig['hn'];
 }
 
 export interface TrendsState {
@@ -67,13 +72,18 @@ export async function startTrendsRun(db: Db, channelId: string, deps: StartTrend
     subreddits: [...trends.subreddits],
     youtube: yt ? { region_code: yt.region_code, category_ids: [...yt.category_ids], queries: [...yt.queries] } : null,
     ...(trends.google_trends !== undefined ? { google_trends: trends.google_trends } : {}),
+    ...(trends.wikipedia !== undefined ? { wikipedia: trends.wikipedia } : {}),
+    ...(trends.hn !== undefined ? { hn: trends.hn } : {}),
   };
   // Google Trends is read unless the channel turns it off (null): it needs no key and no list.
   const googleOn = trends.google_trends !== null;
+  // Wikipedia and Hacker News likewise: no key, so on unless turned off (null).
+  const wikiOn = trends.wikipedia !== null;
+  const hnOn = trends.hn !== null;
 
-  if (payload.subreddits.length === 0 && !ytConfigured && !googleOn) {
+  if (payload.subreddits.length === 0 && !ytConfigured && !googleOn && !wikiOn && !hnOn) {
     return refuse(
-      `${ch.name}'s trend sources list no subreddits, no YouTube categories or queries, and turn Google Trends off. Stage 1 fetches nothing rather than guessing what the channel is about.`,
+      `${ch.name}'s trend sources list no subreddits, no YouTube categories or queries, and turn Google Trends, Wikipedia and Hacker News off. Stage 1 fetches nothing rather than guessing what the channel is about.`,
     );
   }
 
@@ -84,6 +94,8 @@ export async function startTrendsRun(db: Db, channelId: string, deps: StartTrend
       ? `YouTube (${yt.category_ids.length} categor${yt.category_ids.length === 1 ? 'y' : 'ies'}, ${yt.queries.length} quer${yt.queries.length === 1 ? 'y' : 'ies'})`
       : null,
     googleOn ? `Google Trends (${(trends.google_trends?.geo ?? DEFAULT_GOOGLE_TRENDS_GEOS).join(', ')})` : null,
+    wikiOn ? `Wikipedia (${(trends.wikipedia?.languages ?? DEFAULT_WIKIPEDIA_LANGUAGES).join(', ')})` : null,
+    hnOn ? `Hacker News (top ${trends.hn?.top_n ?? DEFAULT_HN_TOP_N})` : null,
   ].filter(Boolean);
   return {
     status: 'ok',

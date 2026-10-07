@@ -176,6 +176,22 @@ export const TrendsConfigSchema = z.object({
     .object({ geo: z.array(z.string().regex(/^[A-Z]{2}$/)).min(1).max(5) })
     .nullable()
     .optional(),
+  /**
+   * Wikipedia's most-viewed articles (language codes, e.g. "en", "de"). Absent → on, with
+   * DEFAULT_WIKIPEDIA_LANGUAGES (en) and 50 articles each; null → this channel does not read it.
+   */
+  wikipedia: z
+    .object({
+      languages: z.array(z.string().regex(/^[a-z]{2,3}(-[a-z]{2,10})?$/)).min(1).max(5),
+      top_n: z.number().int().min(1).max(200).optional(),
+    })
+    .nullable()
+    .optional(),
+  /** Hacker News top stories. Absent → on, top 30; null → this channel does not read it. */
+  hn: z
+    .object({ top_n: z.number().int().min(1).max(100) })
+    .nullable()
+    .optional(),
 });
 export type TrendsConfig = z.infer<typeof TrendsConfigSchema>;
 

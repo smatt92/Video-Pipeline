@@ -56,4 +56,4 @@ export async function latestTrendRun(db: Db, channelId: string): Promise<LatestT
 }
 
 /** A source's name as a person reads it. */
-export const SOURCE_LABEL: Record<string, string> = { reddit: 'Reddit', youtube: 'YouTube', google_trends: 'Google Trends' };
+export const SOURCE_LABEL: Record<string, string> = { reddit: 'Reddit', youtube: 'YouTube', google_trends: 'Google Trends', wikipedia: 'Wikipedia', hn: 'Hacker News' };

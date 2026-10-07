@@ -90,6 +90,8 @@ export const trendsNowTask = schemaTask({
         subreddits: payload.subreddits,
         youtube: payload.youtube ?? null,
         ...(payload.google_trends !== undefined ? { googleTrends: payload.google_trends } : {}),
+        ...(payload.wikipedia !== undefined ? { wikipedia: payload.wikipedia } : {}),
+        ...(payload.hn !== undefined ? { hn: payload.hn } : {}),
       },
       { db: serverClient(), youtubeApiKey: youtubeApiKeyFromEnv(), redditCredentials: redditCredentialsFromEnv(), runKind: 'now', log: logger },
     );

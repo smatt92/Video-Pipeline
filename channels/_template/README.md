@@ -7,6 +7,10 @@ Edit every `REPLACE` before the channel drafts anything. Series ids must be valu
 `bureau_series` enum (incident, desk_tour, pip, archive, myth, deep, complaint, long_form) —
 a new id is a migration. `trends.json` names the subreddits and YouTube Data API category ids /
 queries that stage 1 reads for this channel; empty lists mean that source is skipped for it.
+Google Trends, Wikipedia and Hacker News need no key and are read unless turned off:
+`"google_trends": null`, `"wikipedia": null`, `"hn": null`. To tune them instead:
+`"google_trends": {"geo": ["IN"]}`, `"wikipedia": {"languages": ["en", "de"], "top_n": 50}`,
+`"hn": {"top_n": 30}`.
 
 Since decision 0022 a channel's bible lives in the database. **+ Add channel** in the app
 copies THIS template into `channel_bibles` / `channel_characters` — no folder, commit or
