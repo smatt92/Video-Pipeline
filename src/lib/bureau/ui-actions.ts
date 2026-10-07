@@ -8,6 +8,7 @@ import { serverClient } from '../db/server';
 import { youtubeVideoId } from '../publish/yt-analytics';
 import { approveBrief, decideCut, markScheduled, rejectBrief, restartHaltedEpisode, setKillSwitch, startQueuedEpisode } from './control';
 import { productionEffects } from './effects';
+import { VisualFormatSchema } from './formats';
 import { queueDubs, regenerateShot, type DubLanguage } from './episodes';
 import { importStudioCsv } from './studio-csv';
 import { mintBureauToken, type BureauToken } from './tokens';
@@ -82,10 +83,12 @@ async function run(path: string, subject: Subject, f: (t: BureauToken) => Promis
   }
 }
 
-export async function approveBriefAction(briefId: string, punchline: string, premise?: string): Promise<ActionResult> {
+export async function approveBriefAction(briefId: string, punchline: string, premise?: string, visualFormat?: string): Promise<ActionResult> {
   return run('/bureau/approvals', { table: 'briefs', id: briefId }, async (t) => {
     const db = serverClient();
-    const r = await approveBrief(db, t, productionEffects(db), { brief_id: briefId, punchline, edits: premise ? { premise } : {} });
+    // The format travels in the approval's edits (formats.ts): stored and logged with the decision.
+    const format = visualFormat === undefined ? undefined : VisualFormatSchema.parse(visualFormat);
+    const r = await approveBrief(db, t, productionEffects(db), { brief_id: briefId, punchline, edits: { ...(premise ? { premise } : {}), ...(format ? { visual_format: format } : {}) } });
     return r.start_error ? `Approved; the run did not start: ${r.start_error}` : `Approved with "${r.punchline}". Episode started.`;
   });
 }

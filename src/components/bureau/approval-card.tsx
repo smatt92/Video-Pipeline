@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition, type ReactNode } from 'react';
 
 import { PunchlinePicker } from '@/components/ui/punchline-picker';
+import type { FormatOption } from '@/lib/bureau/format-estimates';
+import type { VisualFormat } from '@/lib/bureau/formats';
 import { approveBriefAction, rejectBriefAction } from '@/lib/bureau/ui-actions';
 
 /**
@@ -31,6 +33,8 @@ export function ApprovalDesk({
   decision,
   aside,
   position,
+  formats,
+  defaultFormat,
 }: {
   brief: ApprovalBrief;
   /** Server-rendered brief card (slot, busts, title, cast). */
@@ -42,11 +46,15 @@ export function ApprovalDesk({
   /** Server-rendered queue. */
   aside: ReactNode;
   position: string;
+  /** The visual formats, each priced on this brief (formats.ts). The choice is sent with the approval. */
+  formats: FormatOption[];
+  defaultFormat: VisualFormat;
 }) {
   const router = useRouter();
   const [choice, setChoice] = useState<string | null>(null);
   const [custom, setCustom] = useState('');
   const [premise, setPremise] = useState(brief.premise);
+  const [format, setFormat] = useState<VisualFormat>(defaultFormat);
   const [reason, setReason] = useState<string>(REASONS[0]);
   const [reasonText, setReasonText] = useState('');
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -60,7 +68,7 @@ export function ApprovalDesk({
   const approve = () => {
     if (!picked || pending) return;
     start(async () => {
-      const r = await approveBriefAction(brief.id, picked, premise !== brief.premise ? premise : undefined);
+      const r = await approveBriefAction(brief.id, picked, premise !== brief.premise ? premise : undefined, format);
       setMessage({ ok: r.ok, text: r.message });
       if (r.ok) router.refresh();
     });
@@ -103,6 +111,37 @@ export function ApprovalDesk({
     <div className="split has-sticky">
       <article className="wide">
         {header}
+        <section className="card" aria-label="Video type">
+          <div className="card-h">
+            <h2 className="h3">Video type</h2>
+            <span className="xs t3">How every shot is made · priced on this brief</span>
+          </div>
+          <div className="card-b col" style={{ gap: 8 }} role="radiogroup" aria-label="Video type">
+            {formats.map((f) => (
+              <button
+                key={f.format}
+                type="button"
+                role="radio"
+                aria-checked={format === f.format}
+                className={`radio-card${format === f.format ? ' on' : ''}`}
+                disabled={pending}
+                onClick={() => setFormat(f.format)}
+              >
+                <span className="col" style={{ gap: 2, flex: 1 }}>
+                  <span style={{ fontWeight: 600 }}>
+                    {f.label}
+                    {f.format === defaultFormat && <span className="xs t3"> · series default</span>}
+                  </span>
+                  <span className="sm t2">{f.blurb}</span>
+                  {f.note && <span className="xs t3">{f.note}</span>}
+                </span>
+                <span className="mono" style={{ fontWeight: 600 }} title={f.inr === null ? 'Not priced — see the note' : 'Estimate, before the cap fitter'}>
+                  {f.inr === null ? '—' : `₹${f.inr.toFixed(0)}`}
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
         <section className="card" aria-label="Pick the punchline">
           <div className="card-h">
             <h2 className="h3">Pick the punchline</h2>
@@ -141,6 +180,12 @@ export function ApprovalDesk({
             <span className="mono xs t3">{position}</span>
           </div>
           <div className="card-b col" style={{ gap: 14 }}>
+            <div className="row sb">
+              <span className="sm t2">Video type</span>
+              <span className="mono" style={{ fontWeight: 600 }}>
+                {formats.find((f) => f.format === format)?.label ?? format}
+              </span>
+            </div>
             <div className="row sb">
               <span className="sm t2">Punchline</span>
               <span className="mono" style={{ fontWeight: 600 }}>

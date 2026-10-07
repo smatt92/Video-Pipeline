@@ -6,7 +6,8 @@ import type { Json } from '../db/types';
 import { bureauSeries, hookPattern } from '../db/enums';
 import { getBible, type ChannelBible } from './bible';
 import type { Embedder } from './embed';
-import { estimateEpisode, PlannedShotSchema, withStills } from './estimate';
+import { estimateEpisode, PlannedShotSchema } from './estimate';
+import { formatOf, routesForFormat } from './formats';
 import { stillsAvailability } from './stills';
 import { classifySource, FactSchema, policyLint, type LintResult } from './policy-lint';
 import { airedMasters, longFormScript, SegmentSchema, validateSegments } from './longform';
@@ -201,7 +202,10 @@ export async function createBriefs(rawBriefs: unknown[], deps: CreateDeps): Prom
 
     const parsedScript = parseScript(b.script_text, cb);
     const voChars = parsedScript.ok ? parsedScript.voText.length : b.script_text.length;
-    const pricedShots = b.series === 'long_form' ? b.shot_list : withStills(b.shot_list, stills.available).shots;
+    // Priced in the series' default format; the approver can pick another on Approvals, which
+    // re-prices it there (formats.ts).
+    const seriesFormat = formatOf({ seriesFormat: cb.seriesFor(b.series).visual_format }).format;
+    const pricedShots = b.series === 'long_form' ? b.shot_list : routesForFormat(b.shot_list, seriesFormat, stills.available).shots;
     const estimate = usdInrRate === null ? null : await estimateEpisode(db, { shots: pricedShots, voChars, usdInrRate });
 
     const flagReasons = [

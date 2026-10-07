@@ -554,12 +554,24 @@ try {
     const a3 = await call('brief_approve', { id: briefId3, punchline: 'B' }, approver.plaintext);
     const ep3 = a3.result.episode_id;
     await P.prepareScript(db, ep3, { apiKey: null, usdInrRate: 88 });
+    // The format picked at approval routes the plan (formats.ts). Seeded: the approver's pick in
+    // approved_edits. Asserted: the shot rows planShots wrote and the format it recorded.
+    // Then the shots are removed and the pick cleared, so the rest of this section plans as before.
+    const { rows: [{ brief_id: b3Pick }] } = await client.query('select brief_id from episodes where id = $1', [ep3]);
+    await client.query(`update briefs set approved_edits = approved_edits || '{"visual_format":"diagram"}' where id = $1`, [b3Pick]);
+    await P.planShots(db, ep3, { usdInrRate: 88, actedBeatAvailable: false });
+    const { rows: [diaEp] } = await client.query('select script_id, qc, estimate_inr from episodes where id = $1', [ep3]);
+    const { rows: diaShots } = await client.query('select render_route from shots where script_id = $1', [diaEp.script_id]);
+    check(diaShots.length === 4 && diaShots.every((x) => x.render_route === 'overlay') && diaEp.qc.plan.format.format === 'diagram' && diaEp.qc.plan.format.source === 'episode',
+      'LOAD-BEARING: a diagram pick at approval plans every shot as a chalk overlay, and the plan records that the episode chose it', JSON.stringify({ routes: diaShots.map((x) => x.render_route), format: diaEp.qc.plan.format }));
+    await client.query('delete from shots where script_id = $1', [diaEp.script_id]);
+    await client.query(`update briefs set approved_edits = approved_edits - 'visual_format' where id = $1`, [b3Pick]);
     const plan3 = await P.planShots(db, ep3, { usdInrRate: 88, actedBeatAvailable: false });
     const [ep3row] = (await client.query('select script_id, estimate_inr, qc from episodes where id = $1', [ep3])).rows;
     const shots3 = (await client.query('select id, idx, render_route, overlay_spec, description from shots where script_id = $1 order by idx', [ep3row.script_id])).rows;
     check(shots3.length === 4 && shots3.every((x) => x.render_route === 'still') && shots3.every((x) => x.overlay_spec?.camera),
       'every shot is a still, each carrying its overlay (the fallback, and the camera move)', shots3.map((x) => x.render_route).join());
-    check(plan3.swaps.some((x) => x.idx === 1 && x.from === 'character_beat' && x.to === 'still' && /off-screen/.test(x.reason)),
+    check(plan3.swaps.some((x) => x.idx === 1 && x.from === 'character_beat' && x.to === 'still' && /illustrated format/.test(x.reason)),
       'the character beat became a still, and the plan says why', JSON.stringify(plan3.swaps));
     const voice3 = await P.voiceStep(db, ep3, { usdInrRate: 88, apiKeyFor: async () => ({ ok: true, value: 'k' }), synth: synthFrom((t) => t), align: (i) => alignLine(i), putBytes, presign, routeFor });
     check(voice3.ok, 'voiced', voice3.ok ? '' : voice3.detail);

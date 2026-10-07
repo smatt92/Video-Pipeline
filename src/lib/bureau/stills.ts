@@ -22,7 +22,7 @@ import {
 import type { CredentialRefusal } from '../integrations/verify';
 import { usability } from '../integrations/verify';
 import { routed } from '../llm/router';
-import { STILL_NEGATIVE, STILL_PROMPT_REF, STILL_SYSTEM, stillUserMessage } from '../prompts/21-still.v2';
+import { STILL_NEGATIVE, STILL_PROMPT_REF, STILL_SYSTEM, stillUserMessage } from '../prompts/21-still.v3';
 import { normaliseOverlay } from '../../remotion/bureau/overlay-scene';
 import type { Bible } from './bible';
 import { fits, headroom } from './caps';
@@ -47,7 +47,7 @@ import { fits, headroom } from './caps';
  * ── The cast stays off-screen ─────────────────────────────────────────────────
  *
  * The shot description is rewritten by the cheapest model tier under a versioned prompt
- * (`prompts/21-still.v2.ts`), then checked by code: any cast name or slug in the rewrite is
+ * (`prompts/21-still.v3.ts`), then checked by code: any cast name or slug in the rewrite is
  * a refusal (`castNamesIn`). The style and the negative clause are appended here from the
  * bible, never by the model, so no rewrite can drop "no people".
  */
@@ -109,7 +109,7 @@ export type StillPrompt = { ok: true; prompt: string; scene: string; model: stri
  * The full still prompt for one shot, or why not. The model rewrites; code checks and composes.
  */
 export async function stillPromptFor(
-  input: { description: string; premise: string; cast: readonly { id: string; name: string }[]; world: Bible['world']; accent: string },
+  input: { description: string; premise: string; cast: readonly { id: string; name: string }[]; world: Bible['world']; accent: string; narration?: string; part?: { index: number; of: number } },
   deps: { db: Db; apiKey: string | null; usdInrRate: number; subject: LlmCostSubject; client?: Pick<Anthropic, 'messages'> },
 ): Promise<StillPrompt> {
   if (!deps.apiKey) return { ok: false, reason: 'no model key to rewrite the shot without its cast' };
@@ -117,7 +117,7 @@ export async function stillPromptFor(
   let model: string;
   try {
     const r = await routed(
-      { task: 'still_prompt', system: STILL_SYSTEM, user: stillUserMessage({ description: input.description, premise: input.premise, cast: input.cast.map((c) => c.name) }), schema: z.object({ scene: z.string().min(3).max(600) }), maxTokens: 300 },
+      { task: 'still_prompt', system: STILL_SYSTEM, user: stillUserMessage({ description: input.description, premise: input.premise, cast: input.cast.map((c) => c.name), narration: input.narration, part: input.part }), schema: z.object({ scene: z.string().min(3).max(600) }), maxTokens: 300 },
       { db: deps.db, apiKey: deps.apiKey, usdInrRate: deps.usdInrRate, subject: deps.subject, client: deps.client },
     );
     scene = r.data.scene;
@@ -173,16 +173,29 @@ function sniff(bytes: Buffer): { ext: string; type: string } {
  */
 export async function generateStillForShot(
   db: Db,
-  ctx: { shot: StillShot; channelId: string; premise: string; cast: readonly { id: string; name: string }[]; world: Bible['world']; accent: string; kind?: 'short' | 'long_form' },
+  ctx: {
+    shot: StillShot;
+    channelId: string;
+    premise: string;
+    cast: readonly { id: string; name: string }[];
+    world: Bible['world'];
+    accent: string;
+    kind?: 'short' | 'long_form';
+    /** Which of the shot's pictures this is (formats.ts), and the narration under it. Absent → the shot's only picture. */
+    part?: { index: number; of: number; narration: string };
+  },
   deps: StillDeps,
 ): Promise<StillResult> {
   const { shot } = ctx;
-  const { count } = await db.from('generations').select('id', { count: 'exact', head: true }).eq('shot_id', shot.id).eq('kind', 'image');
-  const attempt = count ?? 0;
-  const key = `still:${shot.id}:${attempt}`;
+  const part = ctx.part?.index ?? 0;
+  // Attempts count per picture: a shot's second picture starts at attempt 0 too.
+  const { data: prior } = await db.from('generations').select('request_payload').eq('shot_id', shot.id).eq('kind', 'image');
+  const attempt = (prior ?? []).filter((g) => partOf(g.request_payload) === part).length;
+  // Part 0 keeps the pre-v3 key shape, so a shot's first picture dedupes against stills made before parts existed.
+  const key = part === 0 ? `still:${shot.id}:${attempt}` : `still:${shot.id}:p${part}:${attempt}`;
 
   const p = await stillPromptFor(
-    { description: shot.description, premise: ctx.premise, cast: ctx.cast, world: ctx.world, accent: ctx.accent },
+    { description: shot.description, premise: ctx.premise, cast: ctx.cast, world: ctx.world, accent: ctx.accent, narration: ctx.part?.narration || undefined, part: ctx.part ? { index: ctx.part.index, of: ctx.part.of } : undefined },
     { db, apiKey: deps.llmKey, usdInrRate: deps.usdInrRate, client: deps.llmClient, subject: { kind: 'channel', channelId: ctx.channelId, idempotencyKey: `${key}:prompt`, stage: '20-still-prompt' } },
   );
   if (!p.ok) return { ok: false, reason: p.reason, spent: false };
@@ -207,7 +220,7 @@ export async function generateStillForShot(
       driver: STILL_PROVIDER,
       model: STILL_MODEL,
       attempt,
-      request_payload: { prompt: p.prompt, scene: p.scene, prompt_ref: STILL_PROMPT_REF, rewrite_model: p.model, ratio: STILL_RATIO, source_description: shot.description } as Json,
+      request_payload: { prompt: p.prompt, scene: p.scene, prompt_ref: STILL_PROMPT_REF, rewrite_model: p.model, ratio: STILL_RATIO, source_description: shot.description, part, parts: ctx.part?.of ?? 1, narration: ctx.part?.narration ?? null } as Json,
       idempotency_key: key,
       status: 'submitting',
       origin: 'pipeline',
@@ -237,7 +250,7 @@ export async function generateStillForShot(
     await db.from('generations').update({ status: 'failed', error_code: code, error_detail: detail.slice(0, 1000), completed_at: new Date().toISOString() }).eq('id', gen.id);
   };
 
-  const started = await deps.submit({ prompt: p.prompt, apiKey: cred.value, seed: shot.idx + 1 + attempt * 101 });
+  const started = await deps.submit({ prompt: p.prompt, apiKey: cred.value, seed: shot.idx + 1 + attempt * 101 + part * 7 });
   if (!started.ok) {
     await failGen(started.code, started.detail);
     return { ok: false, reason: `the vendor refused the still: ${started.code} ${started.detail}`, spent: true };
@@ -279,12 +292,12 @@ export async function generateStillForShot(
     await failGen('not_an_image', `${bytes.length} bytes that are not png, jpeg or webp`);
     return { ok: false, reason: 'the vendor returned something that is not an image', spent: true };
   }
-  const storageKey = `stills/${shot.script_id}/${String(shot.idx).padStart(2, '0')}-${attempt}.${kind.ext}`;
+  const storageKey = part === 0 ? `stills/${shot.script_id}/${String(shot.idx).padStart(2, '0')}-${attempt}.${kind.ext}` : `stills/${shot.script_id}/${String(shot.idx).padStart(2, '0')}-p${part}-${attempt}.${kind.ext}`;
   const { Readable: R } = await import('node:stream');
   const stored = await deps.putBytes(storageKey, R.from(bytes));
   const { data: asset, error: aErr } = await db
     .from('assets')
-    .insert({ kind: 'image', storage_key: storageKey, bytes: stored, width: STILL_WIDTH, height: STILL_HEIGHT, generation_id: gen.id, meta: { shot_idx: shot.idx, content_type: kind.type, prompt_ref: STILL_PROMPT_REF } as Json })
+    .insert({ kind: 'image', storage_key: storageKey, bytes: stored, width: STILL_WIDTH, height: STILL_HEIGHT, generation_id: gen.id, meta: { shot_idx: shot.idx, part, content_type: kind.type, prompt_ref: STILL_PROMPT_REF } as Json })
     .select('id')
     .single();
   if (aErr || !asset) {
@@ -295,13 +308,37 @@ export async function generateStillForShot(
   return { ok: true, generationId: gen.id, assetId: asset.id, storageKey, costInr, prompt: p.prompt };
 }
 
-/** The newest stored still for a shot, or null. What the assembler draws. */
-export async function latestStill(db: Db, shotId: string): Promise<{ storageKey: string; assetId: string } | null> {
-  const { data: gens } = await db.from('generations').select('id').eq('shot_id', shotId).eq('kind', 'image').eq('status', 'succeeded').order('completed_at', { ascending: false }).limit(1);
-  const g = gens?.[0];
-  if (!g) return null;
-  const { data: a } = await db.from('assets').select('id, storage_key').eq('generation_id', g.id).eq('kind', 'image').limit(1).maybeSingle();
-  return a ? { storageKey: a.storage_key, assetId: a.id } : null;
+/** Which picture of its shot a still generation is (legacy rows, made before parts, are picture 0). */
+export function partOf(payload: unknown): number {
+  const v = payload && typeof payload === 'object' ? (payload as Record<string, unknown>).part : undefined;
+  return typeof v === 'number' && Number.isInteger(v) && v >= 0 ? v : 0;
+}
+
+/**
+ * The newest stored picture for each part of a shot. What the stills step skips and the
+ * assembler draws. An empty map means the shot has no picture at all.
+ */
+export async function stillsByPart(db: Db, shotId: string): Promise<Map<number, { storageKey: string; assetId: string }>> {
+  const { data: gens } = await db
+    .from('generations')
+    .select('id, request_payload, completed_at')
+    .eq('shot_id', shotId)
+    .eq('kind', 'image')
+    .eq('status', 'succeeded')
+    .order('completed_at', { ascending: false });
+  const newest = new Map<number, string>();
+  for (const g of gens ?? []) {
+    const k = partOf(g.request_payload);
+    if (!newest.has(k)) newest.set(k, g.id);
+  }
+  const out = new Map<number, { storageKey: string; assetId: string }>();
+  if (!newest.size) return out;
+  const { data: assets } = await db.from('assets').select('id, storage_key, generation_id').in('generation_id', [...newest.values()]).eq('kind', 'image');
+  for (const [k, genId] of newest) {
+    const a = (assets ?? []).find((x) => x.generation_id === genId);
+    if (a) out.set(k, { storageKey: a.storage_key, assetId: a.id });
+  }
+  return out;
 }
 
 /**

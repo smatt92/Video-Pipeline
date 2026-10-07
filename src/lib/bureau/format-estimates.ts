@@ -1,0 +1,57 @@
+import { readUsdInrRate } from '../cost/fx';
+import type { Db } from '../db/server';
+import { getBible } from './bible';
+import { estimateEpisode, PlannedShotSchema } from './estimate';
+import { FORMAT_INFO, formatOf, routesForFormat, VISUAL_FORMATS, type VisualFormat } from './formats';
+import { parseScript } from './script-lines';
+import { stillsAvailability } from './stills';
+
+export interface FormatOption {
+  format: VisualFormat;
+  label: string;
+  blurb: string;
+  /** Planned ₹ for this brief in this format; null when any part is unpriced (never 0 for "unknown"). */
+  inr: number | null;
+  /** Why the figure is missing or why the format degrades, in one sentence; null when neither. */
+  note: string | null;
+}
+
+/**
+ * The format choice on Approvals: each format priced on THIS brief's shot list, with the
+ * series default marked. The same routing (`routesForFormat`) and estimator the planner uses,
+ * so the figure beside a format is the figure the run will check against the cap. It omits
+ * what the cap fitter may still swap — the planner records that on the episode.
+ */
+export async function formatOptions(
+  db: Db,
+  channelId: string,
+  brief: { series: string; shot_list: unknown; script_text: string },
+): Promise<{ options: FormatOption[]; seriesDefault: VisualFormat }> {
+  const cb = await getBible(db, channelId);
+  const seriesDefault = formatOf({ seriesFormat: cb.seriesFor(brief.series as never)?.visual_format }).format;
+  const shots = PlannedShotSchema.array().safeParse(brief.shot_list);
+  const fx = await readUsdInrRate(db);
+  const stills = await stillsAvailability(db, channelId);
+  const parsed = parseScript(brief.script_text, cb);
+  const voChars = parsed.ok ? parsed.voText.length : brief.script_text.length;
+
+  const options: FormatOption[] = [];
+  for (const format of VISUAL_FORMATS) {
+    const info = FORMAT_INFO[format];
+    let note: string | null = null;
+    if (format !== 'diagram' && !stills.available) note = `Pictures unavailable — ${stills.reason}; this would be drawn as diagrams.`;
+    if (!shots.success || !shots.data.length) {
+      options.push({ format, ...info, inr: null, note: 'The brief has no shot list to price.' });
+      continue;
+    }
+    if (!fx.ok) {
+      options.push({ format, ...info, inr: null, note: 'No USD→INR rate is set, so nothing can be priced.' });
+      continue;
+    }
+    const routed = routesForFormat(shots.data, format, stills.available).shots;
+    const est = await estimateEpisode(db, { shots: routed, voChars, usdInrRate: fx.rate });
+    if (est.total_inr === null && !note) note = `Unpriced: ${est.unpriced.join('; ')}`;
+    options.push({ format, ...info, inr: est.total_inr, note });
+  }
+  return { options, seriesDefault };
+}

@@ -30,7 +30,7 @@ const CB = bibleForSlug('bureau-of-reality');
 const BIBLE = CB.bible;
 const { framePrompt } = require(`${B}/bureau/frames.js`);
 const { castNamesIn, composeStillPrompt } = require(`${B}/bureau/stills.js`);
-const { withStills } = require(`${B}/bureau/estimate.js`);
+const { routesForFormat, picturesFor, pictureSpans, formatOf, MAX_PICTURES_PER_SHOT } = require(`${B}/bureau/formats.js`);
 const { kenBurns, MIN_SCALE } = require(new URL('../.verify-build/src/remotion/bureau/ken-burns.js', import.meta.url).pathname);
 const { STILL_USD, STILL_RATE_KEY, STILL_PROMPT_MAX } = require(`${B}/drivers/still-image.js`);
 const { readFileSync: readSql } = await import('node:fs');
@@ -281,10 +281,29 @@ console.log('\nscene stills (0021)\n');
     'the prompt is scene + bible still style + the lead accent + the bible negative + the no-people clause, in that order', prompt.slice(0, 120));
   check(prompt.length <= STILL_PROMPT_MAX && !/stick figure/i.test(prompt), 'under the vendor limit, and the stick-figure style rule never reaches a still', String(prompt.length));
   const shots = [{ route: 'overlay' }, { route: 'character_beat' }, { route: 'money_shot' }, { route: 'acted_beat' }];
-  const on = withStills(shots, true);
-  const off = withStills(shots, false);
-  check(on.shots.map((x) => x.route).join() === 'still,still,money_shot,still' && on.swaps.map((x) => x.from).join() === 'character_beat,acted_beat', 'available: every shot but the money shot is a still; the cast beats say so');
-  check(off.shots.map((x) => x.route).join() === 'overlay,character_beat,money_shot,acted_beat' && off.swaps.length === 0, 'unavailable: nothing changes');
+  const ill = routesForFormat(shots, 'illustrated', true);
+  const cin = routesForFormat(shots, 'cinematic', true);
+  const dia = routesForFormat(shots, 'diagram', true);
+  const off = routesForFormat(shots, 'illustrated', false);
+  check(ill.shots.map((x) => x.route).join() === 'still,still,still,still' && ill.swaps.map((x) => x.from).join() === 'character_beat,money_shot,acted_beat', 'illustrated: every shot is a picture, money shot included; each generated route that changed says so', JSON.stringify(ill.swaps));
+  check(cin.shots.map((x) => x.route).join() === 'still,character_beat,money_shot,acted_beat' && cin.swaps.length === 0, 'cinematic: generated routes stay for the planner to judge; only the diagram becomes a picture');
+  check(dia.shots.every((x) => x.route === 'overlay') && dia.swaps.length === 3, 'diagram: everything is drawn in-house, nothing but the voice is generated');
+  check(off.shots.map((x) => x.route).join() === 'overlay,character_beat,money_shot,acted_beat' && off.swaps.length === 0, 'stills unavailable: illustrated degrades to the plan from before stills existed');
+  check([[1, 1], [5, 1], [9, 2], [12, 2], [18, 3], [60, MAX_PICTURES_PER_SHOT], [0, 1], [NaN, 1]].every(([d, n]) => picturesFor(d) === n), 'one picture per ~6 s, at least one, at most MAX_PICTURES_PER_SHOT', [1, 5, 9, 12, 18, 60].map(picturesFor).join());
+  check(formatOf({}).format === 'illustrated' && formatOf({}).source === 'default', 'no choice anywhere: illustrated, and it says it is the default');
+  check(formatOf({ seriesFormat: 'diagram' }).format === 'diagram' && formatOf({ seriesFormat: 'diagram', approvedEdits: { visual_format: 'cinematic' } }).source === 'episode', 'the approver overrides the series default');
+  check(formatOf({ seriesFormat: 'bogus', approvedEdits: { visual_format: 42 } }).format === 'illustrated', 'a bad stored value never throws and never becomes a format');
+  {
+    // 18 s shot at 30 fps starting at 3 s; words every 0.5 s.
+    const words = Array.from({ length: 60 }, (_, i) => ({ w: `w${i}`, start: i * 0.5, end: i * 0.5 + 0.4 }));
+    const spans = pictureSpans({ startFrame: 90, frames: 540 }, 3, words, 30);
+    check(spans.length === 3 && spans.reduce((n, x) => n + x.frames, 0) === 540 && spans[0].from === 0, 'three pictures cover the shot exactly — the sync to the voice cannot drift', JSON.stringify(spans.map((x) => x.frames)));
+    check(spans.every((x) => x.narration.length > 0) && spans[0].narration.startsWith('w6') && !spans[1].narration.includes('w6 '), 'each picture carries the words spoken under it, from the shot\'s own words', spans.map((x) => x.narration.slice(0, 8)).join(' | '));
+    const short = pictureSpans({ startFrame: 0, frames: 75 }, 3, words, 30);
+    check(short.length === 1 && short[0].frames === 75, 'a cut that would leave a picture under 2 s is dropped, not squeezed', JSON.stringify(short.map((x) => x.frames)));
+    const silent = pictureSpans({ startFrame: 0, frames: 360 }, 2, [], 30);
+    check(silent.length === 2 && silent[0].frames === 180 && silent[0].narration === '', 'no words: equal halves, empty narration (the shot description carries the picture)');
+  }
   // The drawn share counts stills: an all-still Short keeps its stills under the overlay-share rule.
   const allStill = [0, 1, 2].map(() => ({ route: 'still', duration_s: 5, description: 'x', characters: [], realistic: false }));
   const est = { shots: allStill.map((_, i) => ({ idx: i, route: 'still', duration_s: 5, billed_s: null, inr: 4.4, planned_inr: 4.4, basis: '' })), voice_inr: 10, total_inr: 23.2, priced_inr: 23.2, unpriced: [], usd_inr_rate: 88 };

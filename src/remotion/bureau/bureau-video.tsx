@@ -20,7 +20,7 @@ import { kenBurns } from './ken-burns';
 export type BureauShot =
   | { type: 'clip'; url: string; frames: number; /** 'contain' pillarboxes a 9:16 master inside a 16:9 long-form. */ fit?: 'cover' | 'contain' }
   | { type: 'overlay'; overlay: OverlaySpec; frames: number }
-  | { type: 'still'; url: string; camera: CameraMove; accent: string; seed: number; frames: number };
+  | { type: 'still'; url: string; camera: CameraMove; accent: string; seed: number; frames: number; /** The faint chalk grid over the picture: for chalk-style stills only (illustrated pictures carry their own look). */ grid?: boolean };
 
 export type BureauLayer = 'composite' | 'clean_master' | 'caption_layer';
 
@@ -104,7 +104,7 @@ function Overlay({ spec, frames }: { spec: OverlaySpec; frames: number }) {
 
 /**
  * A scene still: the image full-bleed (cover, 9:16), moved slowly by the shot's camera field,
- * with a faint chalk grid over it and one short accent rule in the lead's colour. The move
+ * optionally a faint chalk grid over it, and one short accent rule in the lead's colour. The move
  * is a pure function of (camera, seed, progress) — identical on every render of the cut.
  */
 function Still({ shot }: { shot: Extract<BureauShot, { type: 'still' }> }) {
@@ -123,9 +123,11 @@ function Still({ shot }: { shot: Extract<BureauShot, { type: 'still' }> }) {
           transformOrigin: '50% 50%',
         }}
       />
-      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ position: 'absolute', inset: 0, opacity: 0.35 }}>
-        <Grid width={width} height={height} />
-      </svg>
+      {shot.grid && (
+        <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ position: 'absolute', inset: 0, opacity: 0.35 }}>
+          <Grid width={width} height={height} />
+        </svg>
+      )}
       <div style={{ position: 'absolute', left: Math.round(width * 0.06), bottom: Math.round(height * 0.04), width: Math.round(width * 0.14), height: Math.max(2, Math.round(height * 0.004)), backgroundColor: shot.accent, borderRadius: 2 }} />
     </AbsoluteFill>
   );

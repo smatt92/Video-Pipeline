@@ -6,6 +6,8 @@ import { billedSeconds, providersForRoute, type RenderRoute } from '../drivers/g
 import { STILL_RATE_KEY } from '../drivers/still-image';
 import { TTS_RATE_KEY } from '../drivers/voice-route';
 
+import { picturesFor } from './formats';
+
 /**
  * What an episode will cost before it is made, and how to make it fit the cap.
  *
@@ -35,23 +37,6 @@ export type VideoRoute = (typeof VIDEO_ROUTES)[number];
 export const isVideoRoute = (r: string | null | undefined): r is VideoRoute => (VIDEO_ROUTES as readonly string[]).includes(r ?? '');
 /** Drawn on screen without generated motion: the chalk overlay or a scene still. */
 export const isDrawnRoute = (r: string | null | undefined) => r === 'overlay' || r === 'still';
-
-/**
- * The route a planned shot takes once stills are considered (decision 0021). Every shot that
- * is not a money shot becomes a still — character beats included, because the cast stays
- * off-screen. When stills are unavailable nothing changes: overlays stay overlays and the
- * existing refusals decide the rest. Shared by the planner and the brief estimate, so a
- * brief is priced on the routes its episode will actually take.
- */
-export function withStills<T extends { route: PlannedShot['route'] }>(shots: readonly T[], stillsAvailable: boolean): { shots: T[]; swaps: { idx: number; from: PlannedShot['route']; to: 'still'; reason: string }[] } {
-  const swaps: { idx: number; from: PlannedShot['route']; to: 'still'; reason: string }[] = [];
-  const out = shots.map((s, idx) => {
-    if (!stillsAvailable || s.route === 'money_shot' || s.route === 'still') return s;
-    if (s.route !== 'overlay') swaps.push({ idx, from: s.route, to: 'still', reason: 'the cast stays off-screen (0021) — a scene still instead' });
-    return { ...s, route: 'still' as const };
-  });
-  return { shots: out, swaps };
-}
 
 export const PlannedShotSchema = z.object({
   beat_id: z.string().min(1).optional(),
@@ -169,11 +154,13 @@ export async function estimateEpisode(
       continue;
     }
     if (s.route === 'still') {
-      // One image, whatever the shot's length: the camera move is ours.
+      // One image per SECONDS_PER_PICTURE of the shot (formats.ts), the same count the stills
+      // step makes; the camera move is ours.
+      const n = picturesFor(s.duration_s);
       const rate = await currentRate(db, { ...STILL_RATE_KEY });
-      const inr = rate.found ? round2(rate.rate.unitCostUsd * fx) : null;
+      const inr = rate.found ? round2(rate.rate.unitCostUsd * fx * n) : null;
       if (inr === null) unpriced.push(`shot ${idx} (still): ${rate.found ? '' : rate.detail}`);
-      lines.push({ idx, route: s.route, duration_s: s.duration_s, billed_s: null, inr, planned_inr: inr, basis: rate.found ? `rate_card ${STILL_RATE_KEY.model} per ${STILL_RATE_KEY.unit} × 1` : 'unpriced' });
+      lines.push({ idx, route: s.route, duration_s: s.duration_s, billed_s: null, inr, planned_inr: inr, basis: rate.found ? `rate_card ${STILL_RATE_KEY.model} per ${STILL_RATE_KEY.unit} × ${n}` : 'unpriced' });
       continue;
     }
     const r = await routeRateInr(db, s.route, s.duration_s, fx);

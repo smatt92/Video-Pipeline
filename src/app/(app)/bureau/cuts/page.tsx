@@ -9,6 +9,7 @@ import { Icon } from '@/components/ui/icon';
 import { Player } from '@/components/ui/player';
 import { Basis, EpisodeStatePill, Gate } from '@/components/ui/tags';
 import { isVideoRoute } from '@/lib/bureau/estimate';
+import { FORMAT_INFO, VisualFormatSchema, type FormatSource, type VisualFormat } from '@/lib/bureau/formats';
 import { channelGeneration, episodeClips } from '@/lib/bureau/overlay-only';
 import { isRunning } from '@/lib/bureau/running';
 import { requireChannel } from '@/lib/channels/active';
@@ -68,6 +69,10 @@ export default async function CutsPage({ searchParams }: { searchParams: Promise
 
   const e = list.find((x) => x.id === id) ?? list.find((x) => x.status === 'awaiting_cut') ?? list[0]!;
   const brief = briefOf.get(e.brief_id);
+  // The format the planner recorded (formats.ts) — read back from the plan, never re-derived here.
+  const storedFormat = ((e.qc ?? {}) as { plan?: { format?: { format?: unknown; source?: unknown } } }).plan?.format;
+  const parsedFormat = VisualFormatSchema.safeParse(storedFormat?.format);
+  const planFormat: { format: VisualFormat; source: FormatSource } | null = parsedFormat.success ? { format: parsedFormat.data, source: (storedFormat?.source as FormatSource) ?? 'default' } : null;
   let url: string | null = null;
   let dims: { w: number; h: number; dur: number | null } | null = null;
   if (e.final_render_id) {
@@ -157,7 +162,7 @@ export default async function CutsPage({ searchParams }: { searchParams: Promise
         </nav>
       )}
 
-      {readiness.summary && <Note>{readiness.summary} A viewer sees the chalk diagrams and none of the cast; nothing is spent on this.</Note>}
+      {readiness.summary && planFormat?.format === 'cinematic' && <Note>{readiness.summary} Those shots are drawn as pictures or diagrams instead; nothing is spent on video.</Note>}
 
       <div className="split">
         <div className="cutcol">
@@ -180,6 +185,7 @@ export default async function CutsPage({ searchParams }: { searchParams: Promise
             <div className="card-h">
               <h2 className="h3">Shot list</h2>
               <span className="mono xs t3">
+                {planFormat ? `${FORMAT_INFO[planFormat.format].label}${planFormat.source === 'episode' ? ' (picked at approval)' : ''} · ` : ''}
                 {shots.length} shots · {totalS.toFixed(2)} s{routes.length === 1 ? ` · all ${ROUTE_LABEL[routes[0]!] ?? routes[0]}` : ''}
               </span>
             </div>

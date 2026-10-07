@@ -11,8 +11,8 @@ import { stillsAvailability } from './stills';
  * any exist), so the run would rebuild exactly the cut that was rejected. And
  * `shot_regenerate` refuses overlays — there is nothing generated to re-roll.
  *
- * So before the run restarts, every overlay shot becomes a still — the same rule `withStills`
- * applies at planning time (a money shot keeps its clip). The overlay spec stays on the row:
+ * So before the run restarts, every overlay shot becomes a still — the illustrated format's rule
+ * (`routesForFormat`); a money shot keeps its clip. The overlay spec stays on the row:
  * it is the still's camera move and its fallback, exactly as for a freshly planned still.
  * The voice, the script and the timings are untouched; the run re-uses all three.
  *

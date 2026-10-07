@@ -7,6 +7,7 @@ import { inr, Note } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { Basis, CastChip, Gate, Pill, Stag } from '@/components/ui/tags';
 import { pendingBriefs } from '@/lib/bureau/briefs';
+import { formatOptions } from '@/lib/bureau/format-estimates';
 import { bibleOrNull, requireChannel } from '@/lib/channels/active';
 import { serverClient } from '@/lib/db/server';
 import { castFor, channelPolicy, longDate, titleOf, todayIn, tzAbbrev, upcomingSlots } from '@/lib/screens/common';
@@ -120,6 +121,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
   }, {});
   const policyStatus = status(b.policy);
   const variationStatus = status(b.variation);
+  const fmts = await formatOptions(db, channel.id, { series: b.series, shot_list: b.shot_list, script_text: b.script_text });
   const seriesName = slot?.seriesName ?? bible?.series[b.series as keyof typeof bible.series]?.name ?? b.series;
 
   const briefCard = (
@@ -394,6 +396,8 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
         decision={decision}
         aside={queue}
         position={`${idx + 1} of ${briefs.length}`}
+        formats={fmts.options}
+        defaultFormat={fmts.seriesDefault}
       />
     </main>
   );
