@@ -1,4 +1,4 @@
-import { hasBible } from '../bureau/bible';
+import { channelsWithDbBible, hasBible } from '../bureau/bible';
 import type { Db } from '../db/server';
 
 /**
@@ -16,7 +16,7 @@ export interface ChannelSummary {
   readonly name: string;
   readonly handle: string | null;
   readonly slug: string | null;
-  /** Its bible folder is in this build — the Bureau lane can draft for it. */
+  /** It has a bible — in the database (0022) or as a folder in this build — so the Bureau lane can draft for it. */
   readonly hasBible: boolean;
 }
 
@@ -27,7 +27,8 @@ export async function listChannels(db: Db): Promise<ChannelSummary[]> {
     .eq('is_active', true)
     .order('created_at', { ascending: true });
   if (error) throw new Error(`Reading channels: ${error.message}`);
-  return (data ?? []).map((c) => ({ id: c.id, name: c.name, handle: c.handle, slug: c.slug, hasBible: !!c.slug && hasBible(c.slug) }));
+  const inDb = await channelsWithDbBible(db);
+  return (data ?? []).map((c) => ({ id: c.id, name: c.name, handle: c.handle, slug: c.slug, hasBible: inDb.has(c.id) || (!!c.slug && hasBible(c.slug)) }));
 }
 
 /**

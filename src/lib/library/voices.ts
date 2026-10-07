@@ -195,6 +195,13 @@ export async function setVoiceOverride(
   const problem = overrideProblem({ provider, voiceId });
   if (problem) return { ok: false, problem: `Not saved: ${problem}.` };
 
+  if (args.cb.source === 'db') {
+    // A database bible (0022) holds the voice itself; an override row would be a second place.
+    const { setCharacterVoice } = await import('../channels/bible-admin');
+    const r = await setCharacterVoice(db, { scope: 'approver', profileId: args.setBy, via: 'ui' }, args.channelId, slug, { provider, voiceId });
+    return r.ok ? { ok: true, message: r.message } : { ok: false, problem: `Not saved: ${r.refused}` };
+  }
+
   const { error } = await db.from('channel_voice_overrides').upsert(
     {
       channel_id: args.channelId,

@@ -13,6 +13,7 @@ import {
   bundleEpisode,
   enqueueGeneration,
   FPS,
+  generateStills,
   generationSettled,
   HEIGHT,
   planShots,
@@ -28,6 +29,7 @@ import { renderBureau } from '@/lib/bureau/layer-render';
 import { requireUsdInrRate } from '@/lib/cost/fx';
 import { PROVIDER_INTEGRATION, ROUTE_PROVIDERS } from '@/lib/drivers/jobs';
 import { serverClient } from '@/lib/db/server';
+import { STILL_CREDENTIAL_FIELD, STILL_INTEGRATION, submitStill, waitStill } from '@/lib/drivers/still-image';
 import { VOICE_CREDENTIAL_FIELDS, synthLine } from '@/lib/drivers/voice-synth';
 import { requireCredential } from '@/lib/integrations/credentials';
 import { usability, verifiedCredential } from '@/lib/integrations/verify';
@@ -44,8 +46,10 @@ import { alignLine } from '@/lib/voice/align';
  * on a token the dispatcher (`21-gen-dispatch`) completes when the episode's last job is
  * terminal — so nothing here polls a vendor or the database in a loop.
  *
- * Order: polish → shots → estimate/fit → voice → generate → QC (≤2 re-rolls) → assemble →
- * cut gate → bundle. Voice before video: see pipeline.ts.
+ * Order: polish → shots → estimate/fit → voice → stills → generate → QC (≤2 re-rolls) →
+ * assemble → cut gate → bundle. Voice before video: see pipeline.ts. Stills (0021) are made
+ * here with a bounded wait each (the vendor has no callback; drivers/still-image.ts), sequentially
+ * so each re-reads the cap; one that fails becomes its overlay, recorded for Cuts.
  *
  * Caller: `approveBrief` in src/lib/bureau/control.ts, via the Kiln MCP connector's
  * brief_approve tool (and the Approvals page). Replayable: every step skips work it finds done.
@@ -115,6 +119,25 @@ export const episodeTask = schemaTask({
         await setStatus(db, episodeId, 'halted', `${voice.code}: ${voice.detail}`);
         await notify(db, channelId, 'qc_failed', `Episode ${episodeId.slice(0, 8)} halted at voice: ${voice.detail}`);
         return { halted: voice.code };
+      }
+
+      // 3b. Scene stills — before the video queue, and never holding the run on a failure
+      if (!longForm) {
+        const st = await generateStills(db, episodeId, {
+          usdInrRate,
+          llmKey: anthropicKey,
+          apiKey: () => verifiedCredential(db, STILL_INTEGRATION, STILL_CREDENTIAL_FIELD),
+          submit: (i) => submitStill(i),
+          wait: (i) => waitStill(i),
+          fetchBytes: async (url) => {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return Buffer.from(await res.arrayBuffer());
+          },
+          putBytes: put,
+          log: logger,
+        });
+        logger.info('stills', st);
       }
 
       // 4–6. Generate, QC, re-roll (bounded by rerolls_max + 1 rounds)

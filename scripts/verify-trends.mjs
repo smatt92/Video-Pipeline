@@ -339,7 +339,7 @@ console.log('\n7. The schedule runs every channel with a bible, and skips the re
   const a = outcomes.find((o) => o.channelId === A);
   const b = outcomes.find((o) => o.channelId === B);
   check(a?.ran === true, 'channel A (bible in this build) ran', JSON.stringify(a?.ran ? a.result.sources.map((s) => `${s.source}:${s.ok}`) : a));
-  check(b?.ran === false && b.skipped === `no bible folder for slug ${B_SLUG}`, 'channel B (no bible folder) is skipped by name', b?.ran === false ? b.skipped : JSON.stringify(b));
+  check(b?.ran === false && b.skipped === `no bible (database or folder) for slug ${B_SLUG}`, 'channel B (no bible in the database or as a folder) is skipped by name', b?.ran === false ? b.skipped : JSON.stringify(b));
   // The Bureau lists 5 subreddits; the stub serves the same one post for each, so one new
   // term lands once and is updated four times. B gets nothing.
   check((await count('channel_id = $1', [A])) === aBefore + 1, "  · A's new post landed once under A", '');
@@ -403,12 +403,12 @@ console.log('\n9. Run now: approver only, then the task gets the channel and its
     ['no session', await startTrendsRun(db, A, { trigger, user: null }), 'refused: not signed in'],
     ['an address not on the allow-list', await startTrendsRun(db, A, { trigger, user: { id: approverId, emailAllowed: false } }), 'refused: this address is not on ALLOWED_EMAIL'],
     ['an allowed user with no profiles row', await startTrendsRun(db, A, { trigger, user: { id: strangerId, emailAllowed: true } }), 'refused: the signed-in user has no profiles row'],
-    ['a channel with no bible (by slug)', await startTrendsRun(db, B, { trigger, user: { id: approverId, emailAllowed: true } }), `refused: “Harness Channel B” has no bible folder in this build (slug ${B_SLUG})`],
+    ['a channel with no bible (by slug)', await startTrendsRun(db, B, { trigger, user: { id: approverId, emailAllowed: true } }), `refused: “Harness Channel B” has no bible (slug ${B_SLUG})`],
     ['an unknown channel', await startTrendsRun(db, 'c0000000-0000-4000-8000-0000000000d4', { trigger, user: { id: approverId, emailAllowed: true } }), 'refused: channel c0000000-0000-4000-8000-0000000000d4 is not an active channel'],
     [
-      'a trends.json with no sources',
+      'trend sources with nothing in them',
       await startTrendsRun(db, A, { trigger, user: { id: approverId, emailAllowed: true }, trendsFor: () => ({ subreddits: [], youtube: { region_code: 'IN', category_ids: [], queries: [] } }) }),
-      `refused: channels/${A_SLUG}/trends.json lists no subreddits and no YouTube categories or queries`,
+      `refused: Bureau of Reality's trend sources list no subreddits and no YouTube categories or queries`,
     ],
   ];
   for (const [what, res, prefix] of refusals) {

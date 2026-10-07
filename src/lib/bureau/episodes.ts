@@ -46,6 +46,11 @@ export async function regenerateShot(
   if (!shot.render_route || shot.render_route === 'overlay') {
     throw new Error('Overlay shots are rendered in-house and re-render with the cut; there is nothing to re-roll.');
   }
+  if (shot.render_route === 'still') {
+    // Not wired yet (0021): a still is made once by the episode's still step. Said plainly
+    // rather than queued as a video job that would generate the wrong thing.
+    throw new Error('Scene stills cannot be re-rolled from here yet. Reject the cut with a note; a re-run makes a new still for any shot whose still is missing.');
+  }
 
   const r = await insertReroll(db, { channelId: token.channelId, episodeId: ep.id, shotId: shot.id, shotIdx: shot.idx, note: input.note });
   await log(db, token, 'shot_regenerate', 'shot', shot.id, input.note, { episode_id: ep.id, job_id: r.jobId, reroll_index: r.rerollIndex });

@@ -2,7 +2,7 @@ import { publishTargets } from '../channels/list';
 import type { Db } from '../db/server';
 import type { Json } from '../db/types';
 import { buildInstagramVariant, instagramShortcode, type InstagramVariant } from '../publish/instagram-bundle';
-import { bibleForChannel } from './bible';
+import { getBible } from './bible';
 import { requireApprover } from './control';
 import type { BureauToken } from './tokens';
 
@@ -51,7 +51,7 @@ export async function buildInstagramDraft(db: Db, youtubePublicationId: string, 
   const { data: brief } = ep?.brief_id ? await db.from('briefs').select('premise, fact, series, pinned_comment').eq('id', ep.brief_id).maybeSingle() : { data: null };
   const { data: render } = await db.from('renders').select('width, height, duration_s').eq('id', yt.render_id).maybeSingle();
 
-  const cb = await bibleForChannel(db, yt.channel_id).catch(() => null);
+  const cb = await getBible(db, yt.channel_id).catch(() => null);
   const series = brief && cb ? cb.series[brief.series as keyof typeof cb.series] : undefined;
   // The cover is the end of the cold open — the frame the series designs to stop a thumb.
   const coldOpen = series?.beat_sheet.find((x) => x.id === 'cold_open');

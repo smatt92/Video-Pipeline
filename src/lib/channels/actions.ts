@@ -6,17 +6,52 @@ import { cookies } from 'next/headers';
 import { checkEmail } from '../auth/allowed';
 import { routeClient } from '../auth/supabase';
 import { serverClient } from '../db/server';
-import { addChannel, setPublishTarget } from './add';
+import {
+  createChannel,
+  lockVoice,
+  updatePolicy,
+  updateSeries,
+  updateTrendSources,
+  upsertCharacter,
+  type AdminResult,
+  type BibleActor,
+  type CapsSchema,
+  type CharacterInput,
+  type CreateChannelInput,
+} from './bible-admin';
+import { setPublishTarget } from './add';
+import type { z } from 'zod';
 import { ACTIVE_CHANNEL_COOKIE, listChannels } from './list';
 
 async function signedIn(): Promise<string | null> {
+  return (await approver()).denied;
+}
+
+/**
+ * The signed-in person as the approver (ALLOWED_EMAIL is the approver on this workspace), or
+ * why not. Every bible write below goes through this; the lib functions refuse any other scope.
+ */
+async function approver(): Promise<{ denied: string; actor: null } | { denied: null; actor: BibleActor }> {
   const supabase = await routeClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return 'Not signed in.';
-  if (!checkEmail(user.email).ok) return 'Not permitted.';
-  return null;
+  if (!user) return { denied: 'Not signed in.', actor: null };
+  if (!checkEmail(user.email).ok) return { denied: 'Not permitted.', actor: null };
+  return { denied: null, actor: { scope: 'approver', profileId: user.id, via: 'ui' } };
+}
+
+/** Run one bible write as the signed-in approver; never throws to the client. */
+async function asApprover<T>(f: (actor: BibleActor) => Promise<AdminResult<T>>, revalidate: string[] = ['/', 'layout']): Promise<AdminResult<T>> {
+  try {
+    const a = await approver();
+    if (a.denied !== null) return { ok: false, refused: a.denied };
+    const r = await f(a.actor);
+    if (r.ok) revalidatePath(revalidate[0], revalidate[1] === 'layout' ? 'layout' : undefined);
+    return r;
+  } catch (err) {
+    return { ok: false, refused: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 const YEAR_S = 60 * 60 * 24 * 365;
@@ -39,34 +74,67 @@ export async function setActiveChannelAction(channelId: string): Promise<{ ok: b
 
 export type AddChannelState = { status: 'idle' } | { status: 'ok'; message: string } | { status: 'error'; message: string };
 
+/**
+ * "+ Add channel": the form posts here, and the channel is created with its bible in the
+ * database (0022) — no folder, commit or deploy. Switches this browser to the new channel.
+ */
 export async function addChannelAction(_prev: AddChannelState, form: FormData): Promise<AddChannelState> {
-  try {
-    const denied = await signedIn();
-    if (denied) return { status: 'error', message: denied };
-    const str = (k: string) => {
-      const v = form.get(k);
-      return typeof v === 'string' ? v : undefined;
-    };
-    const r = await addChannel(serverClient(), {
-      name: str('name') ?? '',
-      slug: str('slug') ?? '',
-      handle: str('handle'),
-      niche: str('niche'),
-      youtube_channel_id: str('youtube_channel_id'),
-      instagram_account_id: str('instagram_account_id'),
-      instagram_handle: str('instagram_handle'),
-      targets: form.getAll('targets').filter((v): v is 'youtube' | 'instagram' => v === 'youtube' || v === 'instagram'),
-    });
-    if (!r.ok) return { status: 'error', message: r.refused };
-    await setCookie(r.channelId);
-    revalidatePath('/', 'layout');
-    return {
-      status: 'ok',
-      message: `Added and switched to it: ${r.cast} cast member(s) synced, publishing to ${r.targets.join(' + ')}.${r.warnings.length ? ` Warnings: ${r.warnings.join('; ')}.` : ''}`,
-    };
-  } catch (err) {
-    return { status: 'error', message: err instanceof Error ? err.message : String(err) };
-  }
+  const str = (k: string) => {
+    const v = form.get(k);
+    return typeof v === 'string' ? v : undefined;
+  };
+  const r = await createChannelAction({
+    name: str('name') ?? '',
+    slug: str('slug') ?? '',
+    handle: str('handle'),
+    niche: str('niche'),
+    accent_hex: str('accent_hex'),
+    youtube_channel_id: str('youtube_channel_id'),
+    instagram_account_id: str('instagram_account_id'),
+    instagram_handle: str('instagram_handle'),
+    targets: form.getAll('targets').filter((v): v is 'youtube' | 'instagram' => v === 'youtube' || v === 'instagram'),
+  });
+  if (!r.ok) return { status: 'error', message: r.refused };
+  return { status: 'ok', message: `${r.message} Switched to it.${r.warnings.length ? ` Warnings: ${r.warnings.join('; ')}.` : ''}` };
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// The channel-bible actions (0022). Typed, object in → AdminResult out, approver only.
+// The per-channel setup flow (Basics → Cast → Schedule → Caps) is built on these.
+// ═════════════════════════════════════════════════════════════════════════════
+
+/** Basics: create a channel from a template bible, and switch this browser to it. */
+export async function createChannelAction(input: CreateChannelInput) {
+  return asApprover(async (actor) => {
+    const r = await createChannel(serverClient(), actor, input);
+    if (r.ok) await setCookie(r.channelId);
+    return r;
+  });
+}
+
+/** Cast: add or edit one character (not its voice — lockVoiceAction — nor its frames). */
+export async function upsertCharacterAction(channelId: string, input: CharacterInput) {
+  return asApprover((actor) => upsertCharacter(serverClient(), actor, channelId, input));
+}
+
+/** Cast: lock a character's voice to a preset; the next voice run uses it, no deploy. */
+export async function lockVoiceAction(channelId: string, characterSlug: string, presetId: string) {
+  return asApprover((actor) => lockVoice(serverClient(), actor, channelId, { characterSlug, presetId: presetId as never }));
+}
+
+/** Schedule: add or replace one series document. */
+export async function updateSeriesAction(channelId: string, series: unknown) {
+  return asApprover((actor) => updateSeries(serverClient(), actor, channelId, series));
+}
+
+/** Caps: the content policy and/or the money caps and the stills switch. */
+export async function updatePolicyAction(channelId: string, input: { policy?: unknown; caps?: z.input<typeof CapsSchema> }) {
+  return asApprover((actor) => updatePolicy(serverClient(), actor, channelId, input));
+}
+
+/** Trend sources: subreddits and YouTube categories / queries for stage 1. */
+export async function updateTrendSourcesAction(channelId: string, trends: unknown) {
+  return asApprover((actor) => updateTrendSources(serverClient(), actor, channelId, trends));
 }
 
 export async function setPublishTargetAction(_prev: AddChannelState, form: FormData): Promise<AddChannelState> {

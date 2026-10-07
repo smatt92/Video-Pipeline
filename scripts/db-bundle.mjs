@@ -31,7 +31,10 @@
  * that works when the others do not, and a last resort that needs a working install is
  * not a last resort. It writes a file; the browser does the rest.
  *
- * Usage: node scripts/db-bundle.mjs [--from 0008] [--to 0014] [--lean] [--out path.sql]
+ * Usage: node scripts/db-bundle.mjs [--from 0008] [--to 0014] [--lean] [--out path.sql] [--append data.sql]
+ *
+ * `--append` puts a generated data file (e.g. `bible-import.mjs --sql`) inside the same
+ * transaction, after the migrations: if it raises, the migrations roll back with it.
  *
  * `--lean` drops each migration's text from the ledger row it writes, which is about a
  * third of the file size. Nothing in this repo reads that column; see `ledgerInsert`.
@@ -40,7 +43,7 @@
  * versions are already applied, which is the number to pass to --from.
  */
 
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 import { LEDGER_DDL, ledgerInsert, listMigrations } from './lib/migrations.mjs';
@@ -168,7 +171,9 @@ notify pgrst, 'reload schema';
 --   select slug, kind, is_enabled from integrations order by slug;
 `;
 
-const contents = `${header}\n${body}${footer}`;
+const appendPath = opt('append');
+const appended = appendPath ? `\n${readFileSync(appendPath, 'utf8').trimEnd()}\n` : '';
+const contents = `${header}\n${body}${appended}${footer}`;
 
 mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, contents);

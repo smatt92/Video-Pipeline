@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { bibleForSlug, type TrendsConfig } from '../bureau/bible';
+import { getBible, type TrendsConfig } from '../bureau/bible';
 import { listChannels } from '../channels/list';
 import type { Db } from '../db/server';
 import type { Json, TablesInsert } from '../db/types';
@@ -237,16 +237,16 @@ export type ChannelTrendOutcome =
  */
 export async function runTrendsForAllChannels(
   deps: TrendRunDeps,
-  bibleFor: (slug: string) => { trends: TrendsConfig } = bibleForSlug,
+  bibleFor: (channelId: string) => Promise<{ trends: TrendsConfig }> = (id) => getBible(deps.db, id),
 ): Promise<ChannelTrendOutcome[]> {
   const out: ChannelTrendOutcome[] = [];
   for (const ch of await listChannels(deps.db)) {
-    if (!ch.hasBible || !ch.slug) {
-      out.push({ channel: ch.name, channelId: ch.id, ran: false, skipped: `no bible folder for slug ${ch.slug ?? '(none)'}` });
+    if (!ch.hasBible) {
+      out.push({ channel: ch.name, channelId: ch.id, ran: false, skipped: `no bible (database or folder) for slug ${ch.slug ?? '(none)'}` });
       continue;
     }
     try {
-      const result = await runTrends(trendsPayloadFor(ch.id, bibleFor(ch.slug).trends), deps);
+      const result = await runTrends(trendsPayloadFor(ch.id, (await bibleFor(ch.id)).trends), deps);
       out.push({ channel: ch.name, channelId: ch.id, ran: true, result });
     } catch (err) {
       out.push({ channel: ch.name, channelId: ch.id, ran: false, skipped: err instanceof Error ? err.message : String(err) });

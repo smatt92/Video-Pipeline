@@ -4,20 +4,27 @@ import { CHANNEL_FOLDERS } from '../channels/registry.generated';
 import type { Db } from '../db/server';
 import { bureauSeries, hookPattern } from '../db/enums';
 import { ROUTE_PROVIDERS } from '../drivers/jobs';
-import { CharacterVoiceFields, voiceKey, voiceRouteFor, type VoiceOverride, type VoiceRoute } from '../drivers/voice-route';
+import { CharacterVoiceFields, storedVoiceOf, voiceFieldsFromStored, voiceKey, voiceRouteFor, type VoiceOverride, type VoiceRoute } from '../drivers/voice-route';
+import type { Json } from '../db/types';
 
 /**
- * Channel bibles, parsed once per folder and typed.
+ * Channel bibles, typed — from the database first, the folder second (decision 0022).
  *
- * Each channel's JSON under `channels/<slug>/` is the source of truth for that channel — Sahil
- * edits it, the MCP resources serve it, the brief checks enforce it. The folders reach the
+ * `getBible(db, channelId)` is the one way a caller holding a channel id reaches its cast,
+ * series, policy and trend sources. It reads `channel_bibles` + `channel_characters`, and only
+ * when the channel has no row there falls back to the folder `channels/<slug>/` from the build,
+ * with a log line saying so. Both sources go through the same Zod schemas below, so a DB edit
+ * is held to exactly the rules a folder edit is.
+ *
+ * The folders: each channel's JSON under `channels/<slug>/` was the source of truth until
+ * 0022, and is now the import source and the fallback. The folders reach the
  * bundles through `src/lib/channels/registry.generated.ts` (static imports, see
  * `scripts/channels-registry.mjs`), and every folder is parsed with Zod at import, so a
  * malformed edit to ANY channel fails the build instead of failing a 6am Routine.
  *
  * Nothing here knows which channel is "the" channel. A caller holds a channel id — from the
  * episode, brief or slot row it is acting on, from an MCP token, or from the active-channel
- * cookie — and asks for that channel's bible with `bibleForChannel`. (Until 07-Oct-2026 this
+ * cookie — and asks for that channel's bible with `getBible`. (Until 07-Oct-2026 this
  * module exported the Bureau's bible as module constants and 55 call sites read the Bureau's
  * id from here; that is what multichannel removed. The seed id survives only in
  * `src/lib/fixtures/seed-channel.ts`, for migrations' fixtures and harnesses.)
@@ -43,7 +50,9 @@ export const CharacterSchema = z.object({
     line_weight: z.string(),
     silhouette: z.string(),
   }),
-  reference_frame_ids: z.array(z.string().min(1)).min(1),
+  /** Locked frames (storage:<key> or https), placeholders, or none yet — a cast member made in
+   *  the app has none until frame:lock. syncCast copies only usable ones. */
+  reference_frame_ids: z.array(z.string().min(1)),
   // Vendor-shaped, so the schema lives in the driver layer (rule 1). See voice-route.ts.
   ...CharacterVoiceFields,
   voice_brief: z.string().min(1),
@@ -60,6 +69,9 @@ export const BibleSchema = z.object({
     palette: z.object({ paper: Hex, grid: Hex, chalk: Hex }),
     style_rules: z.array(z.string()).min(1),
     negative_prompt: z.string().min(1),
+    /** The look of a scene still (0021), in one sentence with no people in it. Optional:
+     *  without it the still style is built from the palette. */
+    still_style: z.string().min(1).optional(),
   }),
   /** What every upload of this channel carries: hashtag pool (no '#'), base tags, category. */
   publishing: z
@@ -159,6 +171,8 @@ export type SeriesId = z.infer<typeof bureauSeries>;
 /** One channel's bible: cast, policy, series and trend sources, with the lookups callers need. */
 export interface ChannelBible {
   readonly slug: string;
+  /** Where this bible was read from: the database (0022) or the folder in the build. */
+  readonly source: 'db' | 'file';
   readonly bible: Bible;
   readonly policy: Policy;
   /** The series this channel runs. Not every channel runs every series. */
@@ -172,8 +186,10 @@ export interface ChannelBible {
   seriesFor(id: string): Series;
 }
 
-function build(slug: string, raw: { characters: unknown; policy: unknown; trends: unknown; series: readonly unknown[] }): ChannelBible {
-  const where = (f: string) => `channels/${slug}/${f}`;
+type RawBible = { characters: unknown; policy: unknown; trends: unknown; series: readonly unknown[] };
+
+function build(slug: string, raw: RawBible, source: 'db' | 'file' = 'file'): ChannelBible {
+  const where = (f: string) => (source === 'db' ? `the database bible of ${slug} (${f})` : `channels/${slug}/${f}`);
   const parse = <T>(schema: z.ZodType<T>, v: unknown, f: string): T => {
     const r = schema.safeParse(v);
     if (!r.success) throw new Error(`${where(f)} is malformed: ${r.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}`);
@@ -191,6 +207,7 @@ function build(slug: string, raw: { characters: unknown; policy: unknown; trends
   const characterSlugs = bible.characters.map((c) => c.id);
   return {
     slug,
+    source,
     bible,
     policy,
     series,
@@ -206,7 +223,7 @@ function build(slug: string, raw: { characters: unknown; policy: unknown; trends
         : [],
     seriesFor(id) {
       const s = series[id as SeriesId];
-      if (!s) throw new Error(`Channel "${slug}" runs no series "${id}" — channels/${slug}/series/ has ${Object.keys(series).join(', ') || 'none'}.`);
+      if (!s) throw new Error(`Channel "${slug}" runs no series "${id}" — its bible has ${Object.keys(series).join(', ') || 'none'}.`);
       return s;
     },
   };
@@ -230,20 +247,162 @@ export function templateBible(): ChannelBible {
 export function bibleForSlug(slug: string): ChannelBible {
   if (slug.startsWith('_') || !BIBLES.has(slug)) {
     throw new Error(
-      `No bible folder channels/${slug}/ in this build. Create it with \`pnpm channel:new ${slug}\`, commit, and deploy; ` +
-        `folders in this build: ${BIBLE_SLUGS.join(', ') || 'none'}.`,
+      `No bible folder channels/${slug}/ in this build, and this caller asked for the folder. A channel added from the app ` +
+        `has its bible in the database — read it with getBible(db, channelId). Folders in this build: ${BIBLE_SLUGS.join(', ') || 'none'}.`,
     );
   }
   return BIBLES.get(slug)!;
 }
 
-/** The bible for a channels row — the one way a caller holding a channel id reaches its cast. */
-export async function bibleForChannel(db: Db, channelId: string): Promise<ChannelBible> {
+// ═════════════════════════════════════════════════════════════════════════════
+// The database bible (0022)
+// ═════════════════════════════════════════════════════════════════════════════
+
+/** A `channel_bibles` row as read. */
+export interface BibleRow {
+  world: unknown;
+  publishing: unknown;
+  series: unknown;
+  policy: unknown;
+  trend_sources: unknown;
+  version: number;
+}
+/** A `channel_characters` row as read. */
+export interface CharacterRow {
+  slug: string;
+  name: string;
+  role: string;
+  desk: string;
+  on_screen: boolean;
+  season_introduced: number;
+  personality: string;
+  accent_hex: string;
+  voice: unknown;
+  voice_brief: string;
+  visual_lock: unknown;
+  catchphrase: unknown;
+  speech_rules: unknown;
+  never_do: unknown;
+  reference_frame: unknown;
+  sort: number;
+  active: boolean;
+}
+
+/** The character the bible schema expects, from its row. Pure. */
+export function characterFromRow(r: CharacterRow): unknown {
+  return {
+    id: r.slug,
+    name: r.name,
+    role: r.role,
+    desk: r.desk,
+    on_screen: r.on_screen,
+    season_introduced: r.season_introduced,
+    personality: r.personality,
+    speech_rules: r.speech_rules,
+    catchphrase: r.catchphrase,
+    accent_hex: r.accent_hex,
+    visual_lock: r.visual_lock,
+    reference_frame_ids: r.reference_frame,
+    ...voiceFieldsFromStored(r.voice),
+    voice_brief: r.voice_brief,
+    never_do: r.never_do,
+  };
+}
+
+/** A ChannelBible from its rows, through the same schemas a folder passes. Throws by field. */
+export function bibleFromRows(slug: string, row: BibleRow, chars: readonly CharacterRow[]): ChannelBible {
+  const active = [...chars].filter((c) => c.active).sort((a, b) => a.sort - b.sort || a.slug.localeCompare(b.slug));
+  const series = row.series && typeof row.series === 'object' ? Object.values(row.series as Record<string, unknown>) : [];
+  return build(
+    slug,
+    {
+      characters: { version: row.version, channel: slug, world: row.world, ...(row.publishing ? { publishing: row.publishing } : {}), characters: active.map(characterFromRow) },
+      policy: row.policy,
+      trends: row.trend_sources ?? null,
+      series,
+    },
+    'db',
+  );
+}
+
+/** The rows a bible becomes — the ONE row builder, used by the import, the SQL bundle and the actions. Pure. */
+export function bibleRows(cb: Pick<ChannelBible, 'bible' | 'policy' | 'series' | 'trends'>, channelId: string, updatedBy: string) {
+  const { characters, publishing, version, world } = cb.bible;
+  return {
+    bible: {
+      channel_id: channelId,
+      world: world as unknown as Json,
+      publishing: (publishing ?? null) as unknown as Json,
+      series: Object.fromEntries(Object.entries(cb.series)) as unknown as Json,
+      policy: cb.policy as unknown as Json,
+      trend_sources: cb.trends as unknown as Json,
+      version,
+      updated_by: updatedBy,
+    },
+    characters: characters.map((c, i) => characterRow(c, channelId, i)),
+  };
+}
+
+export function characterRow(c: Character, channelId: string, sort: number) {
+  return {
+    channel_id: channelId,
+    slug: c.id,
+    name: c.name,
+    role: c.role,
+    desk: c.desk,
+    on_screen: c.on_screen,
+    season_introduced: c.season_introduced,
+    personality: c.personality,
+    accent_hex: c.accent_hex,
+    voice: storedVoiceOf(c) as unknown as Json,
+    voice_brief: c.voice_brief,
+    visual_lock: c.visual_lock as unknown as Json,
+    catchphrase: c.catchphrase as unknown as Json,
+    speech_rules: c.speech_rules as unknown as Json,
+    never_do: c.never_do as unknown as Json,
+    reference_frame: c.reference_frame_ids as unknown as Json,
+    sort,
+    active: true,
+  };
+}
+
+const fellBack = new Set<string>();
+
+/**
+ * The bible for a channels row — THE way a caller holding a channel id reaches its cast.
+ *
+ * Database first (`channel_bibles` + active `channel_characters`); the folder in the build
+ * only when the channel has no database bible, with one log line per process saying so. A
+ * database bible that fails its schema throws by field — it never falls back silently to a
+ * folder that may say something else.
+ */
+export async function getBible(db: Db, channelId: string): Promise<ChannelBible> {
   const { data, error } = await db.from('channels').select('name, slug').eq('id', channelId).maybeSingle();
   if (error) throw new Error(`Reading channel ${channelId}: ${error.message}`);
   if (!data) throw new Error(`No channel ${channelId}.`);
-  if (!data.slug) throw new Error(`Channel "${data.name}" has no slug, so it has no bible folder under channels/.`);
-  return bibleForSlug(data.slug);
+  const slug = data.slug;
+  const { data: row, error: bErr } = await db.from('channel_bibles').select('world, publishing, series, policy, trend_sources, version').eq('channel_id', channelId).maybeSingle();
+  if (!bErr && row) {
+    if (!slug) throw new Error(`Channel "${data.name}" has a database bible but no slug.`);
+    const { data: chars, error: cErr } = await db
+      .from('channel_characters')
+      .select('slug, name, role, desk, on_screen, season_introduced, personality, accent_hex, voice, voice_brief, visual_lock, catchphrase, speech_rules, never_do, reference_frame, sort, active')
+      .eq('channel_id', channelId);
+    if (cErr) throw new Error(`Reading the cast of ${slug}: ${cErr.message}`);
+    return bibleFromRows(slug, row, chars ?? []);
+  }
+  if (!slug) throw new Error(`Channel "${data.name}" has no slug and no database bible.`);
+  if (!fellBack.has(slug)) {
+    fellBack.add(slug);
+    console.info(`[bible] ${slug}: ${bErr ? `channel_bibles unreadable (${bErr.message}; is 0048 pasted?)` : 'no bible in the database'} — using channels/${slug}/ from the build`);
+  }
+  return bibleForSlug(slug);
+}
+
+/** Channel ids with a database bible. A missing table reads as none (0048 not pasted). */
+export async function channelsWithDbBible(db: Db): Promise<Set<string>> {
+  const { data, error } = await db.from('channel_bibles').select('channel_id');
+  return new Set(error ? [] : (data ?? []).map((r) => r.channel_id));
 }
 
 /**

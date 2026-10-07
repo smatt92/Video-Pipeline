@@ -124,3 +124,48 @@ export const TTS_RATE_KEY = {
   endpoint: '/v1/text_to_speech',
   unit: 'character',
 } as const;
+
+// ═════════════════════════════════════════════════════════════════════════════
+// The voice as the database stores it (channel_characters.voice, decision 0022)
+// ═════════════════════════════════════════════════════════════════════════════
+
+/**
+ * `{provider, preset_id, direct_voice_id?}` — vendor-neutral keys, because the column and the
+ * code that reads it live outside the driver layer (rule 1). This module is the only place
+ * that maps them to and from the bible's vendor-named fields.
+ */
+export const StoredVoiceSchema = z.object({
+  provider: z.enum(VOICE_PROVIDERS),
+  preset_id: z.enum(TTS_PRESET_IDS).nullable(),
+  direct_voice_id: z.string().min(1).nullable().optional(),
+});
+export type StoredVoice = z.infer<typeof StoredVoiceSchema>;
+
+export function storedVoiceOf(c: { voice: CharacterVoice; elevenlabs_voice_id?: string | null }): StoredVoice {
+  return { provider: c.voice.provider, preset_id: c.voice.preset_id, direct_voice_id: c.elevenlabs_voice_id ?? null };
+}
+
+/** The bible's two voice fields from a stored voice. Throws on a malformed one, by field. */
+export function voiceFieldsFromStored(raw: unknown): { voice: CharacterVoice; elevenlabs_voice_id: string | null } {
+  const v = StoredVoiceSchema.parse(raw);
+  return { voice: { provider: v.provider, preset_id: v.preset_id }, elevenlabs_voice_id: v.direct_voice_id ?? null };
+}
+
+/** A stored voice from a Voices-screen override row (0046), for folding overrides into the cast. */
+export function storedVoiceFromOverride(o: VoiceOverride, current: StoredVoice): StoredVoice | null {
+  if (overrideProblem(o)) return null;
+  return o.provider === 'runway'
+    ? { provider: 'runway', preset_id: o.voiceId as StoredVoice['preset_id'], direct_voice_id: current.direct_voice_id ?? null }
+    : { provider: 'elevenlabs', preset_id: current.preset_id, direct_voice_id: o.voiceId };
+}
+
+/** The default voice provider for a new character: the preset path. */
+export const DEFAULT_VOICE_PROVIDER: VoiceProvider = 'runway';
+
+/** The bible's voice keys, for a schema that edits a character without its voice. */
+export const VOICE_FIELD_MASK = { voice: true, elevenlabs_voice_id: true } as const;
+
+/** A stored voice locked to a preset, keeping any direct voice id already set. */
+export function presetVoice(presetId: (typeof TTS_PRESET_IDS)[number], prev: Partial<StoredVoice> | null): StoredVoice {
+  return { provider: DEFAULT_VOICE_PROVIDER, preset_id: presetId, direct_voice_id: prev?.direct_voice_id ?? null };
+}

@@ -8,5 +8,7 @@ Edit every `REPLACE` before the channel drafts anything. Series ids must be valu
 a new id is a migration. `trends.json` names the subreddits and YouTube Data API category ids /
 queries that stage 1 reads for this channel; empty lists mean that source is skipped for it.
 
-Commit the folder and deploy (Vercel and the worker) — the Add channel form refuses a slug
-whose folder is not in the deployed build, by name.
+Since decision 0022 a channel's bible lives in the database. **+ Add channel** in the app
+copies THIS template into `channel_bibles` / `channel_characters` — no folder, commit or
+deploy. A folder under `channels/` is now only an import source (`pnpm bible:import`) and the
+fallback for a channel with no database bible.

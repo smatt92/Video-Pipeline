@@ -16,7 +16,8 @@
       "No pastel nursery palettes, no squeaky voices, no sing-song narration, no toys, no classroom framing.",
       "No resemblance to any existing franchise, mascot or real person."
     ],
-    "negative_prompt": "realistic human, photorealism, 3D plastic, anime, chibi, pastel kids style, nursery colours, text, watermark, logos, existing cartoon characters, extra limbs, inconsistent accessories"
+    "negative_prompt": "realistic human, photorealism, 3D plastic, anime, chibi, pastel kids style, nursery colours, text, watermark, logos, existing cartoon characters, extra limbs, inconsistent accessories",
+    "still_style": "White chalk line drawing on deep navy blueprint paper with faint grid lines, like a technical sketch on a blackboard; flat, hand-drawn, no shading, no photorealism."
   },
   "publishing": {
     "hashtags": ["science", "physics", "animation", "explained", "officecomedy"],

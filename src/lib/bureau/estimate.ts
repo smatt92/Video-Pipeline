@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { currentRate } from '../cost/rate-card';
 import type { Db } from '../db/server';
 import { billedSeconds, providersForRoute, type RenderRoute } from '../drivers/generation';
+import { STILL_RATE_KEY } from '../drivers/still-image';
 import { TTS_RATE_KEY } from '../drivers/voice-route';
 
 /**
@@ -27,7 +28,30 @@ import { TTS_RATE_KEY } from '../drivers/voice-route';
  * time. The per-call figure and the planned figure are never mixed in one sum.
  */
 
-export const SHOT_ROUTES = ['overlay', 'character_beat', 'acted_beat', 'money_shot'] as const;
+export const SHOT_ROUTES = ['overlay', 'still', 'character_beat', 'acted_beat', 'money_shot'] as const;
+/** Routes that generate VIDEO through the queue. A still is one image, made by its own step. */
+export const VIDEO_ROUTES = ['character_beat', 'acted_beat', 'money_shot'] as const;
+export type VideoRoute = (typeof VIDEO_ROUTES)[number];
+export const isVideoRoute = (r: string | null | undefined): r is VideoRoute => (VIDEO_ROUTES as readonly string[]).includes(r ?? '');
+/** Drawn on screen without generated motion: the chalk overlay or a scene still. */
+export const isDrawnRoute = (r: string | null | undefined) => r === 'overlay' || r === 'still';
+
+/**
+ * The route a planned shot takes once stills are considered (decision 0021). Every shot that
+ * is not a money shot becomes a still — character beats included, because the cast stays
+ * off-screen. When stills are unavailable nothing changes: overlays stay overlays and the
+ * existing refusals decide the rest. Shared by the planner and the brief estimate, so a
+ * brief is priced on the routes its episode will actually take.
+ */
+export function withStills<T extends { route: PlannedShot['route'] }>(shots: readonly T[], stillsAvailable: boolean): { shots: T[]; swaps: { idx: number; from: PlannedShot['route']; to: 'still'; reason: string }[] } {
+  const swaps: { idx: number; from: PlannedShot['route']; to: 'still'; reason: string }[] = [];
+  const out = shots.map((s, idx) => {
+    if (!stillsAvailable || s.route === 'money_shot' || s.route === 'still') return s;
+    if (s.route !== 'overlay') swaps.push({ idx, from: s.route, to: 'still', reason: 'the cast stays off-screen (0021) — a scene still instead' });
+    return { ...s, route: 'still' as const };
+  });
+  return { shots: out, swaps };
+}
 
 export const PlannedShotSchema = z.object({
   beat_id: z.string().min(1).optional(),
@@ -99,7 +123,7 @@ export interface LineEstimate {
   billed_s: number | null;
   /** One call. What gets ledgered. */
   inr: number | null;
-  /** One call × REROLL_ALLOWANCE (overlays: 0). What the total and the cap fitter use. */
+  /** One call × REROLL_ALLOWANCE (overlays: 0; stills: × 1, nothing re-rolls them). What the total and the cap fitter use. */
   planned_inr: number | null;
   basis: string;
 }
@@ -142,6 +166,14 @@ export async function estimateEpisode(
   for (const [idx, s] of input.shots.entries()) {
     if (s.route === 'overlay') {
       lines.push({ idx, route: s.route, duration_s: s.duration_s, billed_s: null, inr: 0, planned_inr: 0, basis: 'in-house render (worker compute is not ledgered)' });
+      continue;
+    }
+    if (s.route === 'still') {
+      // One image, whatever the shot's length: the camera move is ours.
+      const rate = await currentRate(db, { ...STILL_RATE_KEY });
+      const inr = rate.found ? round2(rate.rate.unitCostUsd * fx) : null;
+      if (inr === null) unpriced.push(`shot ${idx} (still): ${rate.found ? '' : rate.detail}`);
+      lines.push({ idx, route: s.route, duration_s: s.duration_s, billed_s: null, inr, planned_inr: inr, basis: rate.found ? `rate_card ${STILL_RATE_KEY.model} per ${STILL_RATE_KEY.unit} × 1` : 'unpriced' });
       continue;
     }
     const r = await routeRateInr(db, s.route, s.duration_s, fx);
@@ -191,9 +223,15 @@ export interface FitResult {
  *
  * Order: (1) unpriced generated shots → overlay; (2) money shots beyond the max → overlay;
  * (3) character beats beyond the per-Short seconds → overlay, longest first; (4) while the
- * overlay share of runtime is under the minimum, the longest generated shot → overlay;
- * (5) while the priced total exceeds the cap, the most expensive generated shot → overlay.
+ * DRAWN share of runtime (overlay or still) is under the minimum, the longest generated
+ * video shot → overlay; (5) while the priced total exceeds the cap, the most expensive
+ * generated shot → overlay — video first, because a still costs a fraction of a clip.
  * Overlay is the floor because it is the one route that costs no vendor money.
+ *
+ * Stills count toward the drawn share (0021): the rule exists to keep generated MOTION a
+ * minority of the runtime, and a still is a picture with our camera move, not generated
+ * motion. Counting them as generated would swap every still back to an overlay on a Short
+ * that is all stills, which is the exact cut the decision was made to stop.
  */
 export function fitToCap(shots: PlannedShot[], est: EpisodeEstimate, p: FitPolicy): FitResult {
   const out = shots.map((s) => ({ ...s }));
@@ -226,9 +264,9 @@ export function fitToCap(shots: PlannedShot[], est: EpisodeEstimate, p: FitPolic
   }
 
   const runtime = out.reduce((n, s) => n + s.duration_s, 0);
-  const overlayS = () => out.filter((s) => s.route === 'overlay').reduce((n, s) => n + s.duration_s, 0);
-  while (runtime > 0 && overlayS() / runtime < p.overlayMinShare) {
-    const longest = out.map((s, i) => ({ s, i })).filter((x) => x.s.route !== 'overlay').sort((a, b) => b.s.duration_s - a.s.duration_s)[0];
+  const drawnS = () => out.filter((s) => isDrawnRoute(s.route)).reduce((n, s) => n + s.duration_s, 0);
+  while (runtime > 0 && drawnS() / runtime < p.overlayMinShare) {
+    const longest = out.map((s, i) => ({ s, i })).filter((x) => isVideoRoute(x.s.route)).sort((a, b) => b.s.duration_s - a.s.duration_s)[0];
     if (!longest) break;
     swap(longest.i, `overlay share under ${Math.round(p.overlayMinShare * 100)}%`);
   }

@@ -4,9 +4,10 @@ import { readUsdInrRate } from '../cost/fx';
 import type { Db } from '../db/server';
 import type { Json } from '../db/types';
 import { bureauSeries, hookPattern } from '../db/enums';
-import { bibleForChannel, type ChannelBible } from './bible';
+import { getBible, type ChannelBible } from './bible';
 import type { Embedder } from './embed';
-import { estimateEpisode, PlannedShotSchema } from './estimate';
+import { estimateEpisode, PlannedShotSchema, withStills } from './estimate';
+import { stillsAvailability } from './stills';
 import { classifySource, FactSchema, policyLint, type LintResult } from './policy-lint';
 import { airedMasters, longFormScript, SegmentSchema, validateSegments } from './longform';
 import { parseScript } from './script-lines';
@@ -131,12 +132,15 @@ export async function createBriefs(rawBriefs: unknown[], deps: CreateDeps): Prom
   // refuses every brief by name rather than validating against somebody else's cast.
   let cb: ChannelBible;
   try {
-    cb = await bibleForChannel(db, token.channelId);
+    cb = await getBible(db, token.channelId);
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
     return rawBriefs.map((_, index) => ({ index, ok: false as const, error }));
   }
   const schema = briefInputSchema(cb);
+  // Priced on the routes the episode will take: with stills available, every shot that is not
+  // a money shot is a still (0021). Long-form scenes stay overlays (planLongForm), so are not mapped.
+  const stills = await stillsAvailability(db, token.channelId);
 
   for (const [index, raw] of rawBriefs.entries()) {
     const parsed = schema.safeParse(raw);
@@ -197,7 +201,8 @@ export async function createBriefs(rawBriefs: unknown[], deps: CreateDeps): Prom
 
     const parsedScript = parseScript(b.script_text, cb);
     const voChars = parsedScript.ok ? parsedScript.voText.length : b.script_text.length;
-    const estimate = usdInrRate === null ? null : await estimateEpisode(db, { shots: b.shot_list, voChars, usdInrRate });
+    const pricedShots = b.series === 'long_form' ? b.shot_list : withStills(b.shot_list, stills.available).shots;
+    const estimate = usdInrRate === null ? null : await estimateEpisode(db, { shots: pricedShots, voChars, usdInrRate });
 
     const flagReasons = [
       ...b.flag_reasons,

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import type { Db } from '../db/server';
-import { bibleForChannel } from './bible';
+import { getBible } from './bible';
 
 /**
  * variation_check — the anti-repetition gate.
@@ -171,7 +171,7 @@ export async function loadVariationPolicy(db: Db, channelId: string): Promise<Va
     similarity_max: Number(data.similarity_max),
     hook_archetype_weekly_max: data.hook_archetype_weekly_max,
     catchphrase_weekly_max: data.catchphrase_weekly_max,
-    catchphrases: await bibleForChannel(db, channelId)
+    catchphrases: await getBible(db, channelId)
       .then((cb) => cb.bible.characters.map((c) => c.catchphrase))
       .catch(() => []),
   };

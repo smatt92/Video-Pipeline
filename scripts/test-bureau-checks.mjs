@@ -29,6 +29,11 @@ const { bibleForSlug, templateBible } = require(`${B}/bureau/bible.js`);
 const CB = bibleForSlug('bureau-of-reality');
 const BIBLE = CB.bible;
 const { framePrompt } = require(`${B}/bureau/frames.js`);
+const { castNamesIn, composeStillPrompt } = require(`${B}/bureau/stills.js`);
+const { withStills } = require(`${B}/bureau/estimate.js`);
+const { kenBurns, MIN_SCALE } = require(new URL('../.verify-build/src/remotion/bureau/ken-burns.js', import.meta.url).pathname);
+const { STILL_USD, STILL_RATE_KEY, STILL_PROMPT_MAX } = require(`${B}/drivers/still-image.js`);
+const { readFileSync: readSql } = await import('node:fs');
 
 let failures = 0;
 const check = (cond, label, detail = '') => {
@@ -216,7 +221,7 @@ console.log('\nrouter and voice routing\n');
 check(modelFor('policy_judge') === 'claude-opus-5-5' && modelFor('weekly_strategy') === 'claude-opus-5-5', 'judge and strategy → Opus');
 check(['brief', 'script_polish', 'shotlist'].every((t) => modelFor(t) === 'claude-sonnet-5-5'), 'briefs, scripts, shotlists → Sonnet');
 check(['dedup', 'metadata', 'qc_triage', 'comment_mining'].every((t) => modelFor(t) === 'claude-haiku-4-5-20251001'), 'dedup, metadata, QC triage, comment mining → Haiku');
-check(Object.keys(TASK_TIER).length === 11 && modelFor('translation') === 'claude-haiku-4-5-20251001', 'eleven routed tasks; caption translation is fast-tier');
+check(Object.keys(TASK_TIER).length === 12 && modelFor('translation') === 'claude-haiku-4-5-20251001' && modelFor('still_prompt') === 'claude-haiku-4-5-20251001', 'twelve routed tasks; caption translation and the still rewrite are fast-tier');
 check(voiceRouteFor({ name: 'Pip', voice: { provider: 'runway', preset_id: null } }).code === 'voice_not_locked', 'an unlocked preset refuses with a reason');
 check(voiceRouteFor({ name: 'Pip', voice: { provider: 'runway', preset_id: 'Maya' } }).voiceId === 'Maya', 'a locked preset routes to it');
 check(voiceRouteFor({ name: 'Pip', voice: { provider: 'elevenlabs', preset_id: null }, elevenlabs_voice_id: null }).code === 'direct_voice_missing', 'the direct path needs its id');
@@ -242,7 +247,7 @@ console.log('\nchannel bibles and voice overrides\n');
   check(T.slug === '_template' && T.bible.characters.length >= 1 && Object.keys(T.series).length >= 1, 'the template bible parses — Add channel copies something valid');
   let refusal = '';
   try { bibleForSlug('no-such-channel'); } catch (e) { refusal = e.message; }
-  check(/channels\/no-such-channel\//.test(refusal) && /pnpm channel:new no-such-channel/.test(refusal), 'a slug without a folder is refused by name, with the command', refusal);
+  check(/channels\/no-such-channel\//.test(refusal) && /getBible\(db, channelId\)/.test(refusal), 'a folder read for a slug without a folder is refused by name, pointing at the database bible', refusal);
   let tmpl = '';
   try { bibleForSlug('_template'); } catch (e) { tmpl = e.message; }
   check(/No bible folder channels\/_template\//.test(tmpl), 'the template is never a channel’s bible', tmpl);
@@ -261,6 +266,47 @@ console.log('\nchannel bibles and voice overrides\n');
   check(!badPreset.ok && /override is unusable/.test(badPreset.detail), 'an unusable override refuses by name — never a silent fall back to the bible', JSON.stringify(badPreset));
   const badProvider = voiceRouteFor(pip, { provider: 'acme', voiceId: 'x' });
   check(!badProvider.ok && /unknown voice provider "acme"/.test(badProvider.detail), 'an unknown provider refuses by name', JSON.stringify(badProvider));
+}
+
+console.log('\nscene stills (0021)\n');
+{
+  const cast = CB.bible.characters.map((c) => ({ id: c.id, name: c.name }));
+  check(castNamesIn('Pip holds a feather duster beside a coat rack', cast).join() === 'Pip', 'a cast name is caught');
+  check(castNamesIn('a coat rack with an empty crescent-moon-shaped hook beside a feather duster, office desk', cast).length === 0, 'the rewritten scene from the brief passes clean');
+  const iyer = CB.bible.characters.find((c) => /Iyer/.test(c.name));
+  check(!iyer || castNamesIn('a desk nameplate for iyer', cast).includes(iyer.name), 'a distinctive part of a name ("Iyer" from "Mrs. Iyer") is caught, case-insensitively');
+  check(castNamesIn('a pipe and a pipette on a bench', cast).length === 0, 'whole words only — "pipe" is not Pip');
+  const prompt = composeStillPrompt({ scene: 'Earth with two chalk tidal bulges, the Moon to one side.', world: CB.bible.world, accent: '#22D3EE' });
+  check(prompt.startsWith('Earth with two chalk tidal bulges, the Moon to one side. White chalk line drawing') && prompt.includes('#22D3EE') && prompt.endsWith('no people, no characters, no faces, no figures, no text.') && prompt.includes(CB.bible.world.negative_prompt),
+    'the prompt is scene + bible still style + the lead accent + the bible negative + the no-people clause, in that order', prompt.slice(0, 120));
+  check(prompt.length <= STILL_PROMPT_MAX && !/stick figure/i.test(prompt), 'under the vendor limit, and the stick-figure style rule never reaches a still', String(prompt.length));
+  const shots = [{ route: 'overlay' }, { route: 'character_beat' }, { route: 'money_shot' }, { route: 'acted_beat' }];
+  const on = withStills(shots, true);
+  const off = withStills(shots, false);
+  check(on.shots.map((x) => x.route).join() === 'still,still,money_shot,still' && on.swaps.map((x) => x.from).join() === 'character_beat,acted_beat', 'available: every shot but the money shot is a still; the cast beats say so');
+  check(off.shots.map((x) => x.route).join() === 'overlay,character_beat,money_shot,acted_beat' && off.swaps.length === 0, 'unavailable: nothing changes');
+  // The drawn share counts stills: an all-still Short keeps its stills under the overlay-share rule.
+  const allStill = [0, 1, 2].map(() => ({ route: 'still', duration_s: 5, description: 'x', characters: [], realistic: false }));
+  const est = { shots: allStill.map((_, i) => ({ idx: i, route: 'still', duration_s: 5, billed_s: null, inr: 4.4, planned_inr: 4.4, basis: '' })), voice_inr: 10, total_inr: 23.2, priced_inr: 23.2, unpriced: [], usd_inr_rate: 88 };
+  const fit = fitToCap(allStill, est, { capInr: 150, overlayMinShare: 0.5, characterBeatMaxS: 8, moneyShotMax: 1 });
+  check(fit.swaps.length === 0, 'the overlay-share rule leaves an all-still Short alone (stills are drawn, not generated motion)', JSON.stringify(fit.swaps));
+  const tight = fitToCap(allStill, est, { capInr: 15, overlayMinShare: 0.5, characterBeatMaxS: 8, moneyShotMax: 1 });
+  check(tight.swaps.length === 2 && tight.swaps.every((x) => x.from === 'still' && /cap/.test(x.reason)), 'over the cap, stills fall back to overlays until it fits', JSON.stringify(tight.swaps.map((x) => x.reason)));
+  // The published figure and the migration's rate row agree: 5 credits × $0.01 = $0.05 per 720p image.
+  const sql0044 = readSql(new URL('../supabase/migrations/0044_generation_on_runway.sql', import.meta.url), 'utf8');
+  check(STILL_USD === 0.05 && STILL_RATE_KEY.unit === 'image_720p' && sql0044.includes("('runway', 'gen4_image', '/v1/text_to_image', 'image_720p', 0.05"), 'the still price in the driver equals 0044’s verified row (USD 0.05 per 720p image)');
+  // Ken Burns: deterministic, and never shows an edge of the picture.
+  let edge = 0;
+  for (const cam of ['static', 'slow pan', 'slow dolly-in', 'slow orbit']) {
+    for (const seed of [1, 2]) {
+      for (let t = 0; t <= 1.0001; t += 0.05) {
+        const m = kenBurns(cam, seed, t);
+        const slack = (m.scale - 1) / 2 - Math.abs(m.x) - Math.abs(m.rotateDeg) * (Math.PI / 180) * (16 / 9) / 2;
+        if (m.scale < MIN_SCALE - 1e-9 || slack < 0) edge++;
+      }
+    }
+  }
+  check(edge === 0 && JSON.stringify(kenBurns('slow pan', 3, 0.4)) === JSON.stringify(kenBurns('slow pan', 3, 0.4)), 'every camera move keeps the image covering the frame, the same way every render');
 }
 
 console.log(failures ? `\n${failures} FAILED\n` : '\nAll Bureau rule checks passed.\n');

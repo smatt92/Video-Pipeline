@@ -46,6 +46,9 @@ export const TASK_TIER = {
   qc_triage: 'fast',
   comment_mining: 'fast',
   translation: 'fast',
+  // Scene stills (0021): a constrained rewrite checked deterministically afterwards — the
+  // cheapest tier, because a wrong answer is refused by code, not trusted.
+  still_prompt: 'fast',
 } as const satisfies Record<string, Tier>;
 export type RoutedTask = keyof typeof TASK_TIER;
 

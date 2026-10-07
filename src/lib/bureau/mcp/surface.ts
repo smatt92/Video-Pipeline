@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { Db } from '../../db/server';
 import type { Json } from '../../db/types';
 import type { McpSurface } from '../../studio/mcp';
-import { bibleForChannel, type ChannelBible } from '../bible';
+import { getBible, type ChannelBible } from '../bible';
 import { createBriefs, getBrief, pendingBriefs } from '../briefs';
 import { approveBrief, decideCut, markScheduled, rejectBrief, setCaps, setKillSwitch, type Effects } from '../control';
 import type { Embedder } from '../embed';
@@ -79,7 +79,7 @@ export interface BureauContext {
 export async function loadTokenChannel(db: Db, channelId: string): Promise<BureauContext['channel']> {
   const { data } = await db.from('channels').select('name').eq('id', channelId).maybeSingle();
   try {
-    return { id: channelId, name: data?.name ?? channelId, bible: await bibleForChannel(db, channelId), refusal: null };
+    return { id: channelId, name: data?.name ?? channelId, bible: await getBible(db, channelId), refusal: null };
   } catch (err) {
     return { id: channelId, name: data?.name ?? channelId, bible: null, refusal: err instanceof Error ? err.message : String(err) };
   }

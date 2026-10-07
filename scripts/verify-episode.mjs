@@ -58,6 +58,7 @@ const { runDubJob } = require(`${B}/bureau/dubs.js`);
 const { verifiedCredential } = require(`${B}/integrations/verify.js`);
 const { dispatchProvider, advanceSubmitted, settleEpisodes } = require(`${B}/bureau/dispatch.js`);
 const { signalQc } = require(`${B}/bureau/qc.js`);
+const { episodeClips } = require(`${B}/bureau/overlay-only.js`);
 const { renderBureau } = require(`${B}/bureau/layer-render.js`);
 const { alignLine } = require(`${B}/voice/align.js`);
 const { runIngest } = require(`${B}/ingest/run.js`);
@@ -212,7 +213,14 @@ try {
 
   // ═══ 3. Shots, cap ═══
   console.log('\n2. Shots, voice, generation\n');
+  // This first episode exercises the VIDEO queue end to end, so scene stills (0021) are switched
+  // off for it with the per-channel kill switch — which is itself the thing asserted here: off
+  // means the plan is exactly what it was before stills existed, and says why.
+  await client.query('update channel_policy set stills_enabled = false where channel_id = $1', [BUREAU_CHANNEL_ID]);
   const plan = await P.planShots(db, ep, { usdInrRate: 88, actedBeatAvailable: false });
+  const [{ qc: planQc }] = (await client.query('select qc from episodes where id = $1', [ep])).rows;
+  check(/switched off/.test(planQc.plan.stills ?? '') && !plan.swaps.some((x) => x.to === 'still'), 'stills switched off: the plan says so and nothing becomes a still', planQc.plan.stills);
+  await client.query('update channel_policy set stills_enabled = true where channel_id = $1', [BUREAU_CHANNEL_ID]);
   const { rows: shots } = await client.query('select idx, render_route, vo_char_start, vo_char_end from shots where script_id = $1 order by idx', [script1.scriptId]);
   check(shots.length === 4 && shots[1].render_route === 'character_beat', 'four shots, the character beat kept (reference, recipe, rate all present)', JSON.stringify(plan.swaps));
   check(shots[0].vo_char_start === 0 && shots[3].vo_char_end === sRow[0].vo_text.length, 'the shots cover the spoken text end to end');
@@ -499,6 +507,113 @@ try {
   check(r2.ok && keys[2] !== keys[0] && keys[2] !== keys[1], 'a later halt restarts under a new key', JSON.stringify(keys));
   const { rows: blk1 } = await client.query('select blocker from v_pipeline_blockers where script_id = $1', [script1.scriptId]);
   check(blk1[0]?.blocker === null, 'and for the episode that went through, the view says nothing blocks it', String(blk1[0]?.blocker));
+
+  // ═══ 11. Scene stills (0021) ═══
+  // A fresh episode with stills available: every shot that is not a money shot becomes a still,
+  // the cast never appears in a still prompt, every still is ledgered before its call, a still
+  // that fails becomes its overlay with the swap recorded, and the render draws the image.
+  console.log('\n8. Scene stills\n');
+  const stillPng = join(work, 'still.png');
+  await run('ffmpeg', ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'color=c=0xC0392B:s=720x1280', '-frames:v', '1', stillPng]);
+  const stillServer = createServer((req, res) => { res.writeHead(200, { 'content-type': 'image/png' }); createReadStream(stillPng).pipe(res); });
+  await new Promise((r) => stillServer.listen(0, '127.0.0.1', r));
+  const stillUrl = `http://127.0.0.1:${stillServer.address().port}/still.png`;
+  try {
+    const b3 = await call('briefs_create_batch', { briefs: [{ ...brief, slot_id: 'S015', premise: 'Pip unplugs the Moon to save power and the tides file for overtime.', structure_variant: 'ladder_hourly', desk: 'orbit', hook_archetype: 'story_open', premise_type: 'wrong_setting', ending_type: 'reversal' }] }, agent.plaintext);
+    const briefId3 = b3.result?.results?.[0]?.brief_id;
+    const [briefRow3] = (await client.query('select estimate_inr, estimate_basis from briefs where id = $1', [briefId3])).rows;
+    const stillInr = Math.round(0.05 * 88 * 100) / 100;
+    const routes3 = (briefRow3?.estimate_basis?.shots ?? []).map((x) => x.route);
+    check(routes3.join() === 'still,still,still,still' && briefRow3.estimate_basis.shots.every((x) => x.inr === stillInr),
+      'the brief is priced on the routes its episode will take: four stills at ₹4.40 (0.05 USD × ₹88)', JSON.stringify(briefRow3?.estimate_basis?.shots?.map((x) => [x.route, x.inr])));
+    const a3 = await call('brief_approve', { id: briefId3, punchline: 'B' }, approver.plaintext);
+    const ep3 = a3.result.episode_id;
+    await P.prepareScript(db, ep3, { apiKey: null, usdInrRate: 88 });
+    const plan3 = await P.planShots(db, ep3, { usdInrRate: 88, actedBeatAvailable: false });
+    const [ep3row] = (await client.query('select script_id, estimate_inr, qc from episodes where id = $1', [ep3])).rows;
+    const shots3 = (await client.query('select id, idx, render_route, overlay_spec, description from shots where script_id = $1 order by idx', [ep3row.script_id])).rows;
+    check(shots3.length === 4 && shots3.every((x) => x.render_route === 'still') && shots3.every((x) => x.overlay_spec?.camera),
+      'every shot is a still, each carrying its overlay (the fallback, and the camera move)', shots3.map((x) => x.render_route).join());
+    check(plan3.swaps.some((x) => x.idx === 1 && x.from === 'character_beat' && x.to === 'still' && /off-screen/.test(x.reason)),
+      'the character beat became a still, and the plan says why', JSON.stringify(plan3.swaps));
+    const voice3 = await P.voiceStep(db, ep3, { usdInrRate: 88, apiKeyFor: async () => ({ ok: true, value: 'k' }), synth: synthFrom((t) => t), align: (i) => alignLine(i), putBytes, presign, routeFor });
+    check(voice3.ok, 'voiced', voice3.ok ? '' : voice3.detail);
+
+    // The model: shot 1's rewrite still names Pip (must be refused by code); the others are clean.
+    const castWord = /Pip drops/;
+    const llmCalls = [];
+    const llmClient = { messages: { parse: async (body) => {
+      const user = String(body.messages[0].content);
+      llmCalls.push(user);
+      const scene = castWord.test(user) ? 'Pip standing beside a dropped clipboard on an office floor' : 'an empty orbit ring around a small globe, a filing cabinet in the corner';
+      return { usage: { input_tokens: 300, output_tokens: 40 }, stop_reason: 'end_turn', parsed_output: { scene } };
+    } } };
+    const submits = [];
+    const ledgerAtSubmit = [];
+    const stillsRun = await P.generateStills(db, ep3, {
+      usdInrRate: 88,
+      llmKey: 'test-llm-key',
+      llmClient,
+      apiKey: () => verifiedCredential(db, 'runway', 'RUNWAY_API_KEY'),
+      submit: async (i) => {
+        submits.push(i);
+        // LOAD-BEARING for rule 5: the estimate row must already exist when the vendor is called.
+        const n = Number((await client.query(`select count(*) n from cost_ledger cl join generations g on g.id = cl.generation_id where g.status = 'submitting' and cl.entry_kind = 'estimate' and cl.stage = '05-still'`)).rows[0].n);
+        ledgerAtSubmit.push(n);
+        return submits.length === 2 ? { ok: false, code: 'content_rejected', detail: 'stub: the vendor refused this one' } : { ok: true, taskId: `still_${submits.length}` };
+      },
+      wait: async () => ({ state: 'succeeded', outputUrl: stillUrl, charged: { quantity: 5, unit: 'credit', usd: 0.05 } }),
+      fetchBytes: async (url) => Buffer.from(await (await fetch(url)).arrayBuffer()),
+      putBytes,
+    });
+    check(stillsRun.made === 2 && stillsRun.fellBack.length === 2, 'two stills made, two fell back', JSON.stringify(stillsRun));
+    check(submits.length === 3 && submits.every((x) => x.apiKey === 'test-key'), 'three reached the vendor (the cast-name one never did), with the verified key', String(submits.length));
+    check(!submits.some((x) => /\bPip\b/i.test(x.prompt)) && submits.every((x) => /no people, no characters, no faces, no figures, no text/.test(x.prompt) && /White chalk line drawing on deep navy blueprint paper/.test(x.prompt) && x.prompt.includes('#22D3EE')),
+      'no submitted prompt names the cast; every one carries the bible style, the lead accent and the no-people clause', submits[0]?.prompt.slice(0, 160));
+    check(ledgerAtSubmit.length === 3 && ledgerAtSubmit.every((n) => n === 1), 'LOAD-BEARING: each still’s estimate row existed before its call (rule 5)', JSON.stringify(ledgerAtSubmit));
+    const est3 = (await client.query(`select cl.cost_inr, cl.quantity, cl.unit, cl.idempotency_key from cost_ledger cl join generations g on g.id = cl.generation_id join shots s on s.id = g.shot_id where s.script_id = $1 and cl.entry_kind = 'estimate' and cl.stage = '05-still' order by cl.idempotency_key`, [ep3row.script_id])).rows;
+    check(est3.length === 3 && est3.every((r) => Math.abs(Number(r.cost_inr) - 0.05 * 88) < 1e-9 && Number(r.quantity) === 1 && r.unit === 'image_720p' && /^still:[0-9a-f-]+:0:estimate$/.test(r.idempotency_key)),
+      'three estimate rows: one 720p image × USD 0.05 × ₹88 = ₹4.40 each, keyed still:<shot>:<attempt>', JSON.stringify(est3.map((r) => [r.cost_inr, r.unit])));
+    const rec3 = (await client.query(`select count(*) n from cost_ledger cl join generations g on g.id = cl.generation_id join shots s on s.id = g.shot_id where s.script_id = $1 and cl.entry_kind = 'reconcile' and cl.cost_source = 'measured' and cl.stage = '05-still'`, [ep3row.script_id])).rows[0].n;
+    check(Number(rec3) === 2, 'the vendor’s reported charge lands as a measured reconcile on each still that came back', String(rec3));
+    const after3 = (await client.query('select idx, render_route from shots where script_id = $1 order by idx', [ep3row.script_id])).rows;
+    check(after3[1].render_route === 'overlay' && after3[2].render_route === 'overlay' && after3[0].render_route === 'still' && after3[3].render_route === 'still',
+      'the refused and the failed still are now overlays; the others stay stills', after3.map((x) => x.render_route).join());
+    const [{ qc: qc3 }] = (await client.query('select qc from episodes where id = $1', [ep3])).rows;
+    const stillSwaps = qc3.plan.swaps.filter((x) => x.from === 'still');
+    check(stillSwaps.length === 2 && /names Pip/.test(stillSwaps.find((x) => x.idx === 1)?.reason ?? '') && /content_rejected/.test(stillSwaps.find((x) => x.idx === 2)?.reason ?? ''),
+      'both swaps are recorded where Cuts reads them, each with its reason', JSON.stringify(stillSwaps));
+    const clips3 = await episodeClips(db, { script_id: ep3row.script_id, qc: qc3 });
+    check(clips3.stills === 2 && clips3.overlayOnly === false && clips3.swaps.some((x) => /still → overlay/.test(x)), 'Cuts reads two stills, not overlay-only, and shows the swaps', JSON.stringify(clips3));
+    const again = await P.generateStills(db, ep3, { usdInrRate: 88, llmKey: 'k', llmClient, apiKey: async () => ({ ok: true, value: 'x' }), submit: async () => { throw new Error('must not resubmit'); }, wait: async () => { throw new Error('x'); }, fetchBytes: async () => Buffer.alloc(0), putBytes });
+    check(again.made === 0 && again.reused === 2, 'a replay re-uses both stored stills and pays for nothing', JSON.stringify(again));
+
+    // The render draws the image: the props carry the stored still's URL, and Remotion renders it.
+    const stillKeys = (await client.query(`select a.storage_key from assets a join generations g on g.id = a.generation_id join shots s on s.id = g.shot_id where s.script_id = $1 and a.kind = 'image' order by s.idx`, [ep3row.script_id])).rows.map((r) => r.storage_key);
+    let seenProps = null;
+    const asm3 = await P.assembleEpisode(db, ep3, {
+      usdInrRate: 88, presign, putBytes, download,
+      normaliseAudio: async (i, o) => run('ffmpeg', ['-v', 'error', '-y', '-i', i, '-af', 'loudnorm=I=-14:TP=-1.5:LRA=11', '-c:a', 'aac', o]),
+      render: (i) => { seenProps = i.props; return renderBureau({ ...i, width: 270, height: 480, fps: 30, browserExecutable: shell }); },
+    }, { layers: ['composite'] });
+    const drawn = (seenProps?.shots ?? []).map((x) => x.type);
+    check(asm3.ok && drawn.join() === 'still,overlay,overlay,still', 'the 270×480 composite renders, drawing still, overlay, overlay, still', asm3.ok ? drawn.join() : `${asm3.code}: ${asm3.detail}`);
+    const stillProps = (seenProps?.shots ?? []).filter((x) => x.type === 'still');
+    check(stillKeys.length === 2 && stillProps.length === 2 && stillProps.every((x, i) => x.url.includes(stillKeys[i]) && x.accent === '#22D3EE' && typeof x.camera === 'string'),
+      'each still in the composition props is the stored asset, with the lead accent and a camera move', JSON.stringify(stillKeys));
+    if (asm3.ok) {
+      // The rendered frame in the middle of shot 0 carries the still's red, not the navy paper.
+      const [comp3] = (await client.query(`select a.storage_key from renders r join assets a on a.id = r.asset_id where r.id = $1`, [asm3.compositeRenderId])).rows;
+      const out3 = join(work, 'stills.mp4');
+      await download(await presign(comp3.storage_key), out3);
+      const { stdout: rgb } = await run('ffmpeg', ['-v', 'error', '-ss', '0.5', '-i', out3, '-frames:v', '1', '-vf', 'crop=20:20:125:230,scale=1:1', '-f', 'rawvideo', '-pix_fmt', 'rgb24', 'pipe:1'], { encoding: 'buffer' });
+      check(rgb[0] > 150 && rgb[2] < 110, 'a frame of the cut is the still’s colour (decoded from the rendered MP4, not the props)', `rgb ${[...rgb.subarray(0, 3)].join(',')}`);
+    }
+    // ═══ 11b. The episode estimate prices stills against the cap ═══
+    check(Math.abs(Number(ep3row.estimate_inr) - (Number(ep3row.qc.plan.estimate.voice_inr) + 4 * stillInr)) < 0.011, 'the episode estimate is the voice plus four stills, under the cap', `₹${ep3row.estimate_inr}`);
+  } finally {
+    stillServer.close();
+  }
 } catch (err) {
   check(false, 'harness threw', err.stack);
 } finally {

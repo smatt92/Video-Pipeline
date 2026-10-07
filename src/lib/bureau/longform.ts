@@ -13,7 +13,7 @@ import { captionCues } from '../review/timeline';
 import { shiftBy, type WordTiming } from '../voice/timings';
 import { normaliseOverlay, type OverlaySpec } from '../../remotion/bureau/overlay-scene';
 import type { BureauShot, BureauVideoProps } from '../../remotion/bureau/bureau-video';
-import { bibleForChannel } from './bible';
+import { getBible } from './bible';
 import { estimateEpisode, fitToCap, PlannedShotSchema } from './estimate';
 import { bindShotsToLines, setStatus, shotFrames, toSrt, type AssembleDeps } from './episode-steps';
 import { parseScript, type Cast, type ScriptLine } from './script-lines';
@@ -107,7 +107,7 @@ export async function planLongForm(db: Db, episodeId: string, deps: { usdInrRate
   const masters = await airedMasters(db, e!.channel_id);
   const { data: script } = await db.from('scripts').select('beats').eq('id', e!.script_id!).single();
   const lines = (script!.beats as unknown as { lines: ScriptLine[] }).lines;
-  const cb = await bibleForChannel(db, e!.channel_id);
+  const cb = await getBible(db, e!.channel_id);
   const lead = cb.characterBySlug(b!.lead_character);
   if (!lead) throw new Error(`Lead "${b!.lead_character}" is not in the ${cb.slug} cast.`);
 

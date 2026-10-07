@@ -1,0 +1,65 @@
+name: Still probe (one real scene still)
+
+# Manual only, and it SPENDS: one generated image (~₹4.40 at 0044's verified rate) plus one
+# cheap-tier rewrite. It runs the production function `generateStillForShot` (decision 0021)
+# for one existing shot, against the hosted database, the real vendor and the real bucket —
+# the rows it writes are the rows an episode run writes. See scripts/still-probe.mjs.
+#
+# Why here and not from a laptop or the dev container: the hosted database and the vendor are
+# outside the container's egress (0008), and this runner reaches both. The environment is read
+# from Vercel production exactly as the worker's deploy reads it (0017): names that are
+# Sensitive come back without a value and the step says which.
+
+on:
+  workflow_dispatch:
+    inputs:
+      shot_id:
+        description: 'shots.id to make a still for'
+        required: true
+        type: string
+      max_inr:
+        description: 'Refuse if one still is priced above this'
+        default: '5'
+        type: string
+
+concurrency:
+  group: still-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VERCEL_ACCESS_TOKEN: ${{ secrets.VERCEL_ACCESS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
+      - name: Production environment from Vercel (values masked)
+        run: |
+          node --input-type=module -e '
+            const team = "team_2UHmmkh8jSZXWBQg8dIICYP5";
+            const want = ["NEXT_PUBLIC_SUPABASE_URL","SUPABASE_SERVICE_ROLE_KEY","SUPABASE_S3_ACCESS_KEY_ID","SUPABASE_S3_SECRET_ACCESS_KEY","SUPABASE_STORAGE_BUCKET","SUPABASE_S3_REGION","SUPABASE_S3_ENDPOINT","RUNWAY_API_KEY","ANTHROPIC_API_KEY"];
+            const r = await fetch(`https://api.vercel.com/v8/projects/video-pipeline/env?target=production&decrypt=true&teamId=${team}`, { headers: { authorization: `Bearer ${process.env.VERCEL_ACCESS_TOKEN}` } });
+            if (!r.ok) { console.log(`::error::Vercel env read failed: HTTP ${r.status}`); process.exit(1); }
+            const { envs } = await r.json();
+            const fs = await import("node:fs");
+            const missing = [];
+            for (const k of want) {
+              const e = envs.find((x) => x.key === k && (x.target ?? []).includes("production") && !x.gitBranch);
+              if (!e || typeof e.value !== "string" || !e.value) { missing.push(k); continue; }
+              console.log(`::add-mask::${e.value}`);
+              fs.appendFileSync(process.env.GITHUB_ENV, `${k}<<__KILN_EOF__\n${e.value}\n__KILN_EOF__\n`);
+            }
+            console.log(`read ${want.length - missing.length} of ${want.length}${missing.length ? `; without a value: ${missing.join(", ")}` : ""}`);
+          '
+
+      - name: One still, through the production function
+        run: pnpm probe:still "${{ inputs.shot_id }}" --max-inr "${{ inputs.max_inr }}"
