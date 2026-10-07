@@ -27,7 +27,7 @@ export interface SheetCharacter {
   on_screen: boolean;
   personality: string;
   accent_hex: string;
-  visual_lock: { line: string; props: string[]; head_body_ratio: string; line_weight: string; silhouette: string };
+  visual_lock: { figure?: string; line: string; props: string[]; head_body_ratio: string; line_weight: string; silhouette: string };
 }
 
 export interface SheetWorld {

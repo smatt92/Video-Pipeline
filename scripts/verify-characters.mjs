@@ -199,7 +199,7 @@ try {
   // it for every on-screen character (each ran over the limit) and nothing here asserted it —
   // the one real sheet was drawn without it. v2 keeps it or refuses.
   const [{ world: dbWorld }] = await q('select world from channel_bibles where channel_id = $1', [CH]);
-  check(sp.includes(dbWorld.still_style) && /22-character-sheet\.v2/.test((await q(`select request_payload->>'prompt_ref' r from generations where idempotency_key = $1`, [`sheet:${CH}:pip:${req.requestId}`]))[0].r), 'LOAD-BEARING: Pip’s sheet carries the channel’s still style (the bible’s, read from the row), under 22-character-sheet.v2', String(sp.length));
+  check(sp.includes(dbWorld.still_style) && /22-character-sheet\.v3/.test((await q(`select request_payload->>'prompt_ref' r from generations where idempotency_key = $1`, [`sheet:${CH}:pip:${req.requestId}`]))[0].r), 'LOAD-BEARING: Pip’s sheet carries the channel’s still style (the bible’s, read from the row), under 22-character-sheet.v3', String(sp.length));
   const allCast = await q('select slug from channel_characters where channel_id = $1 order by slug', [CH]);
   const allNames = new Map(cbFolder.bible.characters.map((c) => [c.id, c.name]));
   // No name either: the real v1 Pip sheet came back with "Pip" lettered across it.
@@ -207,6 +207,32 @@ try {
   check(allCast.length === 8 && noStyle.length === 0, 'every cast member’s sheet prompt fits the limit WITH the style, never names the character, and says no lettering', JSON.stringify(noStyle.map(([s2, r]) => [s2, r.ok ? r.prompt.length : r.reason])));
   const longNote = S.sheetPromptFor(cbFolder, 'complaint_box', 'x'.repeat(200));
   check(!longNote.ok && /shorten the note/.test(longNote.reason), 'a note that would push the style out is refused, not sent without the style', longNote.ok ? String(longNote.prompt.length) : longNote.reason);
+
+  // ── Figure (07-Oct): the first v2 sheet of Mrs. Iyer was a man — nothing in the prompt said
+  // who she is once the name was taken out. The figure is read from the ROW, not the fixture.
+  check(typeof pipChar.visual_lock.figure === 'string' && sp.includes(`One original cartoon character: ${pipChar.visual_lock.figure} (`),
+    'LOAD-BEARING: Pip’s sheet prompt opens with his figure, read from the cast row the import wrote', sp.slice(0, 120));
+  const [iyerChar] = await q(`select visual_lock from channel_characters where channel_id = $1 and slug = 'iyer'`, [CH]);
+  const iyerPrompt = S.sheetPromptFor(cbFolder, 'iyer', null);
+  check(iyerPrompt.ok && /\bwoman\b/.test(iyerChar.visual_lock.figure) && iyerPrompt.prompt.includes(iyerChar.visual_lock.figure), 'Mrs. Iyer’s sheet prompt says she is a woman', iyerPrompt.ok ? iyerPrompt.prompt.slice(0, 120) : iyerPrompt.reason);
+  const noFigure = { bible: { ...cbFolder.bible, characters: cbFolder.bible.characters.map((c) => (c.id === 'iyer' ? { ...c, visual_lock: { ...c.visual_lock, figure: undefined } } : c)) } };
+  const refusedFig = S.sheetPromptFor(noFigure, 'iyer', null);
+  check(!refusedFig.ok && /has no figure/.test(refusedFig.reason) && /Library → Characters/.test(refusedFig.reason), 'an on-screen character with no figure is refused, naming where to set it — never sent to guess', refusedFig.ok ? 'sent' : refusedFig.reason);
+  const ohmFig = S.sheetPromptFor(cbFolder, 'ohm', null);
+  check(ohmFig.ok && /An OBJECT, not a person/.test(ohmFig.prompt), 'Director Ohm (object only) needs no figure', ohmFig.ok ? ohmFig.prompt.slice(0, 60) : ohmFig.reason);
+  // The Characters screen's Save: drive setCharacterFigure, then read the row and the next prompt.
+  const { setCharacterFigure } = require(`${B}/channels/bible-admin.js`);
+  const agentSet = await setCharacterFigure(db, { scope: 'agent', profileId: null, via: 'mcp' }, CH, 'kaz', 'a tall woman with a paper lantern for a head');
+  check(!agentSet.ok, 'an agent cannot set a figure', JSON.stringify(agentSet));
+  const setKaz = await setCharacterFigure(db, { scope: 'approver', profileId: prof.id, via: 'ui:characters' }, CH, 'kaz', '  a tall   woman with a paper lantern for a head ');
+  const [kazRow] = await q(`select visual_lock from channel_characters where channel_id = $1 and slug = 'kaz'`, [CH]);
+  const kazPrompt = S.sheetPromptFor(await getBible(db, CH), 'kaz', null);
+  check(setKaz.ok && kazRow.visual_lock.figure === 'a tall woman with a paper lantern for a head' && kazRow.visual_lock.silhouette && kazPrompt.ok && kazPrompt.prompt.includes('a tall woman with a paper lantern for a head'),
+    'Save writes the trimmed figure into the row, keeps the rest of the visual lock, and the next sheet prompt says it', JSON.stringify(kazRow.visual_lock).slice(0, 120));
+  const [figLog] = await q(`select subject_id, payload from authorship_log where action = 'character_figure_set'`);
+  check(figLog?.subject_id === 'kaz' && figLog.payload.to === 'a tall woman with a paper lantern for a head', 'the change is in authorship_log, from → to', JSON.stringify(figLog?.payload));
+  const tooLong = await setCharacterFigure(db, { scope: 'approver', profileId: prof.id, via: 'ui:characters' }, CH, 'kaz', 'x'.repeat(81));
+  check(!tooLong.ok && /under 80/.test(tooLong.refused), 'a figure over 80 characters is refused', JSON.stringify(tooLong));
   const [gen] = await q(`select g.shot_id, g.kind, g.status, g.idempotency_key, g.request_payload from generations g where g.request_payload->>'purpose' = 'character_sheet'`);
   check(gen.shot_id === null && gen.kind === 'image' && gen.status === 'succeeded' && gen.idempotency_key === `sheet:${CH}:pip:${req.requestId}` && gen.request_payload.character === 'pip', 'one shot-less image generation, keyed sheet:<channel>:<slug>:<request> (rule 6)', JSON.stringify({ key: gen.idempotency_key, status: gen.status }));
   const ledger = await q(`select entry_kind, cost_source, stage, channel_id, cost_inr, unit from cost_ledger where idempotency_key like $1 order by entry_kind`, [`sheet:${CH}:pip:%`]);
@@ -268,6 +294,8 @@ try {
   }
   check(v1.calls[0].prompt.startsWith('@Pip ') && /@Pip in front/.test(v1.calls[0].prompt) && v1.calls[0].prompt.includes('cyan scarf line') && v1.calls[0].prompt.includes('#22D3EE') && /no other people or characters besides @Pip/.test(v1.calls[0].prompt),
     'picture 1 names Pip only as @Pip, in front, with his props and accent, and “no other people besides @Pip”', v1.calls[0].prompt.slice(0, 200));
+  check(v1.calls[0].prompt.includes(`@Pip in front (${pipChar.visual_lock.figure};`) && v1.calls[1].prompt.includes(iyerChar.visual_lock.figure) === /@Iyer/.test(v1.calls[1].prompt),
+    'every picture says who each referenced character is (figure from the row), beside the tag', v1.calls[0].prompt.slice(0, 160));
   check(/@Marlo in front/.test(v1.calls[1].prompt) && /@Pip smaller, beside or behind/.test(v1.calls[1].prompt), 'picture 2: the speaker (Marlo) is foregrounded, Pip (the shot’s character) behind');
   check(!/Iyer/.test(v1.calls[2].prompt) && /no people, no characters, no faces, no figures, no text/.test(v1.calls[2].prompt), 'picture 3: Mrs. Iyer has no sheet, so nobody is drawn and she is not named');
   check(/@Ohm is only the object in its reference image/.test(v1.calls[3].prompt) && /never a body, arms, hands or a face/.test(v1.calls[3].prompt) && !/@Ohm in front/.test(v1.calls[3].prompt), 'picture 4: Director Ohm is only the lamp — never a body');

@@ -17,7 +17,7 @@ import {
 } from '../drivers/still-image';
 import type { CredentialRefusal } from '../integrations/verify';
 import { lockReferenceFrame } from '../channels/bible-admin';
-import { SHEET_PROMPT_REF, sheetPrompt } from '../prompts/22-character-sheet.v2';
+import { SHEET_PROMPT_REF, sheetPrompt } from '../prompts/22-character-sheet.v3';
 import { getBible, STORAGE_REF_PREFIX, type ChannelBible } from './bible';
 import { fits, headroom } from './caps';
 import { requireApprover } from './control';
@@ -309,6 +309,8 @@ export interface CharacterCard {
   accent: string;
   tag: string;
   objectOnly: boolean;
+  /** What the character is (`visual_lock.figure`); null when unset — an on-screen character cannot get a sheet until it is. */
+  figure: string | null;
   /** The locked reference, or null (a placeholder is null). */
   locked: string | null;
   /** The locked reference's storage key when it is one of ours — what the screen presigns. */
@@ -331,6 +333,7 @@ export async function charactersScreen(db: Db, channelId: string, cb: ChannelBib
       accent: c.accent_hex,
       tag: sheetTag(c),
       objectOnly: isObjectOnly(c),
+      figure: c.visual_lock.figure ?? null,
       locked,
       lockedKey: locked?.startsWith(STORAGE_REF_PREFIX) ? locked.slice(STORAGE_REF_PREFIX.length) : null,
       sheets: mine.slice(0, 4),

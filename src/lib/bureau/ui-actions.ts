@@ -250,3 +250,13 @@ export async function lockSheetAction(channelId: string, slug: string, generatio
     return r.message;
   });
 }
+
+/** Library → Characters → "Figure": who the character is, said in every sheet and picture prompt. */
+export async function setFigureAction(channelId: string, slug: string, figure: string): Promise<ActionResult> {
+  return run('/library/characters', { channelId }, async (t) => {
+    const { setCharacterFigure } = await import('../channels/bible-admin');
+    const r = await setCharacterFigure(serverClient(), { scope: t.scope === 'approver' ? 'approver' : 'agent', profileId: t.profileId, via: 'ui:characters' }, t.channelId, slug, figure);
+    if (!r.ok) throw new Error(r.refused);
+    return r.message;
+  });
+}

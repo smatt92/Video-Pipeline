@@ -117,7 +117,7 @@ export function castClause(refs: readonly PictureRef[], detail = true): string {
   if (people.length) {
     const each = people.map((r) => {
       const where = r.foreground ? 'in front' : 'smaller, beside or behind';
-      return detail ? `@${r.tag} ${where} (${[r.silhouette, ...r.props].join('; ')}; accent ${r.accent})` : `@${r.tag} ${where}`;
+      return detail ? `@${r.tag} ${where} (${[r.figure, r.silhouette, ...r.props].filter(Boolean).join('; ')}; accent ${r.accent})` : `@${r.tag} ${where}${r.figure ? ` (${r.figure})` : ''}`;
     });
     parts.push(`Characters drawn exactly as in their reference images: ${each.join(', ')}.`);
   }

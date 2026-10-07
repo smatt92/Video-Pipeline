@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
-import { lockSheetAction, requestSheetAction } from '@/lib/bureau/ui-actions';
+import { lockSheetAction, requestSheetAction, setFigureAction } from '@/lib/bureau/ui-actions';
 
 /**
  * "Generate sheet" with an optional note, for one character on Library → Characters. Spends
@@ -75,6 +75,55 @@ export function LockSheet({ channelId, slug, generationId, disabled }: { channel
       >
         {pending ? 'Locking…' : 'Lock'}
       </button>
+      {msg && (
+        <span className="xs" role="status" style={{ color: msg.ok ? 'var(--t2)' : 'var(--blk-text)' }}>
+          {msg.text}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * "Figure" — who the character is, gender included ("an Indian woman in her fifties"). Every
+ * sheet and picture prompt says it; the first Mrs. Iyer sheet was a man because nothing did.
+ */
+export function FigureField({ channelId, slug, name, figure }: { channelId: string; slug: string; name: string; figure: string | null }) {
+  const router = useRouter();
+  const [value, setValue] = useState(figure ?? '');
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [pending, start] = useTransition();
+  const dirty = value.trim() !== (figure ?? '');
+  return (
+    <div className="col" style={{ gap: 4 }}>
+      <span className="xs t3">Figure — who {name} is, as drawn</span>
+      <div className="row" style={{ gap: 6, flexWrap: 'nowrap' }}>
+        <input
+          className="input grow"
+          style={{ minWidth: 0 }}
+          aria-label={`Who ${name} is, as drawn`}
+          value={value}
+          maxLength={80}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder="e.g. an Indian woman in her fifties"
+          disabled={pending}
+        />
+        <button
+          type="button"
+          className="btn sm"
+          disabled={pending || !dirty || !value.trim()}
+          onClick={() =>
+            start(async () => {
+              const r = await setFigureAction(channelId, slug, value);
+              setMsg({ ok: r.ok, text: r.message });
+              if (r.ok) router.refresh();
+            })
+          }
+        >
+          {pending ? 'Saving…' : 'Save'}
+        </button>
+      </div>
+      {!figure && !msg && <span className="xs" style={{ color: 'var(--blk-text)' }}>Not set — a sheet is refused until it is.</span>}
       {msg && (
         <span className="xs" role="status" style={{ color: msg.ok ? 'var(--t2)' : 'var(--blk-text)' }}>
           {msg.text}

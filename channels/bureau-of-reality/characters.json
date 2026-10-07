@@ -41,6 +41,7 @@
       "catchphrase": { "text": "I read the manual. Most of it.", "max_per_week": 1 },
       "accent_hex": "#22D3EE",
       "visual_lock": {
+        "figure": "a young man in his early twenties",
         "line": "white chalk line, cyan accent",
         "props": ["cyan scarf line", "oversized lanyard"],
         "head_body_ratio": "1:3",
@@ -73,6 +74,7 @@
       "catchphrase": { "text": "File it under 'falling'.", "max_per_week": 1 },
       "accent_hex": "#F59E0B",
       "visual_lock": {
+        "figure": "a very old man, tall and grey-haired",
         "line": "white chalk line, amber accent",
         "props": ["floating coffee mug that orbits him slowly"],
         "head_body_ratio": "1:3.5",
@@ -101,6 +103,7 @@
       "catchphrase": { "text": "That is not what the calendar says.", "max_per_week": 1 },
       "accent_hex": "#E0409C",
       "visual_lock": {
+        "figure": "an Indian woman in her fifties",
         "line": "white chalk line, magenta accent",
         "props": ["reading glasses on a chain", "steel filter-coffee tumbler and davara"],
         "head_body_ratio": "1:3",
@@ -129,6 +132,7 @@
       "catchphrase": { "text": "Case reopened.", "max_per_week": 1 },
       "accent_hex": "#9CA3AF",
       "visual_lock": {
+        "figure": "a living pencil with a small face, thin arms and legs",
         "line": "graphite-grey line",
         "props": ["pencil-shaped body with eraser hat", "case-file folder"],
         "head_body_ratio": "1:4",
@@ -157,6 +161,7 @@
       "catchphrase": { "text": "Every culture had a word for this.", "max_per_week": 1 },
       "accent_hex": "#FDBA4D",
       "visual_lock": {
+        "figure": "a slim person with a paper lantern for a head",
         "line": "white chalk line; lantern for a head",
         "props": ["lantern head whose glow changes colour by culture discussed"],
         "head_body_ratio": "1:3",
@@ -208,6 +213,7 @@
       "catchphrase": { "text": "Another one in the slot.", "max_per_week": 1 },
       "accent_hex": "#B7793F",
       "visual_lock": {
+        "figure": "a wooden suggestion box on a short post, its slot a mouth",
         "line": "white chalk line, wood-brown accent",
         "props": ["talking wooden suggestion box; the slot is the mouth"],
         "head_body_ratio": "n/a",
@@ -232,6 +238,7 @@
       "catchphrase": { "text": "And who signed off on gravity?", "max_per_week": 1 },
       "accent_hex": "#EF4444",
       "visual_lock": {
+        "figure": "a middle-aged man in a narrow grey suit",
         "line": "white chalk line, red accent",
         "props": ["clipboard"],
         "head_body_ratio": "1:3.5",

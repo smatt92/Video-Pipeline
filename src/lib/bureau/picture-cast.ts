@@ -59,6 +59,8 @@ export interface PictureRef {
   role: string;
   props: string[];
   silhouette: string;
+  /** What the character is (`visual_lock.figure`) — said beside the tag so a reference is not the only cue to who they are. */
+  figure: string | null;
   accent: string;
 }
 
@@ -91,7 +93,7 @@ export function pictureCast(cast: Bible['characters'], wanted: readonly string[]
       excluded.push({ slug, reason: `the image model takes at most ${max} character references per picture` });
       continue;
     }
-    refs.push({ slug, name: c.name, tag: sheetTag(c), ref, foreground: refs.length === 0, objectOnly: isObjectOnly(c), role: c.role, props: c.visual_lock.props, silhouette: c.visual_lock.silhouette, accent: c.accent_hex });
+    refs.push({ slug, name: c.name, tag: sheetTag(c), ref, foreground: refs.length === 0, objectOnly: isObjectOnly(c), role: c.role, props: c.visual_lock.props, silhouette: c.visual_lock.silhouette, figure: c.visual_lock.figure ?? null, accent: c.accent_hex });
   }
   return { refs, excluded };
 }

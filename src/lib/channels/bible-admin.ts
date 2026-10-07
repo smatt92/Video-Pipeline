@@ -363,6 +363,37 @@ export async function lockReferenceFrame(
 }
 
 /**
+ * Library → Characters → "Figure": what a character physically is, gender included where there
+ * is one ("an Indian woman in her fifties"). Every sheet and every picture of the character
+ * says it (22-character-sheet.v3, castClause) — without it the vendor guessed, and drew
+ * Mrs. Iyer as a man (07-Oct). Written into `visual_lock.figure`; the same validation as the
+ * bible (CharacterSchema) through proveReadable, rolled back if the bible would stop reading.
+ */
+export async function setCharacterFigure(db: Db, actor: BibleActor, channelId: string, slug: string, figure: string): Promise<AdminResult> {
+  const denied = approverOnly(actor);
+  if (denied) return refuse(denied);
+  const next = figure.replace(/\s+/g, ' ').trim();
+  if (!next) return refuse('Say who the character is — e.g. "an Indian woman in her fifties".');
+  if (next.length > 80) return refuse(`Keep it under 80 characters (${next.length}) — it goes into every picture prompt.`);
+  const has = await requireDbBible(db, channelId);
+  if (typeof has === 'string') return refuse(has);
+  const { data: cur } = await db.from('channel_characters').select('id, name, visual_lock').eq('channel_id', channelId).eq('slug', slug).maybeSingle();
+  if (!cur) return refuse(`No character "${slug}" in this channel's cast.`);
+  const prev = cur.visual_lock as Record<string, unknown>;
+  const { error } = await db.from('channel_characters').update({ visual_lock: { ...prev, figure: next } as unknown as Json, updated_at: new Date().toISOString() }).eq('id', cur.id);
+  if (error) return refuse(`Saving the figure failed: ${error.message}`);
+  const back = await proveReadable(db, channelId);
+  if (typeof back === 'string') {
+    await db.from('channel_characters').update({ visual_lock: prev as Json }).eq('id', cur.id);
+    return refuse(`Rolled back — the bible would no longer read: ${back}`);
+  }
+  await bump(db, channelId, actor);
+  await syncCast(db as unknown as Parameters<typeof syncCast>[0], channelId, back);
+  await log(db, actor, channelId, 'character_figure_set', 'character', slug, { from: prev.figure ?? null, to: next });
+  return { ok: true, message: `${cur.name} is drawn as ${next}. A sheet already locked keeps its look — generate and lock a new one if it is wrong.` };
+}
+
+/**
  * The Voices screen's "Change voice" on a channel whose bible is in the database: the choice
  * becomes the character's stored voice (one place for a voice — 0022), not an override row.
  * Any provider the router accepts; `overrideProblem` is the same predicate it applies.

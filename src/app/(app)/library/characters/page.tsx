@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { GenerateSheet, LockSheet } from '@/components/library/character-sheet-controls';
+import { FigureField, GenerateSheet, LockSheet } from '@/components/library/character-sheet-controls';
 import { LibraryHeader } from '@/components/library/library-header';
 import { Bust } from '@/components/ui/bust';
 import { Note } from '@/components/ui/card';
@@ -92,6 +92,7 @@ export default async function CharactersPage() {
                   )}
                 </div>
               </div>
+              {!c.objectOnly && <FigureField channelId={channel.id} slug={c.slug} name={c.name} figure={c.figure} />}
 
               {c.locked && (
                 <div className="row" style={{ gap: 10, alignItems: 'flex-start' }}>

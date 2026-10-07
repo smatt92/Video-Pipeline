@@ -45,6 +45,14 @@ export const CharacterSchema = z.object({
   catchphrase: z.object({ text: z.string().min(1), max_per_week: z.number().int().min(0) }),
   accent_hex: Hex,
   visual_lock: z.object({
+    /**
+     * What the character physically IS, in a few words, gender included where there is one —
+     * "an Indian woman in her fifties", "a living pencil with a small face". The sheet prompt
+     * carries no name (v2: the name came back lettered on the sheet), so without this the
+     * vendor guessed, and drew Mrs. Iyer as a man (07-Oct). Optional so an old bible still
+     * reads; a sheet for an on-screen character without one is refused (character-sheets.ts).
+     */
+    figure: z.string().trim().min(1).max(80).optional(),
     line: z.string(),
     props: z.array(z.string()),
     head_body_ratio: z.string(),
