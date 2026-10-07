@@ -51,7 +51,7 @@ export function LiveStatus({ status, detail, updatedAt }: { status: string; deta
       <span style={{ color: 'var(--text-secondary)' }}>{detail ?? `${status}…`}</span>
       <span className="font-mono" style={{ color: stale ? 'var(--state-review)' : 'var(--text-muted)' }}>
         last update {ago(updatedAt, now)}
-        {stale ? ' — no progress for 10+ min, check Generation' : ''}
+        {stale ? ' — no progress for 10+ min; after 30 the Board offers Restart run' : ''}
       </span>
     </div>
   );

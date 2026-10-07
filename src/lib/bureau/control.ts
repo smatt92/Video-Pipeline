@@ -4,6 +4,7 @@ import type { Db } from '../db/server';
 import type { Json } from '../db/types';
 import { getBrief, resolvePunchline } from './briefs';
 import type { BureauToken } from './tokens';
+import { stalled } from './running';
 import { variationRefusal } from './variation';
 
 /**
@@ -132,7 +133,10 @@ export async function restartHaltedEpisode(db: Db, token: BureauToken, effects: 
   if (error) throw dbError(error.message);
   if (!ep || ep.channel_id !== token.channelId) throw new Error('No such episode on this channel.');
   // 'failed' too: a crash after a fix (S001's render, 07-Oct) needs the same way back as a refusal.
-  if (ep.status !== 'halted' && ep.status !== 'failed') throw new Error(`Episode is ${ep.status}, not halted or failed — nothing to restart.`);
+  // And a stalled run (see running.ts): the worker ended without writing a status.
+  if (ep.status !== 'halted' && ep.status !== 'failed' && !stalled(ep.status, ep.updated_at)) {
+    throw new Error(`Episode is ${ep.status}, not halted, failed or stalled — nothing to restart.`);
+  }
   try {
     const runId = await effects.startEpisode(ep.id, `restart:${new Date(ep.updated_at).getTime()}`);
     // Back to 'queued' with the new run: a second click now finds it not halted and is refused,
