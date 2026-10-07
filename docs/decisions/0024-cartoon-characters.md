@@ -34,9 +34,13 @@ Gemini image models' `subject: 'human' | 'object'` reference hint (a different m
 ## Decision
 
 1. **Character sheets.** One canonical cartoon image per cast member, built in code from the
-   bible (`prompts/22-character-sheet.v1.ts`: full body, front three-quarter, plain background;
+   bible (`prompts/22-character-sheet.v2.ts`: full body, front three-quarter, plain background;
    silhouette, props, head:body ratio, line weight, accent; a line of personality; the channel's
-   still style; the negative list; Sahil's optional note). One `gen4_image` 720:1280 image,
+   still style; the negative list; Sahil's optional note). **The style is never cut**: v1 cut it
+   to fit the 1000-character limit, and with the Bureau's bible every on-screen character ran
+   over (1089–1101), so the one real sheet (Pip, v1) was drawn without the cartoon style. v2
+   says the same in fewer words, cuts only the attitude line and its own extra negatives, and
+   refuses ("shorten the note") rather than send a sheet prompt without the style. One `gen4_image` 720:1280 image,
    priced by the same verified rate row as a picture (USD 0.05 → ₹4.40 at ₹88). A character the
    bible says is never seen (`on_screen: false` — Director Ohm) gets an **object** sheet: the
    brass lamp, "no body, no arms, no hands, no face".

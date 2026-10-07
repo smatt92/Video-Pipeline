@@ -18,8 +18,12 @@ on:
         required: true
         type: string
       via:
-        description: 'worker (trigger the deployed task) or function (run the lib function here)'
+        description: 'worker (trigger the deployed task), function (run the lib function here), or show (print a stored sheet; spends nothing)'
         default: 'worker'
+        type: string
+      key:
+        description: 'show only: the stored key, characters/<slug>/sheet-<id>.png'
+        default: ''
         type: string
       max_inr:
         description: 'Refuse if one sheet is priced above this'
@@ -66,7 +70,7 @@ jobs:
           '
 
       - name: One sheet, through the production path (not locked)
-        run: pnpm probe:sheet "${{ inputs.character }}" --via "${{ inputs.via }}" --max-inr "${{ inputs.max_inr }}"
+        run: pnpm probe:sheet "${{ inputs.character }}" --via "${{ inputs.via }}" --max-inr "${{ inputs.max_inr }}" --key "${{ inputs.key }}"
 
       - name: The sheet, full size
         if: always()

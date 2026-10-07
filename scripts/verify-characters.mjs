@@ -195,6 +195,16 @@ try {
   check(sp.includes(pipChar.visual_lock.silhouette) && pipChar.visual_lock.props.every((x) => sp.includes(x)) && sp.includes(pipChar.accent_hex) && sp.includes(pipChar.visual_lock.head_body_ratio) && /full body/.test(sp) && /three-quarter/.test(sp) && sp.includes('Direction: longer lanyard'),
     'the sheet prompt carries the bible’s silhouette, props, ratio and accent (read from the cast row), full body, three-quarter, and the note', sp.slice(0, 200));
   check(sp.length <= 1000, 'within the image prompt limit', String(sp.length));
+  // The style is what makes a sheet match the pictures drawn from it. 22-character-sheet.v1 cut
+  // it for every on-screen character (each ran over the limit) and nothing here asserted it —
+  // the one real sheet was drawn without it. v2 keeps it or refuses.
+  const [{ world: dbWorld }] = await q('select world from channel_bibles where channel_id = $1', [CH]);
+  check(sp.includes(dbWorld.still_style) && /22-character-sheet\.v2/.test((await q(`select request_payload->>'prompt_ref' r from generations where idempotency_key = $1`, [`sheet:${CH}:pip:${req.requestId}`]))[0].r), 'LOAD-BEARING: Pip’s sheet carries the channel’s still style (the bible’s, read from the row), under 22-character-sheet.v2', String(sp.length));
+  const allCast = await q('select slug from channel_characters where channel_id = $1 order by slug', [CH]);
+  const noStyle = allCast.map((r) => [r.slug, S.sheetPromptFor(cbFolder, r.slug, null)]).filter(([, r]) => !r.ok || !r.prompt.includes(dbWorld.still_style) || r.prompt.length > 1000);
+  check(allCast.length === 8 && noStyle.length === 0, 'every cast member’s sheet prompt fits the limit WITH the style', JSON.stringify(noStyle.map(([s2, r]) => [s2, r.ok ? r.prompt.length : r.reason])));
+  const longNote = S.sheetPromptFor(cbFolder, 'complaint_box', 'x'.repeat(200));
+  check(!longNote.ok && /shorten the note/.test(longNote.reason), 'a note that would push the style out is refused, not sent without the style', longNote.ok ? String(longNote.prompt.length) : longNote.reason);
   const [gen] = await q(`select g.shot_id, g.kind, g.status, g.idempotency_key, g.request_payload from generations g where g.request_payload->>'purpose' = 'character_sheet'`);
   check(gen.shot_id === null && gen.kind === 'image' && gen.status === 'succeeded' && gen.idempotency_key === `sheet:${CH}:pip:${req.requestId}` && gen.request_payload.character === 'pip', 'one shot-less image generation, keyed sheet:<channel>:<slug>:<request> (rule 6)', JSON.stringify({ key: gen.idempotency_key, status: gen.status }));
   const ledger = await q(`select entry_kind, cost_source, stage, channel_id, cost_inr, unit from cost_ledger where idempotency_key like $1 order by entry_kind`, [`sheet:${CH}:pip:%`]);

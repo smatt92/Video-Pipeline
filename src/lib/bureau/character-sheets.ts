@@ -17,7 +17,7 @@ import {
 } from '../drivers/still-image';
 import type { CredentialRefusal } from '../integrations/verify';
 import { lockReferenceFrame } from '../channels/bible-admin';
-import { SHEET_PROMPT_REF, sheetPrompt } from '../prompts/22-character-sheet.v1';
+import { SHEET_PROMPT_REF, sheetPrompt } from '../prompts/22-character-sheet.v2';
 import { getBible, STORAGE_REF_PREFIX, type ChannelBible } from './bible';
 import { fits, headroom } from './caps';
 import { requireApprover } from './control';

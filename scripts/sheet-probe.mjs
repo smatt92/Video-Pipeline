@@ -18,6 +18,10 @@
  * Output: the prompt, the ledger rows, the stored key, and the image downscaled to 270×480 as
  * base64 between markers (and the full PNG in ./out/sheet-probe/, uploaded as a run artifact).
  *
+ * `--via show --key <storage key>` spends nothing: it reads a sheet already in the bucket and
+ * prints it as a small (108×192) JPEG — the way to look at a sheet from a session that cannot
+ * reach the bucket or download an artifact.
+ *
  * Env: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_S3_*, and TRIGGER_SECRET_KEY
  * (worker) or RUNWAY_API_KEY (function).
  */
@@ -44,7 +48,7 @@ const slug = process.argv[2];
 const maxInr = Number(arg('--max-inr', '5'));
 const via = arg('--via', 'worker');
 const channelSlug = arg('--channel', 'bureau-of-reality');
-if (!slug || slug.startsWith('--') || !['worker', 'function'].includes(via)) {
+if (!slug || slug.startsWith('--') || !['worker', 'function', 'show'].includes(via)) {
   console.error('usage: pnpm probe:sheet <character slug> [--via worker|function] [--max-inr 5] [--channel bureau-of-reality]');
   process.exit(2);
 }
@@ -63,6 +67,26 @@ const driver = createSupabaseStorageDriver({
   region: process.env.SUPABASE_S3_REGION ?? 'us-east-1',
   endpoint: process.env.SUPABASE_S3_ENDPOINT ?? `${base}/storage/v1/s3`,
 });
+
+if (via === 'show') {
+  const key = arg('--key', '');
+  if (!/^characters\/[a-z0-9_]+\/sheet-[0-9a-f]{8}\.(png|jpg|webp)$/.test(key)) {
+    console.error('--via show needs --key characters/<slug>/sheet-<id>.<ext>');
+    process.exit(2);
+  }
+  const res = await fetch((await driver.presignGet({ key, expiresIn: 600 })).url);
+  if (!res.ok) {
+    console.error(`GET ${key}: HTTP ${res.status}`);
+    process.exit(1);
+  }
+  await writeFile('/tmp/sheet-show', Buffer.from(await res.arrayBuffer()));
+  await run('ffmpeg', ['-v', 'error', '-y', '-i', '/tmp/sheet-show', '-vf', 'scale=108:192', '-q:v', '6', '/tmp/sheet-show.jpg']);
+  const b64 = (await readFile('/tmp/sheet-show.jpg')).toString('base64');
+  console.log(`SHOW ${key}: ${b64.length} base64 chars\n----- BEGIN SHEET JPEG BASE64 -----`);
+  for (let i = 0; i < b64.length; i += 120) console.log(b64.slice(i, i + 120));
+  console.log('----- END SHEET JPEG BASE64 -----');
+  process.exit(0);
+}
 
 const { data: ch } = await db.from('channels').select('id, name').eq('slug', channelSlug).single();
 if (!ch) {

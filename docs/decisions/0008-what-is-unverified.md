@@ -1408,7 +1408,17 @@ recorded), picture 4 with @Ohm as an object only — expected URIs read from the
 wrote. Mutating `generateStillForShot` to drop `references` fails three checks. `verify:episode`
 (stills, redraw) still green.
 
-**What has NOT run:** a real picture with a reference image (the vendor honouring `@Tag` and
+**The one real sheet (07-Oct, 14:21 UTC):** Pip, through `generateCharacterSheet` on the "Sheet
+probe" runner (`--via function`: the worker path was refused before any spend because
+`TRIGGER_SECRET_KEY` reads back without a value from Vercel production — Sensitive, 0017).
+Generation `822abc6e…`, `characters/pip/sheet-822abc6e.png` (506 KB), ledger estimate ₹4.40
+(rate_card) + measured reconcile 5 credits = ₹4.40, stage `05-sheet`, NOT locked
+(`reference_frame` still `PLACEHOLDER_PIP_REF_1`). Reading its prompt back from the row found a
+defect no harness had asserted: v1 dropped the still style for every on-screen character.
+Fixed in v2 and asserted (`verify:characters` §2: every cast member's sheet prompt fits WITH
+the style).
+
+**What has NOT run:** a v2 sheet for real; a real picture with a reference image (the vendor honouring `@Tag` and
 the reference's look); the Characters screen and Lock in a browser against the deployed app;
 `27-character-sheet` beyond the one probe; a characters episode end to end; whether three
 references in one picture keep each character distinct.
