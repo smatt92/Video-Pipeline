@@ -449,6 +449,17 @@ try {
   const { rows: blk } = await client.query('select blocker from v_pipeline_blockers where script_id = $1', [ep2row[0].script_id]);
   check(!/forced alignment/.test(blk[0]?.blocker ?? ''), 'the blocker view no longer names alignment as a reason to stop', String(blk[0]?.blocker));
 
+  // ═══ 10a. A restart re-uses what voice already paid for ═══
+  // S001's restart (2026-10-07): 14 takes on file, one line rewritten, run again. The harness
+  // removes one take and the episode's voice_detail (inputs); what is asserted is what the
+  // stage did — how many lines it synthesised and how many it re-used.
+  console.log('\n7a. A restart re-uses the paid-for takes\n');
+  await client.query(`update episodes set voice_detail = null where id = $1`, [ep2]);
+  await client.query(`delete from vo_takes where script_id = $1 and chunk_idx = 0`, [ep2row[0].script_id]);
+  let reSynth = 0;
+  const reVoice = await P.voiceStep(db, ep2, { usdInrRate: 88, apiKeyFor: async () => ({ ok: true, value: 'k' }), synth: (i) => { reSynth++; return synthFrom(() => 'Calendars drift because a year is not a whole number of days at all.')(i); }, align: (i) => alignLine(i), putBytes, presign, routeFor });
+  check(reVoice.ok && reSynth === 1 && reVoice.reused === takeCount - 1, 'only the missing line is spoken again; the rest are re-used', reVoice.ok ? `synth ${reSynth}, reused ${reVoice.reused}` : `${reVoice.code}: ${reVoice.detail}`);
+
   // ═══ 10b. Restarting a halted episode ═══
   // The halt is SEEDED (status is an input); what is asserted is what restartHaltedEpisode did
   // with it — the key it handed the runner and the run id it wrote back.

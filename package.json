@@ -19,6 +19,7 @@
     "db:types:nodocker": "node scripts/gen-types-nodocker.mjs \"$DATABASE_URL\" public",
     "trigger:dev": "trigger dev",
     "trigger:deploy": "trigger deploy",
+    "remotion:bundle": "node scripts/remotion-bundle.mjs",
     "trigger:deploy:dry": "trigger deploy --dry-run",
     "check:vendors": "./scripts/check-vendor-isolation.sh",
     "check:enums": "node scripts/check-enums.mjs",

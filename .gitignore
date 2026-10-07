@@ -54,3 +54,6 @@ next-env.d.ts
 # is worse than none: it looks authoritative and silently omits whatever landed after it
 # was written. Regenerate it when you need it; it takes no network.
 /supabase/bundles/
+
+# prebuilt Remotion site, made in CI before the worker deploys (scripts/remotion-bundle.mjs)
+/remotion-bundle/

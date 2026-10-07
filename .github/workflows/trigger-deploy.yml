@@ -61,6 +61,13 @@ jobs:
       - name: Every worker variable exists in Vercel production (names only)
         run: pnpm check:trigger-env
 
+      # The Remotion site, built here as plain node and copied into the image. Bundling it on
+      # the worker inside esbuild's output is what failed S001's first render (07-Oct).
+      - name: Prebuild the Remotion site
+        run: |
+          pnpm remotion:bundle
+          test -f remotion-bundle/index.html || { echo "::error::remotion-bundle/index.html was not produced"; exit 1; }
+
       - name: Dry run (build + pre-build check, no upload)
         run: pnpm trigger:deploy:dry
 

@@ -15,7 +15,7 @@ const B = new URL('../.verify-build/src/lib', import.meta.url).pathname;
 const { policyLint, classifySource, properNameCandidates } = require(`${B}/bureau/policy-lint.js`);
 const { checkVariation, isoWeek, variationRefusal } = require(`${B}/bureau/variation.js`);
 const { fitToCap } = require(`${B}/bureau/estimate.js`);
-const { parseScript, speakerSlug } = require(`${B}/bureau/script-lines.js`);
+const { parseScript, speakerSlug, punchlineTurns } = require(`${B}/bureau/script-lines.js`);
 const { characterMentions, complaintScore } = require(`${B}/bureau/comments.js`);
 const { modelFor, TASK_TIER } = require(`${B}/llm/router.js`);
 const { voiceRouteFor } = require(`${B}/drivers/voice-route.js`);
@@ -190,6 +190,17 @@ check(
   'turns packed onto one line are split by speaker, and no cast name is spoken',
   JSON.stringify(two),
 );
+// S003's three punchlines, verbatim from the brief (07-Oct).
+const pA = punchlineTurns("Pip: So I can't break gravity. / Marlo: Not alone. Meet your supervisor. / Ohm's lamp flickers on.", 'pip');
+check(JSON.stringify(pA) === JSON.stringify([{ speaker: 'pip', text: "So I can't break gravity." }, { speaker: 'marlo', text: 'Not alone. Meet your supervisor.' }]), 'a punchline exchange keeps its spoken turns and drops the stage direction', JSON.stringify(pA));
+const pB = punchlineTurns("Pip lets go of the lanyard to test it; it falls; Marlo's mug keeps orbiting. Marlo: The mug has seniority.", 'pip');
+check(JSON.stringify(pB) === JSON.stringify([{ speaker: 'marlo', text: 'The mug has seniority.' }]), 'direction before the first label is not spoken', JSON.stringify(pB));
+const { scriptAcceptable } = require(`${B}/bureau/episode-steps.js`);
+const s003 = "Ohm: Memo. New intern, Gravity Desk. Touch nothing.\nPip: So I can't break gravity.\nMarlo: Not alone. Meet your supervisor.\nOhm: Welcome to the Gravity Desk.";
+check(scriptAcceptable(s003, "Pip: So I can't break gravity. / Marlo: Not alone. Meet your supervisor. / Ohm's lamp flickers on.", 150).ok, "S003's script is accepted with the punchline it actually speaks");
+check(!scriptAcceptable(s003, "Marlo: The mug has seniority.", 150).ok, 'and refused when the punchline is genuinely missing');
+const pC = punchlineTurns("File it under 'falling'.", 'marlo');
+check(JSON.stringify(pC) === JSON.stringify([{ speaker: 'marlo', text: "File it under 'falling'." }]), 'an unlabelled punchline is one line for the lead', JSON.stringify(pC));
 const notCast = parseScript('Marlo: Note: Desk Four: closed.');
 check(notCast.ok && notCast.lines.length === 1 && notCast.lines[0].text === 'Note: Desk Four: closed.', 'a colon after a word that is not in the cast stays as words');
 

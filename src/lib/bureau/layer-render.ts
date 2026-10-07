@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { probeVideoFrames } from '../assemble/render';
@@ -33,7 +34,15 @@ export type BureauRenderResult =
   | { ok: true; outputPath: string; frames: number; layer: BureauLayer; serveUrl: string }
   | { ok: false; code: string; detail: string };
 
+/**
+ * The Remotion site to render from. On the worker it is prebuilt by `pnpm remotion:bundle` in
+ * CI and shipped into the image (trigger.config.ts → additionalFiles): bundling at render time
+ * inside an esbuild-bundled worker is what failed S001 on 07-Oct. With no prebuilt site —
+ * a developer machine, a harness — it bundles on the fly as before.
+ */
 export async function bundleRemotion(): Promise<string> {
+  const prebuilt = join(process.cwd(), 'remotion-bundle');
+  if (existsSync(join(prebuilt, 'index.html'))) return prebuilt;
   const { bundle } = await import('@remotion/bundler');
   return bundle({ entryPoint: join(process.cwd(), 'src/remotion/index.ts') });
 }

@@ -70,6 +70,28 @@ export function splitTurns(speaker: string, text: string): { speaker: string; te
   return out;
 }
 
+/**
+ * What a punchline actually SAYS, turn by turn.
+ *
+ * Briefs write punchlines as an exchange with stage directions —
+ * `Pip: So I can't break gravity. / Marlo: Not alone. Meet your supervisor. / Ohm's lamp flickers on.`
+ * (S003, 07-Oct) — and the script check compared that whole string, names, slashes and
+ * stage direction included, against the spoken VO, so a script that said every word refused
+ * as "the approved punchline is not in the script". Segments are split on " / "; a segment
+ * labelled with a cast name is a spoken turn; an unlabelled segment in a labelled punchline
+ * is a direction and is not spoken, as is any text before the first label. A punchline with no
+ * labels at all is one line for `lead`.
+ */
+export function punchlineTurns(punchline: string, lead: string): { speaker: string; text: string }[] {
+  const segs = punchline.split(/\s+\/\s+/).map((x) => x.trim()).filter(Boolean);
+  const turns: { speaker: string; text: string }[] = [];
+  // Text before the first cast label in a segment ("Pip lets go of the lanyard… Marlo: The mug
+  // has seniority.") is direction too: only labelled text is spoken once any label exists.
+  const UNSPOKEN = '\u0000direction';
+  for (const seg of segs) turns.push(...splitTurns(UNSPOKEN, seg).filter((t) => t.speaker !== UNSPOKEN));
+  return turns.length ? turns : [{ speaker: lead, text: punchline.trim() }];
+}
+
 export type ParseResult = { ok: true; lines: ScriptLine[]; voText: string } | { ok: false; problems: string[] };
 
 export function parseScript(script: string): ParseResult {

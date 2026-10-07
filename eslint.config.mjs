@@ -21,6 +21,7 @@ const eslintConfig = [
       'out/**',
       'build/**',
       '.verify-build/**',
+      'remotion-bundle/**',
       'next-env.d.ts',
     ],
   },

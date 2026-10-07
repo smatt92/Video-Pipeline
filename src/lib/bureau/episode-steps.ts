@@ -20,7 +20,7 @@ import { normaliseOverlay, type OverlaySpec } from '../../remotion/bureau/overla
 import type { BureauShot, BureauVideoProps } from '../../remotion/bureau/bureau-video';
 import { BIBLE, characterBySlug, SERIES, STORAGE_REF_PREFIX, syncCast } from './bible';
 import { estimateEpisode, fitToCap, PlannedShotSchema, recipeForRoute, type PlannedShot } from './estimate';
-import { parseScript, type ScriptLine } from './script-lines';
+import { parseScript, punchlineTurns, type ScriptLine } from './script-lines';
 
 /**
  * The episode run's steps, each a function of (db, episode) plus injected effects, each
@@ -69,7 +69,15 @@ export function scriptAcceptable(text: string, punchline: string, maxWords: numb
   if (!p.ok) return { ok: false, why: p.problems.join('; ') };
   const words = p.voText.split(/\s+/).length;
   if (words > maxWords) return { ok: false, why: `${words} words > ${maxWords}` };
-  if (!norm(p.voText).includes(norm(punchline))) return { ok: false, why: 'the approved punchline is not in the script' };
+  // Every spoken turn of the punchline, in order — not the raw string, which carries speaker
+  // names and stage directions nobody says (S003, 07-Oct).
+  const spoken = norm(p.voText);
+  let at = 0;
+  for (const t of punchlineTurns(punchline, p.lines[p.lines.length - 1]?.speaker ?? '')) {
+    const i = spoken.indexOf(norm(t.text), at);
+    if (i < 0) return { ok: false, why: 'the approved punchline is not in the script' };
+    at = i + norm(t.text).length;
+  }
   return { ok: true, lines: p.lines, voText: p.voText };
 }
 
@@ -89,7 +97,7 @@ export async function prepareScript(
   const lead = characterBySlug(b.lead_character)!;
   const base = scriptAcceptable(b.script_text, punchline, maxWords).ok
     ? b.script_text
-    : `${b.script_text.trim()}\n${lead.name}: ${punchline}`;
+    : `${b.script_text.trim()}\n${punchlineTurns(punchline, lead.id).map((t) => `${characterBySlug(t.speaker)?.name ?? lead.name}: ${t.text}`).join('\n')}`;
 
   // Concept first: the script's cost rows hang off it.
   const titles = (b.titles as { text: string }[]) ?? [];

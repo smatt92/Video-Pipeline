@@ -1,4 +1,4 @@
-import { aptGet, ffmpeg } from '@trigger.dev/build/extensions/core';
+import { additionalFiles, aptGet, ffmpeg } from '@trigger.dev/build/extensions/core';
 
 import { headlessShell } from './src/lib/trigger/headless-shell';
 import { vercelEnv } from './src/lib/trigger/vercel-env';
@@ -86,7 +86,18 @@ export default defineConfig({
    * deploying shell and nothing in the Trigger.dev dashboard. UNVERIFIED until the first
    * deploy runs it (0008 §17).
    */
-  build: { extensions: [ffmpeg(), aptGet({ packages: ['espeak-ng'] }), headlessShell(), vercelEnv()] },
+  /**
+   * Remotion, kept out of esbuild. The bundler (rspack + webpack internals) breaks when
+   * esbuild bundles it — S001's first render failed with "Assignment to constant variable."
+   * (07-Oct), reproduced locally the same way and fixed the same way. The renderer ships
+   * platform binaries (the compositor), which an external installs for the image's platform.
+   * The site itself is prebuilt in CI (`pnpm remotion:bundle`) and copied in, so the worker
+   * never bundles at render time.
+   */
+  build: {
+    external: ['@remotion/bundler', '@remotion/renderer'],
+    extensions: [ffmpeg(), aptGet({ packages: ['espeak-ng'] }), headlessShell(), vercelEnv(), additionalFiles({ files: ['remotion-bundle/**'] })],
+  },
 
   dirs: ['./src/trigger'],
 });
