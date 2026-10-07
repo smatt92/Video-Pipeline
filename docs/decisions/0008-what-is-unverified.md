@@ -1273,6 +1273,67 @@ Voice override both ways (set → the stage's route is the override; clear → t
 upload confirm and per-series default refusals, concepts per channel with settled vs estimated
 cost. **NOT run:** a real presigned PUT of a bed, the `<audio>` players, any page in a browser.
 
+### 25. Scene stills (2026-10-07, decision 0021) — RUN against a stub vendor; ONE real still
+
+**What has run:** `test:bureau` (the cast-name check, prompt composition and order, routing
+on/off, the drawn share, cap swaps, the driver's price equal to 0044's row, Ken Burns never
+showing an edge); `verify:episode` §8 end to end with a stub image vendor and a stub model: the
+brief priced on four stills, every shot a still with its overlay kept, the character beat's
+swap, each estimate row present at the moment of its call (LOAD-BEARING), a rewrite that still
+names Pip never reaching the vendor, a refused and a failed still falling back with their swaps,
+measured reconciles, a replay paying nothing, a real 270×480 Remotion composite whose decoded
+frame is the still's colour. CI run 177 green; worker deployed (version 20261007.7).
+
+**What has NOT run:** an episode on the worker with stills (0047 is not pasted on the hosted
+project, so every shot there still plans as an overlay — by the probe, not a constant); a still
+on the worker itself (the one real still ran the same function on a GitHub runner, §26); the
+Ken Burns move watched at 1080×1920 in a real cut; any still for a channel other than the
+Bureau.
+
+### 26. The one real still — S001 shot 2 (2026-10-07) — RUN, LOOKED AT
+
+Workflow **Still probe** run 1 (`37581560626`), `pnpm probe:still c47e7bd4-…` →
+`generateStillForShot`, production environment read from Vercel, hosted database, real vendor,
+real bucket. Shot: *"Exploded view: Earth with two chalk tidal bulges; the Moon's pull arrow
+fades out and the bulges relax."*
+
+- **Rewrite (Haiku):** "An exploded diagram showing Earth with two chalk-drawn tidal bulges on
+  opposite sides. A fading arrow indicates gravitational pull from above. The bulges gradually
+  flatten and disappear as the arrow fades completely." — no cast name; then the bible style,
+  `#22D3EE`, the negative prompt and the no-people clause appended by code.
+- **Money:** estimate ₹4.40 (`image_720p`, rate card) written before the call; the vendor's
+  terminal task reported **5 credits** → measured reconcile ₹4.40 — the first measured figure
+  for `gen4_image`, and it equals the published rate. Rewrite: 525 in / 53 out tokens, ₹0.07.
+  Total ₹4.47. Stored `stills/e6cf4479-…/02-0.png`, 1,149,264 bytes, read back from the bucket.
+- **What it looked like** (downscaled copy: `docs/bureau/still-s001-shot2-270x480.jpg`): navy
+  blueprint paper with a fine grid, white chalk linework, a central Earth with horizontal force
+  arrows and a vertical pull arrow from above, two smaller Earths at the top joined by a cyan
+  arc. **No people, faces or figures.** It reads as the Bureau's world and as "a diagram about
+  Earth and a pull", which the overlay template never did.
+- **What it got wrong:** the Earths are textured globes rather than flat chalk line; the accent
+  appears on two elements (the arc and a patch on the central Earth), not one; the two tidal
+  **bulges are not visible** — the Earth is round — so the specific mechanism is not shown; a
+  couple of tiny glyphs near arrow tips look like letters despite "no text"; and the rewrite
+  described motion ("gradually flatten and disappear"), which a still cannot show. Prompt
+  v2 candidates: forbid time/motion words in the rewrite, say "an oval Earth stretched into two
+  bulges", and move "flat line art, no texture" before the scene.
+
+### 27. Channel bible in the database (2026-10-07, decision 0022) — RUN locally and in CI
+
+**What has run:** `verify:channel-bible` (CI step "Channel bible in the database…", run 177
+green): the Bureau imported equals its folder field by field, through `importFolderBible` and
+through the SQL generated for the paste, each twice; override folding; the paste guard; a
+second channel made entirely through the actions with no folder; its brief validated against
+the database cast, approved, scripted and voiced in the presets `lockVoice` wrote.
+`verify:channels` §1 creates its channel through `createChannel`. The bundle
+`hosted-migrations-6-0047-0048.sql` applied to a local database at 0046 (folding one override)
+and refused a second paste.
+
+**What has NOT run:** the paste on the hosted project (it is at **0045** — 0046 is not pasted
+either; read with the Supabase MCP, read-only); `/channels/new` in a browser; any action from
+the deployed app; `voice:lock` against the hosted database. Until 0048 is pasted every channel
+reads its folder and one log line per process says so.
+
 ## Gates, and where each can run
 
 | Gate | Runnable in this environment? |
