@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { SceneDefs } from '@/components/ui/episode';
 import type { RailData } from '@/lib/shell/rail';
@@ -20,6 +20,11 @@ import { TabBar } from './tab-bar';
  */
 export function AppShell({ children, data }: { children: React.ReactNode; data: RailData }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
+  useEffect(() => {
+    const open = () => setPaletteOpen(true);
+    window.addEventListener('kiln:palette', open);
+    return () => window.removeEventListener('kiln:palette', open);
+  }, []);
 
   return (
     <HintProvider>

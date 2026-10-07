@@ -1,28 +1,39 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
 import { restartRunAction, startRunAction } from '@/lib/bureau/ui-actions';
 
 /**
- * Shown on the board for an approved episode whose run never started (queued, no run id),
- * and — as "Restart run" — for one that halted on a refusal whose cause has been fixed.
+ * Start / Restart run — the one action on a blocker for a stopped or never-started episode.
+ * Same server actions as before the redesign; the message the action returns is shown verbatim.
  */
-export function StartRun({ episodeId, restart = false }: { episodeId: string; restart?: boolean }) {
+export function StartRun({ episodeId, restart = false, primary = false, full = false }: { episodeId: string; restart?: boolean; primary?: boolean; full?: boolean }) {
+  const router = useRouter();
   const [msg, setMsg] = useState<string | null>(null);
   const [pending, start] = useTransition();
   return (
-    <div className="mt-1">
+    <span className="col" style={{ gap: 4, alignItems: full ? 'stretch' : 'flex-start', flex: full ? '1 1 auto' : 'none' }}>
       <button
         type="button"
         disabled={pending}
-        className="min-h-11 rounded-md border px-2 text-2xs font-medium"
-        style={{ borderColor: 'var(--border-default)' }}
-        onClick={() => start(async () => setMsg((await (restart ? restartRunAction : startRunAction)(episodeId)).message))}
+        className={`btn sm${primary ? ' pri' : ''}${full ? ' full' : ''}`}
+        onClick={() =>
+          start(async () => {
+            const r = await (restart ? restartRunAction : startRunAction)(episodeId);
+            setMsg(r.message);
+            if (r.ok) router.refresh();
+          })
+        }
       >
         {pending ? 'Starting…' : restart ? 'Restart run' : 'Start run'}
       </button>
-      {msg && <p className="mt-1 text-2xs" style={{ color: 'var(--text-secondary)' }}>{msg}</p>}
-    </div>
+      {msg && (
+        <span className="xs t2" role="status">
+          {msg}
+        </span>
+      )}
+    </span>
   );
 }

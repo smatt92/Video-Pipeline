@@ -7,13 +7,14 @@ import { importCsvAction, type ActionResult } from '@/lib/bureau/ui-actions';
 export function CsvImport({ channelId }: { channelId: string }) {
   const [state, action, pending] = useActionState<ActionResult | null, FormData>(importCsvAction, null);
   return (
-    <form action={action} className="flex flex-wrap items-center gap-2">
+    <form action={action} className="row" style={{ gap: 10 }}>
       <input type="hidden" name="channel_id" value={channelId} />
-      <input type="file" name="csv" accept=".csv,text/csv" className="text-sm" />
-      <button disabled={pending} className="min-h-11 rounded-md px-3 text-sm font-medium" style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}>
+      <label className="sr-only" htmlFor="studio-csv">Studio CSV file</label>
+      <input id="studio-csv" type="file" name="csv" accept=".csv,text/csv" className="sm" />
+      <button disabled={pending} className="btn pri">
         {pending ? 'Importing…' : 'Import Studio CSV'}
       </button>
-      {state && <span className="text-sm" style={{ color: state.ok ? 'var(--text-secondary)' : 'var(--danger)' }}>{state.message}</span>}
+      {state && <span className="sm" role="status" style={{ color: state.ok ? 'var(--t2)' : 'var(--blk-text)' }}>{state.message}</span>}
     </form>
   );
 }

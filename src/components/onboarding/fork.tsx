@@ -66,7 +66,7 @@ export function Fork({ signedIn }: { signedIn: boolean }) {
         />
 
         <Choice
-          href={signedIn ? '/board' : '/login?next=/board'}
+          href={signedIn ? '/home' : '/login?next=/home'}
           heading="Skip for now"
           time="Nothing to fill in"
           lead="The whole application, with nothing connected to it yet. There is no reduced mode."

@@ -8,8 +8,8 @@ import { Icon, type IconName } from './icon';
  * the quiet one, `dan` the destructive one. 34px desktop; on mobile kiln.css lifts every
  * button to 44px, so a size prop never has to know which device it is on.
  *
- * There is deliberately no variant for "Publish now" or "Skip review": the only path to Ready
- * is Approve cut, and a button component that offered either would be an invitation.
+ * There is deliberately no variant for publishing ahead of review: the only path to Ready
+ * is Approve cut, and a button component that offered one would be an invitation.
  */
 export type ButtonVariant = 'default' | 'pri' | 'ghost' | 'dan';
 export type ButtonSize = 'md' | 'sm' | 'lg';

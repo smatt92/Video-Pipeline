@@ -65,7 +65,7 @@ export default async function Splash() {
   });
 
   redirect(
-    destination.to === 'app' ? '/board' : destination.to === 'login' ? '/login' : '/onboarding',
+    destination.to === 'app' ? '/home' : destination.to === 'login' ? '/login' : '/onboarding',
   );
 
   // Unreachable — `redirect` throws. Present because a splash that could ever paint should

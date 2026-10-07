@@ -16,7 +16,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'Kiln',
     short_name: 'Kiln',
     description: 'AI video studio — trend to published, with the cost attached.',
-    start_url: '/',
+    start_url: '/home',
     display: 'standalone',
     background_color: BRAND_HEX.page,
     theme_color: BRAND_HEX.inset,

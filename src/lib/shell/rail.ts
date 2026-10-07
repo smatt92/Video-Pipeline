@@ -5,6 +5,7 @@ import { readSetupProgress } from '../onboarding/progress';
 import { currentChannel } from '../channels/active';
 import type { ChannelSummary } from '../channels/list';
 import { serverClient } from '../db/server';
+import { initials } from './initials';
 
 /**
  * Everything the Rail, the tab bar and the ⌘K palette show, read once per request in the app
@@ -44,11 +45,6 @@ export interface RailData {
   pendingBriefs: { id: string; slot: string | null; premise: string }[];
   /** Studio setup, while unfinished. null once finished or when it cannot be read. */
   setup: { done: number; total: number } | null;
-}
-
-export function initials(name: string): string {
-  const words = name.replace(/[^\p{L}\p{N} ]/gu, ' ').split(/\s+/).filter((w) => w && !/^(of|the|and|a)$/i.test(w));
-  return (words.length >= 2 ? words[0]![0]! + words[1]![0]! : (words[0] ?? '?').slice(0, 2)).toUpperCase();
 }
 
 function toRailChannel(c: ChannelSummary): RailChannel {

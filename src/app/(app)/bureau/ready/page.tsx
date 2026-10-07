@@ -1,27 +1,29 @@
-import { BureauNav } from '@/components/bureau/bureau-nav';
 import { BuildInstagram, CopyButton, MarkPosted, MarkScheduled, QueueDubs } from '@/components/bureau/ready-controls';
+import { ScreenHeader } from '@/components/shell/screen-header';
+import { inr, Note } from '@/components/ui/card';
+import { Icon } from '@/components/ui/icon';
+import { Pill } from '@/components/ui/tags';
 import { readyBundles } from '@/lib/bureau/read';
 import { requireChannel } from '@/lib/channels/active';
 import { publishTargets } from '@/lib/channels/list';
 import { serverClient } from '@/lib/db/server';
 
 export const dynamic = 'force-dynamic';
+export const metadata = { title: 'Ready' };
 
 type Bundle = { title?: string; description?: string; tags?: string[]; made_for_kids?: boolean; contains_synthetic_media?: boolean; pinned_comment?: string; slot_time?: string | null; alternate_titles?: string[] };
 type IgBundle = { caption?: string; hashtags?: string[]; alt_text?: string; first_comment?: string; cover_frame_s?: number; cover_note?: string; reels_api_problem?: string | null; instagram_account?: string | null };
 type Row = Awaited<ReturnType<typeof readyBundles>>[number];
 
-const link = { borderColor: 'var(--border-default)', color: 'var(--accent)' } as const;
-const muted = { color: 'var(--text-muted)' } as const;
+const PUB_TONE: Record<string, 'rdy' | 'live' | 'blk' | 'draft'> = { draft: 'rdy', scheduled: 'rdy', uploading: 'rdy', live: 'live', failed: 'blk' };
+const PUB_LABEL: Record<string, string> = { draft: 'Ready', scheduled: 'Scheduled', uploading: 'Uploading', live: 'Posted', failed: 'Failed' };
 
 /**
- * Ready to schedule — one card per episode, one section per publish target.
- *
- * YouTube: the upload API is unaudited, so download, paste, schedule in Studio at the slot,
- * then "Mark scheduled" (with the link, so metrics can find the video). Instagram: manual
- * until Meta app review clears (decision 0020) — the same MP4 posted as a Reel with the
- * caption, cover, alt text and first comment below, then "Mark posted" with the permalink.
- * The review gate, kill switch and daily cap are checked by the database on both.
+ * Ready to schedule (canvas: Ready, Ready-m) — one card per episode, one section per publish
+ * target. YouTube: the upload API is unaudited, so download, paste, schedule in Studio at the
+ * slot, then Mark scheduled with the link. Instagram: manual until Meta app review clears
+ * (decision 0020) — the same MP4 posted as a Reel, then Mark posted with the permalink. The
+ * review gate, kill switch and daily cap are checked by the database on both.
  */
 export default async function ReadyPage() {
   const channel = await requireChannel();
@@ -30,7 +32,6 @@ export default async function ReadyPage() {
   const igTarget = targets.find((t) => t.platform === 'instagram' && t.enabled) ?? null;
   const ytTarget = targets.find((t) => t.platform === 'youtube' && t.enabled) ?? null;
 
-  // Group by episode (a bundle without one stands alone), YouTube first.
   const groups = new Map<string, { youtube: Row | null; instagram: Row | null }>();
   for (const b of bundles) {
     const k = b.episode_id ?? b.publication_id!;
@@ -39,93 +40,229 @@ export default async function ReadyPage() {
     else g.youtube = b;
     groups.set(k, g);
   }
+  const targetLine =
+    [ytTarget ? 'YouTube' : null, igTarget ? `Instagram${igTarget.handle ? ` (${igTarget.handle})` : ''}` : null].filter(Boolean).join(' + ') || 'no publish target';
 
   return (
-    <main className="mx-auto w-full max-w-[960px] px-4 py-6">
-      <BureauNav active="ready" />
-      <h1 className="text-lg font-medium">Ready to schedule</h1>
-      <p className="mt-1 text-sm" style={muted}>
-        Targets for {channel.name}: {[ytTarget ? 'YouTube' : null, igTarget ? `Instagram${igTarget.handle ? ` (${igTarget.handle})` : ''}` : null].filter(Boolean).join(' + ') || 'none'}. Both are manual: the YouTube upload API is unaudited and Instagram publishing waits on Meta app review.
-      </p>
-      {groups.size === 0 && <p className="mt-3 text-sm" style={muted}>Nothing ready yet.</p>}
-      <div className="mt-4 grid gap-4">
-        {[...groups.entries()].map(([k, g]) => {
-          const head = g.youtube ?? g.instagram!;
-          const meta = (head.bundle ?? {}) as Bundle;
-          return (
-            <section key={k} className="rounded-md border p-4" style={{ borderColor: 'var(--border-default)' }}>
-              <div className="flex flex-wrap items-baseline gap-2 text-2xs" style={muted}>
-                <span className="font-mono">{head.slot_id ?? 'bank'}</span>
-                <span className="font-mono">slot {meta.slot_time ? new Date(meta.slot_time).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) + ' IST' : '—'}</span>
+    <main className="main">
+      <ScreenHeader
+        channel={channel}
+        crumb="Ready"
+        title="Ready to schedule"
+        mobileTitle="Ready"
+        sub={`${groups.size} bundle${groups.size === 1 ? '' : 's'} · ${targetLine}`}
+        actions={<span className="sm t3">Cut approved → bundle → you upload and schedule → mark it here</span>}
+      />
+      <Note>Both targets are manual: the YouTube upload API is unaudited, and Instagram publishing waits on Meta app review. Kiln never uploads or publishes.</Note>
+
+      {groups.size === 0 && (
+        <div className="empty" style={{ padding: 40 }}>
+          <span style={{ color: 'var(--t2)', fontWeight: 500 }}>Nothing ready yet</span>
+          <span>An approved cut lands here with its publish bundle.</span>
+        </div>
+      )}
+
+      {[...groups.entries()].map(([k, g]) => {
+        const head = g.youtube ?? g.instagram!;
+        const meta = (head.bundle ?? {}) as Bundle;
+        const slotTime = meta.slot_time ? new Date(meta.slot_time).toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + ' IST' : null;
+        return (
+          <div className="split" key={k}>
+            <section className="wide card" aria-label={`${head.slot_id ?? 'bank'} bundle`}>
+              <div className="card-h">
+                <div className="row" style={{ gap: 10 }}>
+                  <span className="chm" aria-hidden="true" />
+                  <span className="mono" style={{ fontWeight: 600, fontSize: 16 }}>
+                    {head.slot_id ?? 'bank'}
+                  </span>
+                  <span className="sm t2">{head.title}</span>
+                  <Pill tone={PUB_TONE[head.status ?? 'draft'] ?? 'rdy'}>{PUB_LABEL[head.status ?? 'draft'] ?? head.status}</Pill>
+                </div>
+                <span className="mono xs t3">{slotTime ? `slot ${slotTime}` : 'no slot time'}</span>
               </div>
-              <h2 className="mt-1 text-md font-medium">{head.title}</h2>
-
-              {/* ── YouTube ─────────────────────────────────────────────── */}
-              <h3 className="mt-3 text-sm font-medium">YouTube <span className="text-2xs font-normal" style={muted}>{g.youtube?.status ?? 'no bundle'}</span></h3>
-              {g.youtube && <YoutubeSection b={g.youtube} />}
-
-              {/* ── Instagram ───────────────────────────────────────────── */}
-              <h3 className="mt-4 text-sm font-medium">Instagram Reels <span className="text-2xs font-normal" style={muted}>{g.instagram?.status ?? (igTarget ? 'no variant yet' : 'not a target for this channel')}</span></h3>
-              {g.instagram ? <InstagramSection b={g.instagram} /> : igTarget && g.youtube ? <BuildInstagram youtubePublicationId={g.youtube.publication_id!} /> : null}
-
-              {head.episode_id && <div className="mt-3"><QueueDubs episodeId={head.episode_id} /></div>}
+              <div className="plat">
+                <Icon name="publish" />
+                <span className="h3">YouTube</span>
+                <span className="xs t3">{g.youtube ? PUB_LABEL[g.youtube.status ?? 'draft'] ?? g.youtube.status : 'no bundle'}</span>
+              </div>
+              {g.youtube ? <YoutubeFields b={g.youtube} /> : <div className="card-b sm t3">No YouTube bundle for this episode.</div>}
+              <div className="plat">
+                <Icon name="publish" />
+                <span className="h3">Instagram Reels</span>
+                <span className="pill s-rev nodot">manual until Meta app review</span>
+              </div>
+              {g.instagram ? (
+                <InstagramFields b={g.instagram} />
+              ) : (
+                <div className="card-b">
+                  {igTarget && g.youtube ? <BuildInstagram youtubePublicationId={g.youtube.publication_id!} /> : <span className="sm t3">{igTarget ? 'No variant yet.' : 'Instagram is not a target for this channel.'}</span>}
+                </div>
+              )}
             </section>
-          );
-        })}
-      </div>
+
+            <aside className="side">
+              <section className="card card-b col" style={{ gap: 12 }}>
+                <span className="lbl">Files</span>
+                <div className="col" style={{ gap: 8 }}>
+                  {head.download_urls.video ? (
+                    <a className="btn sm" href={head.download_urls.video}>
+                      <Icon name="download" />
+                      Video · MP4
+                    </a>
+                  ) : (
+                    <span className="xs t3">Video — not in the bucket yet</span>
+                  )}
+                  {head.download_urls.captions_srt && (
+                    <a className="btn sm" href={head.download_urls.captions_srt}>
+                      <Icon name="download" />
+                      Captions · SRT
+                    </a>
+                  )}
+                  {head.download_urls.clean_master && (
+                    <a className="btn sm" href={head.download_urls.clean_master}>
+                      <Icon name="download" />
+                      Clean master
+                    </a>
+                  )}
+                  {g.instagram?.download_urls.cover_jpg && (
+                    <a className="btn sm" href={g.instagram.download_urls.cover_jpg}>
+                      <Icon name="download" />
+                      Reel cover still
+                    </a>
+                  )}
+                </div>
+                <span className="xs t3">
+                  madeForKids: No · altered/synthetic: {meta.contains_synthetic_media ? 'Yes (realistic scene)' : 'No'}
+                </span>
+                {head.episode_id && <QueueDubs episodeId={head.episode_id} />}
+                {g.youtube && g.youtube.dubs.length > 0 && (
+                  <div className="col" style={{ gap: 4 }}>
+                    {g.youtube.dubs.map((d) => (
+                      <span className="xs" key={d.language}>
+                        <span className="mono">{d.language}</span>: {d.audio_url ? <a href={d.audio_url}>audio</a> : 'audio —'} · {d.captions_url ? <a href={d.captions_url}>captions</a> : 'captions —'} ·{' '}
+                        {d.cost_inr === null ? 'unpriced' : inr(d.cost_inr)} <span className="t3">({d.cost_label})</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </section>
+              {g.youtube?.status === 'draft' && (
+                <section className="card">
+                  <div className="card-h">
+                    <h2 className="h3">Mark scheduled</h2>
+                    <span className="mono xs t3">{slotTime ?? ''}</span>
+                  </div>
+                  <div className="card-b">
+                    <MarkScheduled publicationId={g.youtube.publication_id!} slotTime={meta.slot_time ?? null} />
+                  </div>
+                </section>
+              )}
+              {g.instagram?.status === 'draft' && (
+                <section className="card">
+                  <div className="card-h">
+                    <h2 className="h3">Mark posted · Instagram</h2>
+                  </div>
+                  <div className="card-b">
+                    <MarkPosted publicationId={g.instagram.publication_id!} />
+                  </div>
+                </section>
+              )}
+            </aside>
+          </div>
+        );
+      })}
     </main>
   );
 }
 
-function YoutubeSection({ b }: { b: Row }) {
+function YoutubeFields({ b }: { b: Row }) {
   const meta = (b.bundle ?? {}) as Bundle;
-  const tags = (meta.tags ?? b.tags ?? []).join(', ');
+  const tags = meta.tags ?? b.tags ?? [];
+  const title = b.title ?? '';
   return (
-    <div>
-      {meta.alternate_titles?.length ? <p className="text-2xs" style={{ color: 'var(--text-faint)' }}>alternates: {meta.alternate_titles.join(' · ')}</p> : null}
-      <div className="mt-2 flex flex-wrap gap-2">
-        <CopyButton text={b.title ?? ''} label="title" />
-        <CopyButton text={b.description ?? ''} label="description" />
-        <CopyButton text={tags} label="tags" />
-        {meta.pinned_comment && <CopyButton text={meta.pinned_comment} label="pinned comment" />}
-        {b.download_urls.video && <a className="rounded border px-2 py-1 text-2xs" style={link} href={b.download_urls.video}>download MP4</a>}
-        {b.download_urls.captions_srt && <a className="rounded border px-2 py-1 text-2xs" style={link} href={b.download_urls.captions_srt}>captions .srt</a>}
-        {b.download_urls.clean_master && <a className="rounded border px-2 py-1 text-2xs" style={link} href={b.download_urls.clean_master}>clean master</a>}
+    <>
+      <div className="fld">
+        <div className="row sb">
+          <span className="lbl">Title · {title.length} / 100</span>
+          <CopyButton text={title} label="title" />
+        </div>
+        <span className="val">{title || '—'}</span>
+        {meta.alternate_titles?.length ? <span className="xs t3">alternates: {meta.alternate_titles.join(' · ')}</span> : null}
       </div>
-      <p className="mt-2 text-2xs" style={muted}>madeForKids: No · altered/synthetic: {meta.contains_synthetic_media ? 'Yes (realistic scene)' : 'No'}</p>
-      {b.dubs.length > 0 && (
-        <ul className="mt-2 text-2xs">
-          {b.dubs.map((d) => (
-            <li key={d.language}>
-              {d.language}: {d.audio_url ? <a href={d.audio_url} style={{ color: 'var(--accent)' }}>audio</a> : 'audio —'} · {d.captions_url ? <a href={d.captions_url} style={{ color: 'var(--accent)' }}>captions</a> : 'captions —'} · {d.cost_inr === null ? 'unpriced' : `₹${d.cost_inr.toFixed(2)}`} ({d.cost_label})
-            </li>
+      <div className="fld">
+        <div className="row sb">
+          <span className="lbl">Description</span>
+          <CopyButton text={b.description ?? ''} label="description" />
+        </div>
+        <span className="val">{b.description || '—'}</span>
+      </div>
+      <div className="fld">
+        <div className="row sb">
+          <span className="lbl">Tags</span>
+          <CopyButton text={tags.join(', ')} label="tags" />
+        </div>
+        <div className="row" style={{ gap: 6 }}>
+          {tags.length === 0 && <span className="sm t3">—</span>}
+          {tags.map((t) => (
+            <span className="chip" key={t}>
+              #{t.replace(/^#/, '')}
+            </span>
           ))}
-        </ul>
+        </div>
+      </div>
+      {meta.pinned_comment && (
+        <div className="fld">
+          <div className="row sb">
+            <span className="lbl">Pinned comment</span>
+            <CopyButton text={meta.pinned_comment} label="pinned comment" />
+          </div>
+          <span className="val">{meta.pinned_comment}</span>
+        </div>
       )}
-      {b.status === 'draft' && <MarkScheduled publicationId={b.publication_id!} slotTime={meta.slot_time ?? null} />}
-    </div>
+    </>
   );
 }
 
-function InstagramSection({ b }: { b: Row }) {
+function InstagramFields({ b }: { b: Row }) {
   const ig = (b.bundle ?? {}) as IgBundle;
+  const caption = ig.caption ?? b.description ?? '';
   return (
-    <div>
-      <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-sm border p-2 text-2xs" style={{ borderColor: 'var(--border-subtle)' }}>{ig.caption ?? b.description}</pre>
-      <p className="mt-1 text-2xs" style={muted}>
-        {(ig.caption ?? '').length} / 2,200 characters · {ig.hashtags?.length ?? 0} hashtags · cover: {ig.cover_note ?? '—'}
-        {ig.instagram_account ? ` · account ${ig.instagram_account}` : ''}
-      </p>
-      {ig.reels_api_problem && <p className="mt-1 text-2xs" style={{ color: 'var(--danger)' }}>Outside the Reels API limits (postable by hand): {ig.reels_api_problem}</p>}
-      <div className="mt-2 flex flex-wrap gap-2">
-        <CopyButton text={ig.caption ?? ''} label="caption" />
-        {ig.alt_text && <CopyButton text={ig.alt_text} label="alt text" />}
-        {ig.first_comment && <CopyButton text={ig.first_comment} label="first comment" />}
-        {b.download_urls.video && <a className="rounded border px-2 py-1 text-2xs" style={link} href={b.download_urls.video}>download MP4</a>}
-        {b.download_urls.cover_jpg && <a className="rounded border px-2 py-1 text-2xs" style={link} href={b.download_urls.cover_jpg}>cover still</a>}
+    <>
+      <div className="fld">
+        <div className="row sb">
+          <span className="lbl">
+            Caption · {caption.length} / 2,200 · {ig.hashtags?.length ?? 0} hashtags
+          </span>
+          <CopyButton text={caption} label="caption" />
+        </div>
+        <span className="val">{caption || '—'}</span>
+        {ig.reels_api_problem && <span className="xs" style={{ color: 'var(--blk-text)' }}>Outside the Reels API limits (postable by hand): {ig.reels_api_problem}</span>}
       </div>
-      {b.status === 'draft' && <MarkPosted publicationId={b.publication_id!} />}
-      {b.status === 'live' && <p className="mt-2 text-2xs" style={muted}>Posted — metrics are read from the permalink once the Instagram read permissions are granted.</p>}
-    </div>
+      {ig.alt_text && (
+        <div className="fld">
+          <div className="row sb">
+            <span className="lbl">Alt text</span>
+            <CopyButton text={ig.alt_text} label="alt text" />
+          </div>
+          <span className="val">{ig.alt_text}</span>
+        </div>
+      )}
+      {ig.first_comment && (
+        <div className="fld">
+          <div className="row sb">
+            <span className="lbl">First comment</span>
+            <CopyButton text={ig.first_comment} label="first comment" />
+          </div>
+          <span className="val">{ig.first_comment}</span>
+        </div>
+      )}
+      <div className="fld">
+        <span className="xs t3">
+          Cover: {ig.cover_note ?? '—'}
+          {ig.instagram_account ? ` · account ${ig.instagram_account}` : ''}
+          {b.status === 'live' ? ' · posted — metrics are read from the permalink once the Instagram read permissions are granted.' : ''}
+        </span>
+      </div>
+    </>
   );
 }

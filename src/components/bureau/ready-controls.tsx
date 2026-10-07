@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 
 import { buildInstagramDraftAction, markPostedAction, markScheduledAction, queueDubsAction } from '@/lib/bureau/ui-actions';
@@ -9,36 +10,42 @@ export function CopyButton({ text, label }: { text: string; label: string }) {
   return (
     <button
       type="button"
-      className="rounded border px-2 py-1 text-2xs"
-      style={{ borderColor: 'var(--border-default)', color: 'var(--accent)' }}
+      className="btn sm ghost"
+      aria-label={`Copy ${label}`}
       onClick={async () => {
         await navigator.clipboard.writeText(text);
         setDone(true);
         setTimeout(() => setDone(false), 1500);
       }}
     >
-      {done ? 'copied' : `copy ${label}`}
+      {done ? 'Copied' : 'Copy'}
     </button>
   );
 }
 
 /** Slot time pre-filled in the viewer's local zone; the stored value is an absolute instant. */
 export function MarkScheduled({ publicationId, slotTime }: { publicationId: string; slotTime: string | null }) {
+  const router = useRouter();
   const local = slotTime ? new Date(new Date(slotTime).getTime() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 16) : '';
   const [at, setAt] = useState(local);
   const [url, setUrl] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const [pending, start] = useTransition();
   return (
-    <div className="mt-3 grid gap-2">
-      <div className="flex flex-wrap gap-2">
-        <input type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} className="min-h-11 rounded-md border bg-transparent px-2 text-sm" style={{ borderColor: 'var(--border-default)' }} />
-        <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Studio / Shorts link (for metrics)" className="min-h-11 flex-1 rounded-md border bg-transparent px-2 text-sm" style={{ borderColor: 'var(--border-default)' }} />
-        <button type="button" disabled={pending || !at} onClick={() => start(async () => setMsg((await markScheduledAction(publicationId, at, url)).message))} className="min-h-11 rounded-md px-3 text-sm font-medium" style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}>
-          Mark scheduled
-        </button>
+    <div className="col" style={{ gap: 12 }}>
+      <div className="field">
+        <label htmlFor={`yt-${publicationId}`}>YouTube link</label>
+        <input id={`yt-${publicationId}`} className="input mono" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://youtube.com/shorts/…" />
       </div>
-      {msg && <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{msg}</p>}
+      <div className="field">
+        <label htmlFor={`at-${publicationId}`}>Scheduled for</label>
+        <input id={`at-${publicationId}`} type="datetime-local" className="input mono" value={at} onChange={(e) => setAt(e.target.value)} />
+      </div>
+      <button type="button" className="btn pri full" disabled={pending || !at} onClick={() => start(async () => { const r = await markScheduledAction(publicationId, at, url); setMsg(r.message); if (r.ok) router.refresh(); })}>
+        {pending ? 'Saving…' : 'Mark scheduled'}
+      </button>
+      {msg && <p className="sm t2" role="status">{msg}</p>}
+      <p className="xs t3">Kiln never uploads or publishes. This only records what you scheduled in YouTube Studio; the link lets metrics find the video.</p>
     </div>
   );
 }
@@ -48,10 +55,10 @@ export function QueueDubs({ episodeId }: { episodeId: string }) {
   const [pending, start] = useTransition();
   return (
     <span>
-      <button type="button" disabled={pending} onClick={() => start(async () => setMsg((await queueDubsAction(episodeId, ['hi', 'es', 'pt-BR'])).message))} className="text-2xs underline" style={{ color: 'var(--accent)' }}>
-        queue hi / es / pt-BR dubs
+      <button type="button" disabled={pending} onClick={() => start(async () => setMsg((await queueDubsAction(episodeId, ['hi', 'es', 'pt-BR'])).message))} className="btn sm">
+        Queue hi / es / pt-BR dubs
       </button>
-      {msg && <span className="ml-2 text-2xs" style={{ color: 'var(--text-muted)' }}>{msg}</span>}
+      {msg && <span className="xs t3" role="status" style={{ marginLeft: 8 }}>{msg}</span>}
     </span>
   );
 }
@@ -60,31 +67,36 @@ export function BuildInstagram({ youtubePublicationId }: { youtubePublicationId:
   const [msg, setMsg] = useState<string | null>(null);
   const [pending, start] = useTransition();
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-2">
-      <button type="button" disabled={pending} onClick={() => start(async () => setMsg((await buildInstagramDraftAction(youtubePublicationId)).message))} className="min-h-11 rounded-md border px-3 text-sm" style={{ borderColor: 'var(--border-default)' }}>
+    <div className="row" style={{ gap: 8 }}>
+      <button type="button" disabled={pending} onClick={() => start(async () => setMsg((await buildInstagramDraftAction(youtubePublicationId)).message))} className="btn sm">
         {pending ? 'Building…' : 'Build Instagram variant'}
       </button>
-      {msg && <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>{msg}</span>}
+      {msg && <span className="sm t2" role="status">{msg}</span>}
     </div>
   );
 }
 
 export function MarkPosted({ publicationId }: { publicationId: string }) {
+  const router = useRouter();
   const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
   const [at, setAt] = useState(now);
   const [url, setUrl] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const [pending, start] = useTransition();
   return (
-    <div className="mt-3 grid gap-2">
-      <div className="flex flex-wrap gap-2">
-        <input type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} className="min-h-11 rounded-md border bg-transparent px-2 text-sm" style={{ borderColor: 'var(--border-default)' }} />
-        <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Reel permalink (https://www.instagram.com/reel/…)" className="min-h-11 flex-1 rounded-md border bg-transparent px-2 text-sm" style={{ borderColor: 'var(--border-default)' }} />
-        <button type="button" disabled={pending || !at || !url} onClick={() => start(async () => setMsg((await markPostedAction(publicationId, url, at)).message))} className="min-h-11 rounded-md px-3 text-sm font-medium" style={{ background: 'var(--accent)', color: 'var(--accent-contrast)' }}>
-          Mark posted
-        </button>
+    <div className="col" style={{ gap: 12 }}>
+      <div className="field">
+        <label htmlFor={`ig-${publicationId}`}>Reel permalink</label>
+        <input id={`ig-${publicationId}`} className="input mono" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://www.instagram.com/reel/…" />
       </div>
-      {msg && <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{msg}</p>}
+      <div className="field">
+        <label htmlFor={`igat-${publicationId}`}>Posted at</label>
+        <input id={`igat-${publicationId}`} type="datetime-local" className="input mono" value={at} onChange={(e) => setAt(e.target.value)} />
+      </div>
+      <button type="button" className="btn pri full" disabled={pending || !at || !url} onClick={() => start(async () => { const r = await markPostedAction(publicationId, url, at); setMsg(r.message); if (r.ok) router.refresh(); })}>
+        {pending ? 'Saving…' : 'Mark posted'}
+      </button>
+      {msg && <p className="sm t2" role="status">{msg}</p>}
     </div>
   );
 }
