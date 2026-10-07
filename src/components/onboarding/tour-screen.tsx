@@ -167,6 +167,7 @@ export function TourScreen({
               type="button"
               onClick={back}
               className="btn"
+              style={{ minHeight: 'var(--hit-primary)' }}
             >
               Back
             </button>
@@ -175,6 +176,7 @@ export function TourScreen({
             type="button"
             onClick={next}
             className="btn pri"
+            style={{ minHeight: 'var(--hit-primary)' }}
           >
             {last ? 'Done' : 'Next'}
           </button>
