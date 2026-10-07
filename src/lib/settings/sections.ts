@@ -19,11 +19,8 @@ export interface SettingsSection {
 }
 
 const live = (): SectionStatus => ({ kind: 'live' });
-const scaffolded = (phase: string, reason: string): SectionStatus => ({
-  kind: 'scaffolded',
-  reason,
-  phase,
-});
+// `scaffolded` is kept in the type (SettingsTabs renders it as a disabled tab with its
+// reason) for the next section that exists before it works; none does today.
 
 export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   {
@@ -74,26 +71,26 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   {
     slug: 'generation',
     label: 'Generation',
-    hint: 'Model per shot type, aspect and duration defaults, seed policy',
-    status: scaffolded('1b', 'Needs the driver implementations to enumerate models'),
+    hint: 'Pictures per shot, series video type and pace, picture style, what generates',
+    status: live(),
   },
   {
     slug: 'assembly',
     label: 'Assembly',
-    hint: 'Caption styles, safe areas, canonical codec, loudness',
-    status: scaffolded('2', 'Assembly phase — nothing renders yet'),
+    hint: 'Line gap, tail, loudness, caption and hook sizes, safe area',
+    status: live(),
   },
   {
     slug: 'publishing',
     label: 'Publishing',
-    hint: 'Schedule windows, rate limits, disclosure defaults',
-    status: scaffolded('3', 'Blocked on Meta app review — 2–4 weeks, started week 1'),
+    hint: 'Slot time, disclosure defaults, publish targets, upload status',
+    status: live(),
   },
   {
     slug: 'danger',
     label: 'Danger zone',
-    hint: 'Rotate all keys, purge orphans, reset rate card',
-    status: scaffolded('1a', 'Deliberately last — needs the rest to exist before it can destroy it'),
+    hint: 'Orphaned files, unstick an episode, rotate keys',
+    status: live(),
   },
 ];
 

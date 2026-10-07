@@ -560,6 +560,7 @@ export type Database = {
       }
       channel_policy: {
         Row: {
+          caption_scale: number
           catchphrase_weekly_max: number
           channel_id: string
           character_beat_max_s: number
@@ -569,20 +570,29 @@ export type Database = {
           default_slot_time: string
           gate2_passed_at: string | null
           hook_archetype_weekly_max: number
+          hook_s: number
+          hook_scale: number
           instagram_publish_enabled: boolean
           kill_switch: boolean
           kill_switch_at: string | null
           kill_switch_reason: string | null
+          line_gap_s: number
+          loudness_target_lufs: number
+          made_for_kids_default: boolean
+          max_pictures_per_shot: number
           money_shot_max: number
           monthly_cap_after_gate2_inr: number
           monthly_cap_inr: number
           overlay_min_share: number
           per_short_cap_inr: number
           rerolls_max: number
+          seconds_per_picture: number
           similarity_max: number
           similarity_window: number
           slot_timezone: string
           stills_enabled: boolean
+          synthetic_disclosure: string
+          tail_s: number
           updated_at: string
           updated_by: string | null
           variation_min_axes: number
@@ -590,6 +600,7 @@ export type Database = {
           youtube_api_audited: boolean
         }
         Insert: {
+          caption_scale?: number
           catchphrase_weekly_max?: number
           channel_id: string
           character_beat_max_s?: number
@@ -599,20 +610,29 @@ export type Database = {
           default_slot_time?: string
           gate2_passed_at?: string | null
           hook_archetype_weekly_max?: number
+          hook_s?: number
+          hook_scale?: number
           instagram_publish_enabled?: boolean
           kill_switch?: boolean
           kill_switch_at?: string | null
           kill_switch_reason?: string | null
+          line_gap_s?: number
+          loudness_target_lufs?: number
+          made_for_kids_default?: boolean
+          max_pictures_per_shot?: number
           money_shot_max?: number
           monthly_cap_after_gate2_inr?: number
           monthly_cap_inr?: number
           overlay_min_share?: number
           per_short_cap_inr?: number
           rerolls_max?: number
+          seconds_per_picture?: number
           similarity_max?: number
           similarity_window?: number
           slot_timezone?: string
           stills_enabled?: boolean
+          synthetic_disclosure?: string
+          tail_s?: number
           updated_at?: string
           updated_by?: string | null
           variation_min_axes?: number
@@ -620,6 +640,7 @@ export type Database = {
           youtube_api_audited?: boolean
         }
         Update: {
+          caption_scale?: number
           catchphrase_weekly_max?: number
           channel_id?: string
           character_beat_max_s?: number
@@ -629,20 +650,29 @@ export type Database = {
           default_slot_time?: string
           gate2_passed_at?: string | null
           hook_archetype_weekly_max?: number
+          hook_s?: number
+          hook_scale?: number
           instagram_publish_enabled?: boolean
           kill_switch?: boolean
           kill_switch_at?: string | null
           kill_switch_reason?: string | null
+          line_gap_s?: number
+          loudness_target_lufs?: number
+          made_for_kids_default?: boolean
+          max_pictures_per_shot?: number
           money_shot_max?: number
           monthly_cap_after_gate2_inr?: number
           monthly_cap_inr?: number
           overlay_min_share?: number
           per_short_cap_inr?: number
           rerolls_max?: number
+          seconds_per_picture?: number
           similarity_max?: number
           similarity_window?: number
           slot_timezone?: string
           stills_enabled?: boolean
+          synthetic_disclosure?: string
+          tail_s?: number
           updated_at?: string
           updated_by?: string | null
           variation_min_axes?: number
@@ -4160,6 +4190,47 @@ export type Database = {
         }
         Relationships: []
       }
+      trend_runs: {
+        Row: {
+          channel_id: string | null
+          finished_at: string
+          id: string
+          inserted: number
+          sources: Json
+          started_at: string
+          trigger: string
+          updated: number
+        }
+        Insert: {
+          channel_id?: string | null
+          finished_at?: string
+          id?: string
+          inserted: number
+          sources: Json
+          started_at: string
+          trigger: string
+          updated: number
+        }
+        Update: {
+          channel_id?: string | null
+          finished_at?: string
+          id?: string
+          inserted?: number
+          sources?: Json
+          started_at?: string
+          trigger?: string
+          updated?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trend_runs_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trend_signals: {
         Row: {
           captured_at: string
@@ -5891,6 +5962,7 @@ export type Database = {
       bureau_caps_set: {
         Args: { p_changes: Json; p_token: string }
         Returns: {
+          caption_scale: number
           catchphrase_weekly_max: number
           channel_id: string
           character_beat_max_s: number
@@ -5900,20 +5972,29 @@ export type Database = {
           default_slot_time: string
           gate2_passed_at: string | null
           hook_archetype_weekly_max: number
+          hook_s: number
+          hook_scale: number
           instagram_publish_enabled: boolean
           kill_switch: boolean
           kill_switch_at: string | null
           kill_switch_reason: string | null
+          line_gap_s: number
+          loudness_target_lufs: number
+          made_for_kids_default: boolean
+          max_pictures_per_shot: number
           money_shot_max: number
           monthly_cap_after_gate2_inr: number
           monthly_cap_inr: number
           overlay_min_share: number
           per_short_cap_inr: number
           rerolls_max: number
+          seconds_per_picture: number
           similarity_max: number
           similarity_window: number
           slot_timezone: string
           stills_enabled: boolean
+          synthetic_disclosure: string
+          tail_s: number
           updated_at: string
           updated_by: string | null
           variation_min_axes: number
@@ -5939,6 +6020,7 @@ export type Database = {
       bureau_kill_switch: {
         Args: { p_on: boolean; p_reason: string; p_token: string }
         Returns: {
+          caption_scale: number
           catchphrase_weekly_max: number
           channel_id: string
           character_beat_max_s: number
@@ -5948,20 +6030,29 @@ export type Database = {
           default_slot_time: string
           gate2_passed_at: string | null
           hook_archetype_weekly_max: number
+          hook_s: number
+          hook_scale: number
           instagram_publish_enabled: boolean
           kill_switch: boolean
           kill_switch_at: string | null
           kill_switch_reason: string | null
+          line_gap_s: number
+          loudness_target_lufs: number
+          made_for_kids_default: boolean
+          max_pictures_per_shot: number
           money_shot_max: number
           monthly_cap_after_gate2_inr: number
           monthly_cap_inr: number
           overlay_min_share: number
           per_short_cap_inr: number
           rerolls_max: number
+          seconds_per_picture: number
           similarity_max: number
           similarity_window: number
           slot_timezone: string
           stills_enabled: boolean
+          synthetic_disclosure: string
+          tail_s: number
           updated_at: string
           updated_by: string | null
           variation_min_axes: number

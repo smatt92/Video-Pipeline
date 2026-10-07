@@ -14,6 +14,7 @@ import { FORMAT_INFO, VisualFormatSchema, type FormatSource, type VisualFormat }
 import { channelGeneration, episodeClips } from '@/lib/bureau/overlay-only';
 import { recutOptions } from '@/lib/bureau/recut';
 import { pictureSpansFor } from '@/lib/bureau/episode-steps';
+import { pictureTuning } from '@/lib/settings/tuning';
 import { redrawInFlight, redrawRefusal, redrawsOf } from '@/lib/bureau/redraw-state';
 import { stillsByPart } from '@/lib/bureau/stills';
 import { isRunning } from '@/lib/bureau/running';
@@ -99,7 +100,7 @@ export default async function CutsPage({ searchParams }: { searchParams: Promise
   const lastRedraw = redrawsOf(e.qc).at(-1) ?? null;
   const pictures = new Map<string, { part: number; url: string | null }[]>();
   if (e.status === 'awaiting_cut' && e.script_id && shots.some((s) => s.render_route === 'still')) {
-    const spans = await pictureSpansFor(db, e.script_id);
+    const spans = await pictureSpansFor(db, e.script_id, await pictureTuning(db, channel.id));
     for (const s of shots.filter((x) => x.render_route === 'still')) {
       const have = await stillsByPart(db, s.id);
       const n = Math.max(1, spans.get(s.id)?.length ?? 1, ...[...have.keys()].map((k) => k + 1));
@@ -118,7 +119,7 @@ export default async function CutsPage({ searchParams }: { searchParams: Promise
   // would read as free. Absent is not zero: without a script the figure is withheld.
   const { data: spendRow } = e.script_id ? await db.from('v_episode_spend').select('spent_inr, unpriced_rows').eq('episode_id', e.id).maybeSingle() : { data: null };
   const spend = spendRow;
-  const qcObj = (e.qc ?? {}) as { clips?: Record<string, Clip>; loudness_lufs?: number | null };
+  const qcObj = (e.qc ?? {}) as { clips?: Record<string, Clip>; loudness_lufs?: number | null; loudness_target_lufs?: number | null };
   const clips = Object.values(qcObj.clips ?? {});
   const lufs = qcObj.loudness_lufs ?? null;
   const gen = await episodeClips(db, e);
@@ -130,7 +131,7 @@ export default async function CutsPage({ searchParams }: { searchParams: Promise
 
   type QcRow = { label: string; state: 'pass' | 'fail' | 'unknown'; value: string };
   const qcRows: QcRow[] = [
-    { label: 'Loudness', state: lufs === null ? 'unknown' : Math.abs(lufs + 14) <= 1.5 ? 'pass' : 'fail', value: lufs === null ? '— not measured' : `${lufs.toFixed(1)} LUFS` },
+    { label: 'Loudness', state: lufs === null ? 'unknown' : Math.abs(lufs - (qcObj.loudness_target_lufs ?? -14)) <= 1.5 ? 'pass' : 'fail', value: lufs === null ? '— not measured' : `${lufs.toFixed(1)} LUFS` },
     {
       label: e.kind === 'long_form' ? 'Duration' : 'Duration ≤ 60 s',
       state: dims?.dur == null && !totalS ? 'unknown' : e.kind === 'long_form' || (dims?.dur ?? totalS) <= 60 ? 'pass' : 'fail',

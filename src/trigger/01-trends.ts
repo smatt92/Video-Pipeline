@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { TrendsConfigSchema } from '@/lib/bureau/bible';
 import { serverClient } from '@/lib/db/server';
+import { redditCredentialsFromEnv } from '@/lib/drivers/trends-reddit';
 import { youtubeApiKeyFromEnv } from '@/lib/drivers/trends-youtube';
 import { runTrends, runTrendsForAllChannels, type TrendRunResult } from '@/lib/trends/run';
 
@@ -19,10 +20,11 @@ import { runTrends, runTrendsForAllChannels, type TrendRunResult } from '@/lib/t
  *
  * ── No charge, and one credential ────────────────────────────────────────────
  *
- * No `cost_ledger` write, deliberately: Reddit is a public feed and the YouTube Data API is
- * free within its daily quota — see the note in `run.ts`, where a reader auditing rule 5
- * will look. The YouTube key is resolved here from the environment and handed down; the
- * refusal when it is absent lives in the lib, where `verify:trends` reaches it.
+ * No `cost_ledger` write, deliberately: Reddit's and YouTube's Data APIs are free within
+ * their quotas and the Google Trends feed needs nothing — see the note in `run.ts`, where a
+ * reader auditing rule 5 will look. The YouTube key and the Reddit app credentials are
+ * resolved here from the environment and handed down; "not configured" is decided in the
+ * lib, where `verify:trends` reaches it.
  *
  * ── Concurrency 1, and not for the usual reason ──────────────────────────────
  *
@@ -39,12 +41,13 @@ const trendsQueue = queue({ name: '01-trends', concurrencyLimit: 1 });
 function warnOnFailedSources(channel: string, result: TrendRunResult) {
   const failed = result.sources.filter((s) => !s.ok);
   if (failed.length > 0) {
-    // Warned, not thrown. Google Trends is deliberately unimplemented and one feed being down
+    // Warned, not thrown. One feed being down or not configured
     // is not a failed run — but a silent partial collection is how stage 2 ends up scoring a
     // week-old picture of the world without anyone noticing.
     logger.warn('some sources returned nothing', { channel, failed });
   }
   if (result.channelColumnMissing) logger.warn(result.channelColumnMissing, { channel });
+  if (result.runLogMissing) logger.warn(result.runLogMissing, { channel });
 }
 
 export const trendsTask = schedules.task({
@@ -58,7 +61,13 @@ export const trendsTask = schedules.task({
   queue: trendsQueue,
 
   run: async () => {
-    const outcomes = await runTrendsForAllChannels({ db: serverClient(), youtubeApiKey: youtubeApiKeyFromEnv(), log: logger });
+    const outcomes = await runTrendsForAllChannels({
+      db: serverClient(),
+      youtubeApiKey: youtubeApiKeyFromEnv(),
+      redditCredentials: redditCredentialsFromEnv(),
+      runKind: 'schedule',
+      log: logger,
+    });
     for (const o of outcomes) {
       if (o.ran) warnOnFailedSources(o.channel, o.result);
       else logger.warn('channel skipped', { channel: o.channel, why: o.skipped });
@@ -76,8 +85,13 @@ export const trendsNowTask = schemaTask({
 
   run: async (payload): Promise<TrendRunResult> => {
     const result = await runTrends(
-      { channelId: payload.channelId, subreddits: payload.subreddits, youtube: payload.youtube ?? null },
-      { db: serverClient(), youtubeApiKey: youtubeApiKeyFromEnv(), log: logger },
+      {
+        channelId: payload.channelId,
+        subreddits: payload.subreddits,
+        youtube: payload.youtube ?? null,
+        ...(payload.google_trends !== undefined ? { googleTrends: payload.google_trends } : {}),
+      },
+      { db: serverClient(), youtubeApiKey: youtubeApiKeyFromEnv(), redditCredentials: redditCredentialsFromEnv(), runKind: 'now', log: logger },
     );
     warnOnFailedSources(payload.channelId, result);
     return result;

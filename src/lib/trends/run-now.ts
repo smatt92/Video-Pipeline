@@ -1,5 +1,6 @@
 import { getBible, type TrendsConfig } from '../bureau/bible';
 import { listChannels } from '../channels/list';
+import { DEFAULT_GOOGLE_TRENDS_GEOS } from '../drivers/trends-google';
 import type { Db } from '../db/server';
 
 /**
@@ -23,6 +24,8 @@ export interface TrendsNowPayload {
   readonly channelId: string;
   readonly subreddits: string[];
   readonly youtube: NonNullable<TrendsConfig['youtube']> | null;
+  /** Present only when the channel's trend sources say; absent → the default countries. */
+  readonly google_trends?: TrendsConfig['google_trends'];
 }
 
 export interface TrendsState {
@@ -63,11 +66,14 @@ export async function startTrendsRun(db: Db, channelId: string, deps: StartTrend
     channelId: ch.id,
     subreddits: [...trends.subreddits],
     youtube: yt ? { region_code: yt.region_code, category_ids: [...yt.category_ids], queries: [...yt.queries] } : null,
+    ...(trends.google_trends !== undefined ? { google_trends: trends.google_trends } : {}),
   };
+  // Google Trends is read unless the channel turns it off (null): it needs no key and no list.
+  const googleOn = trends.google_trends !== null;
 
-  if (payload.subreddits.length === 0 && !ytConfigured) {
+  if (payload.subreddits.length === 0 && !ytConfigured && !googleOn) {
     return refuse(
-      `${ch.name}'s trend sources list no subreddits and no YouTube categories or queries. Stage 1 fetches nothing rather than guessing what the channel is about.`,
+      `${ch.name}'s trend sources list no subreddits, no YouTube categories or queries, and turn Google Trends off. Stage 1 fetches nothing rather than guessing what the channel is about.`,
     );
   }
 
@@ -77,6 +83,7 @@ export async function startTrendsRun(db: Db, channelId: string, deps: StartTrend
     ytConfigured && yt
       ? `YouTube (${yt.category_ids.length} categor${yt.category_ids.length === 1 ? 'y' : 'ies'}, ${yt.queries.length} quer${yt.queries.length === 1 ? 'y' : 'ies'})`
       : null,
+    googleOn ? `Google Trends (${(trends.google_trends?.geo ?? DEFAULT_GOOGLE_TRENDS_GEOS).join(', ')})` : null,
   ].filter(Boolean);
   return {
     status: 'ok',

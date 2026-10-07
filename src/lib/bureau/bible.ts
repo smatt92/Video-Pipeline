@@ -168,6 +168,14 @@ export const TrendsConfigSchema = z.object({
     })
     .nullable()
     .optional(),
+  /**
+   * Google Trends "Trending now" countries (ISO 3166 alpha-2). Absent → DEFAULT_GOOGLE_TRENDS_GEOS
+   * (IN and US); null → this channel does not read Google Trends.
+   */
+  google_trends: z
+    .object({ geo: z.array(z.string().regex(/^[A-Z]{2}$/)).min(1).max(5) })
+    .nullable()
+    .optional(),
 });
 export type TrendsConfig = z.infer<typeof TrendsConfigSchema>;
 

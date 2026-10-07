@@ -6,6 +6,8 @@ import { promisify } from 'node:util';
 
 import { z } from 'zod';
 
+import { TUNING_DEFAULTS } from '../settings/tuning';
+
 import { routed, type RouterDeps } from '../llm/router';
 
 const run = promisify(execFile);
@@ -51,7 +53,8 @@ export function parseLoudness(stderr: string): number | null {
   return Number(m[1]);
 }
 
-export const LOUDNESS_TARGET = -14;
+/** The default target; a channel's own is channel_policy.loudness_target_lufs (Settings → Assembly, 0049). */
+export const LOUDNESS_TARGET = TUNING_DEFAULTS.loudnessLufs;
 export const LOUDNESS_TOLERANCE = 1;
 
 export interface SignalQc {
@@ -84,8 +87,8 @@ export async function measureLoudness(path: string): Promise<number | null> {
 }
 
 /** Two-pass-free loudnorm to the target; used on the VO+music mix before the final render. */
-export async function normaliseLoudness(input: string, output: string): Promise<void> {
-  await run('ffmpeg', ['-v', 'error', '-y', '-i', input, '-af', `loudnorm=I=${LOUDNESS_TARGET}:TP=-1.5:LRA=11`, '-ar', '48000', '-c:a', 'aac', '-b:a', '160k', output]);
+export async function normaliseLoudness(input: string, output: string, targetLufs: number = LOUDNESS_TARGET): Promise<void> {
+  await run('ffmpeg', ['-v', 'error', '-y', '-i', input, '-af', `loudnorm=I=${targetLufs}:TP=-1.5:LRA=11`, '-ar', '48000', '-c:a', 'aac', '-b:a', '160k', output]);
 }
 
 // ── Vision ───────────────────────────────────────────────────────────────────

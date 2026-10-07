@@ -49,6 +49,19 @@ export const driverWorkerEnv: readonly WorkerEnvVar[] = [
       + 'then Credentials → API key, restricted to that API. Free within the daily quota.',
   },
   {
+    name: 'REDDIT_CLIENT_ID',
+    required: false,
+    refusedBy:
+      'Stage 1 (01-trends, 01-trends-now) reports the Reddit source as "not configured", naming '
+      + 'this variable, and collects YouTube and Google Trends without it. A "script" app at '
+      + 'reddit.com/prefs/apps; the id is under the app name. Free tier is non-commercial.',
+  },
+  {
+    name: 'REDDIT_CLIENT_SECRET',
+    required: false,
+    refusedBy: 'As REDDIT_CLIENT_ID: both or neither. The "secret" field of the same app.',
+  },
+  {
     name: 'HIGGSFIELD_API_BASE_URL',
     required: false,
     refusedBy:

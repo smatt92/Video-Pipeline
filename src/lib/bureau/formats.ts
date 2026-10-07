@@ -10,7 +10,7 @@ import { z } from 'zod';
  * routes every shot, and the estimate on Approvals is priced on that routing.
  *
  *   illustrated  a generated picture of the topic for every shot, a new one about every
- *                SECONDS_PER_PICTURE seconds of narration — the default
+ *                seconds_per_picture seconds (Settings → Generation; default SECONDS_PER_PICTURE) of narration — the default
  *   diagram      the in-house chalk diagrams only: nothing generated but the voice
  *   cinematic    generated video where a usable recipe exists; pictures everywhere else
  *
@@ -33,15 +33,24 @@ export const FORMAT_INFO: Record<VisualFormat, { label: string; blurb: string }>
   cinematic: { label: 'Cinematic', blurb: 'Generated video where a recipe is active; pictures elsewhere' },
 };
 
-/** Narration seconds each picture covers in an illustrated shot. */
+/**
+ * Narration seconds each picture covers in an illustrated shot — the DEFAULT. A channel's own
+ * value is `channel_policy.seconds_per_picture` (0049), read through `readTuning`
+ * (src/lib/settings/tuning.ts); this constant applies only before 0049 is pasted.
+ */
 export const SECONDS_PER_PICTURE = 6;
-/** A shot never gets more than this many pictures, however long it runs. */
+/** A shot never gets more than this many pictures, however long it runs — the default, as above. */
 export const MAX_PICTURES_PER_SHOT = 4;
 
-/** How many pictures a still shot of this length gets. Pure; shared by the estimate and the stills step. */
-export function picturesFor(durationS: number): number {
+/**
+ * How many pictures a still shot of this length gets. Pure; shared by the estimate, the stills
+ * step and the assembler. The tuning is required, not defaulted: every caller passes the
+ * channel's values from `pictureTuning`, so none of them can quietly use the constant while
+ * another uses the setting.
+ */
+export function picturesFor(durationS: number, t: { secondsPerPicture: number; maxPicturesPerShot: number }): number {
   if (!Number.isFinite(durationS) || durationS <= 0) return 1;
-  return Math.min(MAX_PICTURES_PER_SHOT, Math.max(1, Math.round(durationS / SECONDS_PER_PICTURE)));
+  return Math.min(t.maxPicturesPerShot, Math.max(1, Math.round(durationS / t.secondsPerPicture)));
 }
 
 export type FormatSource = 'episode' | 'series' | 'default';

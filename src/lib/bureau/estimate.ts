@@ -7,6 +7,7 @@ import { STILL_RATE_KEY } from '../drivers/still-image';
 import { TTS_RATE_KEY } from '../drivers/voice-route';
 
 import { picturesFor } from './formats';
+import { pictureTuning, type PictureTuning } from '../settings/tuning';
 
 /**
  * What an episode will cost before it is made, and how to make it fit the cap.
@@ -142,9 +143,15 @@ async function routeRateInr(db: Db, route: Exclude<RenderRoute, 'overlay'>, dura
 
 export async function estimateEpisode(
   db: Db,
-  input: { shots: PlannedShot[]; voChars: number; usdInrRate: number },
+  /**
+   * `channelId` is required: a still is priced on the channel's own pictures-per-shot
+   * (Settings → Generation, read through `pictureTuning`) — the same numbers the stills step
+   * draws and the assembler cuts with.
+   */
+  input: { shots: PlannedShot[]; voChars: number; usdInrRate: number; channelId: string },
 ): Promise<EpisodeEstimate> {
   const fx = input.usdInrRate;
+  let pictures: PictureTuning | null = null;
   const lines: LineEstimate[] = [];
   const unpriced: string[] = [];
 
@@ -154,9 +161,10 @@ export async function estimateEpisode(
       continue;
     }
     if (s.route === 'still') {
-      // One image per SECONDS_PER_PICTURE of the shot (formats.ts), the same count the stills
-      // step makes; the camera move is ours.
-      const n = picturesFor(s.duration_s);
+      // One image per seconds_per_picture of the shot (the channel's setting), the same count
+      // the stills step makes; the camera move is ours.
+      pictures ??= await pictureTuning(db, input.channelId);
+      const n = picturesFor(s.duration_s, pictures);
       const rate = await currentRate(db, { ...STILL_RATE_KEY });
       const inr = rate.found ? round2(rate.rate.unitCostUsd * fx * n) : null;
       if (inr === null) unpriced.push(`shot ${idx} (still): ${rate.found ? '' : rate.detail}`);

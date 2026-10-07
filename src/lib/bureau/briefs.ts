@@ -206,7 +206,7 @@ export async function createBriefs(rawBriefs: unknown[], deps: CreateDeps): Prom
     // re-prices it there (formats.ts).
     const seriesFormat = formatOf({ seriesFormat: cb.seriesFor(b.series).visual_format }).format;
     const pricedShots = b.series === 'long_form' ? b.shot_list : routesForFormat(b.shot_list, seriesFormat, stills.available).shots;
-    const estimate = usdInrRate === null ? null : await estimateEpisode(db, { shots: pricedShots, voChars, usdInrRate });
+    const estimate = usdInrRate === null ? null : await estimateEpisode(db, { shots: pricedShots, voChars, usdInrRate, channelId: token.channelId });
 
     const flagReasons = [
       ...b.flag_reasons,

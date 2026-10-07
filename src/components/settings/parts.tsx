@@ -32,12 +32,17 @@ export function SectionHeader({
 export function Panel({
   children,
   className = '',
+  id,
 }: {
   children: React.ReactNode;
   className?: string;
+  /** An anchor, so another screen can link straight to this panel (Danger zone → Rotate keys). */
+  id?: string;
 }) {
   return (
-    <div className={`card ${className}`}>{children}</div>
+    <div id={id} className={`card ${className}`} style={id ? { scrollMarginTop: 16 } : undefined}>
+      {children}
+    </div>
   );
 }
 

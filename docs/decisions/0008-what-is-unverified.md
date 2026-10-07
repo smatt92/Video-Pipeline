@@ -1369,6 +1369,30 @@ container fails the row with Meta's message and Publish again makes a fresh cont
 fetched by Meta; `26-ig-post` and `23-ig-publish` on the worker; `wait.for` checkpointing in the
 container wait; the Ready buttons in a browser. The first real post is one bundle Sahil picks.
 
+### 30. Settings sections and trend sources (2026-10-07, migration 0049) — RUN locally against stubs
+
+**What has run:** `verify:settings` (local Postgres 16): every 0049 value reaches the code path
+that read the constant — `estimateEpisode` prices 3 → 5 pictures, `voiceStep` lays lines 0.5 s
+apart with a 1.25 s tail, `assembleEpisode` cuts 3 → 5 pictures inside the same 540 frames and
+hands the render the caption/hook scales, the hook hold and −16 LUFS, `bundleEpisode` carries
+madeForKids and "always" synthetic; `updateSlot` moves `v_slot_status.publish_at`; series
+defaults and the picture style through the bible path; Unstick → `restartHaltedEpisode`
+accepts; `findOrphans` returns exactly the seeded orphans and its FK list equals
+`pg_constraint`; `purgeOrphans` keeps one that gained a reference. Before 0049 (columns
+dropped) every reader falls back to the constants and every write refuses naming the bundle.
+`verify:trends` §13–14: Reddit 403 recorded as a refusal on `trend_runs`; no credentials →
+"not configured", zero requests; with credentials → Basic token, Bearer listing, descriptive
+User-Agent; Google Trends RSS → rows with country and approximate traffic, velocity null; a
+feed down or changed → named, never a failed run. `verify:episode`, `next build` green. The
+bundle `hosted-migrations-7-0049.sql` applied to a local database at 0048 and refused a
+second paste.
+
+**What has NOT run:** Reddit's real OAuth endpoint and Google's real trending RSS (this
+container's egress refuses both hosts; the RSS element names are from its published shape and
+are parsed strictly so a difference is reported by name on /trends); the paste on the hosted
+project; any Settings screen in a signed-in browser; the `99-purge-orphans` task against the
+real bucket.
+
 ## Gates, and where each can run
 
 | Gate | Runnable in this environment? |

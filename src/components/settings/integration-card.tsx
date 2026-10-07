@@ -91,7 +91,7 @@ export function IntegrationCard({
     typeof view.config.plan_tier === "string" ? view.config.plan_tier : null;
 
   return (
-    <Panel className="mb-4">
+    <Panel className="mb-4" id={`integration-${view.slug}`}>
       <form action={action}>
         <div className="card-h">
           <span className="row" style={{ gap: 10 }}>

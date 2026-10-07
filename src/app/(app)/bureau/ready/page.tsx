@@ -142,7 +142,7 @@ export default async function ReadyPage() {
                   )}
                 </div>
                 <span className="xs t3">
-                  madeForKids: No · altered/synthetic: {meta.contains_synthetic_media ? 'Yes (realistic scene)' : 'No'}
+                  madeForKids: {meta.made_for_kids ? 'Yes' : 'No'} · altered/synthetic: {meta.contains_synthetic_media ? 'Yes' : 'No'}
                 </span>
                 {head.episode_id && <QueueDubs episodeId={head.episode_id} />}
                 {g.youtube && g.youtube.dubs.length > 0 && (

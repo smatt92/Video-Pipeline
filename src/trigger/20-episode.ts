@@ -29,6 +29,7 @@ import { renderBureau } from '@/lib/bureau/layer-render';
 import { requireUsdInrRate } from '@/lib/cost/fx';
 import { PROVIDER_INTEGRATION, ROUTE_PROVIDERS } from '@/lib/drivers/jobs';
 import { serverClient } from '@/lib/db/server';
+import { readTuning } from '@/lib/settings/tuning';
 import { STILL_CREDENTIAL_FIELD, STILL_INTEGRATION, submitStill, waitStill } from '@/lib/drivers/still-image';
 import { VOICE_CREDENTIAL_FIELDS, synthLine } from '@/lib/drivers/voice-synth';
 import { requireCredential } from '@/lib/integrations/credentials';
@@ -205,7 +206,10 @@ export const episodeTask = schemaTask({
       await download(await presign(compAsset!.storage_key), local);
       const lufs = await measureLoudness(local);
       const { data: epNow } = await db.from('episodes').select('qc').eq('id', episodeId).single();
-      await db.from('episodes').update({ qc: { ...((epNow?.qc ?? {}) as object), loudness_lufs: lufs } }).eq('id', episodeId);
+      // The target it was normalised to (Settings → Assembly) travels with it, so Cuts judges
+      // the measurement against the channel's own number rather than a constant.
+      const loudnessTarget = (await readTuning(db, channelId)).values.loudnessLufs;
+      await db.from('episodes').update({ qc: { ...((epNow?.qc ?? {}) as object), loudness_lufs: lufs, loudness_target_lufs: loudnessTarget } }).eq('id', episodeId);
 
       // 8. The cut gate. Token keys carry the run id: a restarted run — a re-cut after a
       // rejection — would otherwise get back the previous run's completed token, and with it

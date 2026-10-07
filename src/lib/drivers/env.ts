@@ -89,6 +89,11 @@ export const driverEnvSchema = z.object({
   // Optional: without it that one source refuses by naming this variable; Reddit still runs.
   // Read by `youtubeApiKeyFromEnv()` in trends-youtube.ts.
   YOUTUBE_DATA_API_KEY: nonEmpty('YOUTUBE_DATA_API_KEY').optional(),
+  // Stage 1's Reddit source: a "script" app's client id and secret (reddit.com/prefs/apps).
+  // Optional: without them that one source reports "not configured" by name; the run goes on.
+  // Read by `redditCredentialsFromEnv()` in trends-reddit.ts.
+  REDDIT_CLIENT_ID: nonEmpty('REDDIT_CLIENT_ID').optional(),
+  REDDIT_CLIENT_SECRET: nonEmpty('REDDIT_CLIENT_SECRET').optional(),
   // Notifications (briefs pending, cuts ready, cap at 80%, policy and QC alerts).
   SLACK_WEBHOOK_URL: z.url().optional(),
   // Reels mirror; publishing stays disabled by channel_policy until app review clears.

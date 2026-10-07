@@ -4,15 +4,10 @@ import { getBible, type TrendsConfig } from '../bureau/bible';
 import { listChannels } from '../channels/list';
 import type { Db } from '../db/server';
 import type { Json, TablesInsert } from '../db/types';
+import { DEFAULT_GOOGLE_TRENDS_GEOS } from '../drivers/trends-google';
+import type { RedditCredentials } from '../drivers/trends-reddit';
 import type { YoutubeTrendConfig } from '../drivers/trends-youtube';
-import {
-  fetchReddit,
-  fetchYoutube,
-  GOOGLE_TRENDS_UNAVAILABLE,
-  notImplemented,
-  type RawSignal,
-  type SourceResult,
-} from './sources';
+import { fetchGoogleTrends, fetchReddit, fetchYoutube, type RawSignal, type SourceResult } from './sources';
 import { isChannelColumnMissing } from './recent';
 
 /**
@@ -24,9 +19,9 @@ import { isChannelColumnMissing } from './recent';
  *
  * No billing and no `cost_ledger` row — and that is worth saying out loud because rule 5 is
  * otherwise absolute, and a reader who finds a stage with no ledger write should be able to
- * tell "free" from "forgotten". Reddit is a public read-only feed; YouTube's Data API needs
- * a key (`YOUTUBE_DATA_API_KEY`) and is free within its daily quota — it spends quota units,
- * not money, and running out is reported by name (see `src/lib/drivers/trends-youtube.ts`).
+ * tell "free" from "forgotten". Reddit's Data API (an app's client credentials) and
+ * YouTube's (`YOUTUBE_DATA_API_KEY`) are free within their quotas, and the Google Trends RSS
+ * feed needs nothing — quota running out is reported by name, never as an empty list.
  *
  * ── Per channel (0046) ───────────────────────────────────────────────────────
  *
@@ -56,12 +51,26 @@ export interface TrendRunPayload {
   readonly subreddits?: readonly string[];
   /** The channel's YouTube block from `trends.json`. Null/absent = not configured. */
   readonly youtube?: YoutubeTrendConfig | null;
+  /**
+   * Google Trends countries. Absent → DEFAULT_GOOGLE_TRENDS_GEOS (IN, US): the feed needs no
+   * key, so a channel reads it unless it says not to. Null → not read.
+   */
+  readonly googleTrends?: { readonly geo: readonly string[] } | null;
 }
 
 export interface TrendRunDeps {
   readonly db: Db;
-  /** Reddit's base URL; a harness points it at a stub. */
+  /** Reddit's token and listing host; a harness points it at a stub. */
   readonly baseUrl?: string;
+  /**
+   * Required, like the YouTube key: the task resolves it with `redditCredentialsFromEnv()`
+   * and passes it down, so "not configured" is decided here, where `verify:trends` reaches it.
+   */
+  readonly redditCredentials: RedditCredentials | null;
+  /** The Google Trends feed host; a harness points it at a stub. */
+  readonly googleTrendsBaseUrl?: string;
+  /** Recorded on the trend_runs row: the schedule, Run now, or a harness. Default 'schedule'. */
+  readonly runKind?: 'schedule' | 'now' | 'harness';
   /**
    * Required: the task resolves it with `youtubeApiKeyFromEnv()` and passes it down, so the
    * refusal for a missing key lives here, in a function a harness can reach.
@@ -85,12 +94,20 @@ export interface TrendRunResult {
    * written workspace-wide. Said in the result rather than swallowed.
    */
   readonly channelColumnMissing?: string;
+  /**
+   * Present only when this run's per-source answers could not be recorded: `trend_runs` is
+   * missing because migration 0049 has not been pasted. The signals still landed.
+   */
+  readonly runLogMissing?: string;
 }
 
 const noop = { info: () => {}, error: () => {} };
 
 /** Signals shorter than this are not terms, they are noise. */
 const MIN_TERM = 8;
+
+export const TRENDS_RUNS_NEED_0049 =
+  'trend_runs does not exist on this database (migration 0049 not pasted) — what each source said this run was not recorded; the signals still landed.';
 
 const COLUMN_MISSING =
   'trend_signals.channel_id does not exist on this database (migration 0046 not applied) — ' +
@@ -106,9 +123,15 @@ export async function runTrends(
   const channelId = payload.channelId;
 
   const results: SourceResult[] = [];
+  const startedAt = new Date().toISOString();
 
   if (subreddits.length > 0) {
-    results.push(await fetchReddit(subreddits, { baseUrl: deps.baseUrl, now: deps.now }));
+    results.push(
+      await fetchReddit(subreddits, { credentials: deps.redditCredentials, authBaseUrl: deps.baseUrl, apiBaseUrl: deps.baseUrl, now: deps.now }),
+    );
+  } else {
+    // Named rather than omitted, so the summary and /trends always list every source.
+    results.push({ source: 'reddit', ok: false, signals: [], detail: 'not configured: this channel lists no subreddits' });
   }
 
   const yt = payload.youtube;
@@ -125,8 +148,12 @@ export async function runTrends(
     results.push({ source: 'youtube', ok: false, signals: [], detail: 'not configured: this channel’s trends.json has no youtube block' });
   }
 
-  // Named rather than omitted. See the note in sources.ts.
-  results.push(notImplemented('google_trends', GOOGLE_TRENDS_UNAVAILABLE));
+  if (payload.googleTrends === null) {
+    results.push({ source: 'google_trends', ok: false, signals: [], detail: 'not configured: this channel’s trend sources turn Google Trends off (google_trends: null)' });
+  } else {
+    const geos = payload.googleTrends?.geo ?? DEFAULT_GOOGLE_TRENDS_GEOS;
+    results.push(await fetchGoogleTrends(geos, { baseUrl: deps.googleTrendsBaseUrl }));
+  }
 
   let inserted = 0;
   let updated = 0;
@@ -210,6 +237,23 @@ export async function runTrends(
 
   log.info('trend intake', { channelId, inserted, updated, sources: summary, channelColumn });
 
+  // Every source's answer, as a row (0049) — so /trends says "Reddit: refused 403" instead of
+  // showing a board that looks like a quiet day. Best-effort: a missing table is said in the
+  // result, and the signals above have landed either way.
+  let runLogMissing: string | undefined;
+  const { error: runErr } = await db.from('trend_runs').insert({
+    channel_id: channelId,
+    trigger: deps.runKind ?? 'schedule',
+    started_at: startedAt,
+    inserted,
+    updated,
+    sources: summary as unknown as Json,
+  });
+  if (runErr) {
+    runLogMissing = /trend_runs|relation .* does not exist|schema cache/i.test(runErr.message) ? TRENDS_RUNS_NEED_0049 : `trend_runs not written: ${runErr.message}`;
+    log.error(runLogMissing);
+  }
+
   return {
     ok: true,
     channelId,
@@ -217,12 +261,18 @@ export async function runTrends(
     updated,
     sources: summary,
     ...(channelColumn ? {} : { channelColumnMissing: COLUMN_MISSING }),
+    ...(runLogMissing ? { runLogMissing } : {}),
   };
 }
 
 /** The payload for one channel, from its bible's `trends.json`. Run now and the cron share it. */
 export function trendsPayloadFor(channelId: string, trends: TrendsConfig): TrendRunPayload & { channelId: string } {
-  return { channelId, subreddits: [...trends.subreddits], youtube: trends.youtube ?? null };
+  return {
+    channelId,
+    subreddits: [...trends.subreddits],
+    youtube: trends.youtube ?? null,
+    ...(trends.google_trends !== undefined ? { googleTrends: trends.google_trends } : {}),
+  };
 }
 
 export type ChannelTrendOutcome =

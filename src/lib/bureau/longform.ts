@@ -15,6 +15,7 @@ import { normaliseOverlay, type OverlaySpec } from '../../remotion/bureau/overla
 import type { BureauShot, BureauVideoProps } from '../../remotion/bureau/bureau-video';
 import { getBible } from './bible';
 import { estimateEpisode, fitToCap, PlannedShotSchema } from './estimate';
+import { readTuning } from '../settings/tuning';
 import { bindShotsToLines, setStatus, shotFrames, toSrt, type AssembleDeps } from './episode-steps';
 import { parseScript, type Cast, type ScriptLine } from './script-lines';
 import { takeWords } from './take-words';
@@ -114,7 +115,7 @@ export async function planLongForm(db: Db, episodeId: string, deps: { usdInrRate
   // Cost: every scene shot priced and fitted against the long-form cap at once, exactly as a
   // Short is fitted against its per-Short cap (unpriced → overlay, beats ≤ 90 s, ≥ 50% overlay).
   const sceneShots = segments.flatMap((seg, i) => (seg.type === 'scene' ? seg.shots.map((sh) => ({ i, sh })) : []));
-  const est = await estimateEpisode(db, { shots: sceneShots.map((x) => x.sh), voChars: lines.reduce((n, l) => n + l.text.length, 0), usdInrRate: deps.usdInrRate });
+  const est = await estimateEpisode(db, { shots: sceneShots.map((x) => x.sh), voChars: lines.reduce((n, l) => n + l.text.length, 0), usdInrRate: deps.usdInrRate, channelId: e!.channel_id });
   const { data: pol } = await db.from('channel_policy').select('*').eq('channel_id', e!.channel_id).single();
   const fit = fitToCap(sceneShots.map((x) => x.sh), est, {
     capInr: Number(pol!.daily_longform_cap_inr),
@@ -124,7 +125,7 @@ export async function planLongForm(db: Db, episodeId: string, deps: { usdInrRate
   });
   const fitted = new Map<number, typeof fit.shots>();
   sceneShots.forEach((x, k) => fitted.set(x.i, [...(fitted.get(x.i) ?? []), fit.shots[k]]));
-  const finalEst = await estimateEpisode(db, { shots: fit.shots, voChars: lines.reduce((n, l) => n + l.text.length, 0), usdInrRate: deps.usdInrRate });
+  const finalEst = await estimateEpisode(db, { shots: fit.shots, voChars: lines.reduce((n, l) => n + l.text.length, 0), usdInrRate: deps.usdInrRate, channelId: e!.channel_id });
   await db.from('episodes').update({ estimate_inr: finalEst.total_inr, qc: { plan: { swaps: fit.swaps, unpriced: finalEst.unpriced } } as unknown as Json }).eq('id', episodeId);
 
   const rows: Record<string, unknown>[] = [];
@@ -223,9 +224,12 @@ export async function assembleLongForm(db: Db, episodeId: string, deps: Assemble
     await writeFile(list, pieces.map((p) => `file '${p}'`).join('\n'));
     const audio = join(work, 'longform.m4a');
     await run('ffmpeg', ['-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', list, '-c:a', 'aac', '-b:a', '160k', audio]);
-    const loud = join(work, 'longform-14.m4a');
-    await deps.normaliseAudio(audio, loud);
-    const audioKey = `longform/${episodeId}/audio-14lufs.m4a`;
+    // The channel's loudness target (Settings → Assembly), as the Short assembler reads it.
+    const lufs = (await readTuning(db, e!.channel_id)).values.loudnessLufs;
+    const lufsTag = String(Math.abs(lufs)).replace('.', '_');
+    const loud = join(work, `longform-${lufsTag}.m4a`);
+    await deps.normaliseAudio(audio, loud, lufs);
+    const audioKey = `longform/${episodeId}/audio-${lufsTag}lufs.m4a`;
     await deps.putBytes(audioKey, createReadStream(loud));
 
     const total = frames.reduce((n, f) => n + f, 0);

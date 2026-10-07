@@ -4,6 +4,7 @@ import type { CaptionCue } from '@/lib/review/timeline';
 
 import { PAPER, projectOverlay, type CameraMove, type OverlaySpec } from './overlay-scene';
 import { kenBurns } from './ken-burns';
+import { DEFAULT_CAPTION_SCALE, DEFAULT_HOOK_SCALE } from './text-scale';
 
 /**
  * The Bureau of Reality composition. One component, three layers (renders.layer):
@@ -33,6 +34,8 @@ export type BureauVideoProps = {
   cues: CaptionCue[];
   hook: { text: string; startS: number; endS: number } | null;
   safeBox: { x: number; y: number; width: number; height: number };
+  /** Caption and hook font sizes as fractions of the frame height (Settings → Assembly). Absent → the defaults. */
+  textScale?: { caption: number; hook: number };
 };
 
 export function BureauVideo(props: BureauVideoProps) {
@@ -61,8 +64,8 @@ export function BureauVideo(props: BureauVideoProps) {
         })}
       {!transparent && props.audioUrl && <Audio src={props.audioUrl} />}
       {!transparent && props.musicUrl && <Audio src={props.musicUrl} volume={0.12} />}
-      {withText && <Captions cues={props.cues} box={props.safeBox} fontSize={Math.round(height * 0.032)} />}
-      {withText && props.hook && <Hook hook={props.hook} box={props.safeBox} fontSize={Math.round(height * 0.05)} />}
+      {withText && <Captions cues={props.cues} box={props.safeBox} fontSize={Math.round(height * (props.textScale?.caption ?? DEFAULT_CAPTION_SCALE))} />}
+      {withText && props.hook && <Hook hook={props.hook} box={props.safeBox} fontSize={Math.round(height * (props.textScale?.hook ?? DEFAULT_HOOK_SCALE))} />}
     </AbsoluteFill>
   );
 }

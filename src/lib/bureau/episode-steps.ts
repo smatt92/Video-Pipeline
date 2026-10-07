@@ -22,6 +22,7 @@ import { getBible, STORAGE_REF_PREFIX, syncCast, voiceOverrides, type ChannelBib
 import { estimateEpisode, fitToCap, isVideoRoute, PlannedShotSchema, recipeForRoute, type PlannedShot } from './estimate';
 import { formatOf, paceOf, pictureSpans, picturesFor, routesForFormat, type PictureSpan } from './formats';
 import { fallBackToOverlay, generateStillForShot, stillsAvailability, stillsByPart, type StillDeps } from './stills';
+import { pictureTuning, readTuning, syntheticFlag, type PictureTuning } from '../settings/tuning';
 import { parseScript, punchlineTurns, type Cast, type ScriptLine } from './script-lines';
 
 /**
@@ -274,7 +275,7 @@ export async function planShots(
   });
 
   await setStatus(db, episodeId, 'estimating');
-  const est = await estimateEpisode(db, { shots: adjusted, voChars: script!.vo_text.length, usdInrRate: deps.usdInrRate });
+  const est = await estimateEpisode(db, { shots: adjusted, voChars: script!.vo_text.length, usdInrRate: deps.usdInrRate, channelId: e.channel_id });
   const { data: pol } = await db.from('channel_policy').select('*').eq('channel_id', e.channel_id).single();
   const fit = fitToCap(adjusted, est, {
     capInr: Number(e.kind === 'long_form' ? pol!.daily_longform_cap_inr : pol!.per_short_cap_inr),
@@ -282,7 +283,7 @@ export async function planShots(
     characterBeatMaxS: Number(pol!.character_beat_max_s),
     moneyShotMax: pol!.money_shot_max,
   });
-  const finalEst = await estimateEpisode(db, { shots: fit.shots, voChars: script!.vo_text.length, usdInrRate: deps.usdInrRate });
+  const finalEst = await estimateEpisode(db, { shots: fit.shots, voChars: script!.vo_text.length, usdInrRate: deps.usdInrRate, channelId: e.channel_id });
 
   const lead = leadOf(cb, b.lead_character);
   const bound = bindShotsToLines(fit.shots, lines);
@@ -337,7 +338,7 @@ export async function generateStills(
   const log = deps.log ?? quiet;
   const { e, b, cb } = await loadEpisode(db, episodeId);
   const { data: shots } = await db.from('shots').select('id, idx, description, script_id').eq('script_id', e.script_id!).eq('render_route', 'still').order('idx');
-  const spans = await pictureSpansFor(db, e.script_id!);
+  const spans = await pictureSpansFor(db, e.script_id!, await pictureTuning(db, e.channel_id));
   const lead = leadOf(cb, b.lead_character);
   const cast = cb.bible.characters.map((c) => ({ id: c.id, name: c.name }));
   const total = (shots ?? []).reduce((n, s) => n + (spans.get(s.id)?.length ?? 1), 0);
@@ -393,8 +394,9 @@ export async function generateStills(
  * Every still shot's picture spans (formats.ts), from the timed shot list and the VO words —
  * the one computation the stills step and the assembler share, so they cannot disagree about
  * where a picture changes. A shot whose duration is still an estimate gets one picture.
+ * `pictures` is the channel's setting (`pictureTuning`); both callers read it the same way.
  */
-export async function pictureSpansFor(db: Db, scriptId: string): Promise<Map<string, PictureSpan[]>> {
+export async function pictureSpansFor(db: Db, scriptId: string, pictures: PictureTuning): Promise<Map<string, PictureSpan[]>> {
   const { data: shots } = await db.from('shots').select('id, idx, render_route, duration_s, duration_source').eq('script_id', scriptId).order('idx');
   const out = new Map<string, PictureSpan[]>();
   if (!shots?.length) return out;
@@ -405,7 +407,7 @@ export async function pictureSpansFor(db: Db, scriptId: string): Promise<Map<str
   let start = 0;
   for (const [i, s] of shots.entries()) {
     if (s.render_route === 'still') {
-      out.set(s.id, timed ? pictureSpans({ startFrame: start, frames: frames[i] }, picturesFor(Number(s.duration_s)), words, FPS) : [{ from: 0, frames: frames[i], narration: '' }]);
+      out.set(s.id, timed ? pictureSpans({ startFrame: start, frames: frames[i] }, picturesFor(Number(s.duration_s), pictures), words, FPS) : [{ from: 0, frames: frames[i], narration: '' }]);
     }
     start += frames[i];
   }
@@ -448,7 +450,7 @@ export async function enqueueGeneration(db: Db, episodeId: string, deps: { usdIn
       continue;
     }
     const duration = Number(s.duration_s);
-    const est = await estimateEpisode(db, { shots: [{ route, description: s.description, duration_s: duration, characters: s.character_slugs, realistic: s.realistic }], voChars: 0, usdInrRate: deps.usdInrRate });
+    const est = await estimateEpisode(db, { shots: [{ route, description: s.description, duration_s: duration, characters: s.character_slugs, realistic: s.realistic }], voChars: 0, usdInrRate: deps.usdInrRate, channelId: e.channel_id });
     if (est.shots[0].inr === null) {
       refused.push(`shot ${s.idx}: unpriced (${est.shots[0].basis})`);
       continue;
@@ -509,7 +511,8 @@ export interface AssembleDeps {
   presign(key: string): Promise<string>;
   putBytes(key: string, body: Readable): Promise<number>;
   render(input: { props: BureauVideoProps; durationInFrames: number; outputPath: string; serveUrl?: string; onProgress?: (done: number, total: number) => void }): Promise<{ ok: true; frames: number; serveUrl: string } | { ok: false; code: string; detail: string }>;
-  normaliseAudio(input: string, output: string): Promise<void>;
+  /** `targetLufs` is the channel's Settings → Assembly value (readTuning). */
+  normaliseAudio(input: string, output: string, targetLufs: number): Promise<void>;
   download(url: string, out: string): Promise<void>;
   log?: StepLog;
 }
@@ -578,7 +581,10 @@ export async function assembleEpisode(
   const durations = shots.map((s) => Number(s.duration_s));
   const frames = shotFrames(durations);
   const total = frames.reduce((n, f) => n + f, 0);
-  const spans = await pictureSpansFor(db, e.script_id!);
+  // Settings → Generation (pictures) and → Assembly (loudness, text, hook): read once, at the
+  // render, so a change applies to the next render and never to one in flight.
+  const tuning = (await readTuning(db, e.channel_id)).values;
+  const spans = await pictureSpansFor(db, e.script_id!, tuning);
 
   const bureauShots: BureauShot[] = [];
   const lead = leadOf(cb, b.lead_character);
@@ -626,12 +632,15 @@ export async function assembleEpisode(
 
   const work = await mkdtemp(join(tmpdir(), 'kiln-bureau-asm-'));
   try {
-    // Loudness to −14 LUFS before the render, not after: the composite is the cut Sahil hears.
+    // Loudness to the channel's target (default −14 LUFS) before the render, not after: the
+    // composite is the cut Sahil hears.
+    const lufs = tuning.loudnessLufs;
+    const lufsTag = String(Math.abs(lufs)).replace('.', '_');
     const rawVo = join(work, 'vo.m4a');
-    const loudVo = join(work, 'vo-14.m4a');
+    const loudVo = join(work, `vo-${lufsTag}.m4a`);
     await deps.download(await deps.presign(voAsset!.storage_key), rawVo);
-    await deps.normaliseAudio(rawVo, loudVo);
-    const loudKey = `vo/${e.script_id}/en/track-14lufs.m4a`;
+    await deps.normaliseAudio(rawVo, loudVo, lufs);
+    const loudKey = `vo/${e.script_id}/en/track-${lufsTag}lufs.m4a`;
     await deps.putBytes(loudKey, createReadStream(loudVo));
     const audioUrl = await deps.presign(loudKey);
 
@@ -639,8 +648,16 @@ export async function assembleEpisode(
     const safeBox = { x: Math.round(WIDTH * safe.left), y: Math.round(HEIGHT * safe.top), width: Math.round(WIDTH * (1 - safe.left - safe.right)), height: Math.round(HEIGHT * (1 - safe.top - safe.bottom)) };
     const cues = captionCues(words);
     const titles = (b.titles as { text: string }[]) ?? [];
-    const hook = { text: (titles[0]?.text ?? b.premise).toUpperCase(), startS: 0, endS: Math.min(2, total / FPS) };
-    const base: Omit<BureauVideoProps, 'layer'> = { shots: bureauShots, audioUrl, musicUrl: null, cues, hook, safeBox };
+    const hook = { text: (titles[0]?.text ?? b.premise).toUpperCase(), startS: 0, endS: Math.min(tuning.hookS, total / FPS) };
+    const base: Omit<BureauVideoProps, 'layer'> = {
+      shots: bureauShots,
+      audioUrl,
+      musicUrl: null,
+      cues,
+      hook,
+      safeBox,
+      textScale: { caption: tuning.captionScale, hook: tuning.hookScale },
+    };
 
     const variantGroup = randomUUID();
     const ids: Record<string, string> = {};
@@ -709,6 +726,9 @@ export async function bundleEpisode(db: Db, episodeId: string): Promise<{ public
   const { data: masterAsset } = master?.asset_id ? await db.from('assets').select('storage_key').eq('id', master.asset_id).single() : { data: null };
   const { data: shots } = await db.from('shots').select('realistic').eq('script_id', e.script_id!);
   const realistic = (shots ?? []).some((s) => s.realistic);
+  // Settings → Publishing (0049): madeForKids and when the altered/synthetic flag is set.
+  const { values: disclosure } = await readTuning(db, e.channel_id);
+  const synthetic = syntheticFlag(disclosure.syntheticDisclosure, realistic);
   const { data: slot } = e.slot_id ? await db.from('v_slot_status').select('publish_at').eq('id', e.slot_id).maybeSingle() : { data: null };
   const titles = (b.titles as { text: string; hook_archetype: string }[]) ?? [];
   const fact = b.fact as { claim: string; source_url: string; source_title?: string };
@@ -737,8 +757,8 @@ export async function bundleEpisode(db: Db, episodeId: string): Promise<{ public
     alternate_titles: titles.slice(1).map((t) => t.text),
     description,
     tags,
-    made_for_kids: false,
-    contains_synthetic_media: realistic,
+    made_for_kids: disclosure.madeForKids,
+    contains_synthetic_media: synthetic,
     pinned_comment: b.pinned_comment,
     category: publishing?.category ?? 'Entertainment',
     slot_id: e.slot_id,
@@ -754,8 +774,8 @@ export async function bundleEpisode(db: Db, episodeId: string): Promise<{ public
       title: bundle.title,
       description,
       tags,
-      made_for_kids: false,
-      altered_content_disclosed: realistic,
+      made_for_kids: disclosure.madeForKids,
+      altered_content_disclosed: synthetic,
       platform: 'youtube',
       bundle: bundle as unknown as Json,
       episode_id: e.id,
@@ -788,7 +808,15 @@ export async function voiceStep(
   }
   await setStatus(db, episodeId, 'voicing');
   const { runEpisodeVoice } = await import('./voice');
-  const r = await runEpisodeVoice(e.script_id!, { db, bible: cb, overrides: await voiceOverrides(db, e.channel_id), tempo: pace.tempo, ...deps });
+  const { values: tuning } = await readTuning(db, e.channel_id);
+  const r = await runEpisodeVoice(e.script_id!, {
+    db,
+    bible: cb,
+    overrides: await voiceOverrides(db, e.channel_id),
+    tempo: pace.tempo,
+    gaps: { lineGapS: tuning.lineGapS, tailS: tuning.tailS },
+    ...deps,
+  });
   if (r.ok) {
     await db
       .from('episodes')

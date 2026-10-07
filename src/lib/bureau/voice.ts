@@ -16,6 +16,7 @@ import { shiftBy, type WordTiming } from '../voice/timings';
 import type { ChannelBible } from './bible';
 import type { ScriptLine } from './script-lines';
 import type { CredentialRefusal } from '../integrations/verify';
+import { TUNING_DEFAULTS } from '../settings/tuning';
 
 const run = promisify(execFile);
 
@@ -62,6 +63,11 @@ export interface VoiceDeps {
    * as new ones — so a faster pace never re-buys a line. Absent → 1.
    */
   tempo?: number;
+  /**
+   * Silence between lines and the hold after the last word (Settings → Assembly, 0049). The
+   * step wrapper passes the channel's values from `readTuning`; absent → the defaults below.
+   */
+  gaps?: { lineGapS: number; tailS: number };
   /** Override the character → voice decision (harnesses lock presets without editing the bible). */
   routeFor?(slug: string): VoiceRoute;
   log?: { info(m: string, d?: unknown): void; error(m: string, d?: unknown): void };
@@ -71,10 +77,10 @@ export type VoiceOutcome =
   | { ok: true; lines: number; totalS: number; voAssetId: string; chars: number; costInr: number; shotsTimed: number; reused: number; unaligned: number | null; tempo?: number }
   | { ok: false; code: string; detail: string };
 
-/** Silence between lines, so the cut has room to breathe and captions do not collide. */
-export const LINE_GAP_S = 0.18;
-/** Hold after the last word, so the loop line lands before the video restarts. */
-export const TAIL_S = 0.6;
+/** Silence between lines, so the cut has room to breathe and captions do not collide. Default; a channel's is line_gap_s. */
+export const LINE_GAP_S = TUNING_DEFAULTS.lineGapS;
+/** Hold after the last word, so the loop line lands before the video restarts. Default; a channel's is tail_s. */
+export const TAIL_S = TUNING_DEFAULTS.tailS;
 
 export async function runEpisodeVoice(scriptId: string, deps: VoiceDeps): Promise<VoiceOutcome> {
   const { db } = deps;
@@ -109,6 +115,8 @@ export async function runEpisodeVoice(scriptId: string, deps: VoiceDeps): Promis
   }
 
   const tempo = clampTempo(deps.tempo);
+  const lineGapS = deps.gaps?.lineGapS ?? LINE_GAP_S;
+  const tailS = deps.gaps?.tailS ?? TAIL_S;
   const { data: existing } = await db
     .from('vo_takes')
     .select('chunk_idx, asset_id, word_timings, duration_s, voice_id, text_in')
@@ -267,9 +275,9 @@ export async function runEpisodeVoice(scriptId: string, deps: VoiceDeps): Promis
     let t = 0;
     for (const d of pacedDurations) {
       offsets.push(round3(t));
-      t += d + LINE_GAP_S;
+      t += d + lineGapS;
     }
-    const totalS = round3(t - LINE_GAP_S + TAIL_S);
+    const totalS = round3(t - lineGapS + tailS);
     for (const [i, line] of lines.entries()) {
       await db
         .from('vo_takes')
@@ -295,7 +303,7 @@ export async function runEpisodeVoice(scriptId: string, deps: VoiceDeps): Promis
 
     // ── The full VO track ──────────────────────────────────────────────────────
     const track = join(work, 'vo.m4a');
-    await concatWithGaps(local, LINE_GAP_S, TAIL_S, track);
+    await concatWithGaps(local, lineGapS, tailS, track);
     const trackKey = `vo/${script.id}/en/track.m4a`;
     const trackBytes = await deps.putBytes(trackKey, createReadStream(track));
     const { data: trackAsset } = await db

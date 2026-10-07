@@ -1,8 +1,12 @@
 import { bibleOrNull, requireChannel } from '@/lib/channels/active';
 import type { ChannelSummary } from '@/lib/channels/list';
+import { serverClient } from '@/lib/db/server';
+import { DEFAULT_GOOGLE_TRENDS_GEOS } from '@/lib/drivers/trends-google';
+import { redditCredentialsFromEnv } from '@/lib/drivers/trends-reddit';
 import { youtubeApiKeyFromEnv } from '@/lib/drivers/trends-youtube';
 import { RunNow } from '@/components/trends/run-now';
 import { readTrendBoard, type SourceHealth, type TrendBoard, type TrendTerm } from '@/lib/trends/read';
+import { latestTrendRun, SOURCE_LABEL, type LatestTrendRun } from '@/lib/trends/runs';
 
 /**
  * Trends — what stage 1 has captured, and whether it is still capturing.
@@ -49,11 +53,12 @@ export default async function TrendsPage() {
       </Shell>
     );
   }
-  const result = await readTrendBoard(channel.id);
+  const [result, lastRun] = await Promise.all([readTrendBoard(channel.id), latestTrendRun(serverClient(), channel.id)]);
 
   return (
     <Shell>
       <ChannelSources channel={channel} />
+      <LastRun last={lastRun} />
       {!result.ok ? (
         <>
           <p style={{ color: 'var(--blk)' }}>{result.error}</p>
@@ -71,6 +76,10 @@ function ChannelSources({ channel }: { channel: ChannelSummary }) {
   const cb = bibleOrNull(channel);
   const yt = cb?.trends.youtube ?? null;
   const keySet = youtubeApiKeyFromEnv() !== null;
+  // Read where this page renders (Vercel). The worker gets the same values copied at deploy
+  // (0017), so after setting them the worker needs one redeploy before a run can use them.
+  const redditSet = redditCredentialsFromEnv() !== null;
+  const gt = cb?.trends.google_trends;
   return (
     <Section title={`Channel · ${channel.name}`}>
       {!cb ? (
@@ -83,7 +92,20 @@ function ChannelSources({ channel }: { channel: ChannelSummary }) {
           <p>
             Reddit:{' '}
             {cb.trends.subreddits.length ? cb.trends.subreddits.map((s) => `r/${s}`).join(', ') : 'none configured'}
+            {cb.trends.subreddits.length > 0 && redditSet && <span> — REDDIT_CLIENT_ID / REDDIT_CLIENT_SECRET are set</span>}
+            {cb.trends.subreddits.length > 0 && !redditSet && (
+              <span style={{ color: 'var(--blk)' }}>
+                {' '}— not configured: Reddit refuses unauthenticated reads (403). Create a “script” app at reddit.com/prefs/apps and put
+                REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET in Vercel production, then redeploy the worker.
+              </span>
+            )}
           </p>
+          {cb.trends.subreddits.length > 0 && (
+            <p className="mt-0.5">
+              Reddit’s free API tier is for non-commercial use. Whether a monetised channel counts as commercial is
+              Reddit’s terms to read and yours to decide.
+            </p>
+          )}
           <p className="mt-0.5">
             YouTube:{' '}
             {yt
@@ -96,13 +118,45 @@ function ChannelSources({ channel }: { channel: ChannelSummary }) {
               <span style={{ color: 'var(--blk)' }}> — YOUTUBE_DATA_API_KEY is not set, so this source refuses</span>
             )}
           </p>
-          <p className="mt-0.5">Google Trends: not implemented — no generally available public API.</p>
+          <p className="mt-0.5">
+            Google Trends:{' '}
+            {gt === null
+              ? 'off for this channel (google_trends: null)'
+              : `trending searches in ${(gt?.geo ?? DEFAULT_GOOGLE_TRENDS_GEOS).join(', ')}${gt ? '' : ' (default)'} — the public RSS feed, no key; volume is its approximate traffic, a lower bound`}
+          </p>
           <p className="mt-0.5" style={{ color: 'var(--t3)' }}>
             From channels/{cb.slug}/trends.json. Collected automatically at 06:10, 12:10, 18:10 and 00:10 IST.
           </p>
           <div className="mt-2">
             <RunNow channelId={channel.id} />
           </div>
+        </div>
+      )}
+    </Section>
+  );
+}
+
+/** What each source said on the latest run — a refusal is a sentence, never a blank. */
+function LastRun({ last }: { last: LatestTrendRun }) {
+  return (
+    <Section title="Latest run">
+      {!last.ok ? (
+        <p className="text-2xs" style={{ color: 'var(--t3)' }}>{last.reason}</p>
+      ) : !last.run ? (
+        <p className="text-2xs" style={{ color: 'var(--t3)' }}>No run has been recorded for this channel since per-run results began (0049).</p>
+      ) : (
+        <div className="text-2xs">
+          <p style={{ color: 'var(--t3)' }}>
+            {last.run.finishedAt.slice(0, 16).replace('T', ' ')} UTC · {last.run.trigger === 'now' ? 'Run now' : last.run.trigger} · {last.run.inserted} new,{' '}
+            {last.run.updated} updated
+          </p>
+          <ul className="mt-1">
+            {last.run.sources.map((s) => (
+              <li key={s.source} style={{ color: s.ok ? undefined : /^not configured/.test(s.detail ?? '') ? 'var(--t3)' : 'var(--blk)' }}>
+                {SOURCE_LABEL[s.source] ?? s.source}: {s.ok ? `${s.count} signal${s.count === 1 ? '' : 's'}` : s.detail ?? 'failed, no reason recorded'}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </Section>
@@ -188,8 +242,8 @@ function Board({ board, channelName }: { board: TrendBoard; channelName: string 
               <p className="mt-2 text-2xs" style={{ color: 'var(--t3)' }}>
                 Days seen, not fetches — intake keeps one reading per term per day. Velocity
                 is a source-normalised proxy (Reddit: score per hour; YouTube: views per hour
-                since publish), not a measurement; an em dash means the source did not supply
-                one, which is different from zero.
+                since publish; Google Trends supplies none), not a measurement; an em dash means
+                the source did not supply one, which is different from zero.
               </p>
             </Section>
           )}

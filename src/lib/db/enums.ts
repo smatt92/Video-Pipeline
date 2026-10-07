@@ -319,6 +319,11 @@ export const notificationKind = z.enum([
   'briefs_pending', 'cut_ready', 'cap_80', 'policy_flag', 'qc_failed', 'kill_switch', 'info',
 ]);
 
+/** 0049: when a bundle sets the altered/synthetic flag (Settings → Publishing). No "never". */
+export const syntheticDisclosure = z.enum(['auto', 'always']);
+/** 0049: what started a stage-1 run, on its trend_runs row. */
+export const trendRunTrigger = z.enum(['schedule', 'now', 'harness']);
+
 export const ENUM_CONSTRAINT_MAP = {
   'channels.platform': channelPlatform,
   'concepts.status': conceptStatus,
@@ -381,4 +386,6 @@ export const ENUM_CONSTRAINT_MAP = {
   'dub_jobs.requested_by': briefCreator,
   'strategy_memos.created_by': memoCreator,
   'notifications.kind': notificationKind,
+  'channel_policy.synthetic_disclosure': syntheticDisclosure,
+  'trend_runs.trigger': trendRunTrigger,
 } as const;

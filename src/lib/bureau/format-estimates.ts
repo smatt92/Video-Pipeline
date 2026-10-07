@@ -51,7 +51,7 @@ export async function formatOptions(
       continue;
     }
     const routed = routesForFormat(shots.data, format, stills.available).shots;
-    const est = await estimateEpisode(db, { shots: routed, voChars, usdInrRate: fx.rate });
+    const est = await estimateEpisode(db, { shots: routed, voChars, usdInrRate: fx.rate, channelId });
     if (est.total_inr === null && !note) note = `Unpriced: ${est.unpriced.join('; ')}`;
     options.push({ format, ...info, inr: est.total_inr, note });
   }

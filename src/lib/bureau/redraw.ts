@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import type { Db } from '../db/server';
+import { pictureTuning } from '../settings/tuning';
 import type { Json } from '../db/types';
 import { getBible } from './bible';
 import { requireApprover } from './control';
@@ -78,7 +79,7 @@ export async function requestRedraw(db: Db, token: BureauToken, effects: RedrawE
   const { data: shot } = await (typeof input.shot === 'number' ? q.eq('idx', input.shot) : q.eq('id', input.shot)).maybeSingle();
   if (!shot) throw new Error(`No shot ${input.shot} on this episode.`);
   if (shot.render_route !== 'still') throw new Error(`Shot ${shot.idx} is ${shot.render_route ?? 'an overlay'}, not a picture; only illustrated shots are redrawn.`);
-  const spans = (await pictureSpansFor(db, ep.script_id)).get(shot.id) ?? [];
+  const spans = (await pictureSpansFor(db, ep.script_id, await pictureTuning(db, ep.channel_id))).get(shot.id) ?? [];
   const count = Math.max(1, spans.length);
   if (input.part !== undefined && (!Number.isInteger(input.part) || input.part < 0 || input.part >= count)) {
     throw new Error(`Shot ${shot.idx} has ${count} picture${count === 1 ? '' : 's'} (0–${count - 1}); there is no picture ${input.part}.`);
@@ -159,7 +160,7 @@ async function redrawOnce(db: Db, input: RedrawInput, deps: RunRedrawDeps): Prom
   const cb = await getBible(db, e.channel_id);
   const lead = cb.characterBySlug(b.lead_character);
   if (!lead) return fail(`lead "${b.lead_character}" is not in the ${cb.slug} cast`);
-  const spans = (await pictureSpansFor(db, e.script_id!)).get(shot.id) ?? [{ from: 0, frames: 0, narration: '' }];
+  const spans = (await pictureSpansFor(db, e.script_id!, await pictureTuning(db, e.channel_id))).get(shot.id) ?? [{ from: 0, frames: 0, narration: '' }];
   const cast = cb.bible.characters.map((c) => ({ id: c.id, name: c.name }));
 
   await patchRedraw(db, e.id, entry.id, { state: 'drawing' });
