@@ -20,7 +20,7 @@ import { normaliseOverlay, type OverlaySpec } from '../../remotion/bureau/overla
 import type { BureauShot, BureauVideoProps } from '../../remotion/bureau/bureau-video';
 import { getBible, STORAGE_REF_PREFIX, syncCast, voiceOverrides, type ChannelBible, type Series } from './bible';
 import { estimateEpisode, fitToCap, isVideoRoute, PlannedShotSchema, recipeForRoute, type PlannedShot } from './estimate';
-import { formatOf, pictureSpans, picturesFor, routesForFormat, type PictureSpan } from './formats';
+import { formatOf, paceOf, pictureSpans, picturesFor, routesForFormat, type PictureSpan } from './formats';
 import { fallBackToOverlay, generateStillForShot, stillsAvailability, stillsByPart, type StillDeps } from './stills';
 import { parseScript, punchlineTurns, type Cast, type ScriptLine } from './script-lines';
 
@@ -773,19 +773,20 @@ export async function voiceStep(
   episodeId: string,
   deps: Omit<import('./voice').VoiceDeps, 'db' | 'bible' | 'overrides'>,
 ): Promise<import('./voice').VoiceOutcome> {
-  const { e, cb } = await loadEpisode(db, episodeId);
+  const { e, b, cb } = await loadEpisode(db, episodeId);
   const existing = e.voice_detail as { vo_asset_id?: string; total_s?: number; lines?: number; chars?: number; cost_inr?: number; unaligned?: number } | null;
+  const pace = paceOf({ approvedEdits: b.approved_edits, seriesPace: cb.seriesFor(b.series as Series['id']).voice_pace });
   if (existing?.vo_asset_id) {
     // Replayed: the stage already ran and paid. Its own figures, not zeros.
     return { ok: true, lines: existing.lines ?? 0, totalS: existing.total_s ?? 0, voAssetId: existing.vo_asset_id, chars: existing.chars ?? 0, costInr: existing.cost_inr ?? 0, shotsTimed: 0, reused: existing.lines ?? 0, unaligned: existing.unaligned ?? null };
   }
   await setStatus(db, episodeId, 'voicing');
   const { runEpisodeVoice } = await import('./voice');
-  const r = await runEpisodeVoice(e.script_id!, { db, bible: cb, overrides: await voiceOverrides(db, e.channel_id), ...deps });
+  const r = await runEpisodeVoice(e.script_id!, { db, bible: cb, overrides: await voiceOverrides(db, e.channel_id), tempo: pace.tempo, ...deps });
   if (r.ok) {
     await db
       .from('episodes')
-      .update({ voice_detail: { vo_asset_id: r.voAssetId, total_s: r.totalS, lines: r.lines, chars: r.chars, cost_inr: r.costInr, unaligned: r.unaligned } as unknown as Json, updated_at: new Date().toISOString() })
+      .update({ voice_detail: { vo_asset_id: r.voAssetId, total_s: r.totalS, lines: r.lines, chars: r.chars, cost_inr: r.costInr, unaligned: r.unaligned, pace: pace.pace, tempo: pace.tempo, pace_source: pace.source } as unknown as Json, updated_at: new Date().toISOString() })
       .eq('id', episodeId);
   }
   return r;

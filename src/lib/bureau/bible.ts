@@ -6,7 +6,7 @@ import { bureauSeries, hookPattern } from '../db/enums';
 import { ROUTE_PROVIDERS } from '../drivers/jobs';
 import { CharacterVoiceFields, storedVoiceOf, voiceFieldsFromStored, voiceKey, voiceRouteFor, type VoiceOverride, type VoiceRoute } from '../drivers/voice-route';
 import type { Json } from '../db/types';
-import { VisualFormatSchema } from './formats';
+import { VisualFormatSchema, VoicePaceSchema } from './formats';
 
 /**
  * Channel bibles, typed — from the database first, the folder second (decision 0022).
@@ -127,6 +127,8 @@ export const SeriesSchema = z.object({
   rules: z.array(z.string().min(1)).min(1),
   /** The series' default visual format (formats.ts); absent → illustrated. The approver can override per episode. */
   visual_format: VisualFormatSchema.optional(),
+  /** The series' default voice pace (formats.ts); absent → brisk. */
+  voice_pace: VoicePaceSchema.optional(),
 });
 export type Series = z.infer<typeof SeriesSchema>;
 

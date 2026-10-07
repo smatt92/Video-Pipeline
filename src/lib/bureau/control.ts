@@ -145,6 +145,8 @@ export async function restartHaltedEpisode(db: Db, token: BureauToken, effects: 
   if (rejected) {
     const plan = await stillsForRecut(db, ep.id);
     if (!plan.ok) throw new Error(`Not re-cut: ${plan.reason}. Re-running now would rebuild the cut you sent back.`);
+    // The voice track is rebuilt too (paid takes re-used), so the current pace and voices apply.
+    await db.from('episodes').update({ voice_detail: null }).eq('id', ep.id);
   }
   try {
     const runId = await effects.startEpisode(ep.id, `restart:${new Date(ep.updated_at).getTime()}`);

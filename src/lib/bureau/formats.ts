@@ -152,3 +152,28 @@ export function pictureSpans(
     return { from, frames: to - from, narration };
   });
 }
+
+/**
+ * Voice pace — the speed the narration is heard at, part of the same template as the format
+ * (Sahil, 07-Oct: S003's voice was "very very slow"). Applied to every take with ffmpeg
+ * `atempo` (pitch kept) when the VO track is built, so changing it re-buys nothing.
+ */
+export const VOICE_PACES = { normal: 1, brisk: 1.15, fast: 1.3 } as const;
+export type VoicePace = keyof typeof VOICE_PACES;
+export const VoicePaceSchema = z.enum(['normal', 'brisk', 'fast']);
+export const DEFAULT_VOICE_PACE: VoicePace = 'brisk';
+export const PACE_INFO: Record<VoicePace, { label: string; blurb: string }> = {
+  normal: { label: 'Normal', blurb: 'As the voice speaks it' },
+  brisk: { label: 'Brisk', blurb: '15% faster — the Shorts default' },
+  fast: { label: 'Fast', blurb: '30% faster — for dense, punchy scripts' },
+};
+
+/** The pace an episode is voiced at, and where that came from. Same precedence as formatOf. */
+export function paceOf(input: { approvedEdits?: unknown; seriesPace?: unknown }): { pace: VoicePace; tempo: number; source: FormatSource } {
+  const edits = input.approvedEdits && typeof input.approvedEdits === 'object' ? (input.approvedEdits as Record<string, unknown>) : {};
+  const e = VoicePaceSchema.safeParse(edits.voice_pace);
+  if (e.success) return { pace: e.data, tempo: VOICE_PACES[e.data], source: 'episode' };
+  const s = VoicePaceSchema.safeParse(input.seriesPace);
+  if (s.success) return { pace: s.data, tempo: VOICE_PACES[s.data], source: 'series' };
+  return { pace: DEFAULT_VOICE_PACE, tempo: VOICE_PACES[DEFAULT_VOICE_PACE], source: 'default' };
+}

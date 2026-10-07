@@ -480,6 +480,40 @@ try {
   const reVoice = await P.voiceStep(db, ep2, { usdInrRate: 88, apiKeyFor: async () => ({ ok: true, value: 'k' }), synth: (i) => { reSynth++; return synthFrom(() => 'Calendars drift because a year is not a whole number of days at all.')(i); }, align: (i) => alignLine(i), putBytes, presign, routeFor });
   check(reVoice.ok && reSynth === 1 && reVoice.reused === takeCount - 1, 'only the missing line is spoken again; the rest are re-used', reVoice.ok ? `synth ${reSynth}, reused ${reVoice.reused}` : `${reVoice.code}: ${reVoice.detail}`);
 
+  // ═══ 10a'. Re-cut notes: a faster pace and one new voice ═══
+  // Seeded: the rejection (status is an input) and a route that gives ONE speaker a new voice.
+  // Asserted: what applyRecutNotes stored, which lines voiceStep spoke again, what it priced
+  // before speaking, and that the paced track is shorter than the spoken one — all read back.
+  console.log("\n7a'. Re-cut with notes: pace and one voice\n");
+  const { applyRecutNotes } = require(`${B}/bureau/recut.js`);
+  const { rows: [beforeNotes] } = await client.query('select voice_detail, brief_id, script_id from episodes where id = $1', [ep2]);
+  const spokenS = Number(beforeNotes.voice_detail?.total_s);
+  await client.query(`update episodes set status = 'cut_rejected' where id = $1`, [ep2]);
+  const notesR = await applyRecutNotes(db, { channelId: BUREAU_CHANNEL_ID, tokenId: null, profileId: null }, ep2, { pace: 'fast', voicesChanged: ['test'] });
+  const { rows: [afterNotes] } = await client.query('select e.voice_detail, b.approved_edits from episodes e join briefs b on b.id = e.brief_id where e.id = $1', [ep2]);
+  check(notesR.ok && afterNotes.approved_edits.voice_pace === 'fast' && afterNotes.voice_detail === null, 'the pace is stored with the approval and the voice track is cleared for the re-run', JSON.stringify({ edits: afterNotes.approved_edits, vd: afterNotes.voice_detail }));
+  let badPace = null;
+  const badR = await applyRecutNotes(db, { channelId: BUREAU_CHANNEL_ID, tokenId: null, profileId: null }, ep2, { pace: 'ludicrous' });
+  badPace = badR.ok ? null : badR.reason;
+  check(/not a pace/.test(badPace ?? ''), 'a pace that does not exist is refused by name', badPace);
+  const { rows: [scr] } = await client.query('select beats from scripts where id = $1', [beforeNotes.script_id]);
+  const speakersInOrder = scr.beats.lines.map((l) => l.speaker);
+  const changedSpeaker = speakersInOrder[0];
+  const changedLines = scr.beats.lines.filter((l) => l.speaker === changedSpeaker);
+  const reroute = (slug) => (slug === changedSpeaker ? { ...routeFor(slug), voiceId: 'Marlene' } : routeFor(slug));
+  const respoken = [];
+  const notesVoice = await P.voiceStep(db, ep2, { usdInrRate: 88, apiKeyFor: async () => ({ ok: true, value: 'k' }), synth: (i) => { respoken.push(i.text); return synthFrom(() => i.text)(i); }, align: (i) => alignLine(i), putBytes, presign, routeFor: reroute });
+  check(notesVoice.ok && respoken.length === changedLines.length && respoken.every((t, k) => t === changedLines[k].text) && notesVoice.reused === scr.beats.lines.length - changedLines.length,
+    'LOAD-BEARING: only the re-voiced speaker\'s lines are spoken again; every other paid line is re-used', JSON.stringify({ respoken: respoken.length, expected: changedLines.length, reused: notesVoice.ok ? notesVoice.reused : notesVoice.detail }));
+  // Two re-speaks on this script: 7a's one restored line, then this voice change. Each is its own row.
+  const { rows: ledgerR } = await client.query(`select stage, quantity from cost_ledger where script_id = $1 and stage like '06-voice-r%' order by stage`, [beforeNotes.script_id]);
+  const changedChars = changedLines.reduce((n, l) => n + l.text.length, 0);
+  const restoredChars = scr.beats.lines.find((l) => l.idx === 0).text.length;
+  check(ledgerR.length === 2 && ledgerR[0].stage === '06-voice-r1' && Number(ledgerR[0].quantity) === restoredChars && ledgerR[1].stage === '06-voice-r2' && Number(ledgerR[1].quantity) === changedChars,
+    'every re-speak is priced before speaking, for exactly the characters it speaks, under a stage of its own (rule 5) — before this a re-speak was never priced', JSON.stringify(ledgerR));
+  const { rows: [paced] } = await client.query('select voice_detail from episodes where id = $1', [ep2]);
+  check(paced.voice_detail?.pace === 'fast' && Number(paced.voice_detail.total_s) < spokenS, 'the re-cut track is at the fast pace and shorter than before', `${paced.voice_detail?.total_s} s vs ${spokenS} s`);
+
   // ═══ 10b. Restarting a halted episode ═══
   // The halt is SEEDED (status is an input); what is asserted is what restartHaltedEpisode did
   // with it — the key it handed the runner and the run id it wrote back.

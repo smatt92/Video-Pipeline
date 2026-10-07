@@ -56,13 +56,19 @@ export interface VoiceDeps {
   putBytes(key: string, body: Readable): Promise<number>;
   /** Signed GET for a stored line, so a replay can rebuild the track from paid-for audio. */
   presign(key: string): Promise<string>;
+  /**
+   * Speech speed (formats.ts `VOICE_PACES`): 1 is the voice as spoken, 1.15 brisk, 1.3 fast.
+   * Applied by ffmpeg `atempo` (pitch kept) when the track is built, to paid-for takes as much
+   * as new ones — so a faster pace never re-buys a line. Absent → 1.
+   */
+  tempo?: number;
   /** Override the character → voice decision (harnesses lock presets without editing the bible). */
   routeFor?(slug: string): VoiceRoute;
   log?: { info(m: string, d?: unknown): void; error(m: string, d?: unknown): void };
 }
 
 export type VoiceOutcome =
-  | { ok: true; lines: number; totalS: number; voAssetId: string; chars: number; costInr: number; shotsTimed: number; reused: number; unaligned: number | null }
+  | { ok: true; lines: number; totalS: number; voAssetId: string; chars: number; costInr: number; shotsTimed: number; reused: number; unaligned: number | null; tempo?: number }
   | { ok: false; code: string; detail: string };
 
 /** Silence between lines, so the cut has room to breathe and captions do not collide. */
@@ -102,17 +108,38 @@ export async function runEpisodeVoice(scriptId: string, deps: VoiceDeps): Promis
     keys.set(r.provider, k.value);
   }
 
+  const tempo = clampTempo(deps.tempo);
+  const { data: existing } = await db
+    .from('vo_takes')
+    .select('chunk_idx, asset_id, word_timings, duration_s, voice_id, text_in')
+    .eq('script_id', script.id)
+    .eq('language', 'en');
+  // A take is re-used only when it is THIS line, in THIS speaker's current voice. A voice
+  // changed on re-cut (S003, 07-Oct) re-speaks that character's lines and nothing else.
+  const reusable = (line: ScriptLine) => (existing ?? []).find((t) => t.chunk_idx === line.idx && t.asset_id && t.voice_id === voiceKey(routes.get(line.speaker)!) && (t.text_in ?? '').trim() === line.text.trim());
+  const toSpeak = lines.filter((l) => !reusable(l));
+  const priorRows = (existing ?? []).length;
+
   // ── Price before speaking ──────────────────────────────────────────────────
   const rate = await currentRate(db, { ...TTS_RATE_KEY });
   if (!rate.found) return { ok: false, code: 'unpriced', detail: `Refusing to synthesise: ${rate.detail}` };
-  const chars = lines.reduce((n, l) => n + l.text.length, 0);
+  // The first pass prices the whole script under '06-voice' (its natural key dedupes a retry).
+  // A later pass that re-speaks lines — a voice changed on re-cut — prices only those, under a
+  // stage of its own, so the money moved has its row before the call (rule 5).
+  const respeak = priorRows > 0 && toSpeak.length > 0;
+  const chars = (respeak ? toSpeak : lines).reduce((n, l) => n + l.text.length, 0);
   const costUsd = chars * rate.rate.unitCostUsd;
   const costInr = costUsd * deps.usdInrRate;
+  let stage = '06-voice';
+  if (respeak) {
+    const { data: prior } = await db.from('cost_ledger').select('stage').eq('script_id', script.id);
+    stage = `06-voice-r${(prior ?? []).filter((r) => (r.stage ?? '').startsWith('06-voice-r')).length + 1}`;
+  }
   const { error: ledgerError } = await db.from('cost_ledger').insert({
     script_id: script.id,
     concept_id: script.concept_id,
     driver: TTS_RATE_KEY.driver,
-    stage: '06-voice',
+    stage,
     entry_kind: 'estimate',
     unit: 'character',
     quantity: chars,
@@ -127,11 +154,6 @@ export async function runEpisodeVoice(scriptId: string, deps: VoiceDeps): Promis
 
   const work = await mkdtemp(join(tmpdir(), 'kiln-voice-'));
   try {
-    const { data: existing } = await db
-      .from('vo_takes')
-      .select('chunk_idx, asset_id, word_timings, duration_s')
-      .eq('script_id', script.id)
-      .eq('language', 'en');
     const files: string[] = [];
     const lineWords: (WordTiming[] | null)[] = [];
     const durations: number[] = [];
@@ -140,18 +162,25 @@ export async function runEpisodeVoice(scriptId: string, deps: VoiceDeps): Promis
 
     for (const line of lines) {
       const route = routes.get(line.speaker)!;
-      const prior = (existing ?? []).find((t) => t.chunk_idx === line.idx && t.asset_id);
+      const prior = reusable(line);
       const outPath = join(work, `line-${line.idx}.audio`);
 
       let words: WordTiming[] | null = null;
       if (prior) {
         // Re-use what was already paid for: fetch the stored audio rather than re-speaking it.
-        const { data: asset } = await db.from('assets').select('storage_key').eq('id', prior.asset_id!).single();
+        // The take row holds timings at the pace it was last cut at; the asset holds the take
+        // as spoken (its own duration, and its words in meta from the first pace change on).
+        const { data: asset } = await db.from('assets').select('storage_key, duration_s, meta').eq('id', prior.asset_id!).single();
         files.push(asset ? `storage:${asset.storage_key}` : outPath);
-        const w = prior.word_timings as unknown as WordTiming[];
-        words = Array.isArray(w) && w.length ? w : null;
+        const native = nativeOf(prior, asset);
+        words = native.words;
+        // Pin the spoken words to the asset before the take row is overwritten with paced ones,
+        // so the next pass (any pace) still starts from what was spoken.
+        if (asset && !Array.isArray((asset.meta as { native_words?: unknown } | null)?.native_words)) {
+          await db.from('assets').update({ meta: { ...((asset.meta ?? {}) as object), native_words: words ?? [] } as unknown as Json }).eq('id', prior.asset_id!);
+        }
         lineWords.push(words);
-        durations.push(Number(prior.duration_s ?? 0));
+        durations.push(native.durationS);
         reused++;
         if (!words) failedLines.push(`line ${line.idx} (${line.speaker}): not aligned on an earlier run`);
         continue;
@@ -175,7 +204,7 @@ export async function runEpisodeVoice(scriptId: string, deps: VoiceDeps): Promis
       const bytes = await deps.putBytes(key, createReadStream(wav));
       const { data: asset, error: assetError } = await db
         .from('assets')
-        .insert({ kind: 'audio', storage_key: key, bytes, duration_s: durationS, meta: { line: line.idx, speaker: line.speaker } as Json })
+        .insert({ kind: 'audio', storage_key: key, bytes, duration_s: durationS, meta: { line: line.idx, speaker: line.speaker, native_words: words ?? [] } as unknown as Json })
         .select('id')
         .single();
       if (assetError || !asset) return { ok: false, code: 'asset_failed', detail: assetError?.message ?? 'no asset row' };
@@ -205,16 +234,49 @@ export async function runEpisodeVoice(scriptId: string, deps: VoiceDeps): Promis
       durations.push(durationS);
     }
 
+    // ── Pace: every take at the episode's tempo ──────────────────────────────
+    // Each line is sped up on its own and its new length MEASURED (ffprobe), never computed as
+    // spoken ÷ tempo: atempo's output is a few ms off that, and those ms summed over a script
+    // made the cut and the VO track disagree (verify:episode, 07-Oct). Words scale by the
+    // measured ratio. The take rows carry these paced figures, so every consumer (captions,
+    // picture spans, shot durations) reads the cut's own timeline without knowing a tempo
+    // exists; the spoken figures stay on the audio asset.
+    let local = await Promise.all(
+      files.map(async (f, i) => (f.startsWith('storage:') ? materialiseFromStorage(deps.presign, f.slice(8), join(work, `reuse-${i}.wav`)) : f)),
+    );
+    let pacedDurations = durations;
+    let pacedWords = lineWords;
+    if (tempo !== 1) {
+      const paced: string[] = [];
+      pacedDurations = [];
+      for (const [i, f] of local.entries()) {
+        const out = join(work, `paced-${i}.wav`);
+        await run('ffmpeg', ['-v', 'error', '-y', '-i', f, '-filter:a', `atempo=${tempo}`, '-ac', '1', '-ar', '48000', out]);
+        paced.push(out);
+        pacedDurations.push(await probeDuration(out));
+      }
+      local = paced;
+      pacedWords = lineWords.map((w, i) => {
+        const k = durations[i] > 0 ? pacedDurations[i] / durations[i] : 1 / tempo;
+        return w ? w.map((x) => ({ ...x, start: round3(x.start * k), end: round3(x.end * k) })) : null;
+      });
+    }
+
     // ── Offsets: lines end to end with a fixed gap ────────────────────────────
     const offsets: number[] = [];
     let t = 0;
-    for (const d of durations) {
+    for (const d of pacedDurations) {
       offsets.push(round3(t));
       t += d + LINE_GAP_S;
     }
     const totalS = round3(t - LINE_GAP_S + TAIL_S);
     for (const [i, line] of lines.entries()) {
-      await db.from('vo_takes').update({ offset_s: offsets[i] }).eq('script_id', script.id).eq('chunk_idx', line.idx).eq('language', 'en');
+      await db
+        .from('vo_takes')
+        .update({ offset_s: offsets[i], duration_s: pacedDurations[i], word_timings: (pacedWords[i] ?? []) as unknown as Json })
+        .eq('script_id', script.id)
+        .eq('chunk_idx', line.idx)
+        .eq('language', 'en');
     }
 
     // Shot durations do not rest on word timings: deriveContiguous cuts at LINE boundaries, and
@@ -232,9 +294,6 @@ export async function runEpisodeVoice(scriptId: string, deps: VoiceDeps): Promis
     if (failedLines.length) log.error('alignment not confirmed; those lines caption at line level', { failedLines });
 
     // ── The full VO track ──────────────────────────────────────────────────────
-    const local = await Promise.all(
-      files.map(async (f, i) => (f.startsWith('storage:') ? materialiseFromStorage(deps.presign, f.slice(8), join(work, `reuse-${i}.wav`)) : f)),
-    );
     const track = join(work, 'vo.m4a');
     await concatWithGaps(local, LINE_GAP_S, TAIL_S, track);
     const trackKey = `vo/${script.id}/en/track.m4a`;
@@ -246,11 +305,11 @@ export async function runEpisodeVoice(scriptId: string, deps: VoiceDeps): Promis
       .single();
 
     // ── Shot durations, contiguous ────────────────────────────────────────────
-    const allWords = lineWords.flatMap((w, i) => (w ? shiftBy(w, offsets[i]) : []));
+    const allWords = pacedWords.flatMap((w, i) => (w ? shiftBy(w, offsets[i]) : []));
     const shotsTimed = await deriveContiguous(db, script.id, lines, offsets, totalS);
     log.info('voice complete', { lines: lines.length, totalS, words: allWords.length, shotsTimed });
 
-    return { ok: true, lines: lines.length, totalS, voAssetId: trackAsset!.id, chars, costInr, shotsTimed, reused, unaligned: failedLines.length };
+    return { ok: true, lines: lines.length, totalS, voAssetId: trackAsset!.id, chars, costInr, shotsTimed, reused, unaligned: failedLines.length, tempo };
   } finally {
     await rm(work, { recursive: true, force: true });
   }
@@ -305,3 +364,25 @@ async function materialiseFromStorage(presign: (key: string) => Promise<string>,
 }
 
 const round3 = (n: number) => Math.round(n * 1000) / 1000;
+
+/** Tempo within what one atempo stage and a listener both accept; anything else is 1. */
+export function clampTempo(t: number | undefined): number {
+  return typeof t === 'number' && Number.isFinite(t) && t >= 0.8 && t <= 1.5 ? t : 1;
+}
+
+/**
+ * A re-used take as it was SPOKEN — duration and words at tempo 1. The asset row is the
+ * spoken take (ffprobe'd when stored); its meta carries the spoken words from the first time
+ * a pace was applied. Before any pace existed the take row's own words were the spoken ones,
+ * so they are the fallback, and that stays true until a paced pass writes native_words.
+ */
+function nativeOf(
+  take: { word_timings: unknown; duration_s: number | string | null },
+  asset: { duration_s: number | string | null; meta: unknown } | null,
+): { durationS: number; words: WordTiming[] | null } {
+  const meta = (asset?.meta ?? {}) as { native_words?: unknown };
+  const fromMeta = Array.isArray(meta.native_words) && meta.native_words.length ? (meta.native_words as WordTiming[]) : null;
+  const fromTake = Array.isArray(take.word_timings) && take.word_timings.length ? (take.word_timings as WordTiming[]) : null;
+  const durationS = asset?.duration_s != null && Number(asset.duration_s) > 0 ? Number(asset.duration_s) : Number(take.duration_s ?? 0);
+  return { durationS, words: fromMeta ?? fromTake };
+}

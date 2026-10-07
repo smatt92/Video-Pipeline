@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useTransition, type ReactNode } from 'reac
 
 import { PunchlinePicker } from '@/components/ui/punchline-picker';
 import type { FormatOption } from '@/lib/bureau/format-estimates';
-import type { VisualFormat } from '@/lib/bureau/formats';
+import { PACE_INFO, type VisualFormat, type VoicePace } from '@/lib/bureau/formats';
 import { approveBriefAction, rejectBriefAction } from '@/lib/bureau/ui-actions';
 
 /**
@@ -35,6 +35,7 @@ export function ApprovalDesk({
   position,
   formats,
   defaultFormat,
+  defaultPace,
 }: {
   brief: ApprovalBrief;
   /** Server-rendered brief card (slot, busts, title, cast). */
@@ -49,12 +50,15 @@ export function ApprovalDesk({
   /** The visual formats, each priced on this brief (formats.ts). The choice is sent with the approval. */
   formats: FormatOption[];
   defaultFormat: VisualFormat;
+  /** The series' voice pace (formats.ts); the approver can change it with the format. */
+  defaultPace: VoicePace;
 }) {
   const router = useRouter();
   const [choice, setChoice] = useState<string | null>(null);
   const [custom, setCustom] = useState('');
   const [premise, setPremise] = useState(brief.premise);
   const [format, setFormat] = useState<VisualFormat>(defaultFormat);
+  const [pace, setPace] = useState<VoicePace>(defaultPace);
   const [reason, setReason] = useState<string>(REASONS[0]);
   const [reasonText, setReasonText] = useState('');
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -68,7 +72,7 @@ export function ApprovalDesk({
   const approve = () => {
     if (!picked || pending) return;
     start(async () => {
-      const r = await approveBriefAction(brief.id, picked, premise !== brief.premise ? premise : undefined, format);
+      const r = await approveBriefAction(brief.id, picked, premise !== brief.premise ? premise : undefined, format, pace);
       setMessage({ ok: r.ok, text: r.message });
       if (r.ok) router.refresh();
     });
@@ -140,6 +144,17 @@ export function ApprovalDesk({
                 </span>
               </button>
             ))}
+            <div className="row sb" style={{ marginTop: 6 }}>
+              <span className="sm t2">Voice pace</span>
+              <div className="seg" role="radiogroup" aria-label="Voice pace">
+                {(Object.keys(PACE_INFO) as VoicePace[]).map((p) => (
+                  <button key={p} type="button" role="radio" aria-checked={pace === p} className={pace === p ? 'on' : ''} onClick={() => setPace(p)} disabled={pending}>
+                    {PACE_INFO[p].label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <span className="xs t3">{PACE_INFO[pace].blurb}{pace === defaultPace ? ' · series default' : ''}. Pace changes no price.</span>
           </div>
         </section>
         <section className="card" aria-label="Pick the punchline">
@@ -183,7 +198,7 @@ export function ApprovalDesk({
             <div className="row sb">
               <span className="sm t2">Video type</span>
               <span className="mono" style={{ fontWeight: 600 }}>
-                {formats.find((f) => f.format === format)?.label ?? format}
+                {formats.find((f) => f.format === format)?.label ?? format} · {PACE_INFO[pace].label}
               </span>
             </div>
             <div className="row sb">

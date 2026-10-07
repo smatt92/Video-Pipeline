@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 import { CutControls, RegenerateButton } from '@/components/bureau/cut-controls';
 import { LiveRefresh, LiveStatus } from '@/components/bureau/live-status';
-import { StartRun } from '@/components/bureau/start-run';
+import { RecutForm } from '@/components/bureau/recut-form';
 import { ScreenHeader } from '@/components/shell/screen-header';
 import { inr, Note } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
@@ -11,6 +11,7 @@ import { Basis, EpisodeStatePill, Gate } from '@/components/ui/tags';
 import { isVideoRoute } from '@/lib/bureau/estimate';
 import { FORMAT_INFO, VisualFormatSchema, type FormatSource, type VisualFormat } from '@/lib/bureau/formats';
 import { channelGeneration, episodeClips } from '@/lib/bureau/overlay-only';
+import { recutOptions } from '@/lib/bureau/recut';
 import { isRunning } from '@/lib/bureau/running';
 import { requireChannel } from '@/lib/channels/active';
 import { serverClient } from '@/lib/db/server';
@@ -69,6 +70,7 @@ export default async function CutsPage({ searchParams }: { searchParams: Promise
 
   const e = list.find((x) => x.id === id) ?? list.find((x) => x.status === 'awaiting_cut') ?? list[0]!;
   const brief = briefOf.get(e.brief_id);
+  const recut = e.status === 'cut_rejected' ? await recutOptions(db, channel.id, e) : null;
   // The format the planner recorded (formats.ts) — read back from the plan, never re-derived here.
   const storedFormat = ((e.qc ?? {}) as { plan?: { format?: { format?: unknown; source?: unknown } } }).plan?.format;
   const parsedFormat = VisualFormatSchema.safeParse(storedFormat?.format);
@@ -261,10 +263,10 @@ export default async function CutsPage({ searchParams }: { searchParams: Promise
           ) : (
             <div className="empty">
               <span style={{ color: 'var(--t2)', fontWeight: 500 }}>Not ready for your call</span>
-              <span>{e.status === 'cut_rejected' ? 'Sent back. Re-cut makes a picture for every drawn shot and keeps the script and the voice; it returns here when the new cut is ready.' : 'This cut is still being made.'}</span>
-              {e.status === 'cut_rejected' && <StartRun episodeId={e.id} restart primary label="Re-cut with pictures" />}
+              <span>{e.status === 'cut_rejected' ? 'Sent back. Set what changes below; the new cut returns here.' : 'This cut is still being made.'}</span>
             </div>
           )}
+          {e.status === 'cut_rejected' && recut && <RecutForm episodeId={e.id} options={recut} />}
         </aside>
       </div>
     </main>

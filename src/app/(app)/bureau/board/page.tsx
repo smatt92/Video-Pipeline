@@ -123,7 +123,11 @@ export default async function BureauBoardPage({ searchParams }: { searchParams: 
         ) : null}
         {e.status === 'queued' && !e.runId && <StartRun episodeId={e.id} full />}
         {(stopped || stall) && <StartRun episodeId={e.id} restart full />}
-        {e.status === 'cut_rejected' && <StartRun episodeId={e.id} restart full label="Re-cut with pictures" />}
+        {e.status === 'cut_rejected' && (
+          <Link className="btn sm pri full" href={`/bureau/cuts?id=${e.id}`}>
+            Re-cut with your notes
+          </Link>
+        )}
         {e.status === 'awaiting_cut' && (
           <Link className="btn sm pri full" href="/bureau/cuts">
             Review cut

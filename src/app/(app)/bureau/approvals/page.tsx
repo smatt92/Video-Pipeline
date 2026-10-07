@@ -398,6 +398,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
         position={`${idx + 1} of ${briefs.length}`}
         formats={fmts.options}
         defaultFormat={fmts.seriesDefault}
+        defaultPace={fmts.seriesPace}
       />
     </main>
   );
