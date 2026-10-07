@@ -17,7 +17,7 @@
       "No resemblance to any existing franchise, mascot or real person."
     ],
     "negative_prompt": "realistic human, photorealism, 3D plastic, anime, chibi, pastel kids style, nursery colours, text, watermark, logos, existing cartoon characters, extra limbs, inconsistent accessories",
-    "still_style": "White chalk line drawing on deep navy blueprint paper with faint grid lines, like a technical sketch on a blackboard; flat, hand-drawn, no shading, no photorealism."
+    "still_style": "Bold flat 2D cartoon illustration in a modern explainer-animation style: thick clean dark outlines, simple exaggerated shapes, rich saturated colours over a deep navy background, soft cel shading; witty and adult like an editorial cartoon, instantly readable on a phone; not a children's book, no photorealism, no 3D render."
   },
   "publishing": {
     "hashtags": ["science", "physics", "animation", "explained", "officecomedy"],

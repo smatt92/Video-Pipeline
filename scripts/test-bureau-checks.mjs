@@ -277,7 +277,7 @@ console.log('\nscene stills (0021)\n');
   check(!iyer || castNamesIn('a desk nameplate for iyer', cast).includes(iyer.name), 'a distinctive part of a name ("Iyer" from "Mrs. Iyer") is caught, case-insensitively');
   check(castNamesIn('a pipe and a pipette on a bench', cast).length === 0, 'whole words only — "pipe" is not Pip');
   const prompt = composeStillPrompt({ scene: 'Earth with two chalk tidal bulges, the Moon to one side.', world: CB.bible.world, accent: '#22D3EE' });
-  check(prompt.startsWith('Earth with two chalk tidal bulges, the Moon to one side. White chalk line drawing') && prompt.includes('#22D3EE') && prompt.endsWith('no people, no characters, no faces, no figures, no text.') && prompt.includes(CB.bible.world.negative_prompt),
+  check(prompt.startsWith(`Earth with two chalk tidal bulges, the Moon to one side. ${CB.bible.world.still_style}`) && prompt.includes('#22D3EE') && prompt.endsWith('no people, no characters, no faces, no figures, no text.') && prompt.includes(CB.bible.world.negative_prompt),
     'the prompt is scene + bible still style + the lead accent + the bible negative + the no-people clause, in that order', prompt.slice(0, 120));
   check(prompt.length <= STILL_PROMPT_MAX && !/stick figure/i.test(prompt), 'under the vendor limit, and the stick-figure style rule never reaches a still', String(prompt.length));
   const shots = [{ route: 'overlay' }, { route: 'character_beat' }, { route: 'money_shot' }, { route: 'acted_beat' }];

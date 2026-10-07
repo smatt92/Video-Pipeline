@@ -2,6 +2,7 @@ import Link from 'next/link';
 
 import { CutControls, RegenerateButton } from '@/components/bureau/cut-controls';
 import { LiveRefresh, LiveStatus } from '@/components/bureau/live-status';
+import { StartRun } from '@/components/bureau/start-run';
 import { ScreenHeader } from '@/components/shell/screen-header';
 import { inr, Note } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
@@ -254,7 +255,8 @@ export default async function CutsPage({ searchParams }: { searchParams: Promise
           ) : (
             <div className="empty">
               <span style={{ color: 'var(--t2)', fontWeight: 500 }}>Not ready for your call</span>
-              <span>{e.status === 'cut_rejected' ? 'Sent back — it returns here when the fix is cut.' : 'This cut is still being made.'}</span>
+              <span>{e.status === 'cut_rejected' ? 'Sent back. Re-cut makes a picture for every drawn shot and keeps the script and the voice; it returns here when the new cut is ready.' : 'This cut is still being made.'}</span>
+              {e.status === 'cut_rejected' && <StartRun episodeId={e.id} restart primary label="Re-cut with pictures" />}
             </div>
           )}
         </aside>

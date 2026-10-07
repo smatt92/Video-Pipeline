@@ -4,6 +4,7 @@ import type { Db } from '../db/server';
 import type { Json } from '../db/types';
 import { getBrief, resolvePunchline } from './briefs';
 import type { BureauToken } from './tokens';
+import { stillsForRecut } from './recut';
 import { stalled } from './running';
 import { variationRefusal } from './variation';
 
@@ -134,8 +135,16 @@ export async function restartHaltedEpisode(db: Db, token: BureauToken, effects: 
   if (!ep || ep.channel_id !== token.channelId) throw new Error('No such episode on this channel.');
   // 'failed' too: a crash after a fix (S001's render, 07-Oct) needs the same way back as a refusal.
   // And a stalled run (see running.ts): the worker ended without writing a status.
-  if (ep.status !== 'halted' && ep.status !== 'failed' && !stalled(ep.status, ep.updated_at)) {
-    throw new Error(`Episode is ${ep.status}, not halted, failed or stalled — nothing to restart.`);
+  // And a rejected cut (S003, 07-Oct): restarting it re-cuts with scene stills in place of the
+  // overlays, keeping the script and the paid voice. Without the re-plan a re-run rebuilds the
+  // exact cut that was rejected — planShots keeps existing shots (recut.ts).
+  const rejected = ep.status === 'cut_rejected';
+  if (ep.status !== 'halted' && ep.status !== 'failed' && !rejected && !stalled(ep.status, ep.updated_at)) {
+    throw new Error(`Episode is ${ep.status}, not halted, failed, stalled or sent back — nothing to restart.`);
+  }
+  if (rejected) {
+    const plan = await stillsForRecut(db, ep.id);
+    if (!plan.ok) throw new Error(`Not re-cut: ${plan.reason}. Re-running now would rebuild the cut you sent back.`);
   }
   try {
     const runId = await effects.startEpisode(ep.id, `restart:${new Date(ep.updated_at).getTime()}`);

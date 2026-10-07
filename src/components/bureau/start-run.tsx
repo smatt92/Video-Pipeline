@@ -9,7 +9,7 @@ import { restartRunAction, startRunAction } from '@/lib/bureau/ui-actions';
  * Start / Restart run — the one action on a blocker for a stopped or never-started episode.
  * Same server actions as before the redesign; the message the action returns is shown verbatim.
  */
-export function StartRun({ episodeId, restart = false, primary = false, full = false }: { episodeId: string; restart?: boolean; primary?: boolean; full?: boolean }) {
+export function StartRun({ episodeId, restart = false, primary = false, full = false, label }: { episodeId: string; restart?: boolean; primary?: boolean; full?: boolean; label?: string }) {
   const router = useRouter();
   const [msg, setMsg] = useState<string | null>(null);
   const [pending, start] = useTransition();
@@ -27,7 +27,7 @@ export function StartRun({ episodeId, restart = false, primary = false, full = f
           })
         }
       >
-        {pending ? 'Starting…' : restart ? 'Restart run' : 'Start run'}
+        {pending ? 'Starting…' : label ?? (restart ? 'Restart run' : 'Start run')}
       </button>
       {msg && (
         <span className="xs t2" role="status">

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readFileSync } from 'node:fs';
 /**
  * verify:episode — the definition of done, end to end, through the Kiln MCP connector.
  *
@@ -155,6 +156,9 @@ const synthFrom = (speak) => async ({ text, outPath }) => {
   return { ok: true, path: outPath, requestId: `tts_${randomUUID().slice(0, 8)}`, words: null, estimatedCredits: Math.ceil(text.length / 50) };
 };
 
+// The bible's own still style, read from the folder bible the harness imports — not a copy of
+// its wording, which changed once already (07-Oct: chalk → cartoon).
+const BUREAU_STILL_STYLE = JSON.parse(readFileSync(new URL('../channels/bureau-of-reality/characters.json', import.meta.url), 'utf8')).world.still_style;
 console.log('\nEpisode end to end — brief to publish bundle through the Kiln connector\n');
 try {
   const { rows: prof } = await client.query(`insert into profiles (id, email, usd_inr_rate) values (gen_random_uuid(), 'sahil@invalid.test', 88) returning id`);
@@ -490,7 +494,7 @@ try {
   check(keys[0] === `restart:${Date.parse('2026-10-06T17:33:56Z')}`, 'the key is derived from the halt it restarts, so two clicks on one halt dedupe', String(keys[0]));
   let refusedNotHalted = null;
   try { await restartHaltedEpisode(db, approverTok, runner, { episode_id: ep2 }); } catch (err) { refusedNotHalted = err.message; }
-  check(/not halted, failed or stalled/.test(refusedNotHalted ?? '') && keys.length === 1, 'an episode that is not halted is refused, and nothing is started', refusedNotHalted);
+  check(/not halted, failed, stalled or sent back/.test(refusedNotHalted ?? '') && keys.length === 1, 'an episode that is not halted is refused, and nothing is started', refusedNotHalted);
   await client.query(`update episodes set status = 'halted', updated_at = '2026-10-07T02:00:00Z' where id = $1`, [ep2]);
   let refusedAgent = null;
   try { await restartHaltedEpisode(db, { ...approverTok, scope: 'agent' }, runner, { episode_id: ep2 }); } catch (err) { refusedAgent = err.message; }
@@ -501,10 +505,31 @@ try {
   await client.query(`update episodes set status = 'generating', updated_at = now() - interval '2 hours' where id = $1`, [ep2]);
   let refusedGen = null;
   try { await restartHaltedEpisode(db, approverTok, runner, { episode_id: ep2 }); } catch (err) { refusedGen = err.message; }
-  check(/not halted, failed or stalled/.test(refusedGen ?? '') && keys.length === 2, 'a long vendor wait while generating is not mistaken for a stall', refusedGen);
+  check(/not halted, failed, stalled or sent back/.test(refusedGen ?? '') && keys.length === 2, 'a long vendor wait while generating is not mistaken for a stall', refusedGen);
   await client.query(`update episodes set status = 'halted', updated_at = '2026-10-07T03:00:00Z' where id = $1`, [ep2]);
   const r2 = await restartHaltedEpisode(db, approverTok, runner, { episode_id: ep2 });
   check(r2.ok && keys[2] !== keys[0] && keys[2] !== keys[1], 'a later halt restarts under a new key', JSON.stringify(keys));
+
+  // Re-cut a sent-back cut with stills (S003, 07-Oct). Seeded: the rejection and one overlay
+  // shot are inputs. Asserted: what restartHaltedEpisode did to the shot rows and the plan —
+  // read back from the database, never from what the harness wrote.
+  const { rows: [ep2Script] } = await client.query('select script_id from episodes where id = $1', [ep2]);
+  const { rows: ep2Shots } = await client.query('select id, idx, render_route from shots where script_id = $1 order by idx', [ep2Script.script_id]);
+  check(ep2Shots.length > 0, 'the second episode has shots to re-cut', String(ep2Shots.length));
+  const target = ep2Shots[0];
+  await client.query(`update shots set render_route = 'overlay' where id = $1`, [target.id]);
+  await client.query(`update episodes set status = 'cut_rejected', status_detail = 'rejected: not related to the topic', updated_at = now() where id = $1`, [ep2]);
+  await client.query('update channel_policy set stills_enabled = false where channel_id = $1', [BUREAU_CHANNEL_ID]);
+  let refusedOff = null;
+  try { await restartHaltedEpisode(db, approverTok, runner, { episode_id: ep2 }); } catch (err) { refusedOff = err.message; }
+  const { rows: [stillOverlay] } = await client.query('select render_route from shots where id = $1', [target.id]);
+  check(/Not re-cut: .*switched off/.test(refusedOff ?? '') && keys.length === 3 && stillOverlay.render_route === 'overlay', 'with stills off, a re-cut is refused by name, nothing starts and no shot changes — it would rebuild the rejected cut', refusedOff);
+  await client.query('update channel_policy set stills_enabled = true where channel_id = $1', [BUREAU_CHANNEL_ID]);
+  const r3 = await restartHaltedEpisode(db, approverTok, runner, { episode_id: ep2 });
+  const { rows: [recut] } = await client.query('select status, run_id, qc from episodes where id = $1', [ep2]);
+  const { rows: [nowStill] } = await client.query('select render_route from shots where id = $1', [target.id]);
+  check(r3.ok && keys.length === 4 && recut.status === 'queued' && recut.run_id === r3.run_id, 'a sent-back cut restarts as a re-cut: queued, with the new run recorded', JSON.stringify({ status: recut.status, keys: keys.length }));
+  check(nowStill.render_route === 'still' && JSON.stringify(recut.qc?.plan?.recut?.to_still ?? []) === JSON.stringify([target.idx]), 'LOAD-BEARING: the overlay shot is now a still and the plan names exactly that shot — without it the run rebuilds the cut that was sent back', JSON.stringify(recut.qc?.plan?.recut));
   const { rows: blk1 } = await client.query('select blocker from v_pipeline_blockers where script_id = $1', [script1.scriptId]);
   check(blk1[0]?.blocker === null, 'and for the episode that went through, the view says nothing blocks it', String(blk1[0]?.blocker));
 
@@ -568,7 +593,7 @@ try {
     });
     check(stillsRun.made === 2 && stillsRun.fellBack.length === 2, 'two stills made, two fell back', JSON.stringify(stillsRun));
     check(submits.length === 3 && submits.every((x) => x.apiKey === 'test-key'), 'three reached the vendor (the cast-name one never did), with the verified key', String(submits.length));
-    check(!submits.some((x) => /\bPip\b/i.test(x.prompt)) && submits.every((x) => /no people, no characters, no faces, no figures, no text/.test(x.prompt) && /White chalk line drawing on deep navy blueprint paper/.test(x.prompt) && x.prompt.includes('#22D3EE')),
+    check(!submits.some((x) => /\bPip\b/i.test(x.prompt)) && submits.every((x) => /no people, no characters, no faces, no figures, no text/.test(x.prompt) && x.prompt.includes(BUREAU_STILL_STYLE) && x.prompt.includes('#22D3EE')),
       'no submitted prompt names the cast; every one carries the bible style, the lead accent and the no-people clause', submits[0]?.prompt.slice(0, 160));
     check(ledgerAtSubmit.length === 3 && ledgerAtSubmit.every((n) => n === 1), 'LOAD-BEARING: each still’s estimate row existed before its call (rule 5)', JSON.stringify(ledgerAtSubmit));
     const est3 = (await client.query(`select cl.cost_inr, cl.quantity, cl.unit, cl.idempotency_key from cost_ledger cl join generations g on g.id = cl.generation_id join shots s on s.id = g.shot_id where s.script_id = $1 and cl.entry_kind = 'estimate' and cl.stage = '05-still' order by cl.idempotency_key`, [ep3row.script_id])).rows;

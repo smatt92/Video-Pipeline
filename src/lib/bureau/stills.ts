@@ -22,7 +22,7 @@ import {
 import type { CredentialRefusal } from '../integrations/verify';
 import { usability } from '../integrations/verify';
 import { routed } from '../llm/router';
-import { STILL_NEGATIVE, STILL_PROMPT_REF, STILL_SYSTEM, stillUserMessage } from '../prompts/21-still.v1';
+import { STILL_NEGATIVE, STILL_PROMPT_REF, STILL_SYSTEM, stillUserMessage } from '../prompts/21-still.v2';
 import { normaliseOverlay } from '../../remotion/bureau/overlay-scene';
 import type { Bible } from './bible';
 import { fits, headroom } from './caps';
@@ -47,7 +47,7 @@ import { fits, headroom } from './caps';
  * ── The cast stays off-screen ─────────────────────────────────────────────────
  *
  * The shot description is rewritten by the cheapest model tier under a versioned prompt
- * (`prompts/21-still.v1.ts`), then checked by code: any cast name or slug in the rewrite is
+ * (`prompts/21-still.v2.ts`), then checked by code: any cast name or slug in the rewrite is
  * a refusal (`castNamesIn`). The style and the negative clause are appended here from the
  * bible, never by the model, so no rewrite can drop "no people".
  */
@@ -100,7 +100,7 @@ export function stillStyle(world: Bible['world']): string {
 /** Scene + bible style + the lead's accent + the bible's negative prompt + STILL_NEGATIVE. Pure. */
 export function composeStillPrompt(input: { scene: string; world: Bible['world']; accent: string }): string {
   const scene = input.scene.trim().replace(/[.\s]+$/, '');
-  return `${scene}. ${stillStyle(input.world)} Exactly one element in the accent colour ${input.accent}; everything else chalk on the background. Avoid: ${input.world.negative_prompt}, ${STILL_NEGATIVE}.`;
+  return `${scene}. ${stillStyle(input.world)} Use ${input.accent} as the highlight colour on the single most important element. Avoid: ${input.world.negative_prompt}, ${STILL_NEGATIVE}.`;
 }
 
 export type StillPrompt = { ok: true; prompt: string; scene: string; model: string | null } | { ok: false; reason: string };

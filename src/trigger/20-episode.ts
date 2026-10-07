@@ -73,7 +73,7 @@ export const episodeTask = schemaTask({
   // S001 (07-Oct) and the 1 h ceiling cut the run off. Three hours is a ceiling, not a target.
   maxDuration: 10_800,
 
-  run: async ({ episodeId }) => {
+  run: async ({ episodeId }, { ctx }) => {
     const db = serverClient();
     const driver = storage();
     const presign = async (key: string) => (await driver.presignGet({ key, expiresIn: 3600 })).url;
@@ -150,7 +150,7 @@ export const episodeTask = schemaTask({
         const open = await generationSettled(db, episodeId);
         if (!open.settled) {
           await setStatus(db, episodeId, 'generating', `${open.open} job(s) in flight`);
-          const token = await wait.createToken({ timeout: '3h', idempotencyKey: `gen:${episodeId}:${round}`, tags: [`episode:${episodeId}`] });
+          const token = await wait.createToken({ timeout: '3h', idempotencyKey: `gen:${episodeId}:${ctx.run.id}:${round}`, tags: [`episode:${episodeId}`] });
           await db.from('episodes').update({ gen_wait_token: token.id }).eq('id', episodeId);
           const woke = await wait.forToken<{ failed: number }>(token);
           if (!woke.ok) logger.error('generation wait timed out; continuing with what exists');
@@ -207,9 +207,11 @@ export const episodeTask = schemaTask({
       const { data: epNow } = await db.from('episodes').select('qc').eq('id', episodeId).single();
       await db.from('episodes').update({ qc: { ...((epNow?.qc ?? {}) as object), loudness_lufs: lufs } }).eq('id', episodeId);
 
-      // 8. The cut gate
+      // 8. The cut gate. Token keys carry the run id: a restarted run — a re-cut after a
+      // rejection — would otherwise get back the previous run's completed token, and with it
+      // the rejection, before anyone had watched the new cut.
       for (let attempt = 0; attempt < 3; attempt++) {
-        const token = await wait.createToken({ timeout: '14d', idempotencyKey: `cut:${episodeId}:${attempt}`, tags: [`episode:${episodeId}`] });
+        const token = await wait.createToken({ timeout: '14d', idempotencyKey: `cut:${episodeId}:${ctx.run.id}:${attempt}`, tags: [`episode:${episodeId}`] });
         await db.from('episodes').update({ cut_wait_token: token.id, status: 'awaiting_cut', status_detail: null }).eq('id', episodeId);
         await notify(db, channelId, 'cut_ready', `Cut ready for episode ${episodeId.slice(0, 8)} · ${(assembled.frames / FPS).toFixed(1)} s · ${lufs === null ? 'loudness — (unmeasured)' : `${lufs} LUFS`}. Watch it on Cuts.`);
         const decision = await wait.forToken<{ approved: boolean; note: string | null }>(token);
@@ -245,7 +247,7 @@ export const episodeTask = schemaTask({
           await setStatus(db, episodeId, 'cut_rejected', `rejected: ${decision.output.note ?? ''} — queue a re-roll with shot_regenerate and re-run, or brief a replacement`);
           return { rejected: true };
         }
-        const gen = await wait.createToken({ timeout: '3h', idempotencyKey: `gen:${episodeId}:cut${attempt}` });
+        const gen = await wait.createToken({ timeout: '3h', idempotencyKey: `gen:${episodeId}:${ctx.run.id}:cut${attempt}` });
         await db.from('episodes').update({ gen_wait_token: gen.id, status: 'generating' }).eq('id', episodeId);
         await wait.forToken(gen);
         const re = longForm ? await assembleLongForm(db, episodeId, asmDeps) : await assembleEpisode(db, episodeId, asmDeps, { layers: ['composite'] });
