@@ -15,7 +15,7 @@ export default async function ChannelsPage() {
     <main className="main">
       <div className="flex items-baseline gap-3">
         <h1 className="h1">Channels</h1>
-        <Link href="/channels/new" className="text-sm" style={{ color: 'var(--ac)' }}>+ Add channel</Link>
+        <Link href="/setup/basics?new=1" className="text-sm" style={{ color: 'var(--ac)' }}>+ Add channel</Link>
       </div>
       <div className="mt-4 grid gap-4">
         {rows.map(({ c, t }) => (

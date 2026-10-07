@@ -1,20 +1,9 @@
-import { AddChannelForm } from '@/components/channels/add-channel-form';
-
-export const dynamic = 'force-dynamic';
+import { redirect } from 'next/navigation';
 
 /**
- * Add channel. Creates the row, policy, publish targets and the channel's bible in the
- * database, started from the template (decision 0022) — no folder, commit or deploy.
+ * + Add channel lives in setup now (canvas: Onb-ChBasics) — Basics, then Cast, Schedule and
+ * Caps for the new channel. This path stays so links written before the redesign still land.
  */
-export default async function NewChannelPage() {
-  return (
-    <main className="main">
-      <h1 className="h1">Add channel</h1>
-      <p className="mt-1 max-w-[640px] text-sm" style={{ color: 'var(--t3)' }}>
-        The channel starts from the template bible — one host, the default series, policy and trend sources — which you
-        then edit here: cast, voices, schedule and caps. Nothing to commit or deploy.
-      </p>
-      <AddChannelForm />
-    </main>
-  );
+export default function NewChannelPage(): never {
+  redirect('/setup/basics?new=1');
 }

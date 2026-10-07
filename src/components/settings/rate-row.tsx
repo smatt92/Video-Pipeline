@@ -60,7 +60,7 @@ export function RateRow({ row }: { row: RateCardRow }) {
     >
       <div
         className="grid items-center gap-3"
-        style={{ gridTemplateColumns: '108px minmax(0,1fr) 92px 78px 92px' }}
+        style={{ gridTemplateColumns: '108px minmax(120px,1fr) 92px 78px 92px', minWidth: 560 }}
       >
         <span className="font-mono text-xs" style={{ color: 'var(--t3)' }}>
           {row.driver}

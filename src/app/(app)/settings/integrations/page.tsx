@@ -83,7 +83,7 @@ export default async function IntegrationsPage() {
             const blocked = blockingDependency(v, views);
             return (
               <a className="ig" href={`#${v.slug}`} key={v.slug}>
-                <span className="lg" aria-hidden="true">
+                <span className="ig-logo" aria-hidden="true">
                   {abbr(v.label)}
                 </span>
                 <span className="col" style={{ gap: 2, minWidth: 0 }}>
@@ -117,7 +117,7 @@ export default async function IntegrationsPage() {
               ) : (
                 <span className="sm t3">No channel yet.</span>
               )}
-              <Link className="btn full" href="/channels/new">+ Add channel</Link>
+              <Link className="btn full" href="/setup/basics?new=1">+ Add channel</Link>
               <Link className="btn ghost full" href="/channels">Publish targets per channel</Link>
             </div>
           </section>

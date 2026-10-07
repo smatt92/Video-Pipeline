@@ -1,7 +1,11 @@
-import { Panel, SectionHeader, UnverifiedBanner } from '@/components/settings/parts';
-import { RateRow } from '@/components/settings/rate-row';
-import { serverClient } from '@/lib/db/server';
-import { readRateCard } from '@/lib/cost/rate-card';
+import {
+  Panel,
+  SectionHeader,
+  UnverifiedBanner,
+} from "@/components/settings/parts";
+import { RateRow } from "@/components/settings/rate-row";
+import { serverClient } from "@/lib/db/server";
+import { readRateCard } from "@/lib/cost/rate-card";
 
 /**
  * Rate card — from the database.
@@ -42,13 +46,16 @@ export default async function RateCardPage() {
           hint="Per driver, per endpoint, per unit. Costs are read off your own account after a real run — no vendor publishes these."
         />
         <Panel className="p-5">
-          <p className="text-sm" style={{ color: 'var(--blk-text)' }}>
+          <p className="text-sm" style={{ color: "var(--blk-text)" }}>
             The rate card could not be read.
           </p>
-          <p className="mt-2 max-w-[68ch] text-xs leading-relaxed" style={{ color: 'var(--t3)' }}>
+          <p
+            className="mt-2 max-w-[68ch] text-xs leading-relaxed"
+            style={{ color: "var(--t3)" }}
+          >
             {result.hint}
           </p>
-          <p className="mt-2 font-mono text-2xs" style={{ color: 'var(--t3)' }}>
+          <p className="mt-2 font-mono text-2xs" style={{ color: "var(--t3)" }}>
             {result.error}
           </p>
         </Panel>
@@ -77,43 +84,53 @@ export default async function RateCardPage() {
         // no catalogue rows, which `pnpm check:catalog` exists to prevent.
         <Panel className="p-5">
           <p className="text-sm">No rates at all.</p>
-          <p className="mt-2 max-w-[68ch] text-xs leading-relaxed" style={{ color: 'var(--t3)' }}>
-            The migrations seed one row per driver, model and unit, so an empty table means
-            they ran and the catalogue rows did not land. <code>pnpm check:catalog</code> is
-            the check for exactly this.
+          <p
+            className="mt-2 max-w-[68ch] text-xs leading-relaxed"
+            style={{ color: "var(--t3)" }}
+          >
+            The migrations seed one row per driver, model and unit, so an empty
+            table means they ran and the catalogue rows did not land.{" "}
+            <code>pnpm check:catalog</code> is the check for exactly this.
           </p>
         </Panel>
       ) : (
         <Panel>
-          <div
-            className="grid gap-3 border-b px-4 py-2 font-mono text-3xs uppercase tracking-[0.09em]"
-            style={{
-              gridTemplateColumns: '108px minmax(0,1fr) 92px 78px 92px',
-              borderColor: 'var(--b1)',
-              color: 'var(--t3)',
-              background: 'var(--in)',
-            }}
-          >
-            <span>Driver</span>
-            <span>Model / endpoint</span>
-            <span>Unit</span>
-            <span className="text-right">Cost</span>
-            <span className="text-right">Verified</span>
-          </div>
+          <div style={{ overflowX: "auto" }}>
+            <div
+              className="grid gap-3 border-b px-4 py-2 font-mono text-3xs uppercase tracking-[0.09em]"
+              style={{
+                gridTemplateColumns: "108px minmax(120px,1fr) 92px 78px 92px",
+                minWidth: 592,
+                borderColor: "var(--b1)",
+                color: "var(--t3)",
+                background: "var(--in)",
+              }}
+            >
+              <span>Driver</span>
+              <span>Model / endpoint</span>
+              <span>Unit</span>
+              <span className="text-right">Cost</span>
+              <span className="text-right">Verified</span>
+            </div>
 
-          {result.rows.map((r) => (
-            <RateRow key={r.id} row={r} />
-          ))}
+            {result.rows.map((r) => (
+              <RateRow key={r.id} row={r} />
+            ))}
+          </div>
         </Panel>
       )}
 
-      <p className="mt-4 max-w-[72ch] text-xs leading-relaxed" style={{ color: 'var(--t3)' }}>
-        Cost shows <span className="font-mono">—</span> rather than $0 for the same reason
-        the board says <span className="font-mono">unpriced</span>: zero is a claim about
-        what something cost, and no such claim can be made yet. Recording a rate adds a row
-        effective now and keeps the old one — the ledger snapshots unit cost per generation,
-        but rewriting the card would leave a six-month-old figure with no rate behind it,
-        which is the audit trail that makes cost-per-video defensible.
+      <p
+        className="mt-4 max-w-[72ch] text-xs leading-relaxed"
+        style={{ color: "var(--t3)" }}
+      >
+        Cost shows <span className="font-mono">—</span> rather than $0 for the
+        same reason the board says <span className="font-mono">unpriced</span>:
+        zero is a claim about what something cost, and no such claim can be made
+        yet. Recording a rate adds a row effective now and keeps the old one —
+        the ledger snapshots unit cost per generation, but rewriting the card
+        would leave a six-month-old figure with no rate behind it, which is the
+        audit trail that makes cost-per-video defensible.
       </p>
     </>
   );

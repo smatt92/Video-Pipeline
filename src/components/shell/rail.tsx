@@ -93,7 +93,7 @@ export function ChannelMenuItems({ data, allSelected, onSwitch }: { data: RailDa
         </button>
       ))}
       <div className="hr" style={{ margin: '4px 0' }} />
-      <Link className="ni" href="/channels/new" role="menuitem">
+      <Link className="ni" href="/setup/basics?new=1" role="menuitem">
         <ChannelAvatar ch="add" size="sm" />
         <span>Add channel</span>
       </Link>
@@ -168,7 +168,7 @@ export function Rail({ data, onOpenPalette }: { data: RailData; onOpenPalette: (
           <KilnMark size={22} />
           <Wordmark />
         </Link>
-        <span className="mono xs t4" aria-hidden="true">
+        <span className="mono xs t3" aria-hidden="true">
           v2
         </span>
       </div>

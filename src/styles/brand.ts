@@ -16,4 +16,19 @@ export const BRAND_HEX = {
   /** --ink */ ink: '#1D1B19',
   /** --ink-2 */ ink2: '#56524E',
   /** --ac-on-paper */ accentOnPaper: '#1F7A6E',
+  /** --rev (oklch 0.82 0.14 78) */ ochre: '#F6B84D',
 } as const;
+
+/**
+ * Channel accents offered by + Add channel (canvas: Onb-ChBasics). Stored on the channel's
+ * bible as `accent_hex` — data, read back by every screen that draws the channel square.
+ * Teal first: it is the Bureau's, and a second channel should pick another.
+ */
+export const CHANNEL_ACCENTS = [
+  { name: 'Teal', hex: '#5FD3C2' },
+  { name: 'Lime', hex: '#B5D95A' },
+  { name: 'Ochre', hex: '#E0A55C' },
+  { name: 'Orchid', hex: '#D98AC6' },
+  { name: 'Sky', hex: '#7FB2F0' },
+  { name: 'Chalk', hex: '#E4DFD4' },
+] as const;

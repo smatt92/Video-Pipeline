@@ -74,30 +74,6 @@ export async function setActiveChannelAction(channelId: string): Promise<{ ok: b
 
 export type AddChannelState = { status: 'idle' } | { status: 'ok'; message: string } | { status: 'error'; message: string };
 
-/**
- * "+ Add channel": the form posts here, and the channel is created with its bible in the
- * database (0022) — no folder, commit or deploy. Switches this browser to the new channel.
- */
-export async function addChannelAction(_prev: AddChannelState, form: FormData): Promise<AddChannelState> {
-  const str = (k: string) => {
-    const v = form.get(k);
-    return typeof v === 'string' ? v : undefined;
-  };
-  const r = await createChannelAction({
-    name: str('name') ?? '',
-    slug: str('slug') ?? '',
-    handle: str('handle'),
-    niche: str('niche'),
-    accent_hex: str('accent_hex'),
-    youtube_channel_id: str('youtube_channel_id'),
-    instagram_account_id: str('instagram_account_id'),
-    instagram_handle: str('instagram_handle'),
-    targets: form.getAll('targets').filter((v): v is 'youtube' | 'instagram' => v === 'youtube' || v === 'instagram'),
-  });
-  if (!r.ok) return { status: 'error', message: r.refused };
-  return { status: 'ok', message: `${r.message} Switched to it.${r.warnings.length ? ` Warnings: ${r.warnings.join('; ')}.` : ''}` };
-}
-
 // ═════════════════════════════════════════════════════════════════════════════
 // The channel-bible actions (0022). Typed, object in → AdminResult out, approver only.
 // The per-channel setup flow (Basics → Cast → Schedule → Caps) is built on these.

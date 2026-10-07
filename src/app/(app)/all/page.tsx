@@ -70,7 +70,7 @@ export default async function AllChannelsPage() {
         sub={`${all.length} channel${all.length === 1 ? '' : 's'} · totals sum across channels · each channel keeps its own caps`}
         actions={
           <>
-            <Link className="btn" href="/channels/new">
+            <Link className="btn" href="/setup/basics?new=1">
               <Icon name="plus" />
               Add channel
             </Link>
@@ -137,7 +137,7 @@ export default async function AllChannelsPage() {
         })}
         <Link
           className="card"
-          href="/channels/new"
+          href="/setup/basics?new=1"
           style={{ textDecoration: 'none', color: 'inherit', borderStyle: 'dashed', borderColor: 'var(--b3)', background: 'transparent', boxShadow: 'none', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: 12, padding: 28, minHeight: 200 }}
         >
           <div className="av lg add" style={{ fontSize: 20 }} aria-hidden="true">

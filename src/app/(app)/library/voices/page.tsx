@@ -43,7 +43,7 @@ export default async function VoicesPage() {
         <div className="empty" style={{ padding: 40 }}>
           <span style={{ color: 'var(--t2)', fontWeight: 500 }}>{channel.name} has no cast yet</span>
           <span>A channel gets its bible and cast when it is created. Add characters in the channel setup, then lock a voice for each.</span>
-          <Link className="btn sm pri" href="/channels/new" style={{ marginTop: 8 }}>
+          <Link className="btn sm pri" href="/setup/cast" style={{ marginTop: 8 }}>
             Channel setup
           </Link>
         </div>

@@ -109,7 +109,7 @@ function MoreSheet({ data, onClose }: { data: RailData; onClose: () => void }) {
               </button>
             );
           })}
-          <Link className="mrow" href="/channels/new">
+          <Link className="mrow" href="/setup/basics?new=1">
             <ChannelAvatar ch="add" size="sm" />
             <span className="grow t2">Add channel</span>
           </Link>
