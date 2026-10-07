@@ -1,5 +1,7 @@
 import { BureauNav } from '@/components/bureau/bureau-nav';
 import { CutControls, RegenerateButton } from '@/components/bureau/cut-controls';
+import { LiveRefresh, LiveStatus } from '@/components/bureau/live-status';
+import { isRunning } from '@/lib/bureau/running';
 import { requireChannel } from '@/lib/channels/active';
 import { serverClient } from '@/lib/db/server';
 import { storage } from '@/lib/storage';
@@ -17,7 +19,7 @@ export default async function CutsPage() {
   const db = serverClient();
   const { data: eps } = await db
     .from('episodes')
-    .select('id, slot_id, status, status_detail, script_id, final_render_id, qc, estimate_inr, voice_detail')
+    .select('id, slot_id, status, status_detail, script_id, final_render_id, qc, estimate_inr, voice_detail, updated_at')
     .eq('channel_id', channel.id)
     .in('status', ['awaiting_cut', 'cut_rejected', 'qc', 'assembling'])
     .order('updated_at', { ascending: false });
@@ -38,6 +40,7 @@ export default async function CutsPage() {
   );
   return (
     <main className="mx-auto w-full max-w-[960px] px-4 py-6">
+      <LiveRefresh active={rows.some(({ e }) => isRunning(e.status))} />
       <BureauNav active="cuts" />
       <h1 className="text-lg font-medium">Cuts</h1>
       {rows.length === 0 && <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>No cut is waiting.</p>}
@@ -72,7 +75,11 @@ export default async function CutsPage() {
                   </p>
                 );
               })()}
-              {e.status_detail && <p className="mt-1 text-sm" style={{ color: 'var(--state-blocked)' }}>{e.status_detail}</p>}
+              {isRunning(e.status) ? (
+                <LiveStatus status={e.status} detail={e.status_detail} updatedAt={e.updated_at} />
+              ) : (
+                e.status_detail && <p className="mt-1 text-sm" style={{ color: 'var(--state-blocked)' }}>{e.status_detail}</p>
+              )}
               <ol className="mt-3 grid gap-1 text-sm">
                 {shots.map((s) => {
                   const qc = clips.filter((c) => c.shot_idx === s.idx).pop();

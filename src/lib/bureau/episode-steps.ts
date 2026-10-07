@@ -402,7 +402,7 @@ export interface AssembleDeps {
   usdInrRate: number;
   presign(key: string): Promise<string>;
   putBytes(key: string, body: Readable): Promise<number>;
-  render(input: { props: BureauVideoProps; durationInFrames: number; outputPath: string; serveUrl?: string }): Promise<{ ok: true; frames: number; serveUrl: string } | { ok: false; code: string; detail: string }>;
+  render(input: { props: BureauVideoProps; durationInFrames: number; outputPath: string; serveUrl?: string; onProgress?: (done: number, total: number) => void }): Promise<{ ok: true; frames: number; serveUrl: string } | { ok: false; code: string; detail: string }>;
   normaliseAudio(input: string, output: string): Promise<void>;
   download(url: string, out: string): Promise<void>;
   log?: StepLog;
@@ -498,7 +498,24 @@ export async function assembleEpisode(db: Db, episodeId: string, deps: AssembleD
     for (const layer of ['composite', 'clean_master', 'caption_layer'] as const) {
       const ext = layer === 'caption_layer' ? 'mov' : 'mp4';
       const out = join(work, `${layer}.${ext}`);
-      const r = await deps.render({ props: { ...base, layer }, durationInFrames: total, outputPath: out, serveUrl });
+      // Progress the screens can read: rendering is the longest step (minutes per layer), and a
+      // status that says only "assembling" for twenty minutes cannot be told from a hung run.
+      // Throttled to one write per ~5 s; a failed write never fails the render.
+      const label = { composite: 'video', clean_master: 'clean copy', caption_layer: 'caption layer' }[layer];
+      const n = (['composite', 'clean_master', 'caption_layer'] as const).indexOf(layer) + 1;
+      let lastWrite = 0;
+      const onProgress = (done: number, of: number) => {
+        const now = Date.now();
+        if (now - lastWrite < 5_000 && done < of) return;
+        lastWrite = now;
+        void db
+          .from('episodes')
+          .update({ status_detail: `rendering ${label} (${n} of 3) · ${Math.round((done / Math.max(1, of)) * 100)}% · ${done}/${of} frames`, updated_at: new Date().toISOString() })
+          .eq('id', episodeId)
+          .then(() => undefined, () => undefined);
+      };
+      onProgress(0, total);
+      const r = await deps.render({ props: { ...base, layer }, durationInFrames: total, outputPath: out, serveUrl, onProgress });
       if (!r.ok) return r;
       serveUrl = r.serveUrl;
       const key = `renders/${episodeId}/${layer}-en.${ext}`;

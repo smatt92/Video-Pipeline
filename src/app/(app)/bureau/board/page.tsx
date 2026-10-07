@@ -1,4 +1,6 @@
 import { BureauNav } from '@/components/bureau/bureau-nav';
+import { LiveRefresh, LiveStatus } from '@/components/bureau/live-status';
+import { isRunning } from '@/lib/bureau/running';
 import { StartRun } from '@/components/bureau/start-run';
 import { requireChannel } from '@/lib/channels/active';
 import { serverClient } from '@/lib/db/server';
@@ -26,13 +28,14 @@ export default async function BureauBoardPage() {
   ]);
   return (
     <main className="mx-auto w-full max-w-[1600px] px-4 py-6">
+      <LiveRefresh active={(eps ?? []).some((e) => isRunning(e.status))} />
       <BureauNav active="board" />
       <h1 className="text-lg font-medium">Pipeline board</h1>
       <div className="mt-4 grid gap-3 overflow-x-auto md:grid-cols-4 xl:grid-cols-8">
         {COLUMNS.map((c) => {
           const items = c.key === 'approval'
-            ? (pending ?? []).map((b) => ({ id: b.id, slot: b.slot_id, line: b.premise, detail: b.flagged ? 'flagged' : null, startable: false, restartable: false }))
-            : (eps ?? []).filter((e) => c.statuses.includes(e.status)).map((e) => ({ id: e.id, slot: e.slot_id, line: `${e.kind === 'long_form' ? 'long-form · ' : ''}${e.status}`, detail: e.status_detail, startable: e.status === 'queued' && !e.run_id, restartable: e.status === 'halted' || e.status === 'failed' }));
+            ? (pending ?? []).map((b) => ({ id: b.id, slot: b.slot_id, line: b.premise, detail: b.flagged ? 'flagged' : null, startable: false, restartable: false, status: 'pending', updatedAt: null as string | null }))
+            : (eps ?? []).filter((e) => c.statuses.includes(e.status)).map((e) => ({ id: e.id, slot: e.slot_id, line: `${e.kind === 'long_form' ? 'long-form · ' : ''}${e.status}`, detail: e.status_detail, startable: e.status === 'queued' && !e.run_id, restartable: e.status === 'halted' || e.status === 'failed', status: e.status as string, updatedAt: e.updated_at as string | null }));
           return (
             <section key={c.key} className="min-w-[180px] rounded-md border p-2" style={{ borderColor: 'var(--border-default)' }}>
               <h2 className="flex justify-between text-sm font-medium">
@@ -43,7 +46,11 @@ export default async function BureauBoardPage() {
                   <li key={i.id} className="rounded px-2 py-1 text-2xs" style={{ background: 'var(--surface-1)' }}>
                     <div className="font-mono">{i.slot ?? 'bank'}</div>
                     <div>{i.line}</div>
-                    {i.detail && <div style={{ color: 'var(--state-blocked)' }}>{i.detail}</div>}
+                    {isRunning(i.status) && i.updatedAt ? (
+                      <LiveStatus status={i.status} detail={i.detail} updatedAt={i.updatedAt} />
+                    ) : (
+                      i.detail && <div style={{ color: 'var(--state-blocked)' }}>{i.detail}</div>
+                    )}
                     {i.startable && <StartRun episodeId={i.id} />}
                     {i.restartable && <StartRun episodeId={i.id} restart />}
                   </li>
