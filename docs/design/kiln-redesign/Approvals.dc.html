@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln — Approvals</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:oklch(0.150 0.006 70)}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.ln{display:grid;grid-template-columns:96px 1fr;gap:12px;padding:8px 0;border-bottom:1px solid var(--b1);font-size:13.5px}
+.ln:last-child{border-bottom:0}
+</style>
+</helmet>
+<div class="k app">
+<div class="rail-w"><dc-import name="Rail" active="approvals" channel="bureau" hint-size="100%,1700px"></dc-import></div>
+<main class="main">
+<header class="topbar">
+  <div class="col" style="gap: 0">
+    <div class="crumb"><span class="chm"></span><span>Bureau of Reality</span><span class="t4">/</span><span>Approvals</span></div>
+    <h1 class="h1">Approvals</h1>
+  </div>
+  <div class="row" style="gap: 8px"><span class="chip on">Briefs · 1</span><span class="chip">Topics · 0</span><span class="xs t3" style="margin-left: 8px">A / B / C to pick · ↵ approve · X reject</span></div>
+</header>
+
+<div class="split">
+  <article class="wide">
+    <section class="card">
+      <div class="card-b col" style="gap: 16px">
+        <div class="row sb">
+          <div class="row" style="gap: 10px"><span class="mono" style="font-size: 18px; font-weight: 600">S002</span><span class="mono sm t3">Tue 20 Oct · 18:00 IST</span><span class="slot sr-desk" style="flex-direction: row; padding: 2px 8px"><span class="sid"><span class="sdot"></span>Desk Tour</span></span><span class="stag">Dussehra</span></div>
+          <span class="pill s-draft">Needs approval</span>
+        </div>
+        <div class="row" style="gap: 14px; flex-wrap: nowrap; align-items: center">
+          <div class="bust md bp c-iyer"><div class="gl"></div><div class="sh"></div><div class="cl"></div><div class="hd"></div></div>
+          <div class="bust sm bp pip c-pip"><div class="gl"></div><div class="sh"></div><div class="cl"></div><div class="hd"></div></div>
+          <div class="bust sm bp c-nib"><div class="gl"></div><div class="sh"></div><div class="cl"></div><div class="hd"></div></div>
+          <div class="col grow" style="gap: 8px; margin-left: 6px">
+            <h2 class="h1" style="font-size: 22px">Why fireworks have colours</h2>
+            <p class="t2">Mrs. Iyer walks Pip through the Chemistry Desk's firework cabinet: every colour is a different metal, burning loud.</p>
+          </div>
+        </div>
+        <div class="row" style="gap: 6px"><span class="cast c-iyer"><i></i>Mrs. Iyer<em>LEAD</em></span><span class="cast c-pip"><i></i>Pip</span><span class="cast c-nib"><i></i>Nib</span></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-h"><h2 class="h3">Pick the punchline</h2><span class="xs t3">Approve unlocks once one is picked</span></div>
+      <div class="card-b col" style="gap: 10px">
+        <sc-for list="{{ picks }}" as="p" hint-placeholder-count="3">
+          <button class="{{ p.cls }}" type="button" onClick="{{ p.pick }}" aria-pressed="{{ p.on }}"><span class="key">{{ p.k }}</span><span class="txt">{{ p.t }}</span></button>
+        </sc-for>
+      </div>
+    </section>
+
+    <div class="grid ga-380">
+      <section class="card">
+        <div class="card-h"><h2 class="h3">Beat sheet</h2><span class="mono xs t3">≈ 48 s</span></div>
+        <div class="card-b col" style="gap: 0">
+          <div class="ln"><span class="mono xs t3">0–3 s · hook</span><span>"Every firework colour is a different metal, burning loud."</span></div>
+          <div class="ln"><span class="mono xs t3">3–12 s · setup</span><span>Pip opens a cabinet of jars labelled by colour, not by name.</span></div>
+          <div class="ln"><span class="mono xs t3">12–28 s · fact</span><span>Strontium → red, barium → green, sodium → yellow, copper → blue.</span></div>
+          <div class="ln"><span class="mono xs t3">28–40 s · turn</span><span>Blue is the hard one: too hot and copper's blue washes out.</span></div>
+          <div class="ln"><span class="mono xs t3">40–48 s · button</span><span>Punchline, then Nib's stamp lands on the file.</span></div>
+        </div>
+      </section>
+      <section class="card">
+        <div class="card-h"><h2 class="h3">Script</h2><span class="mono xs t3">9 lines · 412 chars</span></div>
+        <div class="card-b col" style="gap: 0">
+          <div class="ln"><span class="cast c-iyer" style="height: 24px"><i style="width: 18px; height: 18px"></i>Iyer</span><span>Every firework colour is a different metal, burning loud.</span></div>
+          <div class="ln"><span class="cast c-pip" style="height: 24px"><i style="width: 18px; height: 18px"></i>Pip</span><span>So the red one is…</span></div>
+          <div class="ln"><span class="cast c-iyer" style="height: 24px"><i style="width: 18px; height: 18px"></i>Iyer</span><span>Strontium. Green is barium. Yellow, sodium.</span></div>
+          <div class="ln"><span class="cast c-pip" style="height: 24px"><i style="width: 18px; height: 18px"></i>Pip</span><span>And blue?</span></div>
+          <div class="ln"><span class="cast c-iyer" style="height: 24px"><i style="width: 18px; height: 18px"></i>Iyer</span><span>Copper. Burn it too hot and the blue turns white.</span></div>
+          <div class="ln"><span class="mono xs t3">punchline</span><span class="t3">— inserted from your pick —</span></div>
+        </div>
+      </section>
+    </div>
+
+    <section class="card">
+      <div class="card-h"><h2 class="h3">Shot list</h2><div class="row"><span class="pill s-ac nodot">4 overlay</span><span class="pill s-draft nodot">2 character beat</span></div></div>
+      <div class="scroll-x"><table class="tbl">
+        <thead><tr><th>#</th><th>Route</th><th class="r">Dur</th><th>Shot</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">1</td><td><span class="chip">Character beat</span></td><td class="r mono">3.2 s</td><td class="sm t2">Mrs. Iyer at the Chemistry Desk, chalk-line on navy, magenta shawl; a single sparkler fizzes.</td></tr>
+          <tr><td class="mono">2</td><td><span class="chip">Overlay</span></td><td class="r mono">8.6 s</td><td class="sm t2">Cabinet of four jars, each labelled with a colour swatch instead of a name.</td></tr>
+          <tr><td class="mono">3</td><td><span class="chip">Overlay</span></td><td class="r mono">15.4 s</td><td class="sm t2">Exploded view: four flames — strontium, barium, sodium, copper — each tinting its burst.</td></tr>
+          <tr><td class="mono">4</td><td><span class="chip">Overlay</span></td><td class="r mono">7.8 s</td><td class="sm t2">Thermometer graph: copper's blue fades to white as the needle climbs.</td></tr>
+          <tr><td class="mono">5</td><td><span class="chip">Overlay</span></td><td class="r mono">6.0 s</td><td class="sm t2">Case-file card with the fact and source domain in small caps.</td></tr>
+          <tr><td class="mono">6</td><td><span class="chip">Character beat</span></td><td class="r mono">5.4 s</td><td class="sm t2">Punchline beat; Nib's stamp lands.</td></tr>
+        </tbody>
+      </table></div>
+    </section>
+
+    <div class="grid ga-380">
+      <section class="card card-b col" style="gap: 10px">
+        <span class="lbl">Fact + source</span>
+        <p>Firework colours come from metal salts: strontium burns red, barium green, sodium yellow, copper blue.</p>
+        <a class="sm" href="https://www.acs.org/">acs.org — American Chemical Society ↗</a>
+      </section>
+      <section class="card card-b col" style="gap: 8px">
+        <span class="lbl">Titles</span>
+        <label class="row sm" style="gap: 10px"><input type="radio" name="t" checked> Every firework colour is a metal on fire</label>
+        <label class="row sm" style="gap: 10px"><input type="radio" name="t"> Why blue fireworks are so hard to make</label>
+        <label class="row sm" style="gap: 10px"><input type="radio" name="t"> The Chemistry Desk explains Dussehra fireworks</label>
+      </section>
+    </div>
+  </article>
+
+  <aside class="side">
+    <section class="card">
+      <div class="card-h"><h2 class="h3">Decision</h2><span class="mono xs t3">1 of 1</span></div>
+      <div class="card-b col" style="gap: 14px">
+        <div class="row sb"><span class="sm t2">Punchline</span><span class="mono" style="font-weight: 600">{{ pickedLabel }}</span></div>
+        <div class="col" style="gap: 6px">
+          <div class="row sb"><span class="sm t2">Voice · 412 chars</span><span class="mono sm">₹9.40 <span class="basis est">est</span></span></div>
+          <div class="row sb"><span class="sm t2">4 overlay shots</span><span class="mono sm t3">— <span class="xs">in-house, not ledgered</span></span></div>
+          <div class="row sb"><span class="sm t2">2 character beats</span><span class="mono sm t3">— <span class="xs">routed to overlay</span></span></div>
+          <div class="hr" style="margin: 4px 0"></div>
+          <div class="row sb"><span class="sm">Total</span><span class="mono">₹9.40 <span class="basis est">est</span></span></div>
+          <span class="xs t3">Per-Short cap ₹150</span>
+        </div>
+        <div class="col" style="gap: 8px">
+          <span class="lbl">Flags</span>
+          <div class="note"><svg class="ic" viewBox="0 0 24 24"><path d="M12 8v5M12 16h.01M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z"></path></svg><span>Mrs. Iyer has no locked reference frame — both character beats will render as overlay.</span></div>
+          <div class="row sm t2" style="gap: 8px"><svg class="ic" viewBox="0 0 24 24" style="color: var(--live)"><path d="M5 12l5 5L20 7"></path></svg>Policy lint passed · no how-to</div>
+        </div>
+        <button class="btn pri lg full" type="button" disabled="{{ noPick }}">{{ approveLabel }}</button>
+        <div class="field"><label for="rr">Reject with reason</label><select id="rr" class="input"><option>Punchline doesn't land</option><option>Fact needs a stronger source</option><option>Wrong lead for this series</option><option>Off-tone for Dussehra</option></select></div>
+        <button class="btn dan full" type="button">Reject brief</button>
+      </div>
+    </section>
+    <section class="card">
+      <div class="card-h"><h2 class="h3">Queue</h2></div>
+      <div class="feed">
+        <div class="fi" style="background: var(--s2)"><span class="mono sm">S002</span><span class="sm grow">Why fireworks have colours</span><span class="pill s-draft">Now</span></div>
+        <div class="fi"><span class="mono sm t3">S004</span><span class="sm grow t3">Dancing Plague of 1518</span><span class="xs t3">no brief yet</span></div>
+        <div class="fi"><span class="mono sm t3">S005</span><span class="sm grow t3">Ravana's ten heads</span><span class="xs t3">no brief yet</span></div>
+      </div>
+    </section>
+  </aside>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1700}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { picked: null }; }
+  renderVals() {
+    const P = [
+      { k: 'A', t: 'Pip asks which metal makes the loud ones. Mrs. Iyer: “That’s not a metal, Pip. That’s you.”' },
+      { k: 'B', t: 'Blue is the hardest colour to burn. Copper keeps calling in sick.' },
+      { k: 'C', t: 'Nib stamps the file: “Celebration approved. Ears not consulted.”' }
+    ];
+    const pk = this.state.picked;
+    return {
+      picks: P.map(p => ({ ...p, on: p.k === pk, cls: 'pick' + (p.k === pk ? ' on' : ''), pick: () => this.setState({ picked: p.k }) })),
+      noPick: !pk,
+      pickedLabel: pk || '—',
+      approveLabel: pk ? 'Approve with ' + pk : 'Pick a punchline to approve'
+    };
+  }
+}
+</script>
+</body>
+</html>

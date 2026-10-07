@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln — Metrics</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:oklch(0.150 0.006 70)}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+</style>
+</helmet>
+<div class="k app">
+<div class="rail-w"><dc-import name="Rail" active="metrics" channel="bureau" hint-size="100%,1300px"></dc-import></div>
+<main class="main">
+<header class="topbar">
+  <div class="col" style="gap: 0">
+    <div class="crumb"><span class="chm"></span><span>Bureau of Reality</span><span class="t4">/</span><span>Metrics</span></div>
+    <div class="row" style="gap: 12px"><h1 class="h1">Metrics</h1><span class="pill s-rev nodot">Sample data · post-launch preview</span></div>
+  </div>
+  <div class="row" style="gap: 10px"><span class="mono sm t3">as of Sat 31 Oct · 3 Shorts measured</span><div class="seg"><button type="button">24h</button><button class="on" type="button">7d</button><button type="button">28d</button></div></div>
+</header>
+
+<section class="grid ga-160">
+  <div class="card tile"><span class="lbl">Views</span><span class="tv">34,520</span><span class="why">3 Shorts · <span class="basis meas">measured</span></span></div>
+  <div class="card tile"><div class="row sb"><span class="lbl">Viewed vs swiped</span><span class="gate fail">70%</span></div><span class="tv">69<small>%</small></span><span class="why">median of last 20 · gate 70%</span></div>
+  <div class="card tile"><div class="row sb"><span class="lbl">APV median</span><span class="gate pass">70%</span></div><span class="tv">81<small>%</small></span><span class="why">average % viewed</span></div>
+  <div class="card tile"><div class="row sb"><span class="lbl">Subs / 1k views</span><span class="gate pass">1.0</span></div><span class="tv">1.13</span><span class="why">39 subs gained</span></div>
+  <div class="card tile"><div class="row sb"><span class="lbl">₹ / Short</span><span class="gate pass">₹150</span></div><span class="tv">₹11.05</span><span class="why"><span class="basis est">estimate</span> · S003 excluded, 1 unpriced row</span></div>
+</section>
+
+<div class="split">
+  <section class="card wide">
+    <div class="card-h"><h2 class="h3">Views per day</h2><span class="row xs t3" style="gap: 6px"><span class="chm"></span>Bureau of Reality</span></div>
+    <div class="card-b">
+      <svg class="chart" viewBox="0 0 640 220" role="img" aria-label="Views per day, 19 to 31 October">
+        <line class="gl" x1="40" y1="20" x2="630" y2="20"></line><line class="gl" x1="40" y1="80" x2="630" y2="80"></line><line class="gl" x1="40" y1="140" x2="630" y2="140"></line><line class="gl" x1="40" y1="190" x2="630" y2="190"></line>
+        <text class="ax" x="0" y="24">6k</text><text class="ax" x="0" y="84">4k</text><text class="ax" x="0" y="144">2k</text><text class="ax" x="0" y="194">0</text>
+        <polygon class="ar" points="{{ area }}"></polygon>
+        <polyline class="ln" points="{{ line }}"></polyline>
+        <sc-for list="{{ pts }}" as="p" hint-placeholder-count="13"><circle class="pt" cx="{{ p.x }}" cy="{{ p.y }}" r="3"></circle></sc-for>
+        <text class="ax" x="40" y="212">19 Oct</text><text class="ax" x="300" y="212">25 Oct</text><text class="ax" x="590" y="212">31 Oct</text>
+        <line x1="40" y1="20" x2="40" y2="190" stroke="#F2EFE8" stroke-opacity=".2" stroke-dasharray="2 4"></line>
+        <text class="ax" x="46" y="32" style="fill: var(--t3)">S001 live</text>
+      </svg>
+    </div>
+  </section>
+  <section class="card side">
+    <div class="card-h"><h2 class="h3">Viewed vs swiped · per Short</h2></div>
+    <div class="card-b">
+      <svg class="chart" viewBox="0 0 300 220" role="img" aria-label="Viewed vs swiped by Short against 70 percent gate">
+        <line class="gl" x1="30" y1="190" x2="290" y2="190"></line>
+        <rect class="bx" x="50" y="{{ b1 }}" width="52" height="{{ h1 }}" rx="4"></rect>
+        <rect class="bx" x="134" y="{{ b2 }}" width="52" height="{{ h2 }}" rx="4" style="opacity: .55"></rect>
+        <rect class="bx" x="218" y="{{ b3 }}" width="52" height="{{ h3 }}" rx="4" style="opacity: .55"></rect>
+        <line class="th" x1="30" y1="{{ thY }}" x2="290" y2="{{ thY }}"></line>
+        <text class="ax" x="0" y="{{ thT }}" style="fill: var(--rev)">70%</text>
+        <text class="ax" x="60" y="208">S001</text><text class="ax" x="144" y="208">S002</text><text class="ax" x="228" y="208">S003</text>
+        <text class="ax" x="62" y="{{ l1 }}" style="fill: var(--t1)">72%</text><text class="ax" x="146" y="{{ l2 }}" style="fill: var(--t1)">64%</text><text class="ax" x="230" y="{{ l3 }}" style="fill: var(--t1)">69%</text>
+      </svg>
+    </div>
+  </section>
+</div>
+
+<section class="card">
+  <div class="card-h"><h2 class="h3">Per Short</h2><span class="xs t3">gates: VVSA 70% · APV 70% · 1 sub/1k · ₹150 · policy</span></div>
+  <div class="scroll-x"><table class="tbl">
+    <thead><tr><th>Slot</th><th>Short</th><th>Live</th><th class="r">Views</th><th class="r">VVSA</th><th class="r">APV</th><th class="r">Subs/1k</th><th class="r">₹ / Short</th><th>Gates</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">S001</td><td class="sm">What if the Moon vanished</td><td class="mono xs t3">19 Oct</td><td class="r mono">18,420</td><td class="r mono">72%</td><td class="r mono">81%</td><td class="r mono">1.40</td><td class="r mono">11.20 <span class="basis est">est</span></td><td><div class="row" style="gap: 4px"><span class="gate pass">VVSA</span><span class="gate pass">APV</span><span class="gate pass">SUB</span><span class="gate pass">₹</span><span class="gate pass">POL</span></div></td></tr>
+      <tr><td class="mono">S002</td><td class="sm">Why fireworks have colours</td><td class="mono xs t3">20 Oct</td><td class="r mono">9,860</td><td class="r mono">64%</td><td class="r mono">74%</td><td class="r mono">0.81</td><td class="r mono">10.90 <span class="basis est">est</span></td><td><div class="row" style="gap: 4px"><span class="gate fail">VVSA</span><span class="gate pass">APV</span><span class="gate fail">SUB</span><span class="gate pass">₹</span><span class="gate pass">POL</span></div></td></tr>
+      <tr><td class="mono">S003</td><td class="sm">Orientation: what gravity actually is</td><td class="mono xs t3">21 Oct</td><td class="r mono">6,240</td><td class="r mono">69%</td><td class="r mono">92%</td><td class="r mono">1.12</td><td class="r mono t3">— <span class="xs">1 unpriced row</span></td><td><div class="row" style="gap: 4px"><span class="gate fail">VVSA</span><span class="gate pass">APV</span><span class="gate pass">SUB</span><span class="gate">₹ —</span><span class="gate pass">POL</span></div></td></tr>
+      <tr><td class="mono t3">S004</td><td class="sm t3">Dancing Plague of 1518</td><td class="mono xs t3">22 Oct</td><td class="r mono t3">—</td><td class="r mono t3">—</td><td class="r mono t3">—</td><td class="r mono t3">—</td><td class="r mono t3">—</td><td class="xs t3">undefined — snapshot pending (first at 48 h)</td></tr>
+    </tbody>
+  </table></div>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1300}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const v = [2100, 4300, 5600, 4100, 3200, 2600, 2400, 2100, 1900, 1800, 1650, 1500, 1270];
+    const x0 = 40, x1 = 630, y0 = 190, max = 6000;
+    const pts = v.map((n, i) => ({ x: (x0 + i * (x1 - x0) / (v.length - 1)).toFixed(1), y: (y0 - n / max * 170).toFixed(1) }));
+    const line = pts.map(p => p.x + ',' + p.y).join(' ');
+    const area = x0 + ',' + y0 + ' ' + line + ' ' + x1 + ',' + y0;
+    const Y = pc => 190 - pc / 100 * 170;
+    return {
+      pts, line, area,
+      b1: Y(72), h1: 190 - Y(72), b2: Y(64), h2: 190 - Y(64), b3: Y(69), h3: 190 - Y(69),
+      l1: Y(72) - 6, l2: Y(64) - 6, l3: Y(69) - 6,
+      thY: Y(70), thT: Y(70) + 3
+    };
+  }
+}
+</script>
+</body>
+</html>

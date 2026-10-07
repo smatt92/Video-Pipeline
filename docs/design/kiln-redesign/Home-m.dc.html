@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln — Home (mobile)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+</style>
+</helmet>
+<div class="k phone" style="height: 2000px">
+  <header class="ph-top">
+    <a href="More-m.dc.html" aria-label="Switch channel" style="text-decoration: none"><div class="av">BR</div></a>
+    <div class="col grow" style="gap: 0"><span class="ttl">Home</span><span class="xs t3">Wed 7 Oct · {{ clock }} IST</span></div>
+    <button class="btn icon" type="button" aria-label="Search" style="width: 44px; height: 44px; border-radius: 12px"><svg class="ic" viewBox="0 0 24 24"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4"></path></svg></button>
+  </header>
+  <div class="ph-body">
+    <section class="card bp" style="border-color: rgba(242,239,232,.14); overflow: hidden; padding: 0 16px 16px">
+      <svg class="bld" viewBox="40 0 320 262" role="img" aria-label="The Bureau building" style="margin: 0 -8px">
+        <defs>
+          <linearGradient id="kT" x1="0" y1="0" x2="1" y2="1"><stop offset="0" class="k1"></stop><stop offset="1" class="k2"></stop></linearGradient>
+          <linearGradient id="kR" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="k3"></stop><stop offset="1" class="k4"></stop></linearGradient>
+          <linearGradient id="kL" x1="1" y1="0" x2="0" y2="1"><stop offset="0" class="k5"></stop><stop offset="1" class="k6"></stop></linearGradient>
+          <radialGradient id="kM" cx=".35" cy=".3" r=".8"><stop offset="0" class="k7"></stop><stop offset="1" class="k8"></stop></radialGradient>
+        </defs>
+        <polygon class="pls" points="55.1,176.4 175.9,246.4 175.9,256.4 55.1,186.4"></polygon>
+        <polygon class="pls" points="175.9,246.4 330.9,156.6 330.9,166.6 175.9,256.4"></polygon>
+        <polygon class="pl" points="175.9,246.4 330.9,156.6 210.1,86.6 55.1,176.4"></polygon>
+        <polyline class="gl" points="227.5,216.5 106.8,146.5"></polyline><polyline class="gl" points="279.2,186.5 158.5,116.5"></polyline><polyline class="gl" points="127.6,218.4 282.6,128.6"></polyline><polyline class="gl" points="79.3,190.4 234.3,100.6"></polyline>
+        <ellipse class="orbit" cx="193" cy="118" rx="152" ry="44" transform="rotate(-14 193 118)"></ellipse>
+        <polygon class="sh" points="194,220 289,165 220,125 125,180"></polygon>
+        <polygon class="fl e" points="111,174 180,214 180,114 111,74"></polygon>
+        <polygon class="fr e" points="180,214 275,159 275,59 180,114"></polygon>
+        <polygon class="ft e" points="180,114 275,59 206,19 111,74"></polygon>
+        <polygon class="win on" points="188.6,167.1 201.8,159.3 201.8,142.3 188.6,150.1"></polygon>
+        <polygon class="win" points="188.6,141.1 201.8,133.3 201.8,116.3 188.6,124.0"></polygon>
+        <polygon class="win on" points="210.4,180.4 223.7,172.7 223.7,155.7 210.4,163.4"></polygon>
+        <polygon class="win" points="210.4,154.4 223.7,146.7 223.7,129.7 210.4,137.4"></polygon>
+        <polygon class="win" points="232.2,141.8 245.6,134.1 245.6,117.1 232.2,124.8"></polygon>
+        <polygon class="win on" points="232.2,167.8 245.6,160.1 245.6,143.1 232.2,150.8"></polygon>
+        <polygon class="win on" points="254.1,129.1 267.4,121.4 267.4,104.4 254.1,112.1"></polygon>
+        <polygon class="win" points="254.1,103.1 267.4,95.4 267.4,78.4 254.1,86.1"></polygon>
+        <polygon class="win" points="130.3,115.2 119.3,108.8 119.3,93.8 130.3,100.2"></polygon>
+        <polygon class="win" points="171.7,139.2 160.7,132.8 160.7,117.8 171.7,124.2"></polygon>
+        <polygon class="door" points="155.8,200.0 135.2,188.0 135.2,160.0 155.8,172.0"></polygon>
+        <path class="mast" d="M193 66 V36 M187 44 H199"></path>
+        <circle class="beacon" cx="193" cy="33" r="2.8"></circle>
+        <g class="float"><circle class="moon" cx="322" cy="54" r="13"></circle></g>
+      </svg>
+      <div class="col" style="gap: 10px">
+        <div class="row sb"><span class="lbl" style="color: rgba(242,239,232,.7)">Next slot · S001</span><span class="pill s-blk">Blocked</span></div>
+        <div class="cd" style="color: var(--chalk); font-size: 38px">{{ cdD }}<span>d </span>{{ cdH }}<span>:</span>{{ cdM }}<span>:</span>{{ cdS }}</div>
+        <span class="mono xs" style="color: rgba(242,239,232,.7)">Mon 19 Oct · 18:00 IST · Incident Report</span>
+        <div class="blocker" style="background: rgba(15,27,48,.7); flex-wrap: wrap"><svg class="ic" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg><p>Render worker hit a code error before any shot. Voice is kept.</p><button class="btn full" type="button" style="height: 44px">Restart run</button></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <a href="Approvals-m.dc.html" class="fi" style="text-decoration: none; color: inherit; align-items: center; min-height: 64px"><span class="tv" style="font-size: 26px; width: 30px">1</span><div class="col grow" style="gap: 2px"><span style="font-weight: 500">Brief waiting</span><span class="mono xs t3">S002 · Desk Tour</span></div><svg class="ic" viewBox="0 0 24 24" style="color: var(--t3)"><path d="M9 6l6 6-6 6"></path></svg></a>
+      <a href="Cuts-m.dc.html" class="fi" style="text-decoration: none; color: inherit; align-items: center; min-height: 64px"><span class="tv" style="font-size: 26px; width: 30px; color: var(--t3)">0</span><div class="col grow" style="gap: 2px"><span style="font-weight: 500">Cuts waiting</span><span class="xs t3">Nothing at cut review yet</span></div><svg class="ic" viewBox="0 0 24 24" style="color: var(--t3)"><path d="M9 6l6 6-6 6"></path></svg></a>
+      <a href="Board-m.dc.html" class="fi" style="text-decoration: none; color: inherit; align-items: center; min-height: 64px"><span class="tv" style="font-size: 26px; width: 30px; color: var(--blk)">2</span><div class="col grow" style="gap: 2px"><span style="font-weight: 500">Blocked</span><span class="mono xs t3">S001 · S003</span></div><svg class="ic" viewBox="0 0 24 24" style="color: var(--t3)"><path d="M9 6l6 6-6 6"></path></svg></a>
+    </section>
+
+    <span class="lbl" style="margin-top: 6px">In production</span>
+    <section class="card">
+      <div class="fi" style="flex-direction: column; gap: 10px; align-items: stretch"><div class="row sb"><span class="row" style="gap: 8px"><span class="mono" style="font-weight: 600">S001</span><span class="sm t2">Moon vanished</span></span><span class="pill s-blk">Generating</span></div><div class="stages"><span class="d"></span><span class="d"></span><span class="x"></span><span></span></div></div>
+      <div class="fi" style="flex-direction: column; gap: 10px; align-items: stretch"><div class="row sb"><span class="row" style="gap: 8px"><span class="mono" style="font-weight: 600">S002</span><span class="sm t2">Firework colours</span></span><span class="pill s-draft">Needs approval</span></div><div class="stages"><span></span><span></span><span></span><span></span></div></div>
+      <div class="fi" style="flex-direction: column; gap: 10px; align-items: stretch"><div class="row sb"><span class="row" style="gap: 8px"><span class="mono" style="font-weight: 600">S003</span><span class="sm t2">Gravity orientation</span></span><span class="pill s-blk">Scripting</span></div><div class="stages"><span class="x"></span><span></span><span></span><span></span></div></div>
+    </section>
+
+    <span class="lbl" style="margin-top: 6px">Spend</span>
+    <section class="card card-b col" style="gap: 14px">
+      <div class="col" style="gap: 6px"><div class="row sb"><span class="sm t2">Today <span class="basis est">est</span></span><span class="mono sm">₹1.35 <span class="t3">/ ₹600</span></span></div><div class="bar"><i style="width: 0.23%"></i></div></div>
+      <div class="col" style="gap: 6px"><div class="row sb"><span class="sm t2">Month <span class="basis est">est</span></span><span class="mono sm">₹11.14 <span class="t3">/ ₹15,000</span></span></div><div class="bar"><i style="width: 0.07%"></i></div></div>
+      <div class="row sb"><span class="sm t2">YouTube quota</span><span class="mono sm t3">— <span class="xs">not verified</span></span></div>
+    </section>
+
+    <span class="lbl" style="margin-top: 6px">Last 7 days</span>
+    <section class="grid" style="grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+      <div class="card tile" style="min-height: 0"><span class="lbl">Views</span><span class="unk" style="font-size: 24px">—</span><span class="why">no video yet</span></div>
+      <div class="card tile" style="min-height: 0"><span class="lbl">APV</span><span class="unk" style="font-size: 24px">—</span><span class="why">no video yet</span></div>
+      <div class="card tile" style="min-height: 0"><span class="lbl">Viewed/swiped</span><span class="unk" style="font-size: 24px">—</span><span class="why">no video yet</span></div>
+      <div class="card tile" style="min-height: 0"><span class="lbl">Subs</span><span class="unk" style="font-size: 24px">—</span><span class="why">goal 500 · Analytics missing</span></div>
+    </section>
+
+    <span class="lbl" style="margin-top: 6px">Alerts</span>
+    <section class="card feed">
+      <div class="fi"><span class="t">08:26</span><div class="col grow" style="gap: 2px"><span class="sm"><b class="mono">S001</b> run failed</span><span class="xs t3">Render worker code error</span></div></div>
+      <div class="fi"><span class="t">08:26</span><div class="col grow" style="gap: 2px"><span class="sm"><b class="mono">S003</b> run failed</span><span class="xs t3">Approved punchline not in script</span></div></div>
+      <div class="fi"><span class="t">08:25</span><div class="col grow" style="gap: 2px"><span class="sm">Policy gate failing</span><span class="xs t3">2 flags this week</span></div></div>
+    </section>
+
+    <section class="card card-b row sb" style="border-color: oklch(0.69 0.19 25 / .3); flex-wrap: nowrap">
+      <div class="col" style="gap: 2px"><span class="h3">Kill switch</span><span class="xs t3">{{ ksText }}</span></div>
+      <button class="{{ ksCls }}" type="button" onClick="{{ ksToggle }}" aria-label="Kill switch" style="transform: scale(1.2)"></button>
+    </section>
+  </div>
+  <div class="tab-w"><dc-import name="TabBar" active="home" hint-size="390px,84px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":2000}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { ks: false, now: Date.now() }; }
+  componentDidMount() { this.t = setInterval(() => this.setState({ now: Date.now() }), 1000); }
+  componentWillUnmount() { clearInterval(this.t); }
+  renderVals() {
+    const target = Date.parse('2026-10-19T12:30:00Z');
+    let s = Math.max(0, Math.floor((target - this.state.now) / 1000));
+    const p = n => String(n).padStart(2, '0');
+    const d = Math.floor(s / 86400); s -= d * 86400;
+    const h = Math.floor(s / 3600); s -= h * 3600;
+    const m = Math.floor(s / 60); s -= m * 60;
+    const ist = new Date(this.state.now + 5.5 * 3600 * 1000);
+    return {
+      cdD: d, cdH: p(h), cdM: p(m), cdS: p(s),
+      clock: p(ist.getUTCHours()) + ':' + p(ist.getUTCMinutes()),
+      ksCls: 'sw' + (this.state.ks ? ' on' : ''),
+      ksText: this.state.ks ? 'On — everything halted' : 'Off — pipeline running',
+      ksToggle: () => this.setState({ ks: !this.state.ks })
+    };
+  }
+}
+</script>
+</body>
+</html>

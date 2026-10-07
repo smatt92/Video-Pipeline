@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln — Ready (mobile)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.cp{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-bottom:1px solid var(--b1)}
+.cp:last-child{border-bottom:0}
+.cp .btn{width:44px;height:44px;padding:0;flex:none}
+</style>
+</helmet>
+<div class="k phone" style="height: 1500px">
+  <header class="ph-top">
+    <a href="More-m.dc.html" aria-label="Switch channel" style="text-decoration: none"><div class="av">BR</div></a>
+    <div class="col grow" style="gap: 0"><span class="ttl">Ready · <span class="mono">S001</span></span><span class="xs t3">Mon 19 Oct · 18:00 IST</span></div>
+    <span class="pill s-rdy">Ready</span>
+  </header>
+  <div class="ph-body" style="padding-bottom: 200px">
+    <div class="row" style="gap: 12px; flex-wrap: nowrap">
+      <div class="bp" style="width: 96px; aspect-ratio: 9/16; border-radius: 12px; position: relative; overflow: hidden; box-shadow: 0 0 0 1px var(--b2); flex: none">
+        <div class="bust c-pip pip" style="position: absolute; left: 50%; top: 32%; transform: translateX(-50%); width: 76px; height: 76px; background: transparent; box-shadow: none"><div class="gl"></div><div class="sh"></div><div class="cl"></div><div class="hd"></div></div>
+        <span style="position: absolute; left: 7px; right: 7px; top: 10px; color: var(--chalk); font: 700 11px/1.1 var(--sans)">WHERE IS THE MOON?</span>
+      </div>
+      <div class="col grow" style="gap: 8px">
+        <a class="btn full" href="#mp4" style="height: 44px">Save video</a>
+        <a class="btn full" href="#png" style="height: 44px">Save thumbnail</a>
+        <a class="btn full" href="#srt" style="height: 44px">Save captions</a>
+      </div>
+    </div>
+    <section class="card">
+      <div class="cp"><div class="col grow" style="gap: 4px"><span class="lbl">Title</span><span>What if the Moon vanished?</span></div><button class="btn" type="button" aria-label="Copy title"><svg class="ic" viewBox="0 0 24 24"><path d="M9 9h11v11H9zM5 15H4V4h11v1"></path></svg></button></div>
+      <div class="cp"><div class="col grow" style="gap: 4px"><span class="lbl">Description</span><span class="sm t2">Pip misplaced the Moon. Here's everything that breaks by Friday: tides shrink to about a third, nights go darker… <span class="t3">Source: NOAA</span></span></div><button class="btn" type="button" aria-label="Copy description"><svg class="ic" viewBox="0 0 24 24"><path d="M9 9h11v11H9zM5 15H4V4h11v1"></path></svg></button></div>
+      <div class="cp"><div class="col grow" style="gap: 4px"><span class="lbl">Hashtags</span><span class="sm mono t2">#Shorts #Science #Moon #Space #BureauOfReality</span></div><button class="btn" type="button" aria-label="Copy hashtags"><svg class="ic" viewBox="0 0 24 24"><path d="M9 9h11v11H9zM5 15H4V4h11v1"></path></svg></button></div>
+      <div class="cp"><div class="col grow" style="gap: 4px"><span class="lbl">Pinned comment</span><span class="sm t2">Case file S001 is closed. Pip has been reassigned to the Coat Rack Desk. What should we misplace next?</span></div><button class="btn" type="button" aria-label="Copy pinned comment"><svg class="ic" viewBox="0 0 24 24"><path d="M9 9h11v11H9zM5 15H4V4h11v1"></path></svg></button></div>
+    </section>
+    <div class="field"><label for="yt">YouTube link after you schedule it</label><input id="yt" class="input mono" style="height: 48px" placeholder="https://youtube.com/shorts/…"></div>
+  </div>
+  <div class="sticky-act"><button class="btn lg pri" type="button" style="flex: 1" disabled>Mark scheduled</button></div>
+  <div class="tab-w"><dc-import name="TabBar" active="more" hint-size="390px,84px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

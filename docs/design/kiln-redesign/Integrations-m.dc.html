@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln — Integrations (mobile)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.ir{display:flex;align-items:center;gap:12px;min-height:60px;padding:10px 16px;border-bottom:1px solid var(--b1)}
+.ir:last-child{border-bottom:0}
+</style>
+</helmet>
+<div class="k phone" style="height: 1300px">
+  <header class="ph-top">
+    <a href="More-m.dc.html" aria-label="Back" class="btn icon" style="width: 44px; height: 44px; border-radius: 12px"><svg class="ic" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"></path></svg></a>
+    <div class="col grow" style="gap: 0"><span class="ttl">Integrations</span><span class="xs t3">Settings · Bureau of Reality</span></div>
+  </header>
+  <div class="ph-body">
+    <span class="lbl">Needs attention</span>
+    <section class="card">
+      <div class="ir"><div class="col grow" style="gap: 2px"><span style="font-weight: 500">YouTube Analytics</span><span class="xs t3">Every metric stays "—" without it</span></div><span class="pill s-blk">missing</span></div>
+      <div class="ir"><div class="col grow" style="gap: 2px"><span style="font-weight: 500">Phone alerts</span><span class="xs t3">Push when a brief or cut needs you</span></div><span class="pill s-blk">missing</span></div>
+      <div class="ir"><div class="col grow" style="gap: 2px"><span style="font-weight: 500">YouTube Data API</span><span class="xs t3">OAuth not finished</span></div><span class="pill s-rev">unverified</span></div>
+      <div class="ir"><div class="col grow" style="gap: 2px"><span style="font-weight: 500">Higgsfield</span><span class="xs t3">Character beats fall back to overlay</span></div><span class="pill s-rev">unverified</span></div>
+    </section>
+    <button class="btn lg pri full" type="button">Connect YouTube Analytics</button>
+    <span class="lbl" style="margin-top: 6px">Working</span>
+    <section class="card">
+      <div class="ir"><span class="grow">Anthropic</span><span class="pill s-live">verified</span></div>
+      <div class="ir"><span class="grow">Gemini</span><span class="pill s-live">verified</span></div>
+      <div class="ir"><span class="grow">Runway</span><span class="pill s-live">verified</span></div>
+      <div class="ir"><span class="grow">Supabase</span><span class="pill s-live">verified</span></div>
+    </section>
+    <span class="lbl" style="margin-top: 6px">Channels</span>
+    <section class="card">
+      <div class="ir"><div class="av sm">BR</div><span class="grow">Bureau of Reality</span><span class="mono xs t3">@BureauofReality</span></div>
+      <a class="ir" href="#add" style="text-decoration: none; color: var(--t2)"><div class="av sm add">+</div><span class="grow">Add channel</span><svg class="ic" viewBox="0 0 24 24" style="color: var(--t3)"><path d="M9 6l6 6-6 6"></path></svg></a>
+    </section>
+  </div>
+  <div class="tab-w"><dc-import name="TabBar" active="more" hint-size="390px,84px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1300}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

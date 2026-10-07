@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln — Board</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:oklch(0.150 0.006 70)}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+</style>
+</helmet>
+<div class="k app">
+<div class="rail-w"><dc-import name="Rail" active="board" channel="bureau" hint-size="100%,1060px"></dc-import></div>
+<main class="main">
+<header class="topbar">
+  <div class="col" style="gap: 0">
+    <div class="crumb"><span class="chm"></span><span>Bureau of Reality</span><span class="t4">/</span><span>Board</span></div>
+    <h1 class="h1">Board</h1>
+  </div>
+  <div class="row" style="gap: 8px"><span class="chip on">All · 3</span><span class="chip">Blocked · 2</span><span class="chip">Shorts</span><span class="chip">Long-form</span><span class="xs t3" style="margin-left: 8px">16 open slots in the bank</span></div>
+</header>
+
+<div class="kb">
+  <section class="kcol" aria-label="Needs approval">
+    <div class="kcol-h"><span class="dot" style="background: var(--draft)"></span>Needs approval<span class="n">1</span></div>
+    <article class="kcard">
+      <div class="row sb"><span class="row" style="gap: 6px"><span class="chm"></span><span class="mono" style="font-weight: 600">S002</span></span><span class="mono xs t3">20 Oct</span></div>
+      <span class="sm">Why fireworks have colours</span>
+      <div class="row" style="gap: 4px"><span class="cast c-iyer" style="height: 24px"><i style="width: 18px; height: 18px"></i>Iyer</span><span class="stag">Dussehra</span></div>
+      <div class="row sb"><span class="xs t3">Waiting on punchline pick</span><a class="btn sm pri" href="Approvals.dc.html">Approve</a></div>
+    </article>
+  </section>
+
+  <section class="kcol" aria-label="Rendering" style="grid-column: span 1">
+    <div class="kcol-h"><span class="dot" style="background: var(--gen)"></span>Rendering<span class="n">2</span></div>
+    <div class="ksub"><span>Scripting</span></div>
+    <article class="kcard" style="border-color: oklch(0.69 0.19 25 / .35)">
+      <div class="row sb" style="flex-wrap: nowrap">
+        <span class="row" style="gap: 6px"><span class="chm"></span><span class="mono" style="font-weight: 600">S003</span><span class="pill s-blk" style="height: 20px">Blocked</span></span>
+        <svg class="can s-blk" viewBox="0 0 64 64" width="34" height="34" aria-hidden="true"><defs><linearGradient id="kC" x1="0" x2="1"><stop offset="0" class="c1"></stop><stop offset=".35" class="c2"></stop><stop offset=".7" class="c3"></stop><stop offset="1" class="c4"></stop></linearGradient><radialGradient id="kCt" cx=".4" cy=".35" r=".8"><stop offset="0" class="c5"></stop><stop offset="1" class="c6"></stop></radialGradient></defs><path class="body e" d="M12 20V47A20 7 0 0 0 52 47V20"></path><path class="band" d="M12 30V37A20 7 0 0 0 52 37V30A20 7 0 0 1 12 30Z"></path><ellipse class="top e" cx="32" cy="20" rx="20" ry="7"></ellipse><circle cx="32" cy="20" r="2.4" fill="#F2EFE8"></circle></svg>
+      </div>
+      <span class="sm">Orientation: what gravity actually is</span>
+      <div class="row" style="gap: 4px"><span class="cast c-pip" style="height: 24px"><i style="width: 18px; height: 18px"></i>Pip</span><span class="mono xs t3">S1E1 · 21 Oct</span></div>
+      <p class="sm" style="color: var(--t1)">The approved punchline is not in the script.</p>
+      <button class="btn sm full" type="button"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"></path></svg>Regenerate script</button>
+    </article>
+    <div class="ksub"><span>Voicing</span></div>
+    <div class="empty" style="padding: 10px">—</div>
+    <div class="ksub"><span>Generating</span></div>
+    <article class="kcard" style="border-color: oklch(0.69 0.19 25 / .35)">
+      <div class="row sb" style="flex-wrap: nowrap">
+        <span class="row" style="gap: 6px"><span class="chm"></span><span class="mono" style="font-weight: 600">S001</span><span class="pill s-blk" style="height: 20px">Blocked</span></span>
+        <svg class="can s-blk" viewBox="0 0 64 64" width="34" height="34" aria-hidden="true"><path class="body e" d="M12 20V47A20 7 0 0 0 52 47V20"></path><path class="band" d="M12 30V37A20 7 0 0 0 52 37V30A20 7 0 0 1 12 30Z"></path><ellipse class="top e" cx="32" cy="20" rx="20" ry="7"></ellipse><circle cx="32" cy="20" r="2.4" fill="#F2EFE8"></circle></svg>
+      </div>
+      <span class="sm">What if the Moon vanished</span>
+      <div class="row" style="gap: 4px"><span class="cast c-pip" style="height: 24px"><i style="width: 18px; height: 18px"></i>Pip</span><span class="cast c-marlo" style="height: 24px"><i style="width: 18px; height: 18px"></i>Marlo</span></div>
+      <div class="col" style="gap: 4px"><div class="stages"><span class="d"></span><span class="d"></span><span class="x"></span><span></span></div><span class="mono xs t3">0 / 7 shots · voice kept</span></div>
+      <p class="sm" style="color: var(--t1)">The render worker crashed on a code error before any shot was made.</p>
+      <button class="btn sm full" type="button"><svg class="ic" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"></path></svg>Restart run</button>
+    </article>
+    <div class="ksub"><span>Assembling</span></div>
+    <div class="empty" style="padding: 10px">—</div>
+  </section>
+
+  <section class="kcol"><div class="kcol-h"><span class="dot" style="background: var(--gen)"></span>QC<span class="n">0</span></div><div class="empty">Loudness, captions and policy checks run here.</div></section>
+  <section class="kcol"><div class="kcol-h"><span class="dot" style="background: var(--rev)"></span>Needs cut review<span class="n">0</span></div><div class="empty">You watch every cut before it can be scheduled.</div></section>
+  <section class="kcol"><div class="kcol-h"><span class="dot" style="background: var(--rdy)"></span>Ready<span class="n">0</span></div><div class="empty">Approved cuts with a publish bundle.</div></section>
+  <section class="kcol"><div class="kcol-h"><span class="dot" style="background: var(--rdy)"></span>Scheduled<span class="n">0</span></div><div class="empty">Marked scheduled with a YouTube link.</div></section>
+  <section class="kcol"><div class="kcol-h"><span class="dot" style="background: var(--live)"></span>Live<span class="n">0</span></div><div class="empty">First Short goes live 19 Oct.</div></section>
+  <section class="kcol"><div class="kcol-h"><span class="dot" style="background: var(--t4)"></span>Stopped<span class="n">0</span></div><div class="empty">Killed or withdrawn episodes.</div></section>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1060}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

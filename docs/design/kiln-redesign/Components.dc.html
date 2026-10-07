@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln components</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+</style>
+</helmet>
+<div class="k" style="width: 1440px; height: 2000px; padding: 56px 72px; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 24px; align-content: start; overflow: hidden">
+
+<div style="grid-column: span 12; display: flex; justify-content: space-between; align-items: flex-end">
+  <div class="col" style="gap: 6px"><span class="lbl">Kiln · components</span><h1 class="h1">The parts every screen is built from</h1></div>
+  <span class="mono xs t3">desktop 34 px controls · mobile 50 px · touch ≥ 44 px</span>
+</div>
+
+<section class="card" style="grid-column: span 6; padding: 20px; display: flex; flex-direction: column; gap: 16px">
+  <h2 class="h3">Buttons</h2>
+  <div class="row" style="gap: 10px">
+    <button class="btn pri" type="button"><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg>Approve</button>
+    <button class="btn" type="button"><svg class="ic" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"></path></svg>Restart run</button>
+    <button class="btn" type="button"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"></path></svg>Regenerate</button>
+    <button class="btn ghost" type="button">Cancel</button>
+    <button class="btn dan" type="button">Reject</button>
+    <button class="btn" type="button" disabled>Disabled</button>
+  </div>
+  <div class="row" style="gap: 10px">
+    <button class="btn sm pri" type="button">Approve cut</button>
+    <button class="btn sm" type="button">Send back</button>
+    <button class="btn sm icon" type="button" aria-label="Play"><svg class="ic" viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z"></path></svg></button>
+    <button class="btn icon" type="button" aria-label="More"><svg class="ic" viewBox="0 0 24 24"><path d="M5 12h.5M12 12h.5M19 12h.5"></path></svg></button>
+    <span class="kbd">⌘K</span><span class="kbd">A</span><span class="kbd">↵</span>
+  </div>
+  <div class="row" style="gap: 10px">
+    <button class="btn lg pri" type="button" style="flex: 1">Approve with B</button>
+    <button class="btn lg" type="button" style="flex: 0 0 auto">Reject</button>
+  </div>
+  <p class="xs t3">Never: "Publish now", "Skip review". The only path to Ready is Approve cut.</p>
+</section>
+
+<section class="card" style="grid-column: span 6; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+  <h2 class="h3">Chips, pills, tags</h2>
+  <div class="row"><span class="pill s-draft">Drafting</span><span class="pill s-gen">Generating</span><span class="pill s-rev">Needs cut review</span><span class="pill s-blk">Blocked</span><span class="pill s-rdy">Ready</span><span class="pill s-live">Live</span></div>
+  <div class="row"><span class="basis est">estimate</span><span class="basis meas">measured</span><span class="gate pass">VVSA 74% ✓</span><span class="gate fail">Policy ✕</span><span class="gate">APV —</span><span class="stag">Dussehra</span><span class="stag">Diwali</span></div>
+  <div class="row"><span class="cast c-pip"><i></i>Pip<em>LEAD</em></span><span class="cast c-marlo"><i></i>Marlo</span><span class="cast c-aud"><i></i>The Auditor</span></div>
+  <div class="row"><span class="chip on">All</span><span class="chip">Blocked · 2</span><span class="chip">Shorts</span><span class="chip">Long-form</span>
+    <div class="seg" role="tablist"><button class="on" type="button">7d</button><button type="button">28d</button><button type="button">90d</button></div>
+    <button class="sw" type="button" aria-label="Kill switch off"></button><button class="sw on" type="button" aria-label="Kill switch on"></button>
+  </div>
+  <div class="row"><span class="row" style="gap: 6px"><span class="chm"></span><span class="sm">Bureau of Reality</span></span><span class="lock"><svg class="ic" viewBox="0 0 24 24" style="width: 12px; height: 12px"><path d="M6 11h12v9H6zM8 11V8a4 4 0 0 1 8 0v3"></path></svg>locked preset</span><span class="pill s-live nodot">verified</span><span class="pill s-rev nodot">unverified</span><span class="pill s-blk nodot">missing</span></div>
+</section>
+
+<section style="grid-column: span 12; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
+  <div class="card tile"><div class="row sb"><span class="lbl">Spend today</span><span class="basis est">estimate</span></div><span class="tv">₹1.35<small>/ ₹600</small></span><div class="bar"><i style="width: 0.4%"></i></div><span class="why">0.2% of daily cap · 7 rows, 0 measured</span></div>
+  <div class="card tile"><div class="row sb"><span class="lbl">Views · 7 days</span></div><span class="unk">—</span><span class="why">undefined — no video yet · first publish 19 Oct</span></div>
+  <div class="card tile"><div class="row sb"><span class="lbl">Cost per video</span><span class="basis est">estimate</span></div><span class="unk">—</span><span class="why">undefined until one exists · cap ₹150</span></div>
+  <div class="card tile bp" style="border-color: rgba(242,239,232,.14)"><div class="row sb"><span class="lbl" style="color: rgba(242,239,232,.7)">Next slot · S001</span><span class="mono xs" style="color: rgba(242,239,232,.7)">18:00 IST</span></div><span class="cd" style="font-size: 34px; color: var(--chalk)">12<span>d</span> 08<span>:</span>40</span><span class="why" style="color: rgba(242,239,232,.65)">Mon 19 Oct · Incident Report</span></div>
+</section>
+
+<section class="card" style="grid-column: span 5; display: flex; flex-direction: column">
+  <div class="card-h"><h2 class="h3">Episode card</h2><span class="mono xs t3">Home · Board</span></div>
+  <div class="card-b col" style="gap: 12px">
+    <div class="row" style="gap: 14px; flex-wrap: nowrap; align-items: flex-start">
+      <svg class="can s-blk" viewBox="0 0 64 64" width="60" height="60" aria-hidden="true"><defs><linearGradient id="kC" x1="0" x2="1" y1="0" y2="0"><stop offset="0" class="c1"></stop><stop offset=".35" class="c2"></stop><stop offset=".7" class="c3"></stop><stop offset="1" class="c4"></stop></linearGradient><radialGradient id="kCt" cx=".4" cy=".35" r=".8"><stop offset="0" class="c5"></stop><stop offset="1" class="c6"></stop></radialGradient></defs><ellipse cx="32" cy="55" rx="22" ry="5" fill="#000" opacity=".35"></ellipse><path class="body e" d="M12 20V47A20 7 0 0 0 52 47V20"></path><path class="band" d="M12 30V37A20 7 0 0 0 52 37V30A20 7 0 0 1 12 30Z"></path><ellipse class="top e" cx="32" cy="20" rx="20" ry="7"></ellipse><circle class="hole" cx="23" cy="19.5" r="2"></circle><circle class="hole" cx="41" cy="19.5" r="2"></circle><circle class="hole" cx="32" cy="16" r="1.6"></circle><circle class="hole" cx="32" cy="23.5" r="1.6"></circle><circle cx="32" cy="20" r="2.4" fill="#F2EFE8"></circle></svg>
+      <div class="col grow" style="gap: 6px">
+        <div class="row sb"><span class="mono" style="font-weight: 600">S001</span><span class="pill s-blk">Blocked · generating</span></div>
+        <span class="sm">What if the Moon vanished</span>
+        <div class="row" style="gap: 6px"><span class="cast c-pip"><i></i>Pip</span><span class="cast c-marlo"><i></i>Marlo</span></div>
+      </div>
+    </div>
+    <div class="col" style="gap: 6px"><div class="stages"><span class="d"></span><span class="d"></span><span class="x"></span><span></span></div><div class="row sb xs t3"><span>Scripting</span><span>Voicing</span><span>Generating</span><span>Assembling</span></div></div>
+    <div class="blocker"><svg class="ic" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg><p>The render worker crashed on a code error before any shot was made. <span>Voice is done and kept.</span></p><button class="btn sm" type="button">Restart run</button></div>
+  </div>
+</section>
+
+<section class="card" style="grid-column: span 7; display: flex; flex-direction: column">
+  <div class="card-h"><h2 class="h3">Blocked &amp; empty states</h2><span class="mono xs t3">one sentence · one action</span></div>
+  <div class="card-b col" style="gap: 10px">
+    <div class="blocker"><svg class="ic" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg><p><b class="mono">S003</b> · The approved punchline is not in the script, so it can't be voiced.</p><button class="btn sm" type="button">Regenerate script</button></div>
+    <div class="blocker"><svg class="ic" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg><p><b class="mono">S002</b> · Nothing can render until you approve the brief.</p><button class="btn sm pri" type="button">Review brief</button></div>
+    <div class="note"><svg class="ic" viewBox="0 0 24 24"><path d="M12 8v5M12 16h.01M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z"></path></svg><span>3 character beats swapped to overlay — no locked reference frame for Pip and Marlo yet.</span></div>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+      <div class="empty"><span style="color: var(--t2); font-weight: 500">Nothing to cut</span><span>Cuts appear here after QC passes.</span></div>
+      <div class="empty"><span class="unk" style="font-size: 22px">—</span><span>undefined — YouTube not verified</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="card" style="grid-column: span 4; padding: 20px; display: flex; flex-direction: column; gap: 14px; align-items: center">
+  <h2 class="h3" style="align-self: flex-start">Video player · 9:16</h2>
+  <div class="player bp" style="width: 236px">
+    <svg class="scene" viewBox="0 0 236 420" aria-hidden="true"><circle cx="118" cy="190" r="54" fill="none" stroke="#F2EFE8" stroke-width="1.6"></circle><ellipse cx="118" cy="190" rx="76" ry="56" fill="none" stroke="#22D3EE" stroke-width="1.4" stroke-dasharray="4 5"></ellipse><circle cx="206" cy="112" r="11" fill="none" stroke="#F2EFE8" stroke-opacity=".35" stroke-width="1.2" stroke-dasharray="2 3"></circle><path d="M64 300h108" stroke="#F2EFE8" stroke-opacity=".5"></path></svg>
+    <div class="hud"><span class="mono xs" style="color: rgba(242,239,232,.8)">S001 · shot 3/7</span><span class="mono xs" style="color: rgba(242,239,232,.8)">−14.1 LUFS</span></div>
+    <div class="cap">No Moon, no big tides.</div>
+    <div class="ctl"><div class="scrub"><b style="flex: 2.74"></b><b style="flex: 5.24"></b><b style="flex: 11.58"></b><b style="flex: 7.56"></b><b style="flex: 8.36"></b><b style="flex: 11.52"></b><b style="flex: 4.14"></b><i style="width: 31%"></i></div><div class="row sb"><button class="pbtn" type="button" aria-label="Play"><svg class="ic" viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z"></path></svg></button><span class="mono xs" style="color: rgba(242,239,232,.85)">0:15.8 / 0:51.1</span></div></div>
+  </div>
+</section>
+
+<section class="card" style="grid-column: span 8; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+  <div class="row sb"><h2 class="h3">Punchline picker</h2><span class="mono xs t3">press A / B / C · click to try</span></div>
+  <sc-for list="{{ picks }}" as="p" hint-placeholder-count="3">
+    <button class="{{ p.cls }}" type="button" onClick="{{ p.pick }}" aria-pressed="{{ p.on }}"><span class="key">{{ p.k }}</span><span class="txt">{{ p.t }}</span></button>
+  </sc-for>
+  <div class="row" style="gap: 10px; margin-top: 4px"><button class="btn pri" type="button">Approve with {{ picked }}</button><button class="btn dan" type="button">Reject…</button><span class="xs t3">Approve stays disabled until a punchline is picked.</span></div>
+</section>
+
+<section class="card" style="grid-column: span 7; display: flex; flex-direction: column">
+  <div class="card-h"><h2 class="h3">Table</h2><span class="mono xs t3">mono numerals · right-aligned ₹</span></div>
+  <div class="scroll-x"><table class="tbl">
+    <thead><tr><th>Slot</th><th>Stage</th><th>Reason</th><th class="r">₹</th><th></th></tr></thead>
+    <tbody>
+      <tr><td class="mono">S001</td><td><span class="pill s-blk">Generating</span></td><td class="t2 sm">Render worker code error</td><td class="r mono">8.89 <span class="basis est">est</span></td><td class="r"><button class="btn sm" type="button">Restart run</button></td></tr>
+      <tr><td class="mono">S002</td><td><span class="pill s-draft">Needs approval</span></td><td class="t2 sm">Brief waiting for you</td><td class="r mono t3">—</td><td class="r"><button class="btn sm pri" type="button">Approve</button></td></tr>
+      <tr><td class="mono">S003</td><td><span class="pill s-blk">Scripting</span></td><td class="t2 sm">Punchline missing from script</td><td class="r mono">0.00 <span class="basis est">est</span></td><td class="r"><button class="btn sm" type="button">Regenerate</button></td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section class="card" style="grid-column: span 5; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+  <h2 class="h3">Channel switcher · open</h2>
+  <div class="raised" style="padding: 6px; display: flex; flex-direction: column; gap: 2px">
+    <a class="ni" href="AllChannels.dc.html"><div class="av sm all"><svg class="ic" viewBox="0 0 24 24" style="width: 13px; height: 13px"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"></path></svg></div><span>All channels</span><span class="mono xs t3" style="margin-left: auto">⌘0</span></a>
+    <a class="ni on" href="Home.dc.html"><div class="av sm">BR</div><div class="col" style="gap: 0; line-height: 1.2"><span>Bureau of Reality</span><span class="mono xs t3">@BureauofReality</span></div><span class="mono xs t3" style="margin-left: auto">⌘1</span></a>
+    <div class="hr" style="margin: 4px 0"></div>
+    <a class="ni" href="Integrations.dc.html"><div class="av sm add">+</div><span>Add channel</span></a>
+  </div>
+  <div class="field"><label for="rj">Reject reason</label><select id="rj" class="input"><option>Punchline doesn't land</option><option>Fact needs a better source</option><option>Wrong lead for this series</option></select></div>
+  <div class="field"><label for="nt">Send-back note</label><textarea id="nt" class="input">Shot 5 — Marlo's mug orbit is too fast; slow it to half.</textarea></div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2000}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { picked: 'B' }; }
+  renderVals() {
+    const P = [
+      { k: 'A', t: "Pip asks which metal makes the loud ones. Mrs. Iyer: “That’s not a metal, Pip. That’s you.”" },
+      { k: 'B', t: 'Blue is the hardest colour to burn. Copper keeps calling in sick.' },
+      { k: 'C', t: 'Nib stamps the file: “Celebration approved. Ears not consulted.”' }
+    ];
+    return {
+      picked: this.state.picked,
+      picks: P.map(p => ({ ...p, on: p.k === this.state.picked, cls: 'pick' + (p.k === this.state.picked ? ' on' : ''), pick: () => this.setState({ picked: p.k }) }))
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln — More (mobile)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.mrow{display:flex;align-items:center;gap:12px;min-height:52px;padding:0 16px;color:var(--t1);text-decoration:none;border-bottom:1px solid var(--b1)}
+.mrow:last-child{border-bottom:0}
+.mrow .ic{color:var(--t3);width:18px;height:18px}
+</style>
+</helmet>
+<div class="k phone" style="height: 1000px">
+  <header class="ph-top"><span class="ttl">More</span></header>
+  <div class="ph-body">
+    <span class="lbl">Channel</span>
+    <section class="card" style="overflow: hidden">
+      <a class="mrow" href="AllChannels-m.dc.html"><div class="av sm all"><svg class="ic" viewBox="0 0 24 24" style="width: 13px; height: 13px"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"></path></svg></div><span class="grow">All channels</span></a>
+      <a class="mrow" href="Home-m.dc.html" style="background: var(--s2)"><div class="av sm">BR</div><div class="col grow" style="gap: 0; line-height: 1.25"><span>Bureau of Reality</span><span class="mono xs t3">@BureauofReality</span></div><svg class="ic" viewBox="0 0 24 24" style="color: var(--ac)"><path d="M5 12l5 5L20 7"></path></svg></a>
+      <a class="mrow" href="Integrations-m.dc.html"><div class="av sm add">+</div><span class="grow t2">Add channel</span></a>
+    </section>
+    <span class="lbl" style="margin-top: 6px">Bureau</span>
+    <section class="card" style="overflow: hidden">
+      <a class="mrow" href="Ready-m.dc.html"><svg class="ic" viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"></path></svg><span class="grow">Ready to schedule</span><span class="mono xs t3">0</span></a>
+      <a class="mrow" href="Calendar-m.dc.html"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"></path></svg><span class="grow">Calendar</span></a>
+      <a class="mrow" href="Generation-m.dc.html"><svg class="ic" viewBox="0 0 24 24"><path d="M7 7h10v10H7zM10 2v3M14 2v3M10 19v3M14 19v3M2 10h3M2 14h3M19 10h3M19 14h3"></path></svg><span class="grow">Generation</span><span class="badge red">2</span></a>
+      <a class="mrow" href="Metrics-m.dc.html"><svg class="ic" viewBox="0 0 24 24"><path d="M5 20V11M11 20V5M17 20v-6M3 20h18"></path></svg><span class="grow">Metrics</span></a>
+      <a class="mrow" href="Costs-m.dc.html"><svg class="ic" viewBox="0 0 24 24"><path d="M6 4h12M6 9h12M6 4c7 0 7 10 0 10l9 7"></path></svg><span class="grow">Costs</span></a>
+      <a class="mrow" href="Authorship-m.dc.html"><svg class="ic" viewBox="0 0 24 24"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg><span class="grow">Authorship</span></a>
+    </section>
+    <span class="lbl" style="margin-top: 6px">Library · System</span>
+    <section class="card" style="overflow: hidden">
+      <a class="mrow" href="Voices-m.dc.html"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3"></path></svg><span class="grow">Voices</span></a>
+      <a class="mrow" href="Voices-m.dc.html"><svg class="ic" viewBox="0 0 24 24"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M9 13h6M9 17h6"></path></svg><span class="grow">Prompts</span></a>
+      <a class="mrow" href="Voices-m.dc.html"><svg class="ic" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"></path></svg><span class="grow">Music</span></a>
+      <a class="mrow" href="Integrations-m.dc.html"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1M15 4v4M9 10v4M17 16v4"></path></svg><span class="grow">Settings</span><span class="pill s-rev nodot">2 unverified</span></a>
+    </section>
+  </div>
+  <div class="tab-w"><dc-import name="TabBar" active="more" hint-size="390px,84px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

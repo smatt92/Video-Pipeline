@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln — Metrics (mobile)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.mr{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--b1)}
+.mr:last-child{border-bottom:0}
+</style>
+</helmet>
+<div class="k phone" style="height: 1500px">
+  <header class="ph-top">
+    <a href="More-m.dc.html" aria-label="Switch channel" style="text-decoration: none"><div class="av">BR</div></a>
+    <div class="col grow" style="gap: 0"><span class="ttl">Metrics</span><span class="xs t3">today · 0 Shorts measured</span></div>
+    <div class="seg"><button class="on" type="button">7d</button><button type="button">28d</button></div>
+  </header>
+  <div class="ph-body">
+    <section class="card">
+      <div class="mr"><div class="col grow" style="gap: 2px"><span class="sm">Views</span><span class="why">undefined — no video yet</span></div><span class="unk" style="font-size: 22px">—</span></div>
+      <div class="mr"><div class="col grow" style="gap: 2px"><span class="sm">Viewed vs swiped</span><span class="why">gate 70% · no video yet</span></div><span class="gate">unknown</span></div>
+      <div class="mr"><div class="col grow" style="gap: 2px"><span class="sm">APV median</span><span class="why">gate 70% · no video yet</span></div><span class="gate">unknown</span></div>
+      <div class="mr"><div class="col grow" style="gap: 2px"><span class="sm">Subs per 1k views</span><span class="why">gate 1.0 · Analytics missing</span></div><span class="gate">unknown</span></div>
+      <div class="mr"><div class="col grow" style="gap: 2px"><span class="sm">₹ per Short <span class="basis est">est</span></span><span class="why">gate ₹150 · undefined until one exists</span></div><span class="gate">unknown</span></div>
+      <div class="mr"><div class="col grow" style="gap: 2px"><span class="sm">Policy</span><span class="why">2 policy/QC flags this week</span></div><span class="gate fail">fail</span></div>
+    </section>
+
+    <section class="card card-b col" style="gap: 10px">
+      <div class="row sb"><span class="h3">Views per day</span><span class="row xs t3" style="gap: 6px"><span class="chm"></span>Bureau</span></div>
+      <div style="height: 160px; border-radius: 10px; border: 1px dashed var(--b2); display: grid; place-items: center; text-align: center; background-image: linear-gradient(var(--b1) 1px, transparent 1px); background-size: 100% 40px">
+        <div class="col" style="gap: 4px; align-items: center"><span class="unk" style="font-size: 22px">—</span><span class="why">undefined — first Short goes live Mon 19 Oct</span></div>
+      </div>
+    </section>
+
+    <span class="lbl" style="margin-top: 6px">Per Short</span>
+    <section class="card">
+      <div class="mr"><span class="mono sm" style="width: 40px">S001</span><span class="sm grow t2">Not live yet</span><span class="mono t3">—</span></div>
+      <div class="mr"><span class="mono sm" style="width: 40px">S002</span><span class="sm grow t2">Not live yet</span><span class="mono t3">—</span></div>
+      <div class="mr"><span class="mono sm" style="width: 40px">S003</span><span class="sm grow t2">Not live yet</span><span class="mono t3">—</span></div>
+    </section>
+  </div>
+  <div class="tab-w"><dc-import name="TabBar" active="more" hint-size="390px,84px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

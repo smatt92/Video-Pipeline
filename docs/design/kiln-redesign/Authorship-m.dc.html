@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln — Authorship (mobile)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.ev{display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid var(--b1);align-items:flex-start}
+.ev:last-child{border-bottom:0}
+.ev b{flex:none;width:28px;height:28px;display:grid;place-items:center;font:600 9.5px var(--mono);border-radius:7px}
+.ev b.h{background:var(--ac);color:var(--ac-ink);border-radius:50%}
+.ev b.a{background:var(--s3);color:var(--t1)}
+.ev b.s{border:1px dashed var(--b3);color:var(--t3)}
+</style>
+</helmet>
+<div class="k phone" style="height: 1200px">
+  <header class="ph-top">
+    <a href="More-m.dc.html" aria-label="Switch channel" style="text-decoration: none"><div class="av">BR</div></a>
+    <div class="col grow" style="gap: 0"><span class="ttl">Authorship</span><span class="xs t3">3 human · 5 agent · 2 system</span></div>
+  </header>
+  <div class="ph-body">
+    <div class="row" style="gap: 6px"><span class="chip on">All</span><span class="chip">Human</span><span class="chip">Agent</span><span class="chip">System</span></div>
+    <section class="card">
+      <div class="ev"><b class="s">SYS</b><div class="col grow" style="gap: 2px"><span class="sm"><span class="mono">S003</span> run failed</span><span class="xs t3">Punchline not in script · 07 Oct 08:26</span></div></div>
+      <div class="ev"><b class="s">SYS</b><div class="col grow" style="gap: 2px"><span class="sm"><span class="mono">S001</span> run failed</span><span class="xs t3">Render worker code error · 07 Oct 08:26</span></div></div>
+      <div class="ev"><b class="a">AG</b><div class="col grow" style="gap: 2px"><span class="sm">Started run <span class="mono">S003</span></span><span class="xs t3">agent token · 07 Oct 08:25</span></div></div>
+      <div class="ev"><b class="a">AG</b><div class="col grow" style="gap: 2px"><span class="sm">Reconciled spend · ₹1.35 <span class="basis est">est</span></span><span class="xs t3">agent token · 07 Oct 08:25</span></div></div>
+      <div class="ev"><b class="a">AG</b><div class="col grow" style="gap: 2px"><span class="sm">Voiced <span class="mono">S001</span> · 16 lines</span><span class="xs t3">Runway · ₹8.89 est · 06 Oct 23:00</span></div></div>
+      <div class="ev"><b class="a">AG</b><div class="col grow" style="gap: 2px"><span class="sm">Started run <span class="mono">S001</span></span><span class="xs t3">3 beats → overlay · 06 Oct 22:28</span></div></div>
+      <div class="ev"><b class="h">SM</b><div class="col grow" style="gap: 2px"><span class="sm">Approved brief <span class="mono">S003</span></span><span class="xs t3">approver token · with a policy flag · 06 Oct</span></div></div>
+      <div class="ev"><b class="h">SM</b><div class="col grow" style="gap: 2px"><span class="sm">Approved brief <span class="mono">S001</span></span><span class="xs t3">approver token · 06 Oct</span></div></div>
+      <div class="ev"><b class="h">SM</b><div class="col grow" style="gap: 2px"><span class="sm">Set caps</span><span class="xs t3 mono">₹600/day · ₹15,000/month · ₹150/Short</span></div></div>
+    </section>
+  </div>
+  <div class="tab-w"><dc-import name="TabBar" active="more" hint-size="390px,84px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1200}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

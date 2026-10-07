@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln — All channels (mobile)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+</style>
+</helmet>
+<div class="k phone" style="height: 1200px">
+  <header class="ph-top">
+    <a href="More-m.dc.html" aria-label="Switch channel" style="text-decoration: none"><div class="av all"><svg class="ic" viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"></path></svg></div></a>
+    <div class="col grow" style="gap: 0"><span class="ttl">All channels</span><span class="xs t3">1 channel · totals combined</span></div>
+  </header>
+  <div class="ph-body">
+    <a class="card" href="Home-m.dc.html" style="text-decoration: none; color: inherit">
+      <div class="card-b row" style="gap: 12px; flex-wrap: nowrap"><div class="av lg">BR</div><div class="col grow" style="gap: 2px"><span class="h3">Bureau of Reality</span><span class="mono xs t3">@BureauofReality</span></div><span class="pill s-blk">2</span></div>
+      <div class="hr"></div>
+      <div class="grid" style="grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 14px 16px; gap: 8px">
+        <div class="col" style="gap: 2px"><span class="lbl">Next</span><span class="mono">S001</span><span class="xs t3">19 Oct</span></div>
+        <div class="col" style="gap: 2px"><span class="lbl">Briefs</span><span class="mono">1</span><span class="xs t3">waiting</span></div>
+        <div class="col" style="gap: 2px"><span class="lbl">Month</span><span class="mono">₹11.14</span><span class="basis est" style="align-self: flex-start">est</span></div>
+      </div>
+    </a>
+    <a class="card" href="Integrations-m.dc.html" style="text-decoration: none; color: var(--t2); border-style: dashed; border-color: var(--b3); background: transparent; box-shadow: none; min-height: 64px; display: flex; align-items: center; gap: 12px; padding: 12px 16px"><div class="av add">+</div><span style="font-weight: 500">Add channel</span></a>
+
+    <span class="lbl" style="margin-top: 6px">Needs you · every channel</span>
+    <section class="card feed">
+      <a href="Approvals-m.dc.html" class="fi" style="text-decoration: none; color: inherit; align-items: center; min-height: 60px"><span class="chm"></span><span class="mono sm" style="width: 40px">S002</span><span class="sm grow">Brief waiting</span><span class="pill s-draft">Approve</span></a>
+      <a href="Board-m.dc.html" class="fi" style="text-decoration: none; color: inherit; align-items: center; min-height: 60px"><span class="chm"></span><span class="mono sm" style="width: 40px">S001</span><span class="sm grow">Render worker error</span><span class="pill s-blk">Blocked</span></a>
+      <a href="Board-m.dc.html" class="fi" style="text-decoration: none; color: inherit; align-items: center; min-height: 60px"><span class="chm"></span><span class="mono sm" style="width: 40px">S003</span><span class="sm grow">Punchline not in script</span><span class="pill s-blk">Blocked</span></a>
+    </section>
+
+    <span class="lbl" style="margin-top: 6px">Spend · all channels</span>
+    <section class="card card-b col" style="gap: 10px">
+      <div class="row sb" style="align-items: baseline"><span class="tv" style="font-size: 24px">₹11.14</span><span class="basis est">estimate</span></div>
+      <div class="bar thick"><i style="width: 100%"></i></div>
+      <span class="xs t3">Bureau of Reality 100% · caps stay per channel</span>
+    </section>
+
+    <section class="card card-b row sb" style="border-color: oklch(0.69 0.19 25 / .3); flex-wrap: nowrap">
+      <div class="col" style="gap: 2px"><span class="h3">Kill all channels</span><span class="xs t3">Off · asks to confirm</span></div>
+      <button class="sw" type="button" aria-label="Kill switch all channels" style="transform: scale(1.2)"></button>
+    </section>
+  </div>
+  <div class="tab-w"><dc-import name="TabBar" active="home" hint-size="390px,84px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1200}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

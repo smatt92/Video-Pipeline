@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Command palette</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+</style>
+</helmet>
+<div class="k" style="width: 760px; height: 600px; position: relative; overflow: hidden; background: oklch(0.10 0.005 70); display: grid; place-items: center">
+  <div class="raised" role="dialog" aria-label="Command palette" style="width: 640px; overflow: hidden">
+    <div class="row" style="gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--b1); flex-wrap: nowrap">
+      <svg class="ic" viewBox="0 0 24 24" style="color: var(--t3); width: 18px; height: 18px"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM20 20l-4-4"></path></svg>
+      <label for="q" style="position: absolute; left: -9999px">Command</label>
+      <input id="q" class="grow" value="s00" style="background: transparent; border: 0; outline: 0; color: var(--t1); font: 400 16px var(--sans)">
+      <span class="row" style="gap: 6px"><span class="chm"></span><span class="xs t3">Bureau of Reality</span></span>
+      <span class="kbd">esc</span>
+    </div>
+    <div style="padding: 6px; display: flex; flex-direction: column; gap: 2px">
+      <span class="lbl" style="padding: 8px 10px 4px">Slots</span>
+      <a class="ni on" href="Board.dc.html" style="height: 40px"><span class="mono" style="width: 44px; color: var(--t1)">S001</span><span class="grow">What if the Moon vanished</span><span class="pill s-blk">Blocked</span><span class="kbd">↵</span></a>
+      <a class="ni" href="Approvals.dc.html" style="height: 40px"><span class="mono" style="width: 44px; color: var(--t1)">S002</span><span class="grow">Why fireworks have colours</span><span class="pill s-draft">Needs approval</span></a>
+      <a class="ni" href="Board.dc.html" style="height: 40px"><span class="mono" style="width: 44px; color: var(--t1)">S003</span><span class="grow">Orientation: what gravity actually is</span><span class="pill s-blk">Blocked</span></a>
+      <span class="lbl" style="padding: 10px 10px 4px">Actions</span>
+      <a class="ni" href="Approvals.dc.html" style="height: 38px"><svg class="ic" viewBox="0 0 24 24"><path d="M9 11l3 3 8-8M20 12v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h11"></path></svg><span class="grow">Review brief S002</span><span class="kbd">A</span></a>
+      <a class="ni" href="Board.dc.html" style="height: 38px"><svg class="ic" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"></path></svg><span class="grow">Restart run · S001</span><span class="kbd">R</span></a>
+      <a class="ni" href="Board.dc.html" style="height: 38px"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"></path></svg><span class="grow">Regenerate script · S003</span></a>
+      <a class="ni" href="AllChannels.dc.html" style="height: 38px"><svg class="ic" viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"></path></svg><span class="grow">Switch to All channels</span><span class="kbd">⌘0</span></a>
+      <a class="ni" href="Home.dc.html" style="height: 38px"><svg class="ic" viewBox="0 0 24 24" style="color: var(--blk)"><path d="M12 3v9M6.4 6.4a8 8 0 1 0 11.2 0"></path></svg><span class="grow">Kill switch… <span class="t3">asks to confirm</span></span></a>
+    </div>
+    <div class="row sb" style="padding: 10px 16px; border-top: 1px solid var(--b1)"><span class="xs t3">Scoped to this channel · approving, scheduling and the kill switch need the approver token</span><span class="row xs t3" style="gap: 6px"><span class="kbd">↑</span><span class="kbd">↓</span>move</span></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":760,"height":600}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

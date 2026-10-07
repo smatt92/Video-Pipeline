@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln tokens</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+</style>
+</helmet>
+<div class="k" style="width: 1440px; height: 1700px; padding: 64px 72px; display: flex; flex-direction: column; gap: 48px; overflow: hidden">
+
+<div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 32px">
+  <div class="col" style="gap: 14px">
+    <div class="row" style="gap: 12px"><div class="av lg">BR</div><div class="col" style="gap: 2px"><span class="lbl">Kiln · design tokens v1.0</span><span class="mono t3 sm">Bureau of Reality · @BureauofReality</span></div></div>
+    <h1 class="h0">A calm studio for a loud channel.</h1>
+    <p class="t2" style="max-width: 620px; font-size: 15px">Warm near-black surfaces, one teal accent per channel, six pipeline states. Shape carries meaning: a <b style="color: var(--t1)">square</b> is a channel, a <b style="color: var(--t1)">dot</b> is a pipeline state, a <b style="color: var(--t1)">sphere</b> is a cast member.</p>
+  </div>
+  <div class="row" style="gap: 10px"><span class="chm"></span><span class="sm t3">channel</span><span class="pill s-gen">state</span><span class="cast c-pip"><i></i>Pip</span></div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 24px">
+  <section class="card" style="grid-column: span 7; padding: 22px; display: flex; flex-direction: column; gap: 16px">
+    <div class="row sb"><h2 class="h2">Surfaces</h2><span class="mono xs t3">oklch(L 0.006 70)</span></div>
+    <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px">
+      <div class="col" style="gap: 6px"><div style="height: 84px; border-radius: 10px; background: var(--in); border: 1px solid var(--b2)"></div><span class="sm">inset</span><span class="mono xs t3">0.125</span></div>
+      <div class="col" style="gap: 6px"><div style="height: 84px; border-radius: 10px; background: var(--s0); border: 1px solid var(--b2)"></div><span class="sm">surface-0</span><span class="mono xs t3">0.150</span></div>
+      <div class="col" style="gap: 6px"><div style="height: 84px; border-radius: 10px; background: var(--s1); border: 1px solid var(--b2)"></div><span class="sm">surface-1</span><span class="mono xs t3">0.180</span></div>
+      <div class="col" style="gap: 6px"><div style="height: 84px; border-radius: 10px; background: var(--s2); border: 1px solid var(--b2)"></div><span class="sm">surface-2</span><span class="mono xs t3">0.212</span></div>
+      <div class="col" style="gap: 6px"><div style="height: 84px; border-radius: 10px; background: var(--s3); border: 1px solid var(--b2)"></div><span class="sm">surface-3</span><span class="mono xs t3">0.252</span></div>
+    </div>
+    <div class="hr"></div>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px">
+      <div class="col" style="gap: 10px"><span class="lbl">Text</span>
+        <div class="row sb"><span style="color: var(--t1)">Primary — titles, values</span><span class="mono xs t3">0.965</span></div>
+        <div class="row sb"><span style="color: var(--t2)">Secondary — body</span><span class="mono xs t3">0.800</span></div>
+        <div class="row sb"><span style="color: var(--t3)">Muted — labels, reasons</span><span class="mono xs t3">0.660 · 5.2:1</span></div>
+        <div class="row sb"><span style="color: var(--t4)">Faint — separators only</span><span class="mono xs t3">0.520 · decorative</span></div>
+      </div>
+      <div class="col" style="gap: 10px"><span class="lbl">Borders</span>
+        <div class="row sb"><div style="flex: 1; height: 28px; border-radius: 7px; border: 1px solid var(--b1)"></div><span class="mono xs t3" style="width: 120px; text-align: right">subtle · 6.5%</span></div>
+        <div class="row sb"><div style="flex: 1; height: 28px; border-radius: 7px; border: 1px solid var(--b2)"></div><span class="mono xs t3" style="width: 120px; text-align: right">default · 10.5%</span></div>
+        <div class="row sb"><div style="flex: 1; height: 28px; border-radius: 7px; border: 1px solid var(--b3)"></div><span class="mono xs t3" style="width: 120px; text-align: right">strong · 17%</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" style="grid-column: span 5; padding: 22px; display: flex; flex-direction: column; gap: 16px">
+    <div class="row sb"><h2 class="h2">Accent &amp; channel</h2><span class="mono xs t3">square = channel</span></div>
+    <div class="row" style="gap: 14px; align-items: stretch">
+      <div style="width: 120px; border-radius: 12px; background: var(--ac); padding: 12px; display: flex; flex-direction: column; justify-content: flex-end; color: var(--ac-ink)"><span style="font-weight: 600">Teal</span><span class="mono xs">0.79 0.12 182</span></div>
+      <div class="col grow" style="gap: 8px">
+        <div class="row" style="gap: 8px"><div style="width: 34px; height: 34px; border-radius: 8px; background: var(--ac-t); border: 1px solid oklch(0.79 0.12 182 / .3)"></div><span class="sm">accent tint 14% — selected, focus</span></div>
+        <div class="row" style="gap: 8px"><div style="width: 34px; height: 34px; border-radius: 8px; background: var(--ac-ink)"></div><span class="sm">accent ink — text on teal</span></div>
+        <div class="row" style="gap: 8px"><div class="av sm">BR</div><span class="sm">channel avatar + corner square</span></div>
+      </div>
+    </div>
+    <div class="hr"></div>
+    <span class="lbl">Channel accent slots — one per channel, set on add</span>
+    <div class="row" style="gap: 10px">
+      <div class="col" style="gap: 4px; align-items: center"><div style="width: 40px; height: 40px; border-radius: 9px; background: oklch(0.79 0.12 182); box-shadow: 0 0 0 2px var(--s1), 0 0 0 3px var(--t1)"></div><span class="mono xs t3">teal</span></div>
+      <div class="col" style="gap: 4px; align-items: center"><div style="width: 40px; height: 40px; border-radius: 9px; background: oklch(0.84 0.15 125)"></div><span class="mono xs t3">lime</span></div>
+      <div class="col" style="gap: 4px; align-items: center"><div style="width: 40px; height: 40px; border-radius: 9px; background: oklch(0.80 0.12 60)"></div><span class="mono xs t3">ochre</span></div>
+      <div class="col" style="gap: 4px; align-items: center"><div style="width: 40px; height: 40px; border-radius: 9px; background: oklch(0.76 0.13 340)"></div><span class="mono xs t3">orchid</span></div>
+      <div class="col" style="gap: 4px; align-items: center"><div style="width: 40px; height: 40px; border-radius: 9px; background: oklch(0.90 0.02 85)"></div><span class="mono xs t3">chalk</span></div>
+    </div>
+    <p class="xs t3">Channel accents colour card corners, calendar slot marks and chart lines in "All channels". Inside a single channel, the accent is the only chromatic UI colour besides state.</p>
+  </section>
+
+  <section class="card" style="grid-column: span 7; padding: 22px; display: flex; flex-direction: column; gap: 16px">
+    <div class="row sb"><h2 class="h2">Pipeline states</h2><span class="mono xs t3">dot = state · tint 14%</span></div>
+    <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px">
+      <div class="col" style="gap: 8px"><div style="height: 64px; border-radius: 10px; background: var(--draft)"></div><div style="height: 30px; border-radius: 8px; background: oklch(0.74 0.01 80 / .14)"></div><span class="pill s-draft">Drafting</span><span class="mono xs t3">0.74 0.01 80</span></div>
+      <div class="col" style="gap: 8px"><div style="height: 64px; border-radius: 10px; background: var(--gen)"></div><div style="height: 30px; border-radius: 8px; background: oklch(0.74 0.15 295 / .14)"></div><span class="pill s-gen">Generating</span><span class="mono xs t3">0.74 0.15 295</span></div>
+      <div class="col" style="gap: 8px"><div style="height: 64px; border-radius: 10px; background: var(--rev)"></div><div style="height: 30px; border-radius: 8px; background: oklch(0.82 0.14 78 / .14)"></div><span class="pill s-rev">Review</span><span class="mono xs t3">0.82 0.14 78</span></div>
+      <div class="col" style="gap: 8px"><div style="height: 64px; border-radius: 10px; background: var(--blk)"></div><div style="height: 30px; border-radius: 8px; background: oklch(0.69 0.19 25 / .14)"></div><span class="pill s-blk">Blocked</span><span class="mono xs t3">0.69 0.19 25</span></div>
+      <div class="col" style="gap: 8px"><div style="height: 64px; border-radius: 10px; background: var(--rdy)"></div><div style="height: 30px; border-radius: 8px; background: oklch(0.74 0.13 248 / .14)"></div><span class="pill s-rdy">Ready</span><span class="mono xs t3">0.74 0.13 248</span></div>
+      <div class="col" style="gap: 8px"><div style="height: 64px; border-radius: 10px; background: var(--live)"></div><div style="height: 30px; border-radius: 8px; background: oklch(0.80 0.16 152 / .14)"></div><span class="pill s-live">Live</span><span class="mono xs t3">0.80 0.16 152</span></div>
+    </div>
+    <p class="xs t3">Lightness differs across states (0.69 → 0.82) so blocked and live stay distinct without hue. Generating is the only state that animates (slow pulse).</p>
+  </section>
+
+  <section class="card" style="grid-column: span 5; padding: 22px; display: flex; flex-direction: column; gap: 16px">
+    <div class="row sb"><h2 class="h2">Series</h2><span class="mono xs t3">calendar + board</span></div>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+      <div class="slot sr-incident"><span class="sid"><span class="sdot"></span>Incident Report</span></div>
+      <div class="slot sr-desk"><span class="sid"><span class="sdot"></span>Desk Tour</span></div>
+      <div class="slot sr-pip"><span class="sid"><span class="sdot"></span>Pip's First Year</span></div>
+      <div class="slot sr-archive"><span class="sid"><span class="sdot"></span>The Archive</span></div>
+      <div class="slot sr-myth"><span class="sid"><span class="sdot"></span>Myth Desk</span></div>
+      <div class="slot sr-deep"><span class="sid"><span class="sdot"></span>Deep Desk</span></div>
+      <div class="slot sr-complaint"><span class="sid"><span class="sdot"></span>Complaint Box</span></div>
+      <div class="slot sr-long"><span class="sid"><span class="sdot"></span>Long-form (L##)</span></div>
+    </div>
+    <div class="row" style="gap: 6px"><span class="stag">Dussehra</span><span class="stag">Diwali</span><span class="stag">Halloween</span><span class="stag">Dhanteras</span><span class="xs t3">seasonal tags</span></div>
+  </section>
+
+  <section class="card" style="grid-column: span 12; padding: 22px; display: flex; flex-direction: column; gap: 18px">
+    <div class="row sb"><h2 class="h2">Cast — clay busts on blueprint · sphere = cast member</h2><span class="mono xs t3">matte clay · chalk edge 1.5px · soft key light top-left</span></div>
+    <div style="display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 14px">
+      <div class="col" style="gap: 8px"><div class="bust bp pip c-pip"><div class="gl"></div><div class="sh"></div><div class="cl"></div><div class="hd"></div></div><span class="h3">Pip</span><span class="mono xs t3">#22D3EE</span></div>
+      <div class="col" style="gap: 8px"><div class="bust bp c-marlo"><div class="gl"></div><div class="sh"></div><div class="cl"></div><div class="hd"></div></div><span class="h3">Marlo</span><span class="mono xs t3">#F59E0B</span></div>
+      <div class="col" style="gap: 8px"><div class="bust bp c-iyer"><div class="gl"></div><div class="sh"></div><div class="cl"></div><div class="hd"></div></div><span class="h3">Mrs. Iyer</span><span class="mono xs t3">#E0409C</span></div>
+      <div class="col" style="gap: 8px"><div class="bust bp c-nib"><div class="gl"></div><div class="sh"></div><div class="cl"></div><div class="hd"></div></div><span class="h3">Nib</span><span class="mono xs t3">#9CA3AF</span></div>
+      <div class="col" style="gap: 8px"><div class="bust bp c-kaz"><div class="gl"></div><div class="sh"></div><div class="cl"></div><div class="hd"></div></div><span class="h3">Kaz</span><span class="mono xs t3">#FDBA4D</span></div>
+      <div class="col" style="gap: 8px"><div class="bust bp ohm c-ohm"><div class="gl"></div><div class="sh"></div><div class="cl"></div><div class="hd"></div></div><span class="h3">Director Ohm</span><span class="mono xs t3">#C9A227</span></div>
+      <div class="col" style="gap: 8px"><div class="bust bp box c-box"><div class="gl"></div><div class="sh"></div><div class="cl"></div><div class="hd"></div></div><span class="h3">Complaint Box</span><span class="mono xs t3">#B7793F</span></div>
+      <div class="col" style="gap: 8px"><div class="bust bp aud c-aud"><div class="gl"></div><div class="sh"></div><div class="cl"></div><div class="hd"></div></div><span class="h3">The Auditor</span><span class="mono xs t3">#EF4444</span></div>
+    </div>
+    <div class="row" style="gap: 8px"><span class="cast c-pip"><i></i>Pip<em>LEAD</em></span><span class="cast c-marlo"><i></i>Marlo</span><span class="cast c-iyer"><i></i>Mrs. Iyer</span><span class="cast c-nib"><i></i>Nib</span><span class="cast c-kaz"><i></i>Kaz</span><span class="cast c-ohm"><i></i>Director Ohm</span><span class="cast c-box"><i></i>Complaint Box</span><span class="cast c-aud"><i></i>The Auditor</span></div>
+  </section>
+
+  <section class="card" style="grid-column: span 7; padding: 22px; display: flex; flex-direction: column; gap: 14px">
+    <div class="row sb"><h2 class="h2">Type</h2><span class="mono xs t3">Geist · Geist Mono</span></div>
+    <div class="row sb" style="align-items: baseline"><span class="h0">Display 40</span><span class="mono xs t3">600 · −3.5% · hero numerals only</span></div>
+    <div class="row sb" style="align-items: baseline"><span class="h1">Title 24 — Approvals</span><span class="mono xs t3">600 · −2.2%</span></div>
+    <div class="row sb" style="align-items: baseline"><span class="h2">Section 17 — Episodes in production</span><span class="mono xs t3">600 · −1.2%</span></div>
+    <div class="row sb" style="align-items: baseline"><span>Body 14 — Pip misplaced the Moon. Here's everything that breaks by Friday.</span><span class="mono xs t3">400 · 1.45</span></div>
+    <div class="row sb" style="align-items: baseline"><span class="lbl">Label 11 — spend today</span><span class="mono xs t3">500 · +7% · caps</span></div>
+    <div class="hr"></div>
+    <div class="row sb" style="align-items: baseline"><span class="tv">₹1.35 <small>/ ₹600</small></span><span class="mono xs t3">Mono 28 · tabular · ids, ₹, times</span></div>
+    <div class="row" style="gap: 18px"><span class="mono">S001</span><span class="mono">L01</span><span class="mono">18:00 IST</span><span class="mono">−14.2 LUFS</span><span class="mono">run_06gh8i856ma1</span></div>
+  </section>
+
+  <section class="card" style="grid-column: span 5; padding: 22px; display: flex; flex-direction: column; gap: 14px">
+    <div class="row sb"><h2 class="h2">Radius · space · depth</h2></div>
+    <div class="row" style="gap: 12px; align-items: flex-end">
+      <div class="col" style="gap: 6px; align-items: center"><div style="width: 52px; height: 52px; background: var(--s3); border-radius: 6px"></div><span class="mono xs t3">6 chip</span></div>
+      <div class="col" style="gap: 6px; align-items: center"><div style="width: 52px; height: 52px; background: var(--s3); border-radius: 10px"></div><span class="mono xs t3">10 input</span></div>
+      <div class="col" style="gap: 6px; align-items: center"><div style="width: 52px; height: 52px; background: var(--s3); border-radius: 14px"></div><span class="mono xs t3">14 card</span></div>
+      <div class="col" style="gap: 6px; align-items: center"><div style="width: 52px; height: 52px; background: var(--s3); border-radius: 20px"></div><span class="mono xs t3">20 3D</span></div>
+    </div>
+    <div class="row" style="gap: 6px; align-items: flex-end">
+      <div style="width: 4px; height: 4px; background: var(--ac)"></div><div style="width: 8px; height: 8px; background: var(--ac)"></div><div style="width: 12px; height: 12px; background: var(--ac)"></div><div style="width: 16px; height: 16px; background: var(--ac)"></div><div style="width: 24px; height: 24px; background: var(--ac)"></div><div style="width: 32px; height: 32px; background: var(--ac)"></div><div style="width: 48px; height: 48px; background: var(--ac)"></div>
+      <span class="mono xs t3" style="margin-left: 8px">4 · 8 · 12 · 16 · 24 · 32 · 48</span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">
+      <div class="inset" style="height: 64px; padding: 10px"><span class="xs t3">inset</span></div>
+      <div class="card" style="height: 64px; padding: 10px"><span class="xs t3">card</span></div>
+      <div class="raised" style="height: 64px; padding: 10px"><span class="xs t3">raised</span></div>
+    </div>
+    <p class="xs t3">Motion: 150 ms colour transitions; 1 px press; generating pulse 1.6 s; 3D objects drift 5 px over 5 s. Nothing else moves.</p>
+  </section>
+
+  <section class="card" style="grid-column: span 12; padding: 22px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px">
+    <div class="col" style="gap: 8px"><span class="lbl">Rule 1 · Unknown ≠ 0</span><span class="unk">—</span><span class="why">undefined — no video yet</span></div>
+    <div class="col" style="gap: 8px"><span class="lbl">Rule 2 · ₹ carries a basis</span><div class="row"><span class="tv" style="font-size: 22px">₹9.13</span><span class="basis est">estimate</span></div><div class="row"><span class="tv" style="font-size: 22px">₹8.66</span><span class="basis meas">measured</span></div></div>
+    <div class="col" style="gap: 8px"><span class="lbl">Rule 3 · One reason, one action</span><div class="blocker"><svg class="ic" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg><p>The approved punchline is not in the script.</p></div></div>
+    <div class="col" style="gap: 8px"><span class="lbl">Rule 4 · Human cut review gates publishing</span><p class="sm t2">There is no "publish now" or "skip review". Ready only exists after Approve cut.</p></div>
+  </section>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1700}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

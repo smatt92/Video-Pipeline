@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln — Board (mobile)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.strip{display:flex;gap:6px;overflow-x:auto;padding:2px 16px 6px;margin:0 -16px;scrollbar-width:none}
+.stp{flex:none;display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;border-radius:10px;border:1px solid var(--b1);background:var(--s1);color:var(--t2);font:500 13px var(--sans);cursor:pointer}
+.stp b{font:500 11px var(--mono);color:var(--t3)}
+.stp.on{background:var(--s3);color:var(--t1);border-color:var(--b3)}
+</style>
+</helmet>
+<div class="k phone" style="height: 1300px">
+  <header class="ph-top">
+    <a href="More-m.dc.html" aria-label="Switch channel" style="text-decoration: none"><div class="av">BR</div></a>
+    <div class="col grow" style="gap: 0"><span class="ttl">Board</span><span class="xs t3">3 episodes · 2 blocked</span></div>
+  </header>
+  <div class="ph-body">
+    <div class="strip" role="tablist">
+      <sc-for list="{{ stages }}" as="s" hint-placeholder-count="8"><button class="{{ s.cls }}" type="button" role="tab" onClick="{{ s.pick }}"><span class="dot" style="background: var(--t3)"></span>{{ s.label }}<b>{{ s.n }}</b></button></sc-for>
+    </div>
+    <sc-for list="{{ cards }}" as="c" hint-placeholder-count="2">
+      <article class="card card-b col" style="gap: 12px">
+        <div class="row sb"><span class="row" style="gap: 8px"><span class="chm"></span><span class="mono" style="font-weight: 600; font-size: 16px">{{ c.id }}</span><span class="mono xs t3">{{ c.date }}</span></span><span class="{{ c.pill }}">{{ c.stage }}</span></div>
+        <span>{{ c.title }}</span>
+        <div class="stages"><span class="{{ c.s1 }}"></span><span class="{{ c.s2 }}"></span><span class="{{ c.s3 }}"></span><span class="{{ c.s4 }}"></span></div>
+        <div class="{{ c.box }}" style="flex-direction: column; gap: 10px; align-items: stretch"><p class="sm">{{ c.reason }}</p><button class="{{ c.btn }}" type="button" style="height: 46px">{{ c.action }}</button></div>
+      </article>
+    </sc-for>
+    <sc-if value="{{ isEmpty }}" hint-placeholder-val="{{ false }}"><div class="empty" style="padding: 40px 16px">{{ emptyText }}</div></sc-if>
+  </div>
+  <div class="tab-w"><dc-import name="TabBar" active="board" hint-size="390px,84px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1300}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { st: 'render' }; }
+  renderVals() {
+    const C = [
+      { st: 'approval', id: 'S002', date: '20 Oct', title: 'Why fireworks have colours', stage: 'Needs approval', pill: 'pill s-draft', s1: '', s2: '', s3: '', s4: '', reason: 'Nothing can render until you pick a punchline.', action: 'Open brief' },
+      { st: 'render', id: 'S003', date: '21 Oct', title: 'Orientation: what gravity actually is', stage: 'Scripting', pill: 'pill s-blk', s1: 'x', s2: '', s3: '', s4: '', reason: 'The approved punchline is not in the script.', action: 'Regenerate script' },
+      { st: 'render', id: 'S001', date: '19 Oct', title: 'What if the Moon vanished', stage: 'Generating', pill: 'pill s-blk', s1: 'd', s2: 'd', s3: 'x', s4: '', reason: 'The render worker crashed on a code error. Voice is kept.', action: 'Restart run' }
+    ];
+    const S = [['approval','Approval'],['render','Rendering'],['qc','QC'],['cut','Cut review'],['ready','Ready'],['sched','Scheduled'],['live','Live'],['stop','Stopped']];
+    const cards = C.filter(c => c.st === this.state.st).map(c => ({ ...c, box: c.st === 'approval' ? 'inset col' : 'blocker', btn: c.st === 'approval' ? 'btn full pri' : 'btn full' }));
+    return {
+      stages: S.map(([k, l]) => ({ label: l, n: C.filter(c => c.st === k).length, cls: 'stp' + (k === this.state.st ? ' on' : ''), pick: () => this.setState({ st: k }) })),
+      cards, isEmpty: cards.length === 0, emptyText: 'Nothing in this stage yet.'
+    };
+  }
+}
+</script>
+</body>
+</html>

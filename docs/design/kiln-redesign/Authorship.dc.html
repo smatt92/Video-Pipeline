@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln — Authorship log</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:oklch(0.150 0.006 70)}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.who{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.who b{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font:600 9.5px var(--mono)}
+.who.h b{background:var(--ac);color:var(--ac-ink)}
+.who.a b{background:var(--s3);color:var(--t1);border-radius:6px}
+.who.s b{background:transparent;border:1px dashed var(--b3);color:var(--t3);border-radius:6px}
+</style>
+</helmet>
+<div class="k app">
+<div class="rail-w"><dc-import name="Rail" active="authorship" channel="bureau" hint-size="100%,1000px"></dc-import></div>
+<main class="main">
+<header class="topbar">
+  <div class="col" style="gap: 0">
+    <div class="crumb"><span class="chm"></span><span>Bureau of Reality</span><span class="t4">/</span><span>Authorship</span></div>
+    <h1 class="h1">Authorship log</h1>
+    <p class="sm t3" style="margin-top: 4px">Every decision and every generated artefact, with who made it and which token they used.</p>
+  </div>
+  <div class="row" style="gap: 8px"><span class="chip on">All</span><span class="chip">Human · 3</span><span class="chip">Agent · 5</span><span class="chip">System · 2</span></div>
+</header>
+
+<section class="grid ga-220">
+  <div class="card tile"><span class="lbl">Human decisions</span><span class="tv">3</span><span class="why">approver token · Sahil</span></div>
+  <div class="card tile"><span class="lbl">Agent actions</span><span class="tv">5</span><span class="why">agent token · drafts, runs, reconciles</span></div>
+  <div class="card tile"><span class="lbl">Published without a human cut review</span><span class="tv">0</span><span class="why">can't happen — gate is enforced</span></div>
+</section>
+
+<section class="card">
+  <div class="scroll-x"><table class="tbl">
+    <thead><tr><th>Time · IST</th><th>Who</th><th>Action</th><th>Object</th><th>Detail</th></tr></thead>
+    <tbody>
+      <tr><td class="mono sm">07 Oct 08:26</td><td><span class="who s"><b>SYS</b>Pipeline</span></td><td>Run failed</td><td class="mono">S003</td><td class="sm t2">Approved punchline not in script</td></tr>
+      <tr><td class="mono sm">07 Oct 08:26</td><td><span class="who s"><b>SYS</b>Pipeline</span></td><td>Run failed</td><td class="mono">S001</td><td class="sm t2">Render worker: "Assignment to constant variable."</td></tr>
+      <tr><td class="mono sm">07 Oct 08:25</td><td><span class="who a"><b>AG</b>Agent</span></td><td>Started run</td><td class="mono">S003</td><td class="sm t2 mono">run_06gh8ib6q3i7</td></tr>
+      <tr><td class="mono sm">07 Oct 08:25</td><td><span class="who a"><b>AG</b>Agent</span></td><td>Reconciled spend</td><td class="mono t3">channel</td><td class="sm t2">2 rows · ₹1.35 <span class="basis est">est</span></td></tr>
+      <tr><td class="mono sm">06 Oct 23:00</td><td><span class="who a"><b>AG</b>Agent</span></td><td>Voiced script</td><td class="mono">S001</td><td class="sm t2">16 lines · 51.1 s · Runway · ₹8.89 <span class="basis est">est</span></td></tr>
+      <tr><td class="mono sm">06 Oct 22:28</td><td><span class="who a"><b>AG</b>Agent</span></td><td>Started run</td><td class="mono">S001</td><td class="sm t2">3 character beats swapped to overlay</td></tr>
+      <tr><td class="mono sm">06 Oct</td><td><span class="who h"><b>SM</b>Sahil</span></td><td>Approved brief</td><td class="mono">S003</td><td class="sm t2">approved with a policy flag</td></tr>
+      <tr><td class="mono sm">06 Oct</td><td><span class="who h"><b>SM</b>Sahil</span></td><td>Approved brief</td><td class="mono">S001</td><td class="sm t2">launch batch</td></tr>
+      <tr><td class="mono sm">06 Oct</td><td><span class="who h"><b>SM</b>Sahil</span></td><td>Set caps</td><td class="mono t3">channel</td><td class="sm t2 mono">₹600/day · ₹1,500 long-form day · ₹15,000/month · ₹150/Short</td></tr>
+      <tr><td class="mono sm">06 Oct</td><td><span class="who a"><b>AG</b>Agent</span></td><td>Drafted briefs</td><td class="mono">S001 · S003</td><td class="sm t2">from approved topics</td></tr>
+    </tbody>
+  </table></div>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

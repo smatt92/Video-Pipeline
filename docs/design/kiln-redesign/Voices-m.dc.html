@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln — Voices (mobile)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.vr{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--b1);min-height:68px}
+.vr:last-child{border-bottom:0}
+.vr .btn{width:44px;height:44px;padding:0;border-radius:50%}
+.vr .btn.on{background:var(--ac);color:var(--ac-ink);border-color:transparent}
+</style>
+</helmet>
+<div class="k phone" style="height: 1400px">
+  <header class="ph-top">
+    <a href="More-m.dc.html" aria-label="Back" class="btn icon" style="width: 44px; height: 44px; border-radius: 12px"><svg class="ic" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"></path></svg></a>
+    <div class="col grow" style="gap: 0"><span class="ttl">Voices</span><span class="xs t3">8 locked presets</span></div>
+  </header>
+  <div class="ph-body">
+    <section class="card">
+      <sc-for list="{{ cast }}" as="c" hint-placeholder-count="8">
+        <div class="vr">
+          <div class="{{ c.bust }}"><div class="gl"></div><div class="sh"></div><div class="cl"></div><div class="hd"></div></div>
+          <div class="col grow" style="gap: 2px; min-width: 0"><span style="font-weight: 500">{{ c.name }}</span><span class="xs t3" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ c.line }}</span></div>
+          <button class="{{ c.bcls }}" type="button" onClick="{{ c.play }}" aria-label="{{ c.aria }}"><svg class="ic" viewBox="0 0 24 24"><path d="{{ c.icon }}"></path></svg></button>
+        </div>
+      </sc-for>
+    </section>
+    <p class="xs t3" style="text-align: center">Unlocking a preset needs the approver token and re-voices nothing already approved.</p>
+  </div>
+  <div class="tab-w"><dc-import name="TabBar" active="more" hint-size="390px,84px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1400}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { playing: 'iyer' }; }
+  renderVals() {
+    const C = [
+      ['pip', 'Pip', 'So the red one is…', 'bust sm bp pip c-pip'],
+      ['marlo', 'Marlo', 'Pip. Where is the Moon.', 'bust sm bp c-marlo'],
+      ['iyer', 'Mrs. Iyer', 'Every firework colour is a different metal…', 'bust sm bp c-iyer'],
+      ['nib', 'Nib', 'Case reopened.', 'bust sm bp c-nib'],
+      ['kaz', 'Kaz', 'Ten heads, one king.', 'bust sm bp c-kaz'],
+      ['ohm', 'Director Ohm', 'Light up a billion homes.', 'bust sm bp ohm c-ohm'],
+      ['box', 'Complaint Box', 'A viewer says their phone dies…', 'bust sm bp box c-box'],
+      ['aud', 'The Auditor', 'Source, please.', 'bust sm bp aud c-aud']
+    ];
+    const pl = this.state.playing;
+    return {
+      cast: C.map(([k, name, line, bust]) => ({
+        name, line, bust,
+        bcls: 'btn' + (pl === k ? ' on' : ''),
+        icon: pl === k ? 'M8 5v14M16 5v14' : 'M7 5l12 7-12 7z',
+        aria: (pl === k ? 'Pause ' : 'Play ') + name,
+        play: () => this.setState({ playing: pl === k ? null : k })
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>

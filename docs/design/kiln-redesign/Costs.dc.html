@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln — Costs</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:oklch(0.150 0.006 70)}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+</style>
+</helmet>
+<div class="k app">
+<div class="rail-w"><dc-import name="Rail" active="costs" channel="bureau" hint-size="100%,1150px"></dc-import></div>
+<main class="main">
+<header class="topbar">
+  <div class="col" style="gap: 0">
+    <div class="crumb"><span class="chm"></span><span>Bureau of Reality</span><span class="t4">/</span><span>Costs</span></div>
+    <h1 class="h1">Costs</h1>
+  </div>
+  <div class="row" style="gap: 10px"><div class="seg"><button type="button">Today</button><button type="button">7d</button><button class="on" type="button">28d</button></div><button class="btn sm" type="button"><svg class="ic" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"></path></svg>CSV</button></div>
+</header>
+
+<section class="grid ga-220">
+  <div class="card tile"><div class="row sb"><span class="lbl">Today</span><span class="basis est">estimate</span></div><span class="tv">₹1.35<small>/ ₹600</small></span><div class="bar"><i style="width: 0.23%"></i></div></div>
+  <div class="card tile"><div class="row sb"><span class="lbl">This month</span><span class="basis est">estimate</span></div><span class="tv">₹11.14<small>/ ₹15,000</small></span><div class="bar"><i style="width: 0.07%"></i></div></div>
+  <div class="card tile"><span class="lbl">Measured rows</span><span class="tv">0<small>of 7</small></span><span class="why">every row so far is a rate-card estimate</span></div>
+  <div class="card tile"><div class="row sb"><span class="lbl">Cost per video</span><span class="basis est">estimate</span></div><span class="unk">—</span><span class="why">undefined until one exists · cap ₹150</span></div>
+</section>
+
+<div class="split">
+  <section class="wide card">
+    <div class="card-h"><h2 class="h3">By stage</h2><span class="basis est">estimate</span></div>
+    <div class="card-b col" style="gap: 14px">
+      <div class="bar thick" style="display: flex; gap: 2px; background: transparent"><i style="width: 79.8%; background: var(--ac)"></i><i style="width: 20.2%; background: oklch(0.79 0.12 182 / .45)"></i></div>
+      <div class="scroll-x"><table class="tbl">
+        <thead><tr><th>Stage</th><th>Vendors</th><th class="r">Rows</th><th class="r">₹</th><th class="r">Share</th></tr></thead>
+        <tbody>
+          <tr><td>Scripting</td><td class="sm t2">Anthropic, Gemini</td><td class="r mono">6</td><td class="r mono">2.25</td><td class="r mono t3">20%</td></tr>
+          <tr><td>Voicing</td><td class="sm t2">Runway</td><td class="r mono">1</td><td class="r mono">8.89</td><td class="r mono t3">80%</td></tr>
+          <tr><td>Generating</td><td class="sm t2">Render worker</td><td class="r mono t3">0</td><td class="r mono t3">— <span class="xs">compute not ledgered</span></td><td class="r mono t3">—</td></tr>
+          <tr><td>Assembling</td><td class="sm t2">Render worker</td><td class="r mono t3">0</td><td class="r mono t3">— <span class="xs">nothing assembled yet</span></td><td class="r mono t3">—</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </section>
+  <section class="side card">
+    <div class="card-h"><h2 class="h3">Per episode</h2><span class="xs t3">cap ₹150 each</span></div>
+    <div class="card-b col" style="gap: 14px">
+      <div class="col" style="gap: 6px"><div class="row sb sm"><span><span class="mono">S001</span> · spent</span><span class="mono">₹8.89 <span class="basis est">est</span></span></div><div class="bar"><i style="width: 5.9%"></i></div><span class="why">plan ₹9.13 est · voice only so far</span></div>
+      <div class="col" style="gap: 6px"><div class="row sb sm"><span><span class="mono">S002</span> · plan</span><span class="mono">₹9.40 <span class="basis est">est</span></span></div><div class="bar"><i style="width: 0; min-width: 0"></i></div><span class="why">not started — brief waiting</span></div>
+      <div class="col" style="gap: 6px"><div class="row sb sm"><span><span class="mono">S003</span> · spent</span><span class="mono">₹0.00 <span class="basis est">est</span></span></div><div class="bar"><i style="width: 0; min-width: 0"></i></div><span class="why">plan — · failed before pricing</span></div>
+    </div>
+  </section>
+</div>
+
+<section class="card">
+  <div class="card-h"><h2 class="h3">Ledger</h2><span class="xs t3">rate card = our price × quantity · measured = vendor figure or observed balance move</span></div>
+  <div class="scroll-x"><table class="tbl">
+    <thead><tr><th>Time · IST</th><th>Slot</th><th>Vendor</th><th>Stage</th><th>Unit</th><th>Entry</th><th class="r">₹</th><th>Basis</th></tr></thead>
+    <tbody>
+      <tr><td class="mono sm">07 Oct 08:25</td><td class="mono sm t3">channel</td><td>Anthropic</td><td class="sm t2">Scripting</td><td class="mono xs t2">output_token</td><td class="xs t3">reconcile</td><td class="r mono">1.17</td><td><span class="basis est">estimate</span></td></tr>
+      <tr><td class="mono sm">07 Oct 08:25</td><td class="mono sm t3">channel</td><td>Anthropic</td><td class="sm t2">Scripting</td><td class="mono xs t2">input_token</td><td class="xs t3">reconcile</td><td class="r mono">0.17</td><td><span class="basis est">estimate</span></td></tr>
+      <tr><td class="mono sm">07 Oct 08:09</td><td class="mono sm t3">channel</td><td>Gemini</td><td class="sm t2">Scripting</td><td class="mono xs t2">input_token</td><td class="xs t3">estimate</td><td class="r mono">0.004</td><td><span class="basis est">estimate</span></td></tr>
+      <tr><td class="mono sm">06 Oct 23:00</td><td class="mono sm">S001</td><td>Runway</td><td class="sm t2">Voicing</td><td class="mono xs t2">character</td><td class="xs t3">estimate</td><td class="r mono">8.89</td><td><span class="basis est">estimate</span></td></tr>
+      <tr><td class="mono sm">06 Oct 22:45</td><td class="mono sm t3">channel</td><td>Anthropic</td><td class="sm t2">Scripting</td><td class="mono xs t2">output_token</td><td class="xs t3">reconcile</td><td class="r mono">0.76</td><td><span class="basis est">estimate</span></td></tr>
+      <tr><td class="mono sm">06 Oct 22:45</td><td class="mono sm t3">channel</td><td>Anthropic</td><td class="sm t2">Scripting</td><td class="mono xs t2">input_token</td><td class="xs t3">reconcile</td><td class="r mono">0.14</td><td><span class="basis est">estimate</span></td></tr>
+      <tr><td class="mono sm">06 Oct 22:26</td><td class="mono sm t3">channel</td><td>Gemini</td><td class="sm t2">Scripting</td><td class="mono xs t2">input_token</td><td class="xs t3">estimate</td><td class="r mono">0.003</td><td><span class="basis est">estimate</span></td></tr>
+    </tbody>
+  </table></div>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1150}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

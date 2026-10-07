@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln — Calendar (mobile)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.mg{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.mg .h{font:500 10.5px var(--mono);color:var(--t3);text-align:center;padding-bottom:4px}
+.mc{height:46px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font:500 13px var(--mono);color:var(--t2);background:var(--s1);border:0}
+.mc.out{background:transparent;color:var(--t4)}
+.mc.today{background:var(--ac);color:var(--ac-ink)}
+.mc.sel{box-shadow:inset 0 0 0 1.5px var(--t1);color:var(--t1)}
+.mc i{width:6px;height:6px;border-radius:50%;background:var(--c)}
+.mc i.none{background:transparent}
+.ag{display:flex;gap:12px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--b1);min-height:60px}
+.ag:last-child{border-bottom:0}
+</style>
+</helmet>
+<div class="k phone" style="height: 1300px">
+  <header class="ph-top">
+    <a href="More-m.dc.html" aria-label="Switch channel" style="text-decoration: none"><div class="av">BR</div></a>
+    <div class="col grow" style="gap: 0"><span class="ttl">October</span><span class="xs t3">14 slots · 18:00 IST daily</span></div>
+  </header>
+  <div class="ph-body">
+    <div class="card card-b">
+      <div class="mg">
+        <span class="h">M</span><span class="h">T</span><span class="h">W</span><span class="h">T</span><span class="h">F</span><span class="h">S</span><span class="h">S</span>
+        <sc-for list="{{ days }}" as="d" hint-placeholder-count="35"><div class="{{ d.cls }}"><span>{{ d.n }}</span><i class="{{ d.dot }}"></i></div></sc-for>
+      </div>
+    </div>
+    <div class="row sb"><span class="lbl">Week of 19 Oct</span><span class="stag">Dussehra 20</span></div>
+    <section class="card">
+      <div class="ag"><div class="col" style="width: 40px; gap: 0"><span class="mono xs t3">MON</span><span class="mono" style="font-size: 18px">19</span></div><span class="slot sr-incident grow" style="padding: 8px 10px"><span class="sid"><span class="chm" style="width: 6px; height: 6px"></span>S001 · Incident Report</span><span class="tt">What if the Moon vanished</span></span><span class="pill s-blk">Blocked</span></div>
+      <div class="ag"><div class="col" style="width: 40px; gap: 0"><span class="mono xs t3">TUE</span><span class="mono" style="font-size: 18px">20</span></div><span class="slot sr-desk grow" style="padding: 8px 10px"><span class="sid"><span class="chm" style="width: 6px; height: 6px"></span>S002 · Desk Tour</span><span class="tt">Fireworks: metal salts</span></span><span class="pill s-draft">Brief</span></div>
+      <div class="ag"><div class="col" style="width: 40px; gap: 0"><span class="mono xs t3">WED</span><span class="mono" style="font-size: 18px">21</span></div><span class="slot sr-pip grow" style="padding: 8px 10px"><span class="sid"><span class="chm" style="width: 6px; height: 6px"></span>S003 · Pip's First Year</span><span class="tt">S1E1 Orientation</span></span><span class="pill s-blk">Blocked</span></div>
+      <div class="ag"><div class="col" style="width: 40px; gap: 0"><span class="mono xs t3">THU</span><span class="mono" style="font-size: 18px">22</span></div><span class="slot sr-archive grow" style="padding: 8px 10px"><span class="sid"><span class="chm" style="width: 6px; height: 6px"></span>S004 · The Archive</span><span class="tt">Dancing Plague of 1518</span></span><span class="pill nodot s-draft">open</span></div>
+      <div class="ag"><div class="col" style="width: 40px; gap: 0"><span class="mono xs t3">SUN</span><span class="mono" style="font-size: 18px">25</span></div><span class="slot sr-long grow" style="padding: 8px 10px"><span class="sid"><span class="chm" style="width: 6px; height: 6px"></span>L01 · Long-form</span><span class="tt">Welcome to the Bureau · pilot</span></span><span class="pill nodot s-draft">planned</span></div>
+    </section>
+  </div>
+  <div class="tab-w"><dc-import name="TabBar" active="more" hint-size="390px,84px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1300}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const ser = { 19: 'sr-incident', 20: 'sr-desk', 21: 'sr-pip', 22: 'sr-archive', 23: 'sr-myth', 24: 'sr-deep', 25: 'sr-complaint', 26: 'sr-incident', 27: 'sr-desk', 28: 'sr-pip', 29: 'sr-archive', 30: 'sr-myth', 31: 'sr-deep' };
+    const days = [];
+    for (let i = 0; i < 35; i++) {
+      let n, out = false;
+      if (i < 3) { n = 28 + i; out = true; } else if (i - 2 > 31) { n = i - 2 - 31; out = true; } else { n = i - 2; }
+      const s = !out && ser[n];
+      days.push({ n, cls: 'mc' + (out ? ' out' : '') + (!out && n === 7 ? ' today' : '') + (!out && n === 19 ? ' sel' : '') + (s ? ' ' + s : ''), dot: s ? '' : 'none' });
+    }
+    return { days };
+  }
+}
+</script>
+</body>
+</html>

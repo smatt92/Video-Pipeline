@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln — Settings · Integrations</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:oklch(0.150 0.006 70)}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--b1);margin-top:-8px}
+.tabs a{padding:10px 12px;font-size:13.5px;color:var(--t3);text-decoration:none;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs a.on{color:var(--t1);border-color:var(--ac)}
+.ig{display:grid;grid-template-columns:40px 1fr auto auto;gap:14px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--b1)}
+.ig:last-child{border-bottom:0}
+.lg{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;font:600 13px var(--mono);background:var(--s2);border:1px solid var(--b2);color:var(--t2)}
+</style>
+</helmet>
+<div class="k app">
+<div class="rail-w"><dc-import name="Rail" active="settings" channel="bureau" hint-size="100%,1060px"></dc-import></div>
+<main class="main">
+<header class="topbar" style="border-bottom: 0; padding-bottom: 0">
+  <div class="col" style="gap: 0">
+    <div class="crumb"><span class="chm"></span><span>Bureau of Reality</span><span class="t4">/</span><span>Settings</span></div>
+    <h1 class="h1">Settings</h1>
+  </div>
+</header>
+<nav class="tabs" aria-label="Settings sections"><a href="#channels">Channels</a><a class="on" href="#integrations">Integrations</a><a href="#caps">Caps</a><a href="#tokens">Tokens</a></nav>
+
+<div class="split">
+  <section class="wide card">
+    <div class="card-h"><h2 class="h3">Integrations</h2><div class="row" style="gap: 6px"><span class="pill s-live nodot">4 verified</span><span class="pill s-rev nodot">2 unverified</span><span class="pill s-blk nodot">2 missing</span></div></div>
+    <div class="ig"><span class="lg">An</span><div class="col" style="gap: 2px"><span style="font-weight: 500">Anthropic</span><span class="xs t3">Briefs, scripts</span></div><span class="pill s-live">verified</span><button class="btn sm ghost" type="button">Re-check</button></div>
+    <div class="ig"><span class="lg">Ge</span><div class="col" style="gap: 2px"><span style="font-weight: 500">Gemini</span><span class="xs t3">Research, policy lint</span></div><span class="pill s-live">verified</span><button class="btn sm ghost" type="button">Re-check</button></div>
+    <div class="ig"><span class="lg">Rw</span><div class="col" style="gap: 2px"><span style="font-weight: 500">Runway</span><span class="xs t3">Voice, video clips</span></div><span class="pill s-live">verified</span><button class="btn sm ghost" type="button">Re-check</button></div>
+    <div class="ig"><span class="lg">Sb</span><div class="col" style="gap: 2px"><span style="font-weight: 500">Supabase</span><span class="xs t3">Ledger, episodes, authorship log</span></div><span class="pill s-live">verified</span><button class="btn sm ghost" type="button">Re-check</button></div>
+    <div class="ig"><span class="lg">Hf</span><div class="col" style="gap: 2px"><span style="font-weight: 500">Higgsfield</span><span class="xs t3">Character beats — until verified they render as overlay</span></div><span class="pill s-rev">unverified</span><button class="btn sm" type="button">Verify</button></div>
+    <div class="ig"><span class="lg">YT</span><div class="col" style="gap: 2px"><span style="font-weight: 500">YouTube Data API</span><span class="xs t3">Quota, "mark scheduled" link check — OAuth not finished</span></div><span class="pill s-rev">unverified</span><button class="btn sm" type="button">Finish sign-in</button></div>
+    <div class="ig"><span class="lg">YA</span><div class="col" style="gap: 2px"><span style="font-weight: 500">YouTube Analytics</span><span class="xs t3">Views, APV, viewed-vs-swiped, subs — every metric stays "—" without it</span></div><span class="pill s-blk">missing</span><button class="btn sm pri" type="button">Connect</button></div>
+    <div class="ig"><span class="lg">Ph</span><div class="col" style="gap: 2px"><span style="font-weight: 500">Phone alerts</span><span class="xs t3">Push when a brief or cut needs you</span></div><span class="pill s-blk">missing</span><button class="btn sm" type="button">Connect</button></div>
+  </section>
+  <aside class="side">
+    <section class="card" id="channels">
+      <div class="card-h"><h2 class="h3">Channels</h2><span class="xs t3">each scoped on its own</span></div>
+      <div class="card-b col" style="gap: 12px">
+        <div class="row" style="gap: 12px; flex-wrap: nowrap"><div class="av">BR</div><div class="col grow" style="gap: 0"><span style="font-weight: 500">Bureau of Reality</span><span class="mono xs t3">@BureauofReality</span></div><span class="row xs t3" style="gap: 6px"><span class="chm"></span>teal</span></div>
+        <div class="hr"></div>
+        <span class="h3">Add channel</span>
+        <div class="field"><label for="hn">YouTube handle</label><input id="hn" class="input mono" placeholder="@handle"></div>
+        <div class="field"><label>Accent</label><div class="row" style="gap: 8px"><button type="button" aria-label="Lime" style="width: 32px; height: 32px; border-radius: 8px; border: 0; background: oklch(0.84 0.15 125); box-shadow: 0 0 0 2px var(--s1), 0 0 0 3.5px var(--t1)"></button><button type="button" aria-label="Ochre" style="width: 32px; height: 32px; border-radius: 8px; border: 0; background: oklch(0.80 0.12 60)"></button><button type="button" aria-label="Orchid" style="width: 32px; height: 32px; border-radius: 8px; border: 0; background: oklch(0.76 0.13 340)"></button><button type="button" aria-label="Chalk" style="width: 32px; height: 32px; border-radius: 8px; border: 0; background: oklch(0.90 0.02 85)"></button></div></div>
+        <button class="btn full" type="button"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg>Connect with YouTube</button>
+      </div>
+    </section>
+    <section class="card" id="caps">
+      <div class="card-h"><h2 class="h3">Caps · Bureau</h2><span class="lock"><svg class="ic" viewBox="0 0 24 24" style="width: 12px; height: 12px"><path d="M6 11h12v9H6zM8 11V8a4 4 0 0 1 8 0v3"></path></svg>approver only</span></div>
+      <div class="card-b col" style="gap: 10px">
+        <div class="row sb sm"><span class="t2">Daily</span><span class="mono">₹600</span></div>
+        <div class="row sb sm"><span class="t2">Long-form day</span><span class="mono">₹1,500</span></div>
+        <div class="row sb sm"><span class="t2">Monthly</span><span class="mono">₹15,000</span></div>
+        <div class="row sb sm"><span class="t2">Per Short</span><span class="mono">₹150</span></div>
+      </div>
+    </section>
+  </aside>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1060}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

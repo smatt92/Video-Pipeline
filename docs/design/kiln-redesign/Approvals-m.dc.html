@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln — Approvals (mobile)</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./kiln.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;family=Geist+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:oklch(0.79 0.12 182)}a:hover{color:oklch(0.86 0.10 182)}
+.disc{display:flex;align-items:center;gap:12px;min-height:56px;padding:0 16px;border-bottom:1px solid var(--b1);color:var(--t1);text-decoration:none}
+.disc:last-child{border-bottom:0}
+</style>
+</helmet>
+<div class="k phone" style="height: 2050px">
+  <header class="ph-top">
+    <a href="More-m.dc.html" aria-label="Switch channel" style="text-decoration: none"><div class="av">BR</div></a>
+    <div class="col grow" style="gap: 0"><span class="ttl">Approvals</span><span class="xs t3">1 brief · swipe for next</span></div>
+    <span class="mono sm t3">1 / 1</span>
+  </header>
+  <div class="ph-body" style="padding-bottom: 220px">
+    <section class="card bp" style="border-color: rgba(242,239,232,.14); padding: 16px; display: flex; flex-direction: column; gap: 12px">
+      <div class="row sb"><span class="mono" style="color: var(--chalk); font-weight: 600; font-size: 17px">S002</span><span class="stag">Dussehra</span></div>
+      <div class="row" style="gap: 10px; flex-wrap: nowrap">
+        <div class="bust md c-iyer" style="background: transparent; box-shadow: none"><div class="gl"></div><div class="sh"></div><div class="cl"></div><div class="hd"></div></div>
+        <div class="col" style="gap: 4px"><span style="color: var(--chalk); font-weight: 600; font-size: 18px; line-height: 1.2">Why fireworks have colours</span><span class="mono xs" style="color: rgba(242,239,232,.7)">Tue 20 Oct · 18:00 · Desk Tour</span></div>
+      </div>
+      <p class="sm" style="color: rgba(242,239,232,.85)">Mrs. Iyer walks Pip through the Chemistry Desk's firework cabinet: every colour is a different metal, burning loud.</p>
+      <div class="row" style="gap: 6px"><span class="cast c-iyer"><i></i>Iyer<em>LEAD</em></span><span class="cast c-pip"><i></i>Pip</span><span class="cast c-nib"><i></i>Nib</span></div>
+    </section>
+
+    <section class="card" style="overflow: hidden">
+      <a class="disc" href="#beats"><span class="grow">Beat sheet</span><span class="mono xs t3">5 beats · 48 s</span><svg class="ic" viewBox="0 0 24 24" style="color: var(--t3)"><path d="M6 9l6 6 6-6"></path></svg></a>
+      <a class="disc" href="#script"><span class="grow">Script</span><span class="mono xs t3">9 lines</span><svg class="ic" viewBox="0 0 24 24" style="color: var(--t3)"><path d="M6 9l6 6 6-6"></path></svg></a>
+      <a class="disc" href="#shots"><span class="grow">Shot list</span><span class="mono xs t3">4 overlay · 2 beat</span><svg class="ic" viewBox="0 0 24 24" style="color: var(--t3)"><path d="M6 9l6 6 6-6"></path></svg></a>
+      <a class="disc" href="#titles"><span class="grow">Titles</span><span class="mono xs t3">3 options</span><svg class="ic" viewBox="0 0 24 24" style="color: var(--t3)"><path d="M6 9l6 6 6-6"></path></svg></a>
+    </section>
+
+    <section class="card card-b col" style="gap: 8px">
+      <span class="lbl">Fact</span>
+      <p class="sm">Strontium burns red, barium green, sodium yellow, copper blue.</p>
+      <a class="xs" href="https://www.acs.org/">acs.org ↗</a>
+    </section>
+
+    <section class="card card-b col" style="gap: 10px">
+      <div class="row sb"><span class="lbl">Estimate</span><span class="mono">₹9.40 <span class="basis est">est</span></span></div>
+      <div class="note"><svg class="ic" viewBox="0 0 24 24"><path d="M12 8v5M12 16h.01M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z"></path></svg><span>Mrs. Iyer has no locked frame — her 2 beats render as overlay.</span></div>
+    </section>
+
+    <span class="lbl" style="margin-top: 6px">Pick the punchline — thumb zone</span>
+    <sc-for list="{{ picks }}" as="p" hint-placeholder-count="3">
+      <button class="{{ p.cls }}" type="button" onClick="{{ p.pick }}" aria-pressed="{{ p.on }}" style="min-height: 72px; padding: 16px"><span class="key" style="width: 32px; height: 32px">{{ p.k }}</span><span class="txt" style="font-size: 15px">{{ p.t }}</span></button>
+    </sc-for>
+  </div>
+
+  <div class="sticky-act">
+    <button class="btn lg" type="button" style="flex: 0 0 auto">Reject</button>
+    <button class="btn lg pri" type="button" style="flex: 1" disabled="{{ noPick }}">{{ approveLabel }}</button>
+  </div>
+  <div class="tab-w"><dc-import name="TabBar" active="approvals" hint-size="390px,84px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":2050}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { picked: 'B' }; }
+  renderVals() {
+    const P = [
+      { k: 'A', t: 'Pip asks which metal makes the loud ones. Mrs. Iyer: “That’s not a metal, Pip. That’s you.”' },
+      { k: 'B', t: 'Blue is the hardest colour to burn. Copper keeps calling in sick.' },
+      { k: 'C', t: 'Nib stamps the file: “Celebration approved. Ears not consulted.”' }
+    ];
+    const pk = this.state.picked;
+    return {
+      picks: P.map(p => ({ ...p, on: p.k === pk, cls: 'pick' + (p.k === pk ? ' on' : ''), pick: () => this.setState({ picked: p.k }) })),
+      noPick: !pk,
+      approveLabel: pk ? 'Approve with ' + pk : 'Pick one to approve'
+    };
+  }
+}
+</script>
+</body>
+</html>
