@@ -187,7 +187,7 @@
         "silhouette": "lamp only; never a body"
       },
       "reference_frame_ids": ["PLACEHOLDER_OHM_REF_1"],
-      "voice": { "provider": "runway", "preset_id": null },
+      "voice": { "provider": "runway", "preset_id": "Marlene" },
       "elevenlabs_voice_id": null,
       "voice_brief": "Filtered, formal memo voice.",
       "never_do": ["Never seen.", "Never jokes.", "Never named by first name."]
