@@ -45,10 +45,10 @@ export function capAlerts(h: Headroom, now: Date): { key: string; text: string }
   const out: { key: string; text: string }[] = [];
   const day = new Date(now.getTime() + 330 * 60_000).toISOString().slice(0, 10);
   if (h.todayInr !== null && h.dailyCapInr && h.todayInr >= 0.8 * h.dailyCapInr) {
-    out.push({ key: `cap80:day:${day}`, text: `Daily spend at ₹${h.todayInr.toFixed(0)} of ₹${h.dailyCapInr.toFixed(0)} (${Math.round((100 * h.todayInr) / h.dailyCapInr)}%, estimates).` });
+    out.push({ key: `cap80:day:${day}`, text: `Today’s spend is ₹${h.todayInr.toFixed(0)} of the ₹${h.dailyCapInr.toFixed(0)} daily cap (${Math.round((100 * h.todayInr) / h.dailyCapInr)}%, estimate). Raise the cap on Costs, or the rest waits for tomorrow.` });
   }
   if (h.monthInr !== null && h.monthlyCapInr && h.monthInr >= 0.8 * h.monthlyCapInr) {
-    out.push({ key: `cap80:month:${day.slice(0, 7)}`, text: `Monthly spend at ₹${h.monthInr.toFixed(0)} of ₹${h.monthlyCapInr.toFixed(0)} (${Math.round((100 * h.monthInr) / h.monthlyCapInr)}%, estimates).` });
+    out.push({ key: `cap80:month:${day.slice(0, 7)}`, text: `This month’s spend is ₹${h.monthInr.toFixed(0)} of the ₹${h.monthlyCapInr.toFixed(0)} monthly cap (${Math.round((100 * h.monthInr) / h.monthlyCapInr)}%, estimate). Raise the cap on Costs, or hold the next briefs.` });
   }
   return out;
 }

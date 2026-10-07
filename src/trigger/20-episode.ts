@@ -117,7 +117,7 @@ export const episodeTask = schemaTask({
       });
       if (!voice.ok) {
         await setStatus(db, episodeId, 'halted', `${voice.code}: ${voice.detail}`);
-        await notify(db, channelId, 'qc_failed', `Episode ${episodeId.slice(0, 8)} halted at voice: ${voice.detail}`);
+        await notify(db, channelId, 'qc_failed', `Kiln stopped episode ${episodeId.slice(0, 8)} at voice: ${voice.detail} Fix the voice on Voices, then restart the run.`);
         return { halted: voice.code };
       }
 
@@ -172,7 +172,7 @@ export const episodeTask = schemaTask({
           log: logger,
         });
         logger.info('qc', qc);
-        if (qc.flagged) await notify(db, channelId, 'qc_failed', `Episode ${episodeId.slice(0, 8)}: ${qc.flagged} clip(s) failed QC after re-rolls — see Cuts.`);
+        if (qc.flagged) await notify(db, channelId, 'qc_failed', `Episode ${episodeId.slice(0, 8)} · ${qc.flagged} clip${qc.flagged === 1 ? '' : 's'} failed QC after re-rolls. Regenerate or send back on Cuts.`);
         if (qc.rerolled === 0) break;
       }
 
@@ -211,7 +211,7 @@ export const episodeTask = schemaTask({
       for (let attempt = 0; attempt < 3; attempt++) {
         const token = await wait.createToken({ timeout: '14d', idempotencyKey: `cut:${episodeId}:${attempt}`, tags: [`episode:${episodeId}`] });
         await db.from('episodes').update({ cut_wait_token: token.id, status: 'awaiting_cut', status_detail: null }).eq('id', episodeId);
-        await notify(db, channelId, 'cut_ready', `Cut ready for review: episode ${episodeId.slice(0, 8)} (${(assembled.frames / FPS).toFixed(1)} s, ${lufs === null ? 'loudness unmeasured' : `${lufs} LUFS`}).`);
+        await notify(db, channelId, 'cut_ready', `Cut ready for episode ${episodeId.slice(0, 8)} · ${(assembled.frames / FPS).toFixed(1)} s · ${lufs === null ? 'loudness — (unmeasured)' : `${lufs} LUFS`}. Watch it on Cuts.`);
         const decision = await wait.forToken<{ approved: boolean; note: string | null }>(token);
         if (!decision.ok) {
           await setStatus(db, episodeId, 'halted', 'cut review timed out after 14 days');
@@ -236,7 +236,7 @@ export const episodeTask = schemaTask({
           const next = await afterBundle(db, b.publicationId, {
             startUpload: async (publicationId) => (await tasks.trigger('10-publish', { publicationId, idempotencyKey: `publish:${publicationId}` })).id,
           });
-          await notify(db, channelId, 'info', `Publish bundle ready for episode ${episodeId.slice(0, 8)}${b.slotTime ? ` — slot ${b.slotTime}` : ''}. YouTube: ${next.youtube}. Instagram: ${ig.ok ? 'Reels draft ready on Ready to schedule' : ig.refused}.`);
+          await notify(db, channelId, 'info', `Bundle ready for episode ${episodeId.slice(0, 8)}${b.slotTime ? ` · slot ${b.slotTime}` : ''}. YouTube: ${next.youtube}. Instagram: ${ig.ok ? 'Reels draft ready' : ig.refused}. Download it on Ready.`);
           return { bundled: b.publicationId, ...next };
         }
         // Rejected: re-rolls queued by shot_regenerate are generated, then the cut is rebuilt.

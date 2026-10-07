@@ -85,7 +85,7 @@ export const draftBriefsTask = schedules.task({
         }
       }
       if (drafted) {
-        await notify(db, ch.id, 'briefs_pending', `${drafted} slot${drafted === 1 ? '' : 's'} within 2 days had no brief; the safety net drafted ${drafted === 1 ? 'one' : 'them'}.`);
+        await notify(db, ch.id, 'briefs_pending', `${drafted} slot${drafted === 1 ? '' : 's'} within two days had no brief, so Kiln drafted ${drafted === 1 ? 'one' : 'them'}. Pick a punchline on Approvals.`);
       }
       results[ch.name] = { drafted, open: open.length };
     }

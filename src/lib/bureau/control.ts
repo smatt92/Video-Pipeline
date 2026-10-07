@@ -197,7 +197,7 @@ export async function setKillSwitch(db: Db, token: BureauToken, effects: Effects
   requireApprover(token, 'kill_switch');
   const { data, error } = await db.rpc('bureau_kill_switch', { p_token: token.id, p_on: input.on, p_reason: input.reason ?? '' });
   if (error) throw dbError(error.message);
-  await effects.notify?.(token.channelId, 'kill_switch', `Kill switch ${input.on ? 'ON' : 'off'}${input.reason ? `: ${input.reason}` : ''}`);
+  await effects.notify?.(token.channelId, 'kill_switch', input.on ? `Kill switch on — every job for this channel stopped, and spend with it${input.reason ? ` (${input.reason})` : ''}. Turn it off on Home to resume.` : 'Kill switch off. Jobs for this channel can run again.');
   return { ok: true as const, kill_switch: input.on, policy: data };
 }
 

@@ -248,6 +248,12 @@ otp_expiry = 3600
 # subject = "You have been invited"
 # content_path = "./supabase/templates/invite.html"
 
+# Sign-in email on the paper set (docs: HANDOVER-PROMPT-M). Local only — the hosted project
+# reads its template from the dashboard.
+[auth.email.template.magic_link]
+subject = "Sign in to Kiln"
+content_path = "./supabase/templates/magic_link.html"
+
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
 # enabled = true

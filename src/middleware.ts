@@ -4,6 +4,7 @@ import { checkEmail } from '@/lib/auth/allowed';
 import { readAuthConfig, type RequiredVar } from '@/lib/auth/config';
 import { middlewareClient } from '@/lib/auth/supabase';
 import { entryDestination, SEEN_COOKIE } from '@/lib/onboarding/entry';
+import { BRAND_HEX as H } from '@/styles/brand';
 
 /**
  * Two gates, in order: who you are, then whether setup is finished.
@@ -173,17 +174,17 @@ missing <code>.com</code> is the usual cause.</p>`
 <style>
   :root { color-scheme: dark }
   body { margin:0; min-height:100dvh; display:flex; align-items:center; justify-content:center;
-         background:#0c0e0f; color:#e6e8e9;
+         background:${H.page}; color:${H.chalk};
          font:14px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif }
   main { max-width:44rem; padding:2.5rem 1.5rem }
   h1 { font-size:1.15rem; font-weight:500; margin:0 0 .75rem; letter-spacing:-.01em }
-  p { margin:0 0 1rem; color:#a3aaad }
+  p { margin:0 0 1rem; color:${H.chalk}; opacity:.78 }
   ul { margin:0 0 1.25rem; padding-left:1.1rem }
   li { margin:.2rem 0 }
-  code { font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; color:#e6e8e9 }
-  a { color:#4db6ac }
-  .note { font-size:12.5px; color:#6e7679; border-top:1px solid #1e2325; padding-top:1rem }
-  .warn { color:#e0a458 }
+  code { font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; color:${H.chalk} }
+  a { color:${H.accent} }
+  .note { font-size:12.5px; opacity:.6; border-top:1px solid ${H.inset}; padding-top:1rem }
+  .warn { color:${H.ochre} }
 </style></head><body><main>
 <h1>Kiln is not configured</h1>
 <p>The gate decides who may sign in and whether setup is finished. It cannot answer either

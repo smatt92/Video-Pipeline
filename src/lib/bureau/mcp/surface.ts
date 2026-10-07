@@ -122,10 +122,10 @@ export const BUREAU_TOOLS: BureauTool[] = [
       const judge = await c.effects.judgeFor?.(c.db, c.token.channelId);
       const results = await createBriefs(a.briefs, { db: c.db, token: c.token, embed, judge });
       const created = results.filter((r) => r.ok).length;
-      if (created) await c.effects.notify?.(c.token.channelId, 'briefs_pending', `${created} brief${created === 1 ? '' : 's'} waiting for approval.`);
+      if (created) await c.effects.notify?.(c.token.channelId, 'briefs_pending', `${created} brief${created === 1 ? '' : 's'} waiting for approval. Pick a punchline on Approvals.`);
       const policyFlags = results.filter((r) => r.ok && r.flag_reasons.some((f) => f.startsWith('policy:')));
       if (policyFlags.length) {
-        await c.effects.notify?.(c.token.channelId, 'policy_flag', `${policyFlags.length} brief(s) flagged by policy_lint: ${policyFlags.map((r) => (r.ok ? r.flag_reasons.filter((f) => f.startsWith('policy:')).join(',') : '')).join(' | ')}`);
+        await c.effects.notify?.(c.token.channelId, 'policy_flag', `${policyFlags.length} brief${policyFlags.length === 1 ? '' : 's'} flagged by the policy check — read ${policyFlags.length === 1 ? 'it' : 'them'} on Approvals before approving: ${policyFlags.map((r) => (r.ok ? r.flag_reasons.filter((f) => f.startsWith('policy:')).join(',') : '')).join(' | ')}`);
       }
       return { ok: true, created, failed: results.length - created, results };
     },
