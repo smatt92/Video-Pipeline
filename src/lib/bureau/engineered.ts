@@ -149,6 +149,20 @@ export const EngineeredDecodeSchema = z.object({
   pinned_comment: z.string(),
 });
 
+/**
+ * A meter's from/to/value are bar fills, 0..1. The model sometimes writes the physical figure
+ * instead (the first real draft, 08-Oct: `to` > 1) — the label and unit text carry the figure
+ * anyway, so the fills are scaled by the largest of them, keeping their proportion. Fills that
+ * are all within 0..1 are untouched; a negative one is left for the schema to refuse.
+ */
+export function barFill<M extends { from: number | null; to: number | null; value: number | null }>(m: M): M {
+  const nums = [m.from, m.to, m.value].filter((x): x is number => typeof x === 'number');
+  const top = Math.max(0, ...nums);
+  if (top <= 1 || nums.some((x) => x < 0)) return m;
+  const scale = (x: number | null) => (x === null ? null : Math.round((x / top) * 1000) / 1000);
+  return { ...m, from: scale(m.from), to: scale(m.to), value: scale(m.value) };
+}
+
 /** A decoded draft with its nulls dropped (the decode says null; the draft schema says absent). */
 export function draftFromDecoded(d: z.infer<typeof EngineeredDecodeSchema>): unknown {
   const drop = <T extends Record<string, unknown>>(o: T) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== null));
@@ -160,7 +174,7 @@ export function draftFromDecoded(d: z.infer<typeof EngineeredDecodeSchema>): unk
         badge: b.graphics.badge,
         verdict: b.graphics.verdict ? drop(b.graphics.verdict) : null,
         callouts: b.graphics.callouts.length ? b.graphics.callouts.map((c) => drop(c)) : null,
-        meters: b.graphics.meters.length ? b.graphics.meters.map((m) => drop(m)) : null,
+        meters: b.graphics.meters.length ? b.graphics.meters.map((m) => drop(barFill(m))) : null,
         keyword: b.graphics.keyword,
       }),
     })),

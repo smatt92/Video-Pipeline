@@ -270,6 +270,10 @@ try {
   check(ledgerAfter - ledgerBefore === 2 && ledgerRows.some((r) => r.unit === 'output_token' && Number(r.quantity) === 2100), 'LOAD-BEARING: the unparseable call is still in the ledger, at its 2,100 output tokens (rule 5)', JSON.stringify(ledgerRows));
   writerBadJson = false;
 
+  // Fills written as physical figures (the second hosted draft: meters.0.to > 1) are scaled, proportion kept.
+  check(JSON.stringify(E.barFill({ label: 'SPEED', from: 60, to: 15, value: null, unit: 'km/h' })) === JSON.stringify({ label: 'SPEED', from: 1, to: 0.25, value: null, unit: 'km/h' }) &&
+    JSON.stringify(E.barFill({ label: 'X', from: 0.2, to: 1, value: null, unit: '' })) === JSON.stringify({ label: 'X', from: 0.2, to: 1, value: null, unit: '' }),
+    'a meter written in physical figures becomes fills in proportion; fills already in 0..1 are untouched');
   // Too long once (the first hosted draft: 159 words against 150): ONE rewrite, told why.
   const padded = { ...FIXTURE, beats: FIXTURE.beats.map((b) => ({ ...b, narration: `${b.narration} and then again and again and again and again` })) };
   const before = llmCalls.filter((c) => /3D explainers/.test(c.system)).length;
