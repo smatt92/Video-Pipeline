@@ -103,6 +103,12 @@ jobs:
       - name: Font sizes are on the scale
         run: pnpm check:scalable-sizes
 
+      # ── Kiln Glass: WCAG AA in all six themes ────────────────────────────
+      # Parses the shipped tokens.css (not a copy of it) and checks text on glass over the
+      # brightest orb, black ink on every gradient stop and every state chip, per theme.
+      - name: Contrast — every theme, text on glass and ink on the gradient
+        run: pnpm test:contrast
+
       # The Guardrails screen showed 12 max shots against a constraint enforcing 8, and two
       # spend caps nothing sums. This asserts the displayed number is the enforced binding,
       # and that every "not enforced" row is still true — an assertion of absence, which

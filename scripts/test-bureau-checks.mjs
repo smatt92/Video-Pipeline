@@ -372,5 +372,16 @@ console.log('\nscreen state — where an episode shows, and when a screen follow
   check(stalled('cut_approved', new Date(now - SILENT_STALL_MS - 1000).toISOString(), now) === true && stalled('cut_approved', new Date(now - 60_000).toISOString(), now) === false, 'an approved cut nobody woke for 30 min reads as stalled (the Board offers Restart)');
 }
 
+// ── Kiln Glass: glow is information (08-Oct) ──────────────────────────────────
+console.log('\nambient glow — derived from rows, alert first, unreadable is no evidence\n');
+{
+  const { glowFrom } = require(new URL('../.verify-build/src/lib/shell/glow.js', import.meta.url).pathname);
+  check(glowFrom({ running: 0, halted: 0, unreadAlarms: 0 }) === 'idle', 'nothing running, nothing stopped → idle');
+  check(glowFrom({ running: 2, halted: 0, unreadAlarms: 0 }) === 'generating', 'an episode in a running status → generating');
+  check(glowFrom({ running: 2, halted: 1, unreadAlarms: 0 }) === 'alert', 'a halted episode → alert, even while others generate');
+  check(glowFrom({ running: 0, halted: 0, unreadAlarms: 1 }) === 'alert', 'an unread fallback / qc_failed alert → alert');
+  check(glowFrom({ running: null, halted: null, unreadAlarms: null }) === 'idle', 'counts that could not be read light nothing');
+}
+
 console.log(failures ? `\n${failures} FAILED\n` : '\nAll Bureau rule checks passed.\n');
 process.exit(failures ? 1 : 0);

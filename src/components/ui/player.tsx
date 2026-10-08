@@ -118,7 +118,7 @@ export function Player({
         </div>
         <div className="row sb">
           <button
-            className="pbtn"
+            className="plbtn"
             type="button"
             disabled={!src}
             aria-label={playing ? 'Pause' : 'Play'}

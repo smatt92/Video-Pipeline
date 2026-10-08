@@ -1,6 +1,8 @@
 import 'server-only';
 
 import { FORMAT_FALLBACK_PREFIX } from '../bureau/fallbacks';
+import { RUNNING } from '../bureau/running';
+import { glowFrom, type Glow } from './glow';
 import { routeClient } from '../auth/supabase';
 import { readSetupProgress } from '../onboarding/progress';
 import { currentChannel } from '../channels/active';
@@ -48,6 +50,12 @@ export interface RailData {
   pendingBriefs: { id: string; slot: string | null; premise: string }[];
   /** Studio setup, while unfinished. null once finished or when it cannot be read. */
   setup: { done: number; total: number } | null;
+  /**
+   * The ambient glow (Kiln Glass: glow is information), derived from rows, never decorative.
+   * `alert` — an unread fallback or qc_failed alert, or a halted episode; `generating` — any
+   * episode in a running status; otherwise `idle`. Alert wins: it is the one that needs you.
+   */
+  glow: Glow;
 }
 
 function toRailChannel(c: ChannelSummary): RailChannel {
@@ -74,6 +82,7 @@ export async function railData(): Promise<RailData> {
     slots: [],
     pendingBriefs: [],
     setup: null,
+    glow: 'idle',
   };
 
   let active: ChannelSummary | null = null;
@@ -110,7 +119,7 @@ export async function railData(): Promise<RailData> {
   if (!active) return { ...empty, user: await userP, setup: await setupP };
   const ch = active.id;
 
-  const [briefsPending, fallbacks, unread, cuts, blocked, ready, genFailed, kill, slots, briefs, user, setup] = await Promise.all([
+  const [briefsPending, fallbacks, unread, cuts, blocked, ready, genFailed, kill, slots, briefs, user, setup, running, halted, alarms] = await Promise.all([
     countOf(db.from('briefs').select('id', { count: 'exact', head: true }).eq('channel_id', ch).eq('status', 'pending')),
     // A format fallback waiting on the approver is an approval too (fallbacks.ts), so it counts on the badge.
     countOf(db.from('episodes').select('id', { count: 'exact', head: true }).eq('channel_id', ch).eq('status', 'halted').like('status_detail', `${FORMAT_FALLBACK_PREFIX}%`)),
@@ -162,8 +171,21 @@ export async function railData(): Promise<RailData> {
     })(),
     userP,
     setupP,
+    countOf(db.from('episodes').select('id', { count: 'exact', head: true }).eq('channel_id', ch).in('status', [...RUNNING])),
+    countOf(db.from('episodes').select('id', { count: 'exact', head: true }).eq('channel_id', ch).eq('status', 'halted')),
+    // read_at arrives with 0053; before it, this errors → null → no alert from it (never a guess).
+    countOf(db.from('notifications').select('id', { count: 'exact', head: true }).eq('channel_id', ch).in('kind', ['fallback', 'qc_failed']).is('read_at', null)),
   ]);
 
   const approvals = briefsPending === null ? null : briefsPending + (fallbacks ?? 0);
-  return { ...empty, counts: { approvals, cuts, blocked, ready, genFailed, unread }, kill, slots, pendingBriefs: briefs, user, setup };
+  return {
+    ...empty,
+    counts: { approvals, cuts, blocked, ready, genFailed, unread },
+    kill,
+    slots,
+    pendingBriefs: briefs,
+    user,
+    setup,
+    glow: glowFrom({ running, halted, unreadAlarms: alarms }),
+  };
 }

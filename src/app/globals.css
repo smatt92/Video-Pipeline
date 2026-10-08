@@ -3,6 +3,9 @@
 /* The canvas component sheet, in the components layer so a Tailwind utility on the same
  * element still wins — `.row` sets a gap, and `gap-4` beside it must be able to change it. */
 @import '../styles/kiln.css' layer(components);
+/* Kiln Glass components (ambient layer, glass panels, chain, orbs, gauge …). Same layer, after
+ * the v2 sheet, so a glass rule and a v2 rule of the same specificity resolve to glass. */
+@import '../styles/glass.css' layer(components);
 
 /*
  * Tailwind v4 theme.
@@ -82,8 +85,8 @@
   --leading-normal: var(--lh-normal);
   --leading-relaxed: var(--lh-relaxed);
 
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-sans: var(--display);
+  --font-mono: var(--mono);
 }
 
 * {
@@ -91,19 +94,18 @@
   min-width: 0;
 }
 
+/* Every theme is dark glass on graphite: `data-theme` names a colour theme (mint, ember …),
+ * never light or dark. */
 html {
   color-scheme: dark;
-}
-
-:root[data-theme='light'] {
-  color-scheme: light;
+  background: var(--base);
 }
 
 body {
-  background: var(--s0);
+  background: var(--base);
   color: var(--t1);
+  font-family: var(--display);
   -webkit-font-smoothing: antialiased;
-  font-feature-settings: 'cv11', 'ss01';
   font-variant-numeric: tabular-nums;
 }
 
@@ -113,8 +115,8 @@ body {
  * cosmetic one — it is the only thing telling you where you are.
  */
 :focus-visible {
-  outline: 2px solid var(--ac);
-  outline-offset: 2px;
+  outline: 2px solid var(--act-solid);
+  outline-offset: 3px;
   border-radius: var(--radius-xs);
 }
 

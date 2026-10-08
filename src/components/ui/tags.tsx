@@ -10,8 +10,18 @@ import { Icon } from './icon';
 
 export type StateTone = 'draft' | 'gen' | 'rev' | 'blk' | 'rdy' | 'live' | 'ac';
 
+/**
+ * A state chip. "Ready" carries a check instead of the dot (Kiln Glass): in Mint its green sits
+ * next to the green action gradient, and the shape, not only the hue, has to say "done".
+ */
 export function Pill({ tone, children, dot = true, className = '' }: { tone: StateTone; children: ReactNode; dot?: boolean; className?: string }) {
-  return <span className={`pill s-${tone}${dot ? '' : ' nodot'} ${className}`.trim()}>{children}</span>;
+  const check = dot && tone === 'rdy';
+  return (
+    <span className={`pill s-${tone}${dot && !check ? '' : ' nodot'} ${className}`.trim()}>
+      {check && <Icon name="check" />}
+      {children}
+    </span>
+  );
 }
 
 /**

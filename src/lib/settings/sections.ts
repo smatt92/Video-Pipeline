@@ -69,6 +69,13 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     status: live(),
   },
   {
+    slug: 'appearance',
+    label: 'Appearance',
+    // Kiln Glass (08-Oct): six gradient colour themes and glass or solid panels, per browser.
+    hint: 'Colour theme — Mint, Ember, Ocean, Aurora, Rose, Graphite — and glass or solid',
+    status: live(),
+  },
+  {
     slug: 'generation',
     label: 'Generation',
     hint: 'Pictures per shot, series video type and pace, picture style, what generates',

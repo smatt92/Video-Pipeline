@@ -1,80 +1,156 @@
 /*
- * Kiln — design tokens, brand v2.
+ * Kiln — design tokens, Kiln Glass (08-Oct-2026).
  *
- * Ported from the Claude Design canvas "Kiln — Studio Redesign"
- * (docs/design/kiln-redesign/kiln.css `:root`, version 1791346901-1716). The names are the
- * canvas's own — `--s1`, `--t3`, `--b2` — so an artboard and a component read the same, and
- * a designer can lift a value from either without a lookup table.
+ * Ported from docs/design/kiln-glass/project/glass.css v0.2 (Sahil's Claude Design canvas
+ * "Kiln — Studio Redesign", page Kiln Glass). The design source is reference only; this file
+ * is what ships.
  *
- * Two layers now, and the boundary is still enforced by lint:
+ * Three layers, and the boundary is still enforced by lint:
  *
- *   1. TOKENS      surfaces, text, borders, accent ramp, states, paper set, motion
- *                  — what a thing means. Components use these and nothing else; a raw
- *                  oklch() / hex / rgba() in a component is a lint error
- *                  (eslint-rules/no-primitive-tokens.mjs).
- *   2. SCALE       --ui-scale and the type / space / corner steps that multiply it. The
- *                  display-scaling preference moves these, and `pnpm check:scalable-sizes`
- *                  keeps every font size on them.
+ *   1. THEME       six gradient themes on graphite glass — Mint (default), Ember, Ocean,
+ *                  Aurora, Rose, Graphite. `data-theme` on <html> picks one; `data-palette`
+ *                  on any element scopes one locally (the Appearance picker's cards). Each
+ *                  carries its own action gradient, glass tint, solid fallbacks and glow.
+ *   2. TOKENS      what a thing means — glass, text, hairlines, the action gradient, the six
+ *                  pipeline states. Components use these and nothing else; a raw colour in a
+ *                  component is a lint error (eslint-rules/no-primitive-tokens.mjs).
+ *                  The v2 names (--s1, --t3, --b2, --ac, --rdy …) are kept as aliases onto
+ *                  the glass tokens, so every existing screen restyles without a rename.
+ *   3. SCALE       --ui-scale and the type / space / corner steps that multiply it.
  *
- * OKLCH because lightness is perceptually uniform: L=0.79 teal and L=0.82 amber hold the
- * same weight next to an arbitrary video frame, which is where every state colour lives.
+ * The states keep their meaning in every theme. Where a theme's own gradient would collide
+ * with a state, the theme moves the state, never the meaning: Mint deepens "ready" (and the
+ * chip carries a check), Ember and Rose push "blocked" away from their gradient, Ocean moves
+ * "generating" to violet. `pnpm test:contrast` parses THIS file and asserts WCAG AA for
+ * text on glass and black ink on every gradient, in every theme.
  */
 
 :root {
-  /* ── Surfaces — warm neutral, hue 70. `in` is the inset/rail, s0 the page, s3 raised. */
-  --in: oklch(0.125 0.006 70);
-  --s0: oklch(0.150 0.006 70);
-  --s1: oklch(0.180 0.006 70);
-  --s2: oklch(0.212 0.007 70);
-  --s3: oklch(0.252 0.008 70);
+  /* ── Graphite base ──────────────────────────────────────────────────────── */
+  --base: oklch(0.18 0.006 70);
+  --base-2: oklch(0.14 0.006 70);
 
-  /* ── Text. t4 is for decoration and disabled labels only — it does not reach 4.5:1 on
-   *    s1 and must never carry a sentence somebody has to read. */
-  --t1: oklch(0.965 0.004 80);
-  --t2: oklch(0.800 0.006 80);
-  --t3: oklch(0.660 0.008 80);
-  --t4: oklch(0.520 0.008 80);
+  /* ── Text on glass. t4 is hairline / decoration only — it does not reach 4.5:1 and must
+   *    never carry a sentence somebody has to read. */
+  --t1: #F6F7F4;
+  --t2: rgba(246, 247, 244, 0.76);
+  /* 0.62 where the design sheet says 0.58: at 0.58 a caption over the brightest Mint orb
+   * measured 4.30:1. `pnpm test:contrast` is what found it. */
+  --t3: rgba(246, 247, 244, 0.62);
+  --t4: rgba(246, 247, 244, 0.34);
 
-  /* ── Borders */
-  --b1: oklch(1 0 0 / 0.065);
-  --b2: oklch(1 0 0 / 0.105);
-  --b3: oklch(1 0 0 / 0.170);
+  --hair: rgba(255, 255, 255, 0.10);
+  --hair-2: rgba(255, 255, 255, 0.16);
+  --hi: inset 0 1px 0 rgba(255, 255, 255, 0.16);
 
-  /* ── Accent — teal, the Bureau of Reality channel accent. Base = 500, unchanged in v2. */
-  --ac: oklch(0.790 0.120 182);
-  --ac-t: oklch(0.790 0.120 182 / 0.14);
-  --ac-ink: oklch(0.210 0.035 182);
-  --ac-100: oklch(0.95 0.035 182);
-  --ac-200: oklch(0.90 0.065 182);
-  --ac-300: oklch(0.85 0.095 182);
-  --ac-500: oklch(0.79 0.120 182);
-  --ac-600: oklch(0.70 0.115 182);
-  --ac-700: oklch(0.58 0.100 182);
-  --ac-800: oklch(0.45 0.080 182);
-  --ac-900: oklch(0.30 0.055 182);
-  --ac-hi: oklch(0.83 0.12 182);
-  --ac-lo: oklch(0.72 0.11 182);
-  --glow: oklch(0.83 0.12 182 / 0.55);
-  --ac-ring: oklch(0.79 0.12 182 / 0.5);
+  --r-xs: 10px;
+  --r-s: 14px;
+  --r-m: 20px;
+  --r-l: 26px;
+  --r-xl: 32px;
+  --pill: 999px;
+  --blur-panel: 24px;
+  --blur-sheet: 36px;
+  --e1: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --e2: 0 10px 30px rgba(0, 0, 0, 0.35);
+  --e3: 0 24px 60px rgba(0, 0, 0, 0.45);
+  --grain: 0.07;
+  --dur: 200ms;
+  --ease: cubic-bezier(.4, 0, 1, 1);
 
-  /* ── Pipeline states — round dot = state. Each hue means exactly one thing. */
-  --draft: oklch(0.740 0.010 80);
-  --gen: oklch(0.740 0.150 295);
-  --rev: oklch(0.820 0.140 78);
-  --blk: oklch(0.690 0.190 25);
-  --blk-text: oklch(0.78 0.15 25);
-  --blk-wash: oklch(0.69 0.19 25 / 0.08);
-  --blk-line: oklch(0.69 0.19 25 / 0.3);
-  --rdy: oklch(0.740 0.130 248);
-  --live: oklch(0.800 0.160 152);
-  --live-wash: oklch(0.80 0.16 152 / 0.08);
-  --live-line: oklch(0.80 0.16 152 / 0.35);
-  --rev-wash: oklch(0.82 0.14 78 / 0.07);
+  /* ── Pipeline states — one hue, one meaning, in every theme. */
+  --s-draft: #A3A3AB;
+  --s-gen: #72A9FF;
+  --s-rev: #FFB84D;
+  --s-blk: #FF5D62;
+  --s-rdy: #2FBF71;
+  --s-live: #2DD4C4;
+  /* Text on a state wash: the state mixed toward white so a chip label clears 4.5:1 over
+   * glass in every theme (the dot keeps the pure state colour). */
+  --s-draft-text: color-mix(in oklch, var(--s-draft) 70%, white);
+  --s-gen-text: color-mix(in oklch, var(--s-gen) 70%, white);
+  --s-rev-text: color-mix(in oklch, var(--s-rev) 80%, white);
+  --s-blk-text: color-mix(in oklch, var(--s-blk) 64%, white);
+  --s-rdy-text: color-mix(in oklch, var(--s-rdy) 62%, white);
+  --s-live-text: color-mix(in oklch, var(--s-live) 80%, white);
+  --scrim-grad: linear-gradient(180deg, rgba(6, 8, 7, 0) 0%, rgba(6, 8, 7, 0.72) 100%);
+  /* The red alert pulse, and the orb-card washes. Fixed across themes: they are states. */
+  --alert-glow: rgba(255, 77, 90, 0.32);
+  --orb-warm: rgba(255, 176, 86, 0.30);
+  --orb-warm-line: rgba(255, 190, 120, 0.20);
+  --orb-warm-text: #FFD3A0;
+  --orb-alert: rgba(255, 77, 90, 0.34);
+  --orb-alert-line: rgba(255, 90, 100, 0.30);
+  --orb-alert-text: #FFB3B8;
+  --orb-calm: rgba(114, 169, 255, 0.24);
+  --orb-calm-text: #B9D3FF;
+  /* The physical kill switch: a machined knob in a recessed track. Not a theme colour. */
+  --kill-track: linear-gradient(180deg, #0B0C0C, #1E2120);
+  --kill-track-on: linear-gradient(180deg, #4A0E14, #7A1520);
+  --kill-knob: radial-gradient(circle at 35% 30%, #F4F4F2, #B9BBB8 55%, #7D807D);
+  /* Channel avatars on the top bar (BR navy, BL bronze) — the channel world, not the theme. */
+  --cav-1: linear-gradient(135deg, #1C3D6E, #0F1B30);
+  --cav-2: linear-gradient(135deg, #6B4A1F, #2A1C0E);
+  /* Idle glow: the orbs go grey when nothing is moving (glow is information). */
+  --idle-g1: rgba(150, 152, 160, 0.14);
+  --idle-g2: rgba(120, 122, 130, 0.10);
+  --idle-g3: rgba(100, 100, 110, 0.08);
+
+  /* ── Type families. next/font sets --font-urbanist and --font-geist-mono on <html>. The
+   *    fallbacks are named fonts, never the system UI face. */
+  --display: var(--font-urbanist), 'Urbanist', Arial, sans-serif;
+  --sans: var(--display);
+  --mono: var(--font-geist-mono), 'Geist Mono', Menlo, Consolas, monospace;
+
+  /* ══ v2 aliases → glass ═════════════════════════════════════════════════════
+   * Every v2 name resolves to a glass token, so screens written against v2 restyle with the
+   * theme and nothing needs a rename. Surfaces are translucent: they sit on the ambient layer. */
+  --in: rgba(0, 0, 0, 0.24);
+  --s0: var(--base);
+  --s1: var(--glass);
+  --s2: rgba(255, 255, 255, 0.06);
+  --s3: rgba(255, 255, 255, 0.10);
+  --b1: rgba(255, 255, 255, 0.08);
+  --b2: var(--hair);
+  --b3: var(--hair-2);
+
+  --ac: var(--act-solid);
+  --ac-t: color-mix(in oklch, var(--act-solid) 16%, transparent);
+  --ac-ink: var(--act-ink);
+  --ac-100: color-mix(in oklch, var(--act-solid) 20%, white);
+  --ac-200: color-mix(in oklch, var(--act-solid) 45%, white);
+  --ac-300: color-mix(in oklch, var(--act-solid) 70%, white);
+  --ac-500: var(--act-solid);
+  --ac-600: color-mix(in oklch, var(--act-solid) 85%, black);
+  --ac-700: color-mix(in oklch, var(--act-solid) 70%, black);
+  --ac-800: color-mix(in oklch, var(--act-solid) 55%, black);
+  --ac-900: color-mix(in oklch, var(--act-solid) 35%, black);
+  --ac-hi: var(--a3);
+  --ac-lo: var(--a1);
+  --glow: var(--g1);
+  --ac-ring: color-mix(in oklch, var(--act-solid) 50%, transparent);
+  --ac-wash: color-mix(in oklch, var(--act-solid) 8%, transparent);
+
+  --draft: var(--s-draft);
+  --gen: var(--s-gen);
+  --rev: var(--s-rev);
+  --blk: var(--s-blk);
+  --blk-text: var(--s-blk-text);
+  --blk-wash: color-mix(in oklch, var(--s-blk) 10%, transparent);
+  --blk-line: color-mix(in oklch, var(--s-blk) 35%, transparent);
+  --rdy: var(--s-rdy);
+  --live: var(--s-live);
+  --live-wash: color-mix(in oklch, var(--s-live) 10%, transparent);
+  --live-line: color-mix(in oklch, var(--s-live) 35%, transparent);
+  --rev-wash: color-mix(in oklch, var(--s-rev) 8%, transparent);
+  --rev-line: color-mix(in oklch, var(--s-rev) 28%, transparent);
+  --gen-wash: color-mix(in oklch, var(--s-gen) 14%, transparent);
 
   /* ── Blueprint world — the channel's 3D set, never the studio chrome. */
   --navy: #0F1B30;
   --navy2: #152640;
   --chalk: #F2EFE8;
+  --bp-wash: rgba(15, 27, 48, 0.72);
 
   /* ── Paper set — email, PDF bundle cover, the light logo. The app itself stays dark. */
   --paper: oklch(0.975 0.005 80);
@@ -82,27 +158,22 @@
   --paper-b: oklch(0.88 0.006 80);
   --ink: oklch(0.20 0.008 70);
   --ink-2: oklch(0.43 0.008 70);
-  --ac-on-paper: oklch(0.50 0.095 182);
+  --ac-on-paper: oklch(0.42 0.11 150);
 
   /* ── Clay, for the 3D objects */
   --clay-hi: #EEE9E0;
   --clay: #C9C2B6;
   --clay-lo: #6F685D;
 
-  /* ── Radii */
-  --r1: 6px;
-  --r2: 10px;
-  --r3: 14px;
-  --r4: 20px;
-
-  /* ── Type families. Geist ships with the `geist` package (see the app layout). */
-  --sans: var(--font-geist-sans), 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --mono: var(--font-geist-mono), 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --r1: 8px;
+  --r2: 12px;
+  --r3: var(--r-m);
+  --r4: var(--r-l);
 
   /* ── Channel colour — overridden per channel on the element that shows it. */
   --ch: var(--ac);
 
-  /* ── Motion. Named so code and design use the same curves. */
+  /* ── Motion. Named so code and design use the same curves. 200 ms ease-in, no springs. */
   --e-out: cubic-bezier(.2, .8, .2, 1);
   --e-io: cubic-bezier(.6, 0, .2, 1);
   --e-fire: cubic-bezier(.4, 0, .1, 1);
@@ -111,18 +182,18 @@
   --d3: 320ms;
   --d4: 600ms;
 
-  --scrim: oklch(0 0 0 / 0.55);
-  --shadow-raised: 0 12px 32px oklch(0 0 0 / .45), inset 0 1px 0 oklch(1 0 0 / .05);
+  --scrim: rgba(0, 0, 0, 0.55);
+  --shadow-raised: var(--e3), var(--hi);
 
   /* ══ SCALE ══════════════════════════════════════════════════════════════════
    * Multiplied by the display-scaling preference. Read before render in the app layout. */
   --ui-scale: 1;
 
-  --corner-xs: calc(0.1875rem * var(--ui-scale));
-  --corner-sm: calc(0.3125rem * var(--ui-scale));
-  --corner-md: calc(0.4375rem * var(--ui-scale));
-  --corner-lg: calc(0.6875rem * var(--ui-scale));
-  --corner-xl: calc(1rem * var(--ui-scale));
+  --corner-xs: calc(0.25rem * var(--ui-scale));
+  --corner-sm: calc(0.5rem * var(--ui-scale));
+  --corner-md: calc(0.75rem * var(--ui-scale));
+  --corner-lg: calc(1rem * var(--ui-scale));
+  --corner-xl: calc(1.375rem * var(--ui-scale));
   --corner-full: 9999px;
 
   --space-1: calc(0.1875rem * var(--ui-scale));
@@ -137,10 +208,10 @@
 
   /* Seven steps. Fluid between a floor and a ceiling so a 390px phone and a 4K panel both
    * read; `check:scalable-sizes` fails any font size that is not one of these. */
-  --type-3xs: calc(var(--ui-scale) * clamp(0.5938rem, 0.5583rem + 0.0444vw, 0.6563rem));
-  --type-2xs: calc(var(--ui-scale) * clamp(0.6563rem, 0.6208rem + 0.0444vw, 0.7188rem));
-  --type-xs:  calc(var(--ui-scale) * clamp(0.7188rem, 0.6656rem + 0.0664vw, 0.8125rem));
-  --type-sm:  calc(var(--ui-scale) * clamp(0.7813rem, 0.7281rem + 0.0664vw, 0.875rem));
+  --type-3xs: calc(var(--ui-scale) * clamp(0.6563rem, 0.6208rem + 0.0444vw, 0.7188rem));
+  --type-2xs: calc(var(--ui-scale) * clamp(0.7188rem, 0.6656rem + 0.0664vw, 0.7813rem));
+  --type-xs:  calc(var(--ui-scale) * clamp(0.75rem, 0.6968rem + 0.0664vw, 0.8438rem));
+  --type-sm:  calc(var(--ui-scale) * clamp(0.8125rem, 0.7593rem + 0.0664vw, 0.9063rem));
   --type-md:  calc(var(--ui-scale) * clamp(0.875rem, 0.8219rem + 0.0664vw, 0.9688rem));
   --type-lg:  calc(var(--ui-scale) * clamp(0.9375rem, 0.8489rem + 0.1107vw, 1.0938rem));
   --type-xl:  calc(var(--ui-scale) * clamp(1.1875rem, 1.0634rem + 0.1551vw, 1.4063rem));
@@ -151,12 +222,183 @@
   --lh-relaxed: 1.7;
 
   --rail-width: 248px;
-  --topbar-height: calc(3.25rem * var(--ui-scale));
-  --tabbar-height: 84px;
+  --topbar-height: calc(3.5rem * var(--ui-scale));
+  --tabbar-height: 96px;
 
   /* WCAG 2.5.8. --hit-min must NOT scale down; --hit-primary is the 44px mobile floor. */
   --hit-min: 24px;
   --hit-primary: max(2.75rem, calc(2.75rem * var(--ui-scale)));
+}
+
+/* ══ THEMES ════════════════════════════════════════════════════════════════════
+ * `:root` carries Mint so a page with no attribute is never theme-less. Each theme also
+ * answers to `[data-palette]` so an element can show a theme other than the page's (the
+ * Appearance picker's cards and preview). Glow: g1–g3 are the orbs, gw the generating glow. */
+
+/* A — Mint glass (default) */
+:root,
+:root[data-theme='mint'],
+[data-palette='mint'] {
+  --a1: #BFF97E;
+  --a2: #98F899;
+  --a3: #CCFFEA;
+  --act: linear-gradient(115deg, var(--a1) 0%, var(--a2) 50%, var(--a3) 100%);
+  --act-ink: #000;
+  --act-solid: #98F899;
+  --link: var(--a3);
+  --glass: rgba(17, 24, 20, 0.50);
+  --glass-2: rgba(22, 32, 27, 0.66);
+  --solid: #16201B;
+  --solid-2: #1C2822;
+  --tint: linear-gradient(180deg, rgba(152, 248, 153, 0.07), rgba(152, 248, 153, 0.015));
+  --g1: rgba(152, 248, 153, 0.34);
+  --g2: rgba(204, 255, 234, 0.22);
+  --g3: rgba(191, 249, 126, 0.20);
+  --gw: rgba(232, 255, 140, 0.30);
+  /* deeper so "ready" never reads as the action gradient; the chip carries a check */
+  --s-rdy: #1E9E5A;
+  --s-gen: #72A9FF;
+  --s-blk: #FF5D62;
+}
+
+/* B — Ember glass */
+:root[data-theme='ember'],
+[data-palette='ember'] {
+  --a1: #FFC27A;
+  --a2: #FF8A3D;
+  --a3: #FF6A2B;
+  --act: linear-gradient(115deg, var(--a1) 0%, var(--a2) 55%, var(--a3) 100%);
+  --act-ink: #000;
+  --act-solid: #FF8A3D;
+  --link: var(--a1);
+  --glass: rgba(26, 18, 15, 0.52);
+  --glass-2: rgba(34, 24, 20, 0.68);
+  --solid: #21170F;
+  --solid-2: #2A1E17;
+  --tint: linear-gradient(180deg, rgba(255, 138, 61, 0.07), rgba(255, 138, 61, 0.015));
+  --g1: rgba(255, 122, 48, 0.36);
+  --g2: rgba(170, 30, 20, 0.34);
+  --g3: rgba(255, 190, 110, 0.16);
+  --gw: rgba(255, 200, 120, 0.32);
+  --s-rdy: #2FBF71;
+  --s-gen: #72A9FF;
+  /* pushed toward crimson-pink so blocked never reads as ember */
+  --s-blk: #FF4D6D;
+}
+
+/* C — Ocean glass (blue) */
+:root[data-theme='ocean'],
+[data-palette='ocean'] {
+  --a1: #9FE2FF;
+  --a2: #5AA8FF;
+  --a3: #8E9BFF;
+  --act: linear-gradient(115deg, var(--a1) 0%, var(--a2) 52%, var(--a3) 100%);
+  --act-ink: #000;
+  --act-solid: #5AA8FF;
+  --link: var(--a1);
+  --glass: rgba(14, 20, 30, 0.52);
+  --glass-2: rgba(18, 26, 40, 0.68);
+  --solid: #121A27;
+  --solid-2: #172133;
+  --tint: linear-gradient(180deg, rgba(90, 168, 255, 0.08), rgba(90, 168, 255, 0.015));
+  --g1: rgba(70, 150, 255, 0.36);
+  --g2: rgba(120, 110, 255, 0.24);
+  --g3: rgba(140, 225, 255, 0.20);
+  --gw: rgba(170, 220, 255, 0.30);
+  --s-rdy: #2FBF71;
+  /* generating moves to violet so it never reads as the blue action */
+  --s-gen: #C3A6FF;
+  --s-blk: #FF5D62;
+}
+
+/* D — Aurora glass (violet → cyan) */
+:root[data-theme='aurora'],
+[data-palette='aurora'] {
+  --a1: #E3B8FF;
+  --a2: #A98BFF;
+  --a3: #7FE0F0;
+  --act: linear-gradient(115deg, var(--a1) 0%, var(--a2) 50%, var(--a3) 100%);
+  --act-ink: #000;
+  --act-solid: #A98BFF;
+  --link: var(--a1);
+  --glass: rgba(20, 16, 30, 0.52);
+  --glass-2: rgba(27, 22, 40, 0.68);
+  --solid: #191426;
+  --solid-2: #211A33;
+  --tint: linear-gradient(180deg, rgba(169, 139, 255, 0.08), rgba(169, 139, 255, 0.015));
+  --g1: rgba(160, 120, 255, 0.34);
+  --g2: rgba(90, 210, 235, 0.22);
+  --g3: rgba(230, 170, 255, 0.18);
+  --gw: rgba(200, 180, 255, 0.30);
+  --s-rdy: #2FBF71;
+  --s-gen: #72A9FF;
+  --s-blk: #FF5D62;
+}
+
+/* E — Rose glass (pink → lilac) */
+:root[data-theme='rose'],
+[data-palette='rose'] {
+  --a1: #FFD0DE;
+  --a2: #F59AC2;
+  --a3: #C9A8FF;
+  --act: linear-gradient(115deg, var(--a1) 0%, var(--a2) 50%, var(--a3) 100%);
+  --act-ink: #000;
+  --act-solid: #F59AC2;
+  --link: var(--a1);
+  --glass: rgba(28, 16, 22, 0.52);
+  --glass-2: rgba(37, 22, 30, 0.68);
+  --solid: #22141B;
+  --solid-2: #2C1A23;
+  --tint: linear-gradient(180deg, rgba(245, 154, 194, 0.08), rgba(245, 154, 194, 0.015));
+  --g1: rgba(245, 140, 190, 0.32);
+  --g2: rgba(190, 150, 255, 0.22);
+  --g3: rgba(255, 200, 215, 0.18);
+  --gw: rgba(255, 200, 225, 0.28);
+  --s-rdy: #2FBF71;
+  --s-gen: #72A9FF;
+  /* blocked pushed to orange-red so it never reads as rose */
+  --s-blk: #FF4A3D;
+}
+
+/* F — Graphite glass (silver, low colour) */
+:root[data-theme='graphite'],
+[data-palette='graphite'] {
+  --a1: #F6F6F4;
+  --a2: #C9CDD3;
+  --a3: #EEF0F3;
+  --act: linear-gradient(115deg, var(--a1) 0%, var(--a2) 50%, var(--a3) 100%);
+  --act-ink: #000;
+  --act-solid: #D7DADF;
+  --link: var(--a1);
+  --glass: rgba(20, 20, 22, 0.52);
+  --glass-2: rgba(28, 28, 31, 0.68);
+  --solid: #18181A;
+  --solid-2: #202023;
+  --tint: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01));
+  --g1: rgba(200, 205, 215, 0.18);
+  --g2: rgba(150, 155, 165, 0.14);
+  --g3: rgba(230, 232, 236, 0.12);
+  --gw: rgba(255, 255, 255, 0.18);
+  --s-rdy: #2FBF71;
+  --s-gen: #72A9FF;
+  --s-blk: #FF5D62;
+}
+
+/* ── Reduced transparency: the in-app Solid toggle (`.solid` on <html>, from a cookie) and
+ *    the OS setting both swap glass for the theme's solid colours. */
+:root.solid,
+:root.solid[data-theme],
+.solid [data-palette] {
+  --glass: var(--solid);
+  --glass-2: var(--solid-2);
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root,
+  :root[data-theme],
+  [data-palette] {
+    --glass: var(--solid);
+    --glass-2: var(--solid-2);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -165,6 +407,7 @@
     --d2: 0.01ms;
     --d3: 0.01ms;
     --d4: 0.01ms;
+    --dur: 0.01ms;
   }
 
   *,

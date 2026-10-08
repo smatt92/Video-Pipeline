@@ -100,6 +100,7 @@
     // The Bureau control plane, minus effects.ts (the Trigger SDK side effects — harnesses
     // inject recording fakes in its place, so the code under test is everything else).
     "src/lib/bureau/**/*.ts",
+    "src/lib/shell/glow.ts",
     "src/lib/llm/**/*.ts",
     // The OAuth server for /api/mcp, minus next-adapter.ts (the Next glue) — decision 0016.
     "src/lib/oauth/policy.ts",

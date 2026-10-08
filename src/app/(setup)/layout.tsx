@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
-import { GeistMono } from 'geist/font/mono';
-import { GeistSans } from 'geist/font/sans';
+import { htmlAppearance } from '@/lib/appearance/read';
+
+import { fontVariables } from '../fonts';
 
 import '../globals.css';
 
@@ -23,9 +24,10 @@ export const metadata: Metadata = {
   description: 'Set up the pipeline before it can spend anything.',
 };
 
-export default function SetupRootLayout({ children }: { children: React.ReactNode }) {
+export default async function SetupRootLayout({ children }: { children: React.ReactNode }) {
+  const look = await htmlAppearance();
   return (
-    <html lang="en" data-theme="dark" className={`${GeistSans.variable} ${GeistMono.variable}`}>
+    <html lang="en" data-theme={look['data-theme']} className={`${fontVariables} ${look.className}`.trim()}>
       <body>{children}</body>
     </html>
   );

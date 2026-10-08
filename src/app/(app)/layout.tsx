@@ -1,6 +1,4 @@
 import type { Metadata } from 'next';
-import { GeistMono } from 'geist/font/mono';
-import { GeistSans } from 'geist/font/sans';
 
 import { Suspense } from 'react';
 
@@ -9,6 +7,9 @@ import { AppShell } from '@/components/shell/app-shell';
 import { readUiScale } from '@/lib/settings/read-ui-scale';
 import { railData } from '@/lib/shell/rail';
 import { uiScaleBootstrapScript } from '@/lib/settings/ui-scale';
+import { htmlAppearance } from '@/lib/appearance/read';
+
+import { fontVariables } from '../fonts';
 
 import '../globals.css';
 
@@ -20,21 +21,14 @@ import '../globals.css';
  * it is the right shape here rather than a workaround: setup and the app are genuinely
  * different surfaces, not the same surface with a flag.
  *
- * Geist from the `geist` npm package rather than `next/font/google`.
+ * Type is Urbanist and Geist Mono through `next/font/google` (src/app/fonts.ts) — Kiln Glass,
+ * 08-Oct. The note that used to stand here explained why Geist came from an npm package
+ * instead: the Google loader makes the build depend on reaching the font host. That is still
+ * true and is now accepted; fonts.ts says what a sandbox without that route does.
  *
- * The Google loader fetches the font files at build time, which makes every build depend
- * on reaching an external font CDN. The package ships the files, so the build needs
- * nothing but npm — and the deployment has one less thing that can fail at 3am for
- * reasons unrelated to the code.
+ * The colour theme and the glass/solid surface are cookies read here (lib/appearance), so
+ * <html> carries the right `data-theme` in the first byte and nothing repaints.
  *
- * (The hostname used to be written out here and `check:vendors` flagged it when stage 10
- * added the API domain to its list. A different Google surface entirely, and the guard was
- * still right to fire: it cannot tell a comment from a call, and narrowing it so that it
- * could would narrow it past a commented-out call too. Note that the first version of THIS
- * note named the domain while explaining why not to, and was flagged in turn — which is
- * the guard behaving correctly twice, not a false positive.)
- *
- * Geist rather than Inter because Inter now reads as "didn't think about it".
  */
 
 export const metadata: Metadata = {
@@ -46,15 +40,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // Read before render so the scale is on <html> at first paint. Reading it in an effect
   // instead renders every page once at 100% and then jumps, and on the display this exists
   // for the jump is from unreadable to readable — on every navigation.
-  const [uiScale, rail] = await Promise.all([readUiScale(), railData()]);
+  const [uiScale, rail, look] = await Promise.all([readUiScale(), railData(), htmlAppearance()]);
 
   return (
-    // Dark-first: the attribute is set here rather than resolved from a media query, so
-    // there is no flash of the wrong theme. A toggle would write to this same attribute.
+    // The colour theme is set here from the cookie rather than resolved after hydration, so
+    // there is no flash of the wrong theme. Settings → Appearance writes the same attribute.
     <html
       lang="en"
-      data-theme="dark"
-      className={`${GeistSans.variable} ${GeistMono.variable}`}
+      data-theme={look['data-theme']}
+      className={`${fontVariables} ${look.className}`.trim()}
       // Inline rather than a class, because the value is a number from the database and a
       // class would need one variant per step compiled ahead of time.
       style={uiScale === 1 ? undefined : ({ '--ui-scale': String(uiScale) } as React.CSSProperties)}

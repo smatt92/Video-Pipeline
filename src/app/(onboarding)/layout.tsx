@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
-import { GeistMono } from 'geist/font/mono';
-import { GeistSans } from 'geist/font/sans';
+import { htmlAppearance } from '@/lib/appearance/read';
+
+import { fontVariables } from '../fonts';
 
 import '../globals.css';
 
@@ -24,9 +25,10 @@ export const metadata: Metadata = {
     'knowing before you sign in.',
 };
 
-export default function OnboardingLayout({ children }: { children: React.ReactNode }) {
+export default async function OnboardingLayout({ children }: { children: React.ReactNode }) {
+  const look = await htmlAppearance();
   return (
-    <html lang="en" data-theme="dark" className={`${GeistSans.variable} ${GeistMono.variable}`}>
+    <html lang="en" data-theme={look['data-theme']} className={`${fontVariables} ${look.className}`.trim()}>
       <body style={{ background: 'var(--s0)' }}>{children}</body>
     </html>
   );
