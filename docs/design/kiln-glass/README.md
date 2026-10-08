@@ -12,3 +12,12 @@ Copied from Sahil's Claude Design canvas "Kiln — Studio Redesign"
 
 Reference only: these are Design Component pages, not app code. The app implements the same
 tokens as CSS variables in `src/styles/` and React components.
+
+## Decisions after the canvas (08-Oct)
+
+- **Studio has no full-bleed picture behind its controls for now** (Sahil, 18:28). The canvas
+  behind the prompt, settings and filmstrip is the ambient glow only; pictures appear in the
+  filmstrip thumbnails. Text over arbitrary generated imagery cannot be held to the contrast
+  bar the glass panels meet, so it waits until a scrim is designed and checked against real
+  frames. Add later.
+- The kiln mark has a flue (option A) — `src/components/ui/logo.tsx`.
