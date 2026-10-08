@@ -90,7 +90,9 @@ function MoreSheet({ data, onClose }: { data: RailData; onClose: () => void }) {
           </button>
         </div>
         <span className="lbl">Channel</span>
-        <section className="card" style={{ overflow: 'hidden' }}>
+        {/* flex: none — a direct child of the scrolling sheet with overflow hidden may shrink to
+            nothing, and on a phone the channel list did exactly that: a hairline, no channels. */}
+        <section className="card" style={{ overflow: 'hidden', flex: 'none' }}>
           <Link className={`mrow${allSelected ? ' on' : ''}`} href="/all">
             <ChannelAvatar ch="all" size="sm" />
             <span className="grow">All channels</span>
