@@ -96,15 +96,6 @@ const MODULE_EXEMPTIONS = {
     'script/draft.ts drafts a script from a concept (stage 3); shots/draft.ts is the '
     + 'shotlist decode shape (stage 4). Different stages, different vocabularies, no shared '
     + 'export.',
-  'enqueue.ts':
-    'generate/enqueue.ts exports enqueueIngest only; studio/enqueue.ts exports '
-    + 'enqueueAssemble and enqueueGenerate. Disjoint export sets — the file name is the verb, '
-    + 'not the concept.',
-  'materialise.ts':
-    'assemble/materialise.ts turns a shot list into clip inputs for ffmpeg; '
-    + 'studio/materialise.ts turns a Studio session into a script row. Two different things '
-    + 'called materialising, which is a naming collision worth watching but not a duplicate '
-    + 'implementation \u2014 no shared export, no shared caller.',
 };
 
 const dbUrl = process.argv[2] ?? process.env.DATABASE_URL;

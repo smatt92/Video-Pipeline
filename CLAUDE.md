@@ -69,7 +69,7 @@ Three surfaces, different jobs — do not confuse them:
 |---|---|---|
 | Hosted MCP `https://mcp.higgsfield.ai/mcp` | Interactive exploration in this Claude Code session: trying models, motions, seeds, character refs; finding shot recipes | Production runs, cron jobs, anything needing retries or cost attribution |
 | `@higgsfield/client` SDK (REST + webhook) | Everything in `src/trigger/` | Interactive back-and-forth |
-| **Kiln's own MCP server** at `/api/mcp` | The Studio lane. Opus 5 reaches the drivers through tools that write every row | Exploration — it refuses anything the workspace is not set up to do, which is correct and not what you want at 1am with a seed to try |
+| **Kiln's own MCP server** at `/api/mcp` | The Studio lane: Opus drafts a brief for the active channel, prices it, hands it to Approvals and follows the episode the approval starts — the same path as every Bureau video (0008 §35). It never reaches this vendor | Exploration — it refuses anything the workspace is not set up to do, which is correct and not what you want at 1am with a seed to try |
 
 When an MCP experiment produces a shot recipe that works, persist it to the `prompts` table with `discovered_in='claude-code-mcp'` and the exact params. Production reads the library; it never improvises.
 

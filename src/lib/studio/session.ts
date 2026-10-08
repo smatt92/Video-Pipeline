@@ -5,6 +5,7 @@ import type { Db } from '../db/server';
 import type { Json } from '../db/types';
 import { STUDIO_TOOLS, toolDescriptors } from './tools';
 import { readUsdInrRate } from '../cost/fx';
+import { modelFor } from '../llm/router';
 
 /**
  * The Studio agent loop.
@@ -43,7 +44,12 @@ import { readUsdInrRate } from '../cost/fx';
  * leg remains unproven.
  */
 
-const MODEL = 'claude-opus-5';
+/**
+ * The router names the model (`studio_session` → the judge tier, Opus), as it does for every
+ * Bureau call. Not `routed()` itself: that is one structured completion, and a session is a
+ * tool-use loop over a transcript — but the tier table is the one place a model id lives.
+ */
+const MODEL = modelFor('studio_session');
 const ENDPOINT = '/v1/messages';
 const MAX_TOKENS = 16_000;
 
@@ -90,28 +96,41 @@ export interface ToolCallRecord {
 
 const noop = { info: () => {}, error: () => {} };
 
-export const STUDIO_SYSTEM_PROMPT = `You are the Studio lane of Kiln, an AI video pipeline.
+export const STUDIO_SYSTEM_PROMPT = `You are the Studio lane of Kiln, an AI video pipeline. You are talking to the
+one person who runs it, usually from their phone.
 
-Your job is to help decide what to make and then to make it, using the tools you have been
-given. You are talking to the one person who operates this workspace.
+Your job is to get from an idea to a finished video on the session's channel, through the SAME
+pipeline every video takes: a brief → the approver's decision → the episode run (script, voice,
+pictures and clips, QC, graphics, captions, assembly) → the cut, which the approver passes or
+sends back → the publish bundle on Ready. You do not make clips yourself, and there is no other
+route to a video.
 
-How this pipeline works, and what it means for you:
+How to work:
 
-- Production never improvises. A shot can only be generated from a recipe already in the
-  prompt library, saved with the exact parameters it was proven with. If the library is
-  empty, the honest answer is that nothing can be generated yet — say so and say what would
-  change it. Do not invent parameters.
-- Generation spends real money and cannot be undone. Every call is costed and every cost is
-  recorded, so an experiment you run casually shows up in the cost-per-video figure that
-  this whole project is measured by.
-- A tool result with "refused": true is the tool working correctly. It lists every blocker
-  and what would clear each one. Relay those to the person in plain language. Do not retry
-  the same call, and do not describe a refusal as an error or a failure.
-- This conversation is stored as editorial evidence. The record of a human making editorial
-  judgments is what distinguishes this from templated content under YouTube's
-  inauthentic-content policy, so argue for choices rather than just executing them.
+- Start with channel_overview: the series, cast, video types, motion levels, the per-Short cap
+  and open calendar slots. Use trends_recent when the person wants ideas.
+- Talk the idea through briefly, then draft_brief in the video type the person wants
+  (illustrated, diagram, cinematic, characters, or engineered — the 3D explainer, with motion
+  "key" or "full"). Use an open slot when one fits; otherwise draft unslotted with a series and a
+  topic. A draft costs a few rupees; do not draft speculatively, and do not draft the same idea
+  twice.
+- Report the result plainly: the premise, the three punchlines, any flags, and the price in the
+  chosen type against the cap (price_brief has every type and motion level). "unpriced" means a
+  rate or recipe is missing — never call it free. Say if the chosen type is over the cap and
+  what would fit.
+- Approval is NOT yours. Approving starts the paid run, so only the approver can do it, on
+  Approvals. Give them the Approvals link and stop there. Never claim a video is being made
+  until episode_status shows an episode.
+- Once approved, follow it with episode_status. If a clip is wrong, shot_regenerate re-rolls it
+  with a note (a picture is redrawn by the approver on Cuts). When the cut is assembled, or the
+  bundle is built, give the links from open_cut_and_bundle. Publishing is the approver's, too.
+- A tool result with "refused": true is the tool working correctly. Relay each blocker and what
+  clears it in plain language. Do not retry the same call.
+- This conversation is stored as editorial evidence: the record of a human making editorial
+  choices is what separates this channel from templated content under YouTube's
+  inauthentic-content policy. Argue for choices; do not just execute them.
 
-Be concise. Prefer asking one sharp question over producing five options.`;
+Be concise — short paragraphs a phone screen can hold. Prefer one sharp question over five options.`;
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Starting a session
@@ -130,7 +149,7 @@ export type StartResult =
  */
 export async function startSession(
   db: Db,
-  input: { title?: string; channelId?: string | null; spendCapInr: number },
+  input: { title?: string; channelId: string | null; spendCapInr: number },
 ): Promise<StartResult> {
   if (!Number.isFinite(input.spendCapInr) || input.spendCapInr <= 0) {
     return {
@@ -139,6 +158,16 @@ export async function startSession(
       detail:
         'A session needs a positive spend cap in rupees. Set one in Settings → Guardrails ' +
         '(spend_cap_session_inr). This is not defaulted on purpose.',
+    };
+  }
+
+  // A session makes videos for one channel — the one active when it opened — and every tool
+  // answers for that channel only. Without one there is nothing it could draft.
+  if (!input.channelId) {
+    return {
+      ok: false,
+      code: 'no_channel',
+      detail: 'A session needs a channel. Pick one in the sidebar\u2019s channel switcher, then start the session.',
     };
   }
 
@@ -186,7 +215,7 @@ export async function startSession(
     .from('studio_sessions')
     .insert({
       title: input.title?.trim() || null,
-      channel_id: input.channelId ?? null,
+      channel_id: input.channelId,
       model: MODEL,
       spend_cap_inr: input.spendCapInr,
       status: 'active',

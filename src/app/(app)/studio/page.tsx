@@ -6,15 +6,15 @@ import { serverClient } from '@/lib/db/server';
 import { proposedSessionCap } from '@/lib/studio/actions';
 import { Hint } from '@/components/shell/hint';
 import { listSessions, type SessionList } from '@/lib/studio/read';
+import { currentChannel } from '@/lib/channels/active';
 
 /**
  * The Studio lane.
  *
- * Addendum 01 §1: this and the pipeline lane are different products sharing a database.
- * The entry is a brief typed into a chat surface; the brain is Opus 5 with this app's own
- * MCP server attached; the unit of work is a session rather than a job. What keeps it from
- * becoming a second codebase is that a session materialises a `scripts` row and everything
- * downstream is identical.
+ * Addendum 01 §1: the entry is a conversation; the brain is Opus with this app's own MCP
+ * server attached; the unit of work is a session rather than a job. What keeps it from
+ * becoming a second codebase is that a session drafts a brief on the active channel and the
+ * approver's approval starts the same episode run every video takes (studio/front-end.ts).
  *
  * Three outcomes, like the board: sessions, empty, or broken. The last is why this reads
  * through a result type rather than an array — a list that renders blank when the query
@@ -67,13 +67,13 @@ function SessionSummaryLine({ list }: { list: Extract<SessionList, { ok: true }>
 }
 
 export default async function StudioPage() {
-  const [list, cap] = await Promise.all([listSessions(serverClient()), proposedSessionCap()]);
+  const [list, cap, { active }] = await Promise.all([listSessions(serverClient()), proposedSessionCap(), currentChannel()]);
 
   return (
     <div className="main">
       <SectionHeader
         title="Studio"
-        hint="A conversation that writes pipeline rows. Every tool call is costed, every turn is kept as editorial evidence, and the session stops at its spend cap rather than warning about it."
+        hint="Talk an idea through with Opus; it drafts a brief for the active channel in the video type you pick, prices it against the cap and hands it to Approvals. Approving it starts the real run — voice, pictures, graphics, cut, bundle — and the session follows it. Every turn is costed and kept as editorial evidence; the session stops at its spend cap."
       />
 
       <Panel className="mb-6">
@@ -81,7 +81,7 @@ export default async function StudioPage() {
           className="border-b px-4 py-3 text-md font-medium"
           style={{ borderColor: 'var(--b1)' }}
         >
-          New session
+          New session{active ? ` · ${active.name}` : ''}
         </div>
         <div className="px-4 py-4">
           <StartSessionForm proposedCap={cap} />
@@ -114,8 +114,8 @@ export default async function StudioPage() {
           </div>
         ) : list.sessions.length === 0 ? (
           <p className="px-4 py-4 text-sm" style={{ color: 'var(--t3)' }}>
-            No sessions yet. A session that decides not to make anything is the lane working
-            correctly — it still records what it cost.
+            No sessions yet. A session ends in a brief on Approvals; approving it there makes
+            the video. A session that decides not to make anything still records what it cost.
           </p>
         ) : (
           <div>

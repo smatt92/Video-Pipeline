@@ -2,19 +2,26 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { Panel } from '@/components/settings/parts';
+import { LiveRefresh, LiveStatus } from '@/components/bureau/live-status';
+import { EpisodeStatePill, Pill } from '@/components/ui/tags';
+import { isRunning } from '@/lib/bureau/running';
 import { Composer } from '@/components/studio/forms';
 import { Transcript } from '@/components/studio/transcript';
 import { serverClient } from '@/lib/db/server';
 import { readSession } from '@/lib/studio/read';
 
 /**
- * One session: the conversation, and the artifact it is building.
+ * One session: the conversation, and the videos it is making.
  *
- * Two columns because they answer two different questions. The left one is *what was
- * said* — the evidence trail, kept whole. The right one is *what exists* — the script,
- * the shots and the money, read from the tables rather than from the model's account of
- * them. Those disagreeing is the single most useful thing this screen can show, and it
- * cannot show it if the canvas is rendered from the transcript.
+ * Two columns because they answer two different questions. One is *what was said* — the
+ * evidence trail, kept whole. The other is *what exists* — the briefs this session drafted,
+ * the episodes their approval started and the money, read from the tables rather than from
+ * the model's account of them. Those disagreeing is the most useful thing this screen can
+ * show, and it cannot show it if the canvas is rendered from the transcript.
+ *
+ * On a phone the videos come first: that is what Sahil opens the screen to check, and the
+ * conversation is below it. While any episode runs the page re-reads itself (LiveRefresh,
+ * the same component the Cuts and Board screens use).
  */
 
 export const dynamic = 'force-dynamic';
@@ -46,7 +53,8 @@ export default async function SessionPage({
     );
   }
 
-  const { summary, transcript, script, shots, ledger } = read.detail;
+  const { summary, transcript, script, shots, ledger, channel, briefs } = read.detail;
+  const running = briefs.some((b) => b.episode && isRunning(b.episode.status));
   const stopped = summary.status !== 'active';
   const capUsed =
     summary.spendCapInr && summary.spendCapInr > 0
@@ -71,7 +79,7 @@ export default async function SessionPage({
             </span>
           </div>
           <p className="mt-1 font-mono text-2xs" style={{ color: 'var(--t3)' }}>
-            {summary.model} · {summary.inputTokens.toLocaleString('en-IN')} in ·{' '}
+            {channel ? channel.name : 'no channel'} · {summary.model} · {summary.inputTokens.toLocaleString('en-IN')} in ·{' '}
             {summary.outputTokens.toLocaleString('en-IN')} out
           </p>
         </div>
@@ -93,12 +101,10 @@ export default async function SessionPage({
         </div>
       )}
 
-      <div
-        className="grid gap-5"
-        style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 380px)' }}
-      >
+      <LiveRefresh active={running} />
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)]">
         {/* ── Conversation ──────────────────────────────────────────────── */}
-        <div className="flex min-w-0 flex-col gap-4">
+        <div className="order-2 flex min-w-0 flex-col gap-4 lg:order-1">
           <Panel>
             <Transcript entries={transcript} />
           </Panel>
@@ -111,7 +117,91 @@ export default async function SessionPage({
         </div>
 
         {/* ── Canvas ────────────────────────────────────────────────────── */}
-        <div className="flex min-w-0 flex-col gap-4">
+        <div className="order-1 flex min-w-0 flex-col gap-4 lg:order-2">
+          <Panel>
+            <div
+              className="flex items-baseline gap-2 border-b px-4 py-3"
+              style={{ borderColor: 'var(--b1)' }}
+            >
+              <span className="text-sm font-medium">Videos</span>
+              <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
+                {briefs.length}
+              </span>
+            </div>
+            {!channel ? (
+              <p className="px-4 py-3 text-xs leading-relaxed" style={{ color: 'var(--t3)' }}>
+                This session was opened before sessions carried a channel, so it cannot draft
+                a brief. Start a new session — it opens on the channel selected in the sidebar.
+              </p>
+            ) : briefs.length === 0 ? (
+              <p className="px-4 py-3 text-xs leading-relaxed" style={{ color: 'var(--t3)' }}>
+                No brief yet. Talk the idea through, then ask for a brief in a video type —
+                illustrated, diagram, cinematic, characters or the 3D explainer (key or full
+                motion). It lands on Approvals; approving it there starts the video.
+              </p>
+            ) : (
+              briefs.map((b) => (
+                <div
+                  key={b.id}
+                  className="border-b px-4 py-3 last:border-b-0"
+                  style={{ borderColor: 'var(--b1)' }}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    {b.episode ? (
+                      <EpisodeStatePill status={b.episode.status} />
+                    ) : (
+                      <Pill tone={b.status === 'pending' ? 'rev' : b.status === 'rejected' ? 'blk' : 'draft'}>
+                        {b.status === 'pending' ? 'Waiting for approval' : b.status === 'rejected' ? 'Rejected' : b.status}
+                      </Pill>
+                    )}
+                    <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
+                      {b.series}
+                      {b.videoType ? ` · ${b.videoType}` : ''}
+                      {b.motion ? ` · ${b.motion} motion` : ''}
+                      {/* null is unpriced, never ₹0 */}
+                      {' · '}
+                      {b.estimateInr === null ? 'unpriced' : `₹${b.estimateInr.toFixed(0)} est`}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm leading-relaxed">{b.premise}</p>
+                  {b.flagged && b.flagReasons.length > 0 && (
+                    <p className="mt-1 text-2xs" style={{ color: 'var(--rev)' }}>
+                      Flagged: {b.flagReasons.join(' · ')}
+                    </p>
+                  )}
+                  {b.rejectReason && (
+                    <p className="mt-1 text-2xs" style={{ color: 'var(--t3)' }}>
+                      {b.rejectReason}
+                    </p>
+                  )}
+                  {b.episode && (
+                    <LiveStatus status={b.episode.status} detail={b.episode.statusDetail} updatedAt={b.episode.updatedAt} />
+                  )}
+                  <div className="mt-2 flex flex-wrap gap-3 text-xs">
+                    {b.status === 'pending' && (
+                      <Link href={`/bureau/approvals?id=${b.id}`} className="tlink">
+                        Approve on Approvals →
+                      </Link>
+                    )}
+                    {b.episode && (
+                      <>
+                        <Link href={`/bureau/cuts?id=${b.episode.id}`} className="tlink">
+                          Cut →
+                        </Link>
+                        <Link href="/bureau/ready" className="tlink">
+                          Ready →
+                        </Link>
+                        <Link href="/bureau/board" style={{ color: 'var(--t3)' }}>
+                          Board
+                        </Link>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </Panel>
+
           <Panel>
             <div
               className="border-b px-4 py-3 text-sm font-medium"
@@ -155,79 +245,30 @@ export default async function SessionPage({
             </div>
           </Panel>
 
-          <Panel>
-            <div
-              className="border-b px-4 py-3 text-sm font-medium"
-              style={{ borderColor: 'var(--b1)' }}
-            >
-              Script
-            </div>
-            {script ? (
+          {/* Sessions before 08-Oct materialised their own script on the legacy lane. Kept
+              readable as history; nothing creates one any more. */}
+          {script && (
+            <Panel>
+              <div
+                className="border-b px-4 py-3 text-sm font-medium"
+                style={{ borderColor: 'var(--b1)' }}
+              >
+                Legacy script · {shots.length} shot{shots.length === 1 ? '' : 's'}
+              </div>
               <div className="px-4 py-3">
                 <p className="text-sm leading-relaxed">{script.hook}</p>
-                <p
-                  className="mt-2 font-mono text-2xs"
-                  style={{ color: 'var(--t3)' }}
-                >
+                <p className="mt-2 font-mono text-2xs" style={{ color: 'var(--t3)' }}>
                   drafted_by={script.draftedBy} · {script.humanEditCount} human edit
                   {script.humanEditCount === 1 ? '' : 's'}
                 </p>
-                {script.voText && (
-                  <p
-                    className="mt-2 whitespace-pre-wrap text-xs leading-relaxed"
-                    style={{ color: 'var(--t3)' }}
-                  >
-                    {script.voText}
+                {shots.map((s) => (
+                  <p key={s.id} className="mt-1 font-mono text-2xs" style={{ color: 'var(--t3)' }}>
+                    {String(s.idx).padStart(2, '0')} {s.description} · {s.durationS.toFixed(1)}s · {s.status}
                   </p>
-                )}
+                ))}
               </div>
-            ) : (
-              <p className="px-4 py-3 text-xs leading-relaxed" style={{ color: 'var(--t3)' }}>
-                Not materialised. A session writes a script row on its first successful
-                generation, not when it opens — most sessions should produce nothing, and a
-                concepts row per exploration would fill the originality trail with videos
-                nobody decided to make.
-              </p>
-            )}
-          </Panel>
-
-          <Panel>
-            <div
-              className="flex items-baseline gap-2 border-b px-4 py-3"
-              style={{ borderColor: 'var(--b1)' }}
-            >
-              <span className="text-sm font-medium">Shots</span>
-              <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
-                {shots.length}
-              </span>
-            </div>
-            {shots.length === 0 ? (
-              <p className="px-4 py-3 text-xs" style={{ color: 'var(--t3)' }}>
-                None yet.
-              </p>
-            ) : (
-              shots.map((s) => (
-                <div
-                  key={s.id}
-                  className="border-b px-4 py-2 last:border-b-0"
-                  style={{ borderColor: 'var(--b1)' }}
-                >
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
-                      {String(s.idx).padStart(2, '0')}
-                    </span>
-                    <span className="truncate text-xs">{s.description}</span>
-                    <span
-                      className="ml-auto font-mono text-2xs"
-                      style={{ color: 'var(--t3)' }}
-                    >
-                      {s.durationS.toFixed(1)}s · {s.status}
-                    </span>
-                  </div>
-                </div>
-              ))
-            )}
-          </Panel>
+            </Panel>
+          )}
 
           {ledger.length > 0 && (
             <Panel>

@@ -2,48 +2,66 @@ import 'server-only';
 
 import { z } from 'zod';
 
+import { createBriefs } from '../bureau/briefs';
+import { draftBrief, writerSubject, type DraftSlot } from '../bureau/brief-generator';
+import { getBible } from '../bureau/bible';
+import { regenerateShot } from '../bureau/episodes';
+import { FORMAT_INFO, MOTION_INFO, MotionLevelSchema, VisualFormatSchema, formatOf, motionOf, paceOf, type MotionLevel } from '../bureau/formats';
+import { judgeLint } from '../bureau/brief-generator';
+import { calendarUpcoming, episodeStatus } from '../bureau/read';
+import { readUsdInrRate } from '../cost/fx';
 import type { Db } from '../db/server';
-import type { Json } from '../db/types';
-import { primaryForKind } from '../drivers/catalog';
-import { usability } from '../integrations/verify';
+import { RouterError } from '../llm/router';
 import { listRecipes, RecipeInputSchema, saveRecipe } from '../prompts/library';
 import { SKELETONS, skeletonOutline } from '../prompts/skeletons';
 import { SHOT_KIND_KEYS } from '../shots/kinds';
-import { materialiseScript } from './materialise';
+import { TrendsRecentArgs, trendsRecent } from '../trends/recent';
+import {
+  links,
+  priceBrief,
+  sessionBrief,
+  sessionEpisode,
+  sessionWork,
+  studioAgentToken,
+  studioTags,
+  type StudioEffects,
+  type StudioLlm,
+} from './front-end';
 
 /**
- * The six Studio tools, as implementations.
+ * The Studio tools, as implementations.
  *
- * This module is the only place they exist. `src/app/api/mcp/route.ts` exposes them over
- * the MCP protocol so Opus 5 can reach them through the `mcp_servers` connector, and
+ * This module is the only place they exist. `src/app/api/mcp/route.ts` exposes them over the
+ * MCP protocol so Opus reaches them through the `mcp_servers` connector, and
  * `scripts/verify-studio.mjs` drives the same objects over a local bridge. Both paths run
  * *these* functions; neither reimplements one.
  *
- * That matters more here than usual. The connector is a server-side fetch made from
- * Anthropic's infrastructure to a public URL, so the leg from Anthropic to this app cannot
- * be exercised from a container that is not publicly reachable. Everything on this side of
- * that leg can be, and is — but only because there is one copy of it.
+ * ── A session is a front end to the pipeline, not a second one ──────────────
+ *
+ * Until 08-Oct a session could reach `generate_shot`, which materialised its own script and
+ * queued the legacy stage-4/5 lane — whose primary video integration has been dormant since
+ * decision 0015 — and `stitch_rough_cut`, which concatenated silent clips. On a correctly
+ * configured workspace that refused; even when it worked it made a rough cut with no voice,
+ * captions, graphics, format, motion, caps or publish bundle. Both are gone, along with the
+ * two readers of that script (`check_generation`, `list_session_shots`). Nothing here imports
+ * the stage-4/5 tasks; `verify:studio` asserts the tool list and the module graph.
+ *
+ * What a session does now is the Bureau path: read the channel and its trends, draft a brief
+ * in a chosen video type (the 3D explainer through its own writer), price it per type and per
+ * motion level against the channel's per-Short cap, hand it to the approver, then follow the
+ * episode the approval starts — re-roll a shot, open the cut, open the bundle. The recipe
+ * tools stay: exploring and saving a proven recipe is still worth doing here.
  *
  * ── A refusal is a result, not an error ──────────────────────────────────────
  *
- * `generate_shot` on a fresh install refuses: the library is empty and the video
- * integration has never verified. That is the correct answer, and it is returned as data —
- * `{ refused: true, blockers: [...] }` — rather than raised. Three reasons:
- *
- *   The model has to relay it. "I can't generate this yet because X and Y" is the useful
- *   turn; an exception becomes "the tool failed", which is both less true and less useful.
- *
- *   All the blockers, not the first. Refusing on missing credentials and then, one round
- *   trip later, on the empty library wastes a paid turn to deliver half an answer.
- *
- *   An error would be indistinguishable from the tool being broken, which is the exact
- *   confusion this project keeps engineering away from.
+ * `{ refused: true, blockers: [...] }` with every closed gate and what clears it. The model
+ * relays it; an exception would read as "the tool is broken", which it is not.
  *
  * ── Every tool is session-scoped ─────────────────────────────────────────────
  *
- * The session id comes from the bearer token, never from an argument. A tool argument is
- * model-controlled, and a model that can name the session it is writing to can write to
- * somebody else's — including its script, its shots and its cost.
+ * The session id comes from the bearer token, never from an argument, and the channel from
+ * the session row. A brief or episode id from another session is refused: a model that can
+ * name another session's work could re-roll its shots.
  */
 
 export interface ToolContext {
@@ -51,6 +69,14 @@ export interface ToolContext {
   sessionId: string;
   /** Set from the session row. Tools that would spend money check it before they do. */
   spendCapInr: number | null;
+  /** The channel the session was opened on (the active channel at the time). Null on a pre-08-Oct session. */
+  channelId: string | null;
+  /** Start a run, wake a gate, notify, embed — production's or a harness's recording fakes. */
+  effects: StudioEffects;
+  /** The model for writer and judge calls; absent → drafting refuses by name. */
+  llm?: () => Promise<StudioLlm | null>;
+  /** The deployment's public origin, for links the person can tap. */
+  appUrl?: string;
 }
 
 /** What a tool hands back. JSON, because it is going into a model's context as text. */
@@ -75,9 +101,434 @@ export interface StudioTool {
   run(ctx: ToolContext, args: unknown): Promise<ToolResult>;
 }
 
-function refuse(summary: string, blockers: { code: string; detail: string; remedy: string }[]): ToolResult {
+type Blocker = { code: string; detail: string; remedy: string };
+
+function refuse(summary: string, blockers: Blocker[]): ToolResult {
   return { ok: false, refused: true, summary, blockers };
 }
+
+/** A tool's input schema, from its Zod args — one source, so the two cannot disagree. */
+function schemaOf(args: z.ZodType): Record<string, unknown> {
+  const schema = z.toJSONSchema(args, { io: 'input', unrepresentable: 'any' }) as Record<string, unknown>;
+  delete schema.$schema;
+  return schema;
+}
+
+/** Parse, or refuse naming every bad field — never `as`. */
+function parseArgs<A extends z.ZodType>(args: A, raw: unknown): { ok: true; data: z.infer<A> } | { ok: false; result: ToolResult } {
+  const parsed = args.safeParse(raw ?? {});
+  if (parsed.success) return { ok: true, data: parsed.data };
+  return {
+    ok: false,
+    result: refuse('The arguments were not well-formed.', [
+      { code: 'invalid_arguments', detail: parsed.error.issues.map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`).join('; '), remedy: 'Fix the named fields and call again.' },
+    ]),
+  };
+}
+
+const NO_CHANNEL: Blocker = {
+  code: 'no_channel',
+  detail: 'This session was opened before sessions carried a channel, so it has none to draft for.',
+  remedy: 'Start a new session from Studio — it opens on the channel selected in the sidebar.',
+};
+
+const LINKS = {
+  approvals: (briefId: string) => `/bureau/approvals?id=${briefId}`,
+  cuts: (episodeId: string) => `/bureau/cuts?id=${episodeId}`,
+  ready: '/bureau/ready',
+  board: '/bureau/board',
+  session: (sessionId: string) => `/studio/${sessionId}`,
+};
+
+const APPROVER_ONLY =
+  'Approving starts the paid run, so it is the approver’s decision and this session cannot make it. ' +
+  'Hand it over: the approver opens the link, picks a punchline and the type, and approves.';
+
+// ═════════════════════════════════════════════════════════════════════════════
+// channel_overview
+// ═════════════════════════════════════════════════════════════════════════════
+
+const OverviewArgs = z.object({ days: z.number().int().min(1).max(60).default(14).describe('How far ahead to list calendar slots.') }).strict();
+
+const channelOverview: StudioTool = {
+  name: 'channel_overview',
+  title: 'The channel this session makes videos for',
+  description:
+    'Read first. The active channel: its series (with each one’s default video type, motion and pace), ' +
+    'its cast and narrator, the video types and motion levels available, the per-Short cost cap, ' +
+    'open calendar slots in the next `days`, and the briefs this session has already drafted.',
+  inputSchema: schemaOf(OverviewArgs),
+  args: OverviewArgs,
+  async run(ctx, raw) {
+    const a = parseArgs(OverviewArgs, raw);
+    if (!a.ok) return a.result;
+    if (!ctx.channelId) return refuse('This session has no channel.', [NO_CHANNEL]);
+    const { db, channelId } = ctx;
+    const [{ data: channel }, cbOrError, { data: policy }, calendar, work] = await Promise.all([
+      db.from('channels').select('id, name, slug, niche').eq('id', channelId).maybeSingle(),
+      getBible(db, channelId).catch((err: unknown) => (err instanceof Error ? err : new Error(String(err)))),
+      db.from('channel_policy').select('per_short_cap_inr, daily_cap_inr, kill_switch').eq('channel_id', channelId).maybeSingle(),
+      calendarUpcoming(db, channelId, a.data.days),
+      sessionWork(db, ctx.sessionId),
+    ]);
+    if (cbOrError instanceof Error) {
+      return refuse('This channel has no bible, so nothing can be drafted for it.', [
+        { code: 'no_bible', detail: cbOrError.message, remedy: 'Library → Bible: import or write the channel’s bible first.' },
+      ]);
+    }
+    const cb = cbOrError;
+    return {
+      ok: true,
+      channel: { id: channelId, name: channel?.name ?? null, slug: channel?.slug ?? null, niche: channel?.niche ?? null },
+      caps: {
+        per_short_cap_inr: policy?.per_short_cap_inr === null || policy?.per_short_cap_inr === undefined ? null : Number(policy.per_short_cap_inr),
+        daily_cap_inr: policy?.daily_cap_inr === null || policy?.daily_cap_inr === undefined ? null : Number(policy.daily_cap_inr),
+        kill_switch: policy?.kill_switch ?? null,
+        note: 'null = no cap set, not a zero cap.',
+      },
+      series: Object.values(cb.series)
+        .filter((s): s is NonNullable<typeof s> => !!s && s.id !== 'long_form')
+        .map((s) => ({
+          id: s.id,
+          name: s.name,
+          template: s.template,
+          lead: s.lead,
+          default_type: formatOf({ seriesFormat: s.visual_format }).format,
+          default_motion: motionOf({ seriesMotion: s.motion }).motion,
+          default_pace: paceOf({ seriesPace: s.voice_pace }).pace,
+        })),
+      cast: cb.bible.characters.map((c) => ({ id: c.id, name: c.name, on_screen: (c as { on_screen?: boolean }).on_screen ?? true })),
+      video_types: Object.entries(FORMAT_INFO).map(([id, i]) => ({ id, ...i })),
+      motion_levels: Object.entries(MOTION_INFO).map(([id, i]) => ({ id, ...i, applies_to: 'engineered (3D explainer) only' })),
+      open_slots: calendar.slots
+        .filter((s) => !s.brief_id && s.series !== 'sequel' && s.series !== 'long_form')
+        .map((s) => ({ id: s.id, date: s.slot_date, series: s.series, topic: s.topic, hook: s.hook, lead: s.lead })),
+      this_session: {
+        briefs: work.briefs.map((b) => ({ id: b.id, status: b.status, premise: b.premise, series: b.series })),
+        episodes: work.episodes.map((e) => ({ id: e.id, brief_id: e.brief_id, status: e.status })),
+      },
+    };
+  },
+};
+
+// ═════════════════════════════════════════════════════════════════════════════
+// trends_recent
+// ═════════════════════════════════════════════════════════════════════════════
+
+const trendsTool: StudioTool = {
+  name: 'trends_recent',
+  title: 'Recent trend signals',
+  description:
+    'Top stage-1 trend signals for the session’s channel over the last `days` (1–30), highest velocity ' +
+    'first: source, term, velocity (a proxy), volume, relevance to the niche (null = not scored, never 0) and a link.',
+  inputSchema: schemaOf(TrendsRecentArgs),
+  args: TrendsRecentArgs,
+  async run(ctx, raw) {
+    const a = parseArgs(TrendsRecentArgs, raw);
+    if (!a.ok) return a.result;
+    if (!ctx.channelId) return refuse('This session has no channel.', [NO_CHANNEL]);
+    const r = await trendsRecent(ctx.db, ctx.channelId, a.data);
+    if (!r.ok) return refuse(r.summary, [{ code: 'trends_refused', detail: r.summary, remedy: 'Ask for this session’s own channel.' }]);
+    return { ...r, ok: true };
+  },
+};
+
+// ═════════════════════════════════════════════════════════════════════════════
+// draft_brief
+// ═════════════════════════════════════════════════════════════════════════════
+
+const DraftArgs = z
+  .object({
+    video_type: VisualFormatSchema.describe('illustrated | diagram | cinematic | characters | engineered (the 3D explainer).'),
+    motion: MotionLevelSchema.optional().describe('engineered only: "key" = clips on the action beats, "full" = clips on most beats. Default: the series’.'),
+    slot_id: z.string().min(1).max(40).optional().describe('A calendar slot from channel_overview.open_slots. Its series, topic and hook are used.'),
+    series: z.string().min(1).max(40).optional().describe('Unslotted only: a series id from channel_overview.series.'),
+    topic: z.string().min(3).max(200).optional().describe('Unslotted only: what the video is about, in one line.'),
+    hook: z.string().min(3).max(200).optional().describe('Unslotted only, optional: the opening line or angle.'),
+  })
+  .strict();
+
+const draftBriefTool: StudioTool = {
+  name: 'draft_brief',
+  title: 'Draft a brief for the approver',
+  description:
+    'Draft one brief for the session’s channel in a video type (and, for the 3D explainer, a motion level), ' +
+    'either for an open calendar slot (slot_id) or unslotted (series + topic). The channel’s own writer drafts ' +
+    'it; the server lints it against the content policy, checks it for repetition and prices it. The brief is ' +
+    'created PENDING. Returns its id, flags, the price of every type and motion level against the per-Short ' +
+    'cap, and the Approvals link. This spends money (one writer call, ~₹2–7). It does NOT start a video: ' +
+    'the approver approves on Approvals, and that starts the run.',
+  inputSchema: schemaOf(DraftArgs),
+  args: DraftArgs,
+  async run(ctx, raw) {
+    const a = parseArgs(DraftArgs, raw);
+    if (!a.ok) return a.result;
+    const args = a.data;
+    const { db, sessionId } = ctx;
+    const blockers: Blocker[] = [];
+    if (!ctx.channelId) return refuse('This session has no channel.', [NO_CHANNEL]);
+    const channelId = ctx.channelId;
+
+    // ── Which slot ─────────────────────────────────────────────────────────
+    let slot: DraftSlot | null = null;
+    if (args.slot_id) {
+      const { data } = await db
+        .from('slots')
+        .select('id, slot_date, series, topic, hook, lead, seasonal_tag, episode')
+        .eq('id', args.slot_id)
+        .eq('channel_id', channelId)
+        .maybeSingle();
+      if (!data) blockers.push({ code: 'unknown_slot', detail: `No slot ${args.slot_id} on this channel.`, remedy: 'Pick one of channel_overview.open_slots, or draft unslotted with series + topic.' });
+      else slot = data;
+    } else if (args.series && args.topic) {
+      slot = { id: null, slot_date: null, series: args.series, topic: args.topic, hook: args.hook ?? null, lead: null, seasonal_tag: null, episode: null };
+    } else {
+      blockers.push({ code: 'no_topic', detail: 'Neither a slot_id nor a series and topic was given.', remedy: 'Pass slot_id, or series and topic.' });
+    }
+    if (args.motion && args.video_type !== 'engineered') {
+      blockers.push({ code: 'motion_without_engineered', detail: `Motion levels exist only for the 3D explainer; "${args.video_type}" has none.`, remedy: 'Drop motion, or choose video_type "engineered".' });
+    }
+
+    // ── Can it be paid for, and is the session under its cap ─────────────
+    const fx = await readUsdInrRate(db);
+    if (!fx.ok) blockers.push({ code: 'no_fx_rate', detail: fx.reason, remedy: fx.remedy });
+    const llm = ctx.llm ? await ctx.llm() : null;
+    if (!llm) blockers.push({ code: 'no_llm_credential', detail: 'No verified model credential is configured for drafting.', remedy: 'Settings → Integrations → the LLM integration, then Test connection.' });
+    const { data: session } = await db.from('studio_sessions').select('cost_inr, spend_cap_inr').eq('id', sessionId).maybeSingle();
+    const spent = Number(session?.cost_inr ?? 0);
+    const cap = session?.spend_cap_inr === null || session?.spend_cap_inr === undefined ? null : Number(session.spend_cap_inr);
+    if (cap === null || spent >= cap) {
+      blockers.push({ code: 'session_cap', detail: cap === null ? 'This session has no spend cap.' : `This session has spent ₹${spent.toFixed(2)} of its ₹${cap.toFixed(2)} cap.`, remedy: 'Start a new session with a cap that leaves room for a draft.' });
+    }
+    if (blockers.length || !slot || !fx.ok || !llm) {
+      return refuse(`Cannot draft this brief yet — ${blockers.length} thing${blockers.length === 1 ? '' : 's'} must be true first.`, blockers);
+    }
+
+    // ── Draft: the channel's writer, costed to the channel AND this session ──
+    const deps = { db, apiKey: llm.apiKey, client: llm.client, usdInrRate: fx.rate, channelId, studioSessionId: sessionId };
+    let drafted;
+    try {
+      drafted = await draftBrief(db, { slot, format: args.video_type }, deps);
+    } catch (err) {
+      // The router has already written the billed tokens (rule 5); this reports the outcome.
+      const code = err instanceof RouterError ? `writer_${err.code}` : 'writer_failed';
+      return refuse('The writer did not produce a usable draft. Its cost is recorded.', [
+        { code, detail: err instanceof Error ? err.message : String(err), remedy: 'Try again once, perhaps with a narrower topic. A second failure is worth reading, not retrying.' },
+      ]);
+    }
+    if (!drafted.ok) {
+      return refuse('The draft did not pass the channel’s brief rules, so no brief was created. Its cost is recorded.', [
+        { code: 'draft_rejected', detail: drafted.error, remedy: 'Draft again with a different angle or topic; the rules named are the channel’s own.' },
+      ]);
+    }
+
+    const cb = await getBible(db, channelId);
+    const seriesMotion = motionOf({ seriesMotion: cb.seriesFor(drafted.brief.series).motion }).motion;
+    const motion: MotionLevel | null = args.video_type === 'engineered' ? args.motion ?? seriesMotion : null;
+    const brief = { ...drafted.brief, tags: studioTags(drafted.brief.tags, sessionId, args.video_type, motion) };
+
+    // ── Create it pending, as this channel's Studio agent ─────────────────
+    const token = await studioAgentToken(db, channelId);
+    const embed = await ctx.effects.embedderFor?.(db, channelId);
+    const judge = (lint: Parameters<typeof judgeLint>[0], text: string) =>
+      judgeLint(lint, text, { db, apiKey: llm.apiKey, client: llm.client, usdInrRate: fx.rate, subject: writerSubject(deps, `judge:${sessionId}:${Date.now()}`, '20-policy-judge') });
+    const [created] = await createBriefs([brief], { db, token, embed, judge });
+    if (!created?.ok) {
+      return refuse('The brief was drafted and then refused when it was created.', [
+        { code: 'create_refused', detail: created?.ok === false ? created.error : 'no result', remedy: 'A slot that already has a live brief cannot take another — pick an open slot or draft unslotted.' },
+      ]);
+    }
+    await ctx.effects.notify?.(channelId, 'briefs_pending', `A brief from a Studio session is waiting for approval: ${brief.premise.slice(0, 120)}`);
+
+    const pricing = await priceBrief(db, channelId, { ...brief, shot_list: brief.shot_list, hero_objects: brief.hero_objects });
+    return {
+      ok: true,
+      brief_id: created.brief_id,
+      status: 'pending',
+      series: brief.series,
+      slot_id: brief.slot_id ?? null,
+      premise: brief.premise,
+      punchlines: brief.punchlines,
+      titles: brief.titles.map((t) => t.text),
+      script_words: brief.script_text.split(/\s+/).filter(Boolean).length,
+      shots: brief.shot_list.length,
+      flagged: created.flagged,
+      flag_reasons: created.flag_reasons,
+      policy: created.policy,
+      variation: created.variation,
+      pricing,
+      approval: { links: links(ctx.appUrl, { approvals: LINKS.approvals(created.brief_id) }), who: 'the approver', why: APPROVER_ONLY },
+    };
+  },
+};
+
+// ═════════════════════════════════════════════════════════════════════════════
+// brief_get / price_brief
+// ═════════════════════════════════════════════════════════════════════════════
+
+const BriefIdArgs = z.object({ brief_id: z.uuid() }).strict();
+
+const NOT_THIS_SESSION = (what: string, id: string): Blocker => ({
+  code: 'not_this_session',
+  detail: `${what} ${id} was not started by this session (or is on another channel).`,
+  remedy: 'Use the ids from channel_overview.this_session; another session’s work is opened from that session.',
+});
+
+const briefGet: StudioTool = {
+  name: 'brief_get',
+  title: 'Read a brief this session drafted',
+  description: 'Everything on one of this session’s briefs: status, premise, punchlines, script, shot list, flags, the policy and variation results, and the episode its approval started, if any.',
+  inputSchema: schemaOf(BriefIdArgs),
+  args: BriefIdArgs,
+  async run(ctx, raw) {
+    const a = parseArgs(BriefIdArgs, raw);
+    if (!a.ok) return a.result;
+    if (!ctx.channelId) return refuse('This session has no channel.', [NO_CHANNEL]);
+    const b = await sessionBrief(ctx.db, ctx.sessionId, ctx.channelId, a.data.brief_id);
+    if (!b) return refuse('That brief is not this session’s.', [NOT_THIS_SESSION('Brief', a.data.brief_id)]);
+    const { data: ep } = await ctx.db.from('episodes').select('id, status').eq('brief_id', b.id).maybeSingle();
+    return {
+      ok: true,
+      brief: b,
+      episode: ep ?? null,
+      links: links(ctx.appUrl, b.status === 'pending' ? { approvals: LINKS.approvals(b.id) } : ep ? { cuts: LINKS.cuts(ep.id), ready: LINKS.ready } : {}),
+    };
+  },
+};
+
+const priceBriefTool: StudioTool = {
+  name: 'price_brief',
+  title: 'Price a brief per type and motion',
+  description:
+    'Price one of this session’s briefs in every video type, and the 3D explainer at each motion level, against the ' +
+    'channel’s per-Short cap — the same figures Approvals shows. verdict is within_cap, over_cap, unpriced (a rate or ' +
+    'recipe is missing; never read as ₹0) or no_cap_set.',
+  inputSchema: schemaOf(BriefIdArgs),
+  args: BriefIdArgs,
+  async run(ctx, raw) {
+    const a = parseArgs(BriefIdArgs, raw);
+    if (!a.ok) return a.result;
+    if (!ctx.channelId) return refuse('This session has no channel.', [NO_CHANNEL]);
+    const b = await sessionBrief(ctx.db, ctx.sessionId, ctx.channelId, a.data.brief_id);
+    if (!b) return refuse('That brief is not this session’s.', [NOT_THIS_SESSION('Brief', a.data.brief_id)]);
+    return { ok: true, brief_id: b.id, pricing: await priceBrief(ctx.db, ctx.channelId, b) };
+  },
+};
+
+// ═════════════════════════════════════════════════════════════════════════════
+// episode_status / shot_regenerate / episode_links
+// ═════════════════════════════════════════════════════════════════════════════
+
+const EpisodeArgs = z.object({ episode_id: z.uuid().optional().describe('Omit for every episode this session started.') }).strict();
+
+const episodeStatusTool: StudioTool = {
+  name: 'episode_status',
+  title: 'Follow an episode',
+  description:
+    'Where an episode started from this session’s brief is: status and the worker’s progress line, shots and their ' +
+    'routes, generation jobs, QC, spend against the cap, and the first blocker. With no episode_id, every one this session started.',
+  inputSchema: schemaOf(EpisodeArgs),
+  args: EpisodeArgs,
+  async run(ctx, raw) {
+    const a = parseArgs(EpisodeArgs, raw);
+    if (!a.ok) return a.result;
+    if (!ctx.channelId) return refuse('This session has no channel.', [NO_CHANNEL]);
+    const channelId = ctx.channelId;
+    let ids: string[];
+    if (a.data.episode_id) {
+      const ep = await sessionEpisode(ctx.db, ctx.sessionId, a.data.episode_id);
+      if (!ep) return refuse('That episode is not this session’s.', [NOT_THIS_SESSION('Episode', a.data.episode_id)]);
+      ids = [ep.id];
+    } else {
+      const work = await sessionWork(ctx.db, ctx.sessionId);
+      ids = work.episodes.map((e) => e.id).slice(0, 5);
+      if (!ids.length) {
+        const pending = work.briefs.filter((b) => b.status === 'pending');
+        return {
+          ok: true,
+          episodes: [],
+          note: pending.length
+            ? `No episode yet: ${pending.length} brief${pending.length === 1 ? ' is' : 's are'} waiting for the approver on Approvals. ${APPROVER_ONLY}`
+            : 'This session has not drafted a brief yet, so nothing has been started.',
+          links: links(ctx.appUrl, pending[0] ? { approvals: LINKS.approvals(pending[0].id) } : {}),
+        };
+      }
+    }
+    const episodes = await Promise.all(ids.map((id) => episodeStatus(ctx.db, channelId, id)));
+    return {
+      ok: true,
+      episodes: episodes.filter(Boolean).map((e) => ({ ...e!, links: links(ctx.appUrl, { cuts: LINKS.cuts(e!.id), ready: LINKS.ready, board: LINKS.board }) })),
+    };
+  },
+};
+
+const RegenArgs = z
+  .object({
+    episode_id: z.uuid(),
+    shot: z.union([z.number().int().min(0), z.uuid()]).describe('The shot’s idx (0-based) or id.'),
+    note: z.string().min(3).max(400).describe('What to change, for the prompt.'),
+  })
+  .strict();
+
+const shotRegenerateTool: StudioTool = {
+  name: 'shot_regenerate',
+  title: 'Re-roll one shot',
+  description:
+    'Queue a re-roll of one generated clip of an episode this session started, with a note for the prompt — limited to the ' +
+    'channel’s re-roll max. A picture (still) shot is redrawn instead, which is the approver’s call on Cuts; this refuses it ' +
+    'and says so. The cut still needs the approver afterwards.',
+  inputSchema: schemaOf(RegenArgs),
+  args: RegenArgs,
+  async run(ctx, raw) {
+    const a = parseArgs(RegenArgs, raw);
+    if (!a.ok) return a.result;
+    if (!ctx.channelId) return refuse('This session has no channel.', [NO_CHANNEL]);
+    const ep = await sessionEpisode(ctx.db, ctx.sessionId, a.data.episode_id);
+    if (!ep) return refuse('That episode is not this session’s.', [NOT_THIS_SESSION('Episode', a.data.episode_id)]);
+    const token = await studioAgentToken(ctx.db, ctx.channelId);
+    try {
+      const r = await regenerateShot(ctx.db, token, { episode_id: ep.id, shot: a.data.shot, note: a.data.note }, ctx.effects);
+      return { ...r, ok: true, links: links(ctx.appUrl, { cuts: LINKS.cuts(ep.id) }) };
+    } catch (err) {
+      return refuse('The re-roll was not queued.', [
+        { code: 'reroll_refused', detail: err instanceof Error ? err.message : String(err), remedy: 'Read the reason: a picture is redrawn on Cuts by the approver; a capped shot has used its re-rolls.' },
+      ]);
+    }
+  },
+};
+
+const LinksArgs = z.object({ episode_id: z.uuid() }).strict();
+
+const episodeLinksTool: StudioTool = {
+  name: 'open_cut_and_bundle',
+  title: 'Open the cut and the bundle',
+  description:
+    'Links to the cut (Cuts — where the approver approves or sends it back) and to the publish bundle (Ready), with the bundle’s ' +
+    'title, status and slot when one exists. Download URLs are signed on Ready for the approver, not here.',
+  inputSchema: schemaOf(LinksArgs),
+  args: LinksArgs,
+  async run(ctx, raw) {
+    const a = parseArgs(LinksArgs, raw);
+    if (!a.ok) return a.result;
+    if (!ctx.channelId) return refuse('This session has no channel.', [NO_CHANNEL]);
+    const ep = await sessionEpisode(ctx.db, ctx.sessionId, a.data.episode_id);
+    if (!ep) return refuse('That episode is not this session’s.', [NOT_THIS_SESSION('Episode', a.data.episode_id)]);
+    const { data: bundles } = await ctx.db
+      .from('v_ready_bundles')
+      .select('publication_id, platform, status, title, scheduled_for, slot_date')
+      .eq('episode_id', ep.id);
+    const cutReady = ['awaiting_cut', 'cut_rejected', 'cut_approved', 'bundled', 'scheduled', 'live'].includes(ep.status);
+    return {
+      ok: true,
+      episode_id: ep.id,
+      status: ep.status,
+      cut: cutReady ? 'assembled' : 'not assembled yet',
+      bundle: (bundles ?? []).length ? bundles : null,
+      bundle_note: (bundles ?? []).length ? null : 'No bundle yet: it is built after the approver passes the cut.',
+      links: links(ctx.appUrl, { cuts: LINKS.cuts(ep.id), ready: LINKS.ready }),
+    };
+  },
+};
 
 // ═════════════════════════════════════════════════════════════════════════════
 // list_prompt_recipes
@@ -93,9 +544,10 @@ const listPromptRecipes: StudioTool = {
   title: 'List prompt recipes',
   description:
     'List the shot recipes in the prompt library. A recipe is a proven template plus the ' +
-    'exact vendor parameters it was proven with. Production never improvises: a shot can ' +
-    'only be generated from a recipe that is already in this library. Call this before ' +
-    'generate_shot to see what is available, and save_prompt_recipe to add one.',
+    'exact vendor parameters it was proven with. Production never improvises: an episode\u2019s ' +
+    'clip routes (the cinematic type, the 3D explainer\u2019s motion) read only active recipes ' +
+    'from this library, and an unpriced or missing one is why price_brief says "unpriced". ' +
+    'For exploring; save_prompt_recipe adds one.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -129,7 +581,8 @@ const listPromptRecipes: StudioTool = {
       // than at deducing it.
       note:
         recipes.length === 0
-          ? 'The library is empty. Nothing can be generated until a recipe exists, and a ' +
+          ? 'The library is empty, so no clip route can be priced or generated (pictures and ' +
+            'diagrams still can). A ' +
             'recipe is only worth saving once its parameters have actually produced a clip ' +
             'you watched — explore against the vendor\u2019s own hosted MCP server in Claude ' +
             'Code, then save the exact params here with save_prompt_recipe.'
@@ -287,498 +740,18 @@ const savePromptRecipe: StudioTool = {
 };
 
 // ═════════════════════════════════════════════════════════════════════════════
-// generate_shot
-// ═════════════════════════════════════════════════════════════════════════════
-
-const GenerateShotArgs = z.object({
-  description: z.string().min(4),
-  duration_s: z.number().positive().max(30),
-  intent: z.string().optional(),
-  recipe_id: z.string().optional(),
-  /** Only meaningful once a script exists; the first call materialises one. */
-  idx: z.number().int().min(0).optional(),
-  /** Carried onto the materialised script when this is the first generation. */
-  title: z.string().optional(),
-  angle: z.string().optional(),
-  vo_text: z.string().optional(),
-});
-
-const generateShot: StudioTool = {
-  name: 'generate_shot',
-  title: 'Generate a shot',
-  description:
-    'Generate one video shot from a library recipe. This spends money. The first call in ' +
-    'a session materialises a script row, so the shot and everything after it — review, ' +
-    'rough cut, cost — is ordinary pipeline data rather than a Studio-only artifact. ' +
-    'Refuses, with every reason listed, when the video integration has never verified, ' +
-    'when no library recipe matches, or when the call cannot be priced.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      description: { type: 'string', description: 'What is on screen, in one sentence.' },
-      duration_s: { type: 'number', description: 'Shot length in seconds.' },
-      intent: { type: 'string', description: 'What this shot is doing editorially.' },
-      recipe_id: {
-        type: 'string',
-        description: 'The library recipe to use. Omit to let the shot kind choose.',
-      },
-      idx: { type: 'integer', description: 'Position in the script. Appends when omitted.' },
-      title: { type: 'string', description: 'Working title. Used when the script is created.' },
-      angle: { type: 'string', description: 'The editorial point of view. Used at creation.' },
-      vo_text: { type: 'string', description: 'Voiceover text so far. Used at creation.' },
-    },
-    required: ['description', 'duration_s'],
-    additionalProperties: false,
-  },
-  args: GenerateShotArgs,
-
-  async run(ctx, raw) {
-    const args = GenerateShotArgs.parse(raw);
-    const blockers: { code: string; detail: string; remedy: string }[] = [];
-
-    // ── Gate 1: is there a video vendor we are allowed to call? ──────────────
-    const descriptor = primaryForKind('video');
-    if (!descriptor) {
-      blockers.push({
-        code: 'no_video_integration',
-        detail: 'No integration in the catalogue is marked primary for video.',
-        remedy: 'Fix INTEGRATION_CATALOG in src/lib/drivers/catalog.ts.',
-      });
-    } else {
-      const use = await usability(ctx.db, descriptor.slug);
-      if (!use.usable) {
-        blockers.push({
-          code: use.deferred ? 'video_integration_deferred' : 'video_integration_unusable',
-          detail: use.reason,
-          remedy:
-            'Settings → Integrations, then Test connection. Enabling states intent; ' +
-            'verifying states fact, and only the second one lets a task spend money.',
-        });
-      }
-    }
-
-    // ── Gate 2: is there a recipe? ───────────────────────────────────────────
-    const recipes = (await listRecipes(ctx.db)).filter((r) => r.isActive);
-    const chosen = args.recipe_id
-      ? recipes.find((r) => r.id === args.recipe_id)
-      : recipes[0];
-
-    if (recipes.length === 0) {
-      blockers.push({
-        code: 'empty_prompt_library',
-        detail:
-          'The prompt library has no active recipes, so there is no proven parameter set ' +
-          'to generate from.',
-        remedy:
-          'Explore against the vendor\u2019s own hosted MCP server in Claude Code until a ' +
-          'recipe produces a clip worth keeping, then save it here with save_prompt_recipe. ' +
-          'Production reads the library; it never improvises.',
-      });
-    } else if (!chosen) {
-      blockers.push({
-        code: 'unknown_recipe',
-        detail: `No active recipe with id ${args.recipe_id}.`,
-        remedy: 'Call list_prompt_recipes and pick one of the ids it returns.',
-      });
-    }
-
-    // ── Gate 3: can it be priced? ────────────────────────────────────────────
-    //
-    // Checked even when the gates above are already closed, because the answer is part of
-    // the same picture: a verified credential and a full library still cannot generate
-    // anything while the credit rate is a placeholder, and finding that out one refusal
-    // later is one more paid turn.
-    if (descriptor && chosen) {
-      const { currentRate } = await import('../cost/rate-card');
-      const rate = await currentRate(ctx.db, {
-        driver: chosen.driver,
-        model: chosen.model,
-        endpoint: null,
-        unit: 'credit',
-      });
-      if (!rate.found) {
-        blockers.push({
-          code: 'unpriced',
-          detail: rate.detail,
-          remedy:
-            'Settings → Rate card. A credit rate is verified by watching the balance move, ' +
-            'not by reading a docs page — nobody publishes these.',
-        });
-      }
-    }
-
-    if (blockers.length > 0) {
-      return refuse(
-        `Cannot generate this shot yet — ${blockers.length} thing${blockers.length === 1 ? '' : 's'} ` +
-          'must be true first, and none of them is a failure of this request.',
-        blockers,
-      );
-    }
-
-    // Past every gate: materialise the script if this is the first generation, then hand
-    // the shot to the pipeline. Nothing below is reachable on a fresh install, and it is
-    // written to be replaced by the stage-5 submit path rather than to duplicate it.
-    const script = await materialiseScript(ctx.db, ctx.sessionId, {
-      title: args.title,
-      angle: args.angle,
-      voText: args.vo_text,
-    });
-
-    if (!script.ok) {
-      return refuse('The session could not materialise a script to hang this shot on.', [
-        { code: script.code, detail: script.detail, remedy: script.remedy },
-      ]);
-    }
-
-    const { data: existing } = await ctx.db
-      .from('shots')
-      .select('idx')
-      .eq('script_id', script.scriptId)
-      .order('idx', { ascending: false })
-      .limit(1);
-
-    const idx = args.idx ?? ((existing?.[0]?.idx ?? -1) + 1);
-
-    const { data: shot, error } = await ctx.db
-      .from('shots')
-      .insert({
-        script_id: script.scriptId,
-        idx,
-        duration_s: args.duration_s,
-        description: args.description,
-        prompt_id: chosen!.id,
-        compiled_params: { ...chosen!.params, model: chosen!.model } as Json,
-        compiled_at: new Date().toISOString(),
-        status: 'pending',
-      })
-      .select('id, idx')
-      .single();
-
-    if (error) {
-      return refuse('The shot row was refused by the database.', [
-        { code: 'shot_insert_failed', detail: error.message, remedy: 'Check pnpm db:doctor.' },
-      ]);
-    }
-
-    // ── Hand it to the pipeline ─────────────────────────────────────────────
-    //
-    // This tool still does not call the vendor. It enqueues stage 4 and stage 5, which do —
-    // so the idempotency key, the cost row and the submit are written in exactly one place,
-    // and a Studio generation is replayable by the same tasks as any other.
-    //
-    // Until this existed the tool wrote the shot row and returned a note saying stage 5
-    // would pick it up. Stage 5 had no caller, so nothing ever did. The note described an
-    // arrangement that was true of the design and false of the running system, which is the
-    // most expensive kind of comment to leave lying around.
-    // Dynamically, matching stitch_rough_cut below. `enqueue.ts` already keeps the Trigger
-    // SDK out of the bundle with its own dynamic import; doing it here too keeps the two
-    // call sites identical, so neither reads as the odd one out.
-    const { enqueueGenerate } = await import('./enqueue');
-    const queued = await enqueueGenerate({ scriptId: script.scriptId });
-
-    if (!queued.enqueued) {
-      // Not a refusal — the row is real and correct, and a human can submit it from the
-      // board. Reported so the model says "written but not submitted" rather than "done".
-      return {
-        ok: true,
-        script_id: script.scriptId,
-        script_created: script.created,
-        shot_id: shot.id,
-        idx: shot.idx,
-        status: 'pending',
-        submitted: false,
-        note:
-          'The shot row exists, and handing it to stage 5 failed: ' +
-          `${queued.detail}. Nothing was submitted and nothing was charged. The shot is on ` +
-          'the board and can be generated from there once the worker is reachable.',
-      };
-    }
-
-    return {
-      ok: true,
-      script_id: script.scriptId,
-      script_created: script.created,
-      shot_id: shot.id,
-      idx: shot.idx,
-      status: 'generating',
-      submitted: true,
-      run_id: queued.runId,
-      note:
-        'The shot row exists and has been handed to stage 4 (compile) and then stage 5 ' +
-        '(submit). This tool does not call the vendor directly, so the idempotency key and ' +
-        'the cost row are written in exactly one place. Completion arrives by webhook — ' +
-        'use check_generation rather than waiting.',
-    };
-  },
-};
-
-// ═════════════════════════════════════════════════════════════════════════════
-// check_generation
-// ═════════════════════════════════════════════════════════════════════════════
-
-const CheckGenerationArgs = z.object({ generation_id: z.string().min(1) });
-
-const checkGeneration: StudioTool = {
-  name: 'check_generation',
-  title: 'Check a generation',
-  description:
-    'Read the current state of one generation: status, error, whether its asset has been ' +
-    'ingested and normalised. Reads rows — it does not poll the vendor, because completion ' +
-    'arrives by webhook and a poll would be a second, less reliable source of the same fact.',
-  inputSchema: {
-    type: 'object',
-    properties: { generation_id: { type: 'string' } },
-    required: ['generation_id'],
-    additionalProperties: false,
-  },
-  args: CheckGenerationArgs,
-
-  async run(ctx, raw) {
-    const args = CheckGenerationArgs.parse(raw);
-
-    const { data: generation } = await ctx.db
-      .from('generations')
-      // One string literal, not a concatenation. PostgREST's generated types resolve the
-      // row shape from the *literal* select, and `'a' + 'b'` widens to `string` — which
-      // turns every field access below into an error about GenericStringError.
-      .select('id, shot_id, kind, driver, model, status, attempt, error_code, error_detail, confirmed_at, submitted_at, completed_at, studio_session_id, origin')
-      .eq('id', args.generation_id)
-      .maybeSingle();
-
-    if (!generation) {
-      return refuse(`No generation ${args.generation_id}.`, [
-        {
-          code: 'unknown_generation',
-          detail: 'No row with that id.',
-          remedy: 'Call list_session_shots for the ids this session actually created.',
-        },
-      ]);
-    }
-
-    // Scoped to the session for the same reason the session id is not an argument. A
-    // readable id from another session is still another session's data.
-    if (generation.studio_session_id && generation.studio_session_id !== ctx.sessionId) {
-      return refuse('That generation belongs to a different session.', [
-        {
-          code: 'out_of_session',
-          detail: 'Studio tools are scoped to the session that authenticated them.',
-          remedy: 'Open that session to inspect its generations.',
-        },
-      ]);
-    }
-
-    const { data: asset } = await ctx.db
-      .from('assets')
-      .select('id, storage_key, duration_s, normalized_at, created_at')
-      .eq('generation_id', generation.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    return {
-      ok: true,
-      generation: {
-        id: generation.id,
-        shot_id: generation.shot_id,
-        kind: generation.kind,
-        driver: generation.driver,
-        model: generation.model,
-        status: generation.status,
-        attempt: generation.attempt,
-        error_code: generation.error_code,
-        error_detail: generation.error_detail,
-        confirmed: generation.confirmed_at !== null,
-        submitted_at: generation.submitted_at,
-        completed_at: generation.completed_at,
-      },
-      asset: asset
-        ? {
-            id: asset.id,
-            duration_s: asset.duration_s === null ? null : Number(asset.duration_s),
-            // The distinction the rough cut depends on. A non-normalised asset concatenates
-            // into a file that plays and is wrong.
-            normalised: asset.normalized_at !== null,
-          }
-        : null,
-    };
-  },
-};
-
-// ═════════════════════════════════════════════════════════════════════════════
-// list_session_shots
-// ═════════════════════════════════════════════════════════════════════════════
-
-const ListSessionShotsArgs = z.object({});
-
-const listSessionShots: StudioTool = {
-  name: 'list_session_shots',
-  title: 'List this session’s shots',
-  description:
-    'List the shots this session has created, in order, with their generation status and ' +
-    'whether a normalised asset exists. Returns an empty list before the first ' +
-    'generate_shot — the session has not materialised a script yet.',
-  inputSchema: { type: 'object', properties: {}, additionalProperties: false },
-  args: ListSessionShotsArgs,
-
-  async run(ctx) {
-    const { data: session } = await ctx.db
-      .from('studio_sessions')
-      .select('script_id')
-      .eq('id', ctx.sessionId)
-      .maybeSingle();
-
-    if (!session?.script_id) {
-      return {
-        ok: true,
-        script_id: null,
-        count: 0,
-        shots: [],
-        note:
-          'This session has not materialised a script yet. It does that on the first ' +
-          'successful generate_shot, so there is nothing to list rather than something ' +
-          'missing.',
-      };
-    }
-
-    const { data: shots } = await ctx.db
-      .from('shots')
-      .select('id, idx, description, duration_s, duration_source, status, prompt_id')
-      .eq('script_id', session.script_id)
-      .order('idx');
-
-    const ids = (shots ?? []).map((s) => s.id);
-    const { data: generations } = ids.length
-      ? await ctx.db
-          .from('generations')
-          .select('id, shot_id, status, error_code')
-          .in('shot_id', ids)
-      : { data: [] };
-
-    const byShot = new Map<string, { id: string; status: string; error_code: string | null }[]>();
-    for (const g of generations ?? []) {
-      if (!g.shot_id) continue;
-      const list = byShot.get(g.shot_id) ?? [];
-      list.push({ id: g.id, status: g.status, error_code: g.error_code });
-      byShot.set(g.shot_id, list);
-    }
-
-    return {
-      ok: true,
-      script_id: session.script_id,
-      count: shots?.length ?? 0,
-      shots: (shots ?? []).map((s) => ({
-        id: s.id,
-        idx: s.idx,
-        description: s.description,
-        duration_s: Number(s.duration_s),
-        duration_source: s.duration_source,
-        status: s.status,
-        generations: byShot.get(s.id) ?? [],
-      })),
-    };
-  },
-};
-
-// ═════════════════════════════════════════════════════════════════════════════
-// stitch_rough_cut
-// ═════════════════════════════════════════════════════════════════════════════
-
-const StitchArgs = z.object({
-  variant_label: z.string().max(40).optional(),
-});
-
-const stitchRoughCut: StudioTool = {
-  name: 'stitch_rough_cut',
-  title: 'Stitch a rough cut',
-  description:
-    'Concatenate this session’s normalised shots into one rough cut for review. ' +
-    'Hands the work to the worker rather than doing it here: ffmpeg does not run on the ' +
-    'web tier. Returns immediately with the queued job; the render appears on the review ' +
-    'screen when it finishes.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      variant_label: { type: 'string', description: 'Label for this cut. Default "rough".' },
-    },
-    additionalProperties: false,
-  },
-  args: StitchArgs,
-
-  async run(ctx, raw) {
-    const args = StitchArgs.parse(raw);
-
-    const { data: session } = await ctx.db
-      .from('studio_sessions')
-      .select('script_id')
-      .eq('id', ctx.sessionId)
-      .maybeSingle();
-
-    if (!session?.script_id) {
-      return refuse('There is nothing to stitch yet.', [
-        {
-          code: 'no_script',
-          detail: 'This session has not materialised a script, so it has no shots.',
-          remedy: 'Generate at least one shot first.',
-        },
-      ]);
-    }
-
-    const { data: shots } = await ctx.db
-      .from('shots')
-      .select('id, idx')
-      .eq('script_id', session.script_id)
-      .order('idx');
-
-    if (!shots || shots.length === 0) {
-      return refuse('There is nothing to stitch yet.', [
-        {
-          code: 'no_shots',
-          detail: 'The script exists but has no shots.',
-          remedy: 'Generate at least one shot first.',
-        },
-      ]);
-    }
-
-    const { enqueueAssemble } = await import('./enqueue');
-    const queued = await enqueueAssemble({
-      scriptId: session.script_id,
-      variantLabel: args.variant_label ?? 'rough',
-    });
-
-    if (!queued.enqueued) {
-      return refuse('The stitch could not be queued.', [
-        {
-          code: 'enqueue_failed',
-          detail: queued.detail ?? 'The worker did not accept the job.',
-          remedy:
-            'Check that the Trigger.dev deployment is live — see docs/decisions/0010-trigger-deploy.md.',
-        },
-      ]);
-    }
-
-    return {
-      ok: true,
-      script_id: session.script_id,
-      shots: shots.length,
-      queued: true,
-      note:
-        'Queued. The task refuses any shot that is not normalised to the canonical ' +
-        'intermediate, and asserts the finished duration against the sum of the shots — a ' +
-        'cut whose length disagrees with its rows is recorded as a failed render, not as a ' +
-        'render with a note.',
-    };
-  },
-};
-
-// ═════════════════════════════════════════════════════════════════════════════
 
 export const STUDIO_TOOLS: readonly StudioTool[] = [
+  channelOverview,
+  trendsTool,
+  draftBriefTool,
+  briefGet,
+  priceBriefTool,
+  episodeStatusTool,
+  shotRegenerateTool,
+  episodeLinksTool,
   listPromptRecipes,
   savePromptRecipe,
-  generateShot,
-  checkGeneration,
-  listSessionShots,
-  stitchRoughCut,
 ];
 
 export function toolByName(name: string): StudioTool | undefined {

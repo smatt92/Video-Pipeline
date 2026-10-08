@@ -126,7 +126,7 @@ export function llmCostRows(subject: LlmCostSubject, pricing: Extract<LlmPricing
     concept_id: subject.kind === 'channel' || subject.kind === 'studio' ? null : subject.conceptId,
     channel_id: subject.kind === 'channel' ? subject.channelId : null,
     script_id: subject.kind === 'script' ? subject.scriptId : null,
-    studio_session_id: subject.kind === 'studio' ? subject.sessionId : null,
+    studio_session_id: subject.kind === 'studio' ? subject.sessionId : subject.kind === 'channel' ? subject.studioSessionId ?? null : null,
     idempotency_key:
       subject.kind === 'script' ? null : `${subject.idempotencyKey}:${r.unit}`,
     unit: r.unit,
@@ -146,7 +146,18 @@ export type LlmCostSubject =
    * billed, and once they do the charge belongs to all of them. The channel is what the
    * call is actually about — see migration 0023 and `v_concept_cost`, which divides.
    */
-  | { kind: 'channel'; channelId: string; idempotencyKey: string; stage: PipelineStage }
+  | {
+      kind: 'channel';
+      channelId: string;
+      idempotencyKey: string;
+      stage: PipelineStage;
+      /**
+       * A brief drafted inside a Studio session: the row also carries the session, so the
+       * session's derived spend (0017) — the number its cap is enforced against — includes
+       * the writer it asked for. The channel stays the subject the cost dashboards read.
+       */
+      studioSessionId?: string;
+    }
   /**
    * A Studio turn.
    *

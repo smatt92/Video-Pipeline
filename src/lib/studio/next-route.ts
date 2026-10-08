@@ -4,6 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 import { productionEffects } from '../bureau/effects';
 import { serverClient } from '../db/server';
+import { requireCredential } from '../integrations/credentials';
 import { originFromHeaders, resourceMetadataUrlFor, type McpDoor } from '../oauth/policy';
 import { serveMcp } from './serve';
 
@@ -44,6 +45,12 @@ export async function mcpPost(request: NextRequest, door: McpDoor): Promise<Next
       // Every 401 points a connector at this door's OAuth server (decisions 0016, 0018).
       resourceMetadataUrl: metadataUrl(request, door),
       door,
+      // The Studio tools' writer and judge: the workspace's verified model credential.
+      studioLlm: async (d) => {
+        const apiKey = await requireCredential(d, 'anthropic', 'ANTHROPIC_API_KEY').catch(() => null);
+        return apiKey ? { apiKey } : null;
+      },
+      appUrl: originFromHeaders((n) => request.headers.get(n)),
     },
   );
 

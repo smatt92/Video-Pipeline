@@ -5,6 +5,7 @@ import { dispatch, PROTOCOL_VERSION, studioSurface, type McpSurface } from './mc
 import { bearerFrom, verifySessionToken } from './token';
 import { bureauSurface, loadTokenChannel, NO_EFFECTS, type BureauSideEffects } from '../bureau/mcp/surface';
 import { isBureauToken, resolveBureauToken } from '../bureau/tokens';
+import type { StudioLlm } from './front-end';
 
 /**
  * The MCP server, minus the framework.
@@ -50,6 +51,14 @@ export interface McpDeps {
    * else. Absent, or `owner`, is /api/mcp, unchanged. Decision 0018.
    */
   door?: 'owner' | 'agent';
+  /**
+   * The model a Studio tool drafts and judges with. Resolved per call, not per request, so a
+   * credential rotated in Settings applies to the next draft. Absent → `draft_brief` refuses
+   * by name (a harness without it still exercises every other tool).
+   */
+  studioLlm?: (db: Db) => Promise<StudioLlm | null>;
+  /** The public origin, for the links the Studio tools hand back. */
+  appUrl?: string;
 }
 
 /** Deliberately uninformative: a caller who guessed wrong learns nothing about how wrong. */
@@ -136,7 +145,7 @@ export async function serveMcp(request: McpRequest, deps: McpDeps): Promise<McpR
   // the revocation the token itself cannot carry.
   const { data: session, error } = await deps.db
     .from('studio_sessions')
-    .select('id, status, spend_cap_inr, stopped_reason')
+    .select('id, status, spend_cap_inr, stopped_reason, channel_id')
     .eq('id', check.sessionId)
     .maybeSingle();
 
@@ -162,10 +171,17 @@ export async function serveMcp(request: McpRequest, deps: McpDeps): Promise<McpR
     };
   }
 
+  const studioLlm = deps.studioLlm;
   const ctx = {
     db: deps.db,
     sessionId: session.id,
     spendCapInr: session.spend_cap_inr === null ? null : Number(session.spend_cap_inr),
+    channelId: session.channel_id,
+    // The same side effects the Bureau surface gets: starting nothing itself (a session cannot
+    // approve), but notifying, embedding and queueing a redraw/re-roll exactly as it would.
+    effects: deps.bureau ?? NO_EFFECTS,
+    llm: studioLlm ? () => studioLlm(deps.db) : undefined,
+    appUrl: deps.appUrl,
   };
 
   return answer(request.body, studioSurface(ctx));

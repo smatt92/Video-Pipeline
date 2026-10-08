@@ -2,6 +2,7 @@ import 'server-only';
 
 import type { Db } from '../db/server';
 import { readTranscript, type TranscriptEntry } from './session';
+import { requestedFromTags, sessionWork } from './front-end';
 
 /**
  * What the Studio screens read.
@@ -89,6 +90,24 @@ export interface SessionDetail {
     status: string;
   }[];
   ledger: { unit: string; quantity: number; costInr: number; occurredAt: string }[];
+  /** The channel the session makes videos for; null on a session opened before 08-Oct. */
+  channel: { id: string; name: string } | null;
+  /** The briefs this session drafted, newest first, each with the episode its approval started. */
+  briefs: {
+    id: string;
+    status: string;
+    series: string;
+    premise: string;
+    /** null = unpriced, never ₹0. */
+    estimateInr: number | null;
+    flagged: boolean;
+    flagReasons: string[];
+    videoType: string | null;
+    motion: string | null;
+    rejectReason: string | null;
+    createdAt: string;
+    episode: { id: string; status: string; statusDetail: string | null; updatedAt: string; publicationId: string | null } | null;
+  }[];
 }
 
 export type SessionRead = { ok: true; detail: SessionDetail } | { ok: false; detail: string };
@@ -105,9 +124,17 @@ export async function readSession(db: Db, sessionId: string): Promise<SessionRea
 
   const { data: session } = await db
     .from('studio_sessions')
-    .select('transcript')
+    .select('transcript, channel_id')
     .eq('id', sessionId)
     .maybeSingle();
+
+  const [{ data: channel }, work] = await Promise.all([
+    session?.channel_id
+      ? db.from('channels').select('id, name').eq('id', session.channel_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    sessionWork(db, sessionId),
+  ]);
+  const episodeOf = new Map(work.episodes.map((e) => [e.brief_id, e]));
 
   const scriptId = row.script_id;
 
@@ -153,6 +180,25 @@ export async function readSession(db: Db, sessionId: string): Promise<SessionRea
         createdAt: String(row.created_at),
       },
       transcript: readTranscript(session?.transcript),
+      channel: channel ? { id: channel.id, name: channel.name } : null,
+      briefs: work.briefs.map((b) => {
+        const asked = requestedFromTags(b.tags);
+        const e = episodeOf.get(b.id);
+        return {
+          id: b.id,
+          status: b.status,
+          series: b.series,
+          premise: b.premise,
+          estimateInr: b.estimate_inr === null ? null : Number(b.estimate_inr),
+          flagged: b.flagged,
+          flagReasons: b.flag_reasons ?? [],
+          videoType: asked.format,
+          motion: asked.motion,
+          rejectReason: b.reject_reason,
+          createdAt: String(b.created_at),
+          episode: e ? { id: e.id, status: e.status, statusDetail: e.status_detail, updatedAt: String(e.updated_at), publicationId: e.publication_id } : null,
+        };
+      }),
       script: script
         ? {
             id: script.id,

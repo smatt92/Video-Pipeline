@@ -1522,6 +1522,42 @@ could see it: the stubs never check a stored object's type. Fixed in `10f579d` (
 a 3D picture drawn with a sheet reference on the worker path, a picture clip, an engineered cut that
 is not chalk.
 
+### 35. The Studio lane makes the pipeline's videos (2026-10-08) — RUN locally against a stub writer; hosted NOT
+
+**What changed.** A Studio session was a conversation that could not end in a video: its
+`generate_shot` routed to the legacy stage-4/5 lane, whose primary video integration has been
+dormant since 0015, and `stitch_rough_cut` concatenated silent clips — no voice, captions,
+graphics, format, motion, caps or bundle. Both are gone, with `check_generation`,
+`list_session_shots`, `studio/enqueue.ts` and `studio/materialise.ts`. A session now opens on the
+active channel and is a front end to the Bureau path (`studio/front-end.ts`): `channel_overview`,
+`trends_recent`, `draft_brief` (the 3D explainer through `draftEngineeredBrief`, every other type
+through the ordinary writer — `draftBriefForSlot` was split so a brief can be drafted with no
+slot), `price_brief` (`formatOptions` against `per_short_cap_inr`), `brief_get`,
+`episode_status`, `shot_regenerate`, `open_cut_and_bundle`, and the two recipe tools. The session
+drafts with an AGENT token ("Studio (Opus session)", one per channel, plaintext discarded) and has
+no decision tool: the approver approves on Approvals, which pre-selects the type and motion the
+session asked for (tags `format:` / `motion:` beside `studio:<session>`). Writer and judge ledger
+rows carry the session as well as the channel, so the session cap sees them. The session model is
+named by the router (`studio_session` → Opus 5.5).
+
+**What has run:** `verify:studio` (≈75 checks, in CI): the four legacy tools are absent from the
+surface (unknown-tool, not refusal) and no Studio module requires stage 4/5 (scan of the compiled
+output with a positive control); a 3D explainer drafted on Built Like That and an illustrated
+brief on the Bureau, each through the right writer; **LOAD-BEARING** the brief row, its tags, its
+agent author and the writer's two ledger rows read back from the database, and the session total
+equal to the stub's tokens × the rate card × FX by an independent sum; every type and both motion
+levels priced with verdicts recomputed from `channel_policy`; a ₹1 cap turns every priced option
+over_cap; the session's token refused by `approveBrief` AND `bureau_brief_approve`; the
+approver's approval of that brief asking the effects stub to start `20-episode` for the episode it
+created, carrying engineered/key; the accepting and refusing halves of `shot_regenerate`; the
+Studio screen's read; the cap refusing a draft before any model call; and at the end no session
+materialised a script and no legacy generation exists.
+
+**Unverified:** a real Opus session driving these tools over the connector (needs the public
+hostname — §7); the real writers inside a session (stubbed here; the engineered writer ran for
+real on 08-Oct through the probe, §34); a Studio-drafted brief approved and run to a bundle on the
+hosted project; the Studio screen and the Approvals pre-selection in a browser.
+
 ## Gates, and where each can run
 
 | Gate | Runnable in this environment? |

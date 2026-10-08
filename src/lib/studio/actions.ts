@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 
 import { checkEmail } from '../auth/allowed';
+import { currentChannel } from '../channels/active';
 import { routeClient } from '../auth/supabase';
 import { serverClient } from '../db/server';
 import { env } from '../env';
@@ -69,15 +70,19 @@ export async function startSessionAction(
       };
     }
 
+    // The channel the sidebar has selected. A session makes videos for that channel only, and
+    // keeps it if the sidebar changes later — its briefs are on that channel's Approvals.
+    const { active } = await currentChannel();
     const result = await startSession(serverClient(), {
       title: String(formData.get('title') ?? '').trim() || undefined,
+      channelId: active?.id ?? null,
       spendCapInr: cap,
     });
 
     if (!result.ok) return { status: 'error', message: result.detail };
 
     revalidatePath('/studio');
-    return { status: 'ok', sessionId: result.sessionId, message: `Session open. Cap ₹${cap}.` };
+    return { status: 'ok', sessionId: result.sessionId, message: `Session open on ${active?.name ?? 'the active channel'}. Cap ₹${cap}.` };
   } catch (err) {
     return { status: 'error', message: err instanceof Error ? err.message : String(err) };
   }

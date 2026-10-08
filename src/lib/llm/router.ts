@@ -38,6 +38,9 @@ export const TASK_TIER = {
   policy_judge: 'judge',
   weekly_strategy: 'judge',
   vision_qc: 'judge',
+  // The Studio session's conversation (studio/session.ts): a tool-use loop, not a routed
+  // completion, but the model is still the router's to name.
+  studio_session: 'judge',
   brief: 'writer',
   script_polish: 'writer',
   shotlist: 'writer',

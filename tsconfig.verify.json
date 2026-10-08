@@ -40,7 +40,7 @@
     "src/lib/studio/mcp.ts",
     "src/lib/studio/serve.ts",
     "src/lib/studio/session.ts",
-    "src/lib/studio/materialise.ts",
+    "src/lib/studio/front-end.ts",
     "src/lib/studio/token.ts",
     "src/lib/studio/read.ts",
     // The review lane, minus actions.ts for the same reason.

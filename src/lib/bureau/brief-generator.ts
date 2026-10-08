@@ -7,7 +7,7 @@ import { BRIEF_SYSTEM, briefUserMessage, JUDGE_SYSTEM } from '../prompts/20-bure
 import { ENGINEERED_PROMPT_REF, ENGINEERED_SYSTEM, engineeredUserMessage } from '../prompts/23-engineered.v1';
 import { getBible, type ChannelBible, type Series } from './bible';
 import { draftFromDecoded, EngineeredDecodeSchema, engineeredBrief, EngineeredDraftSchema, evolutionProblems, narratorOf } from './engineered';
-import { formatOf } from './formats';
+import { formatOf, type VisualFormat } from './formats';
 import { briefInputSchema, type BriefInput } from './briefs';
 import { SHOT_ROUTES } from './estimate';
 import type { LintResult } from './policy-lint';
@@ -55,7 +55,26 @@ const DraftSchema = z.object({
 
 export type GenerateResult = { ok: true; brief: BriefInput } | { ok: false; error: string };
 
-export async function draftBriefForSlot(db: Db, slotId: string, deps: Omit<RouterDeps, 'subject'> & { channelId: string }): Promise<GenerateResult> {
+/** What the writers need from a slot. A Studio draft has no slot row: `id` is null then. */
+export interface DraftSlot {
+  id: string | null;
+  slot_date: string | null;
+  series: string;
+  topic: string;
+  hook: string | null;
+  lead: string | null;
+  seasonal_tag: string | null;
+  episode: string | null;
+}
+
+/**
+ * Who pays for the writer calls. `studioSessionId` is set when a Studio session asked for the
+ * draft: the ledger row then carries the session as well as the channel, so the session's
+ * spend cap (derived from its rows by 0017's trigger) sees the writer it caused.
+ */
+export type DraftDeps = Omit<RouterDeps, 'subject'> & { channelId: string; studioSessionId?: string };
+
+export async function draftBriefForSlot(db: Db, slotId: string, deps: DraftDeps): Promise<GenerateResult> {
   const { data: slot } = await db
     .from('slots')
     .select('id, slot_date, series, topic, hook, lead, seasonal_tag, episode, kind')
@@ -64,11 +83,33 @@ export async function draftBriefForSlot(db: Db, slotId: string, deps: Omit<Route
     .maybeSingle();
   if (!slot) return { ok: false, error: `No slot ${slotId} on this channel.` };
   if (slot.series === 'sequel') return { ok: false, error: 'Sequel slots are drafted by the weekly review, not here.' };
-  const cb = await getBible(db, deps.channelId);
-  const series = cb.seriesFor(slot.series);
-  // A series whose default is the 3D explainer is written in that shape (0052) — a different
-  // writer prompt, the draft's evolution shape checked in code, then the same brief schema.
-  if (formatOf({ seriesFormat: series.visual_format }).format === 'engineered') return draftEngineeredBrief(db, { slot, cb, series }, deps);
+  return draftBrief(db, { slot }, deps);
+}
+
+/**
+ * Draft one brief for a slot — a calendar row, or a topic the Studio was given with no slot.
+ *
+ * The writer follows the video type: the 3D explainer is written in its own shape (0052) when
+ * it is the type asked for, or the series' default (Built Like That's narrator-only cast has
+ * no dialogue for the ordinary writer to write); every other type gets the ordinary writer.
+ * Either way the result passes the channel's own brief schema, and `createBriefs` lints,
+ * checks variation and prices it like any other brief.
+ */
+export async function draftBrief(db: Db, input: { slot: DraftSlot; format?: VisualFormat }, deps: DraftDeps): Promise<GenerateResult> {
+  const { slot } = input;
+  let cb: ChannelBible;
+  let series: Series;
+  try {
+    cb = await getBible(db, deps.channelId);
+    series = cb.seriesFor(slot.series);
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+  if (!series) return { ok: false, error: `This channel runs no "${slot.series}" series.` };
+  if (slot.series === 'sequel' || slot.series === 'long_form') return { ok: false, error: `A ${slot.series} brief is assembled from aired episodes, not drafted from a topic.` };
+  const seriesFormat = formatOf({ seriesFormat: series.visual_format }).format;
+  if (input.format === 'engineered' || seriesFormat === 'engineered') return draftEngineeredBrief(db, { slot, cb, series }, deps);
+  const label = slot.id ?? `studio-${slot.topic.slice(0, 24)}`;
 
   const leads = cb.leadsFromCalendar(slot.lead);
   // 'ohm' and 'complaint_box' are the Bureau's standing cast; on another channel they are
@@ -98,7 +139,7 @@ export async function draftBriefForSlot(db: Db, slotId: string, deps: Omit<Route
       schema: DraftSchema,
       maxTokens: 4000,
     },
-    { ...deps, subject: { kind: 'channel', channelId: deps.channelId, idempotencyKey: `brief:${slotId}:${Date.now()}`, stage: '20-brief' } },
+    { ...deps, subject: writerSubject(deps, `brief:${label}:${Date.now()}`, '20-brief') },
   );
 
   const ep = slot.episode ? /^S(\d+)E(\d+)$/.exec(slot.episode) : null;
@@ -120,6 +161,11 @@ export async function draftBriefForSlot(db: Db, slotId: string, deps: Omit<Route
   return { ok: true, brief: parsed.data };
 }
 
+/** The ledger subject for a writer or judge call: the channel, and the Studio session when one asked. */
+export function writerSubject(deps: DraftDeps, idempotencyKey: string, stage: '20-brief' | '20-policy-judge'): RouterDeps['subject'] {
+  return { kind: 'channel', channelId: deps.channelId, idempotencyKey, stage, ...(deps.studioSessionId ? { studioSessionId: deps.studioSessionId } : {}) };
+}
+
 /**
  * The 3D explainer's brief (0052): the writer returns beats with their graphics
  * (EngineeredDraftSchema, Zod-validated); the evolution shape is checked in code and a draft
@@ -130,8 +176,8 @@ export async function draftBriefForSlot(db: Db, slotId: string, deps: Omit<Route
  */
 export async function draftEngineeredBrief(
   db: Db,
-  ctx: { slot: { id: string; slot_date: string | null; series: string; topic: string; hook: string | null; episode: string | null }; cb: ChannelBible; series: Series },
-  deps: Omit<RouterDeps, 'subject'> & { channelId: string },
+  ctx: { slot: Pick<DraftSlot, 'id' | 'slot_date' | 'series' | 'topic' | 'hook' | 'episode'>; cb: ChannelBible; series: Series },
+  deps: DraftDeps,
 ): Promise<GenerateResult> {
   const { slot, cb, series } = ctx;
   const narrator = narratorOf(cb, series);
@@ -153,7 +199,7 @@ export async function draftEngineeredBrief(
         maxTokens: 8000,
         thinking: 'minimal',
       },
-      { ...deps, subject: { kind: 'channel', channelId: deps.channelId, idempotencyKey: `brief:${slot.id}:${Date.now()}:${attempt}`, stage: '20-brief' } },
+      { ...deps, subject: writerSubject(deps, `brief:${slot.id ?? 'studio'}:${Date.now()}:${attempt}`, '20-brief') },
     );
     draft = EngineeredDraftSchema.safeParse(draftFromDecoded(result.data));
     if (!draft.success) return { ok: false, error: `the draft is malformed (${ENGINEERED_PROMPT_REF}): ${draft.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}` };

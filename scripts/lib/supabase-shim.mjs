@@ -253,6 +253,15 @@ function builder(client, table, typesFor) {
       st.where.push(() => `${quote(c)} is not ${v === null ? 'null' : v ? 'true' : 'false'}`);
       return api;
     },
+    /** PostgREST `cs`: the array column contains every element of `vs` (`@>`). */
+    contains(c, vs) {
+      if (!Array.isArray(vs)) throw new Error('supabaseShim: .contains() is implemented for arrays only.');
+      st.where.push((params) => {
+        params.push(vs);
+        return `${quote(c)} @> $${params.length}`;
+      });
+      return api;
+    },
     in(c, vs) {
       st.where.push((params) => {
         if (vs.length === 0) return 'false';
@@ -310,7 +319,7 @@ function builder(client, table, typesFor) {
   // Anything the codebase might reach for and this does not implement fails loudly. A
   // missing filter that silently did nothing would widen a scoped query and the assertion
   // above it would still pass.
-  for (const name of ['contains', 'overlaps', 'like', 'ilike', 'match', 'or', 'filter', 'textSearch']) {
+  for (const name of ['overlaps', 'like', 'ilike', 'match', 'or', 'filter', 'textSearch']) {
     api[name] = () => {
       throw new Error(`supabaseShim: .${name}() is not implemented — add it rather than working around it.`);
     };

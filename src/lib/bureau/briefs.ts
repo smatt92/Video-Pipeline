@@ -324,7 +324,7 @@ export async function createBriefs(rawBriefs: unknown[], deps: CreateDeps): Prom
 
 // One literal: supabase-js infers the row type from it, and a concatenation defeats that.
 const BRIEF_COLUMNS =
-  'id, slot_id, series, season, episode, lead_character, supporting_characters, desk, premise, premise_type, structure_variant, ending_type, music_bed, hook_archetype, catchphrase_used, punchlines, beat_sheet, script_text, shot_list, fact, titles, pinned_comment, estimate_inr, estimate_basis, flagged, flag_reasons, variation, policy, status, chosen_punchline, approved_at, rejected_at, reject_reason, created_by, created_at' as const;
+  'id, slot_id, series, season, episode, lead_character, supporting_characters, desk, premise, premise_type, structure_variant, ending_type, music_bed, hook_archetype, catchphrase_used, punchlines, beat_sheet, script_text, shot_list, fact, titles, pinned_comment, estimate_inr, estimate_basis, flagged, flag_reasons, variation, policy, status, chosen_punchline, approved_at, rejected_at, reject_reason, created_by, created_at, tags' as const;
 
 export async function getBrief(db: Db, channelId: string, id: string) {
   const { data, error } = await db.from('briefs').select(BRIEF_COLUMNS).eq('id', id).eq('channel_id', channelId).maybeSingle();

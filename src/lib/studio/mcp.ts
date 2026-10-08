@@ -8,7 +8,7 @@ import { toolByName, toolDescriptors, type ToolContext } from './tools';
  * One MCP surface: the tools (and optionally resources) a caller's token reaches.
  *
  * Two surfaces share this protocol layer and the `/api/mcp` URL — the Studio lane (a
- * session token, six tools, no resources) and the Bureau control plane (an `mcp_tokens`
+ * session token, the Studio tools, no resources) and the Bureau control plane (an `mcp_tokens`
  * bearer, approver or agent scope, resources). One dispatcher, so a protocol fix lands for
  * both; two registries, so a scope can never reach a tool that was not built for it.
  */
@@ -30,10 +30,11 @@ export function studioSurface(ctx: ToolContext): McpSurface {
   return {
     serverInfo: SERVER_INFO,
     instructions:
-      'Kiln Studio. These tools write real rows in a real pipeline. Generation costs ' +
-      'money and cannot be undone by deleting a row. Tools refuse rather than guess: a ' +
-      'result with `refused: true` lists every blocker and what would clear it — relay ' +
-      'those to the person rather than retrying the same call.',
+      'Kiln Studio, for one channel. These tools draft briefs into the real pipeline and ' +
+      'follow the episodes the approver starts; drafting costs money and cannot be undone by ' +
+      'deleting a row. Approval is the approver\u2019s, never this session\u2019s. A result ' +
+      'with `refused: true` lists every blocker and what would clear it — relay those to the ' +
+      'person rather than retrying the same call.',
     listTools: toolDescriptors,
     callTool(name, args) {
       const tool = toolByName(name);

@@ -9,6 +9,7 @@ import { Icon } from '@/components/ui/icon';
 import { Basis, CastChip, Gate, Pill, Stag } from '@/components/ui/tags';
 import { pendingBriefs } from '@/lib/bureau/briefs';
 import { formatOptions } from '@/lib/bureau/format-estimates';
+import { requestedFromTags } from '@/lib/studio/front-end';
 import { bibleOrNull, requireChannel } from '@/lib/channels/active';
 import { serverClient } from '@/lib/db/server';
 import { fallbacksWaiting } from '@/lib/notifications/centre';
@@ -451,10 +452,12 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
         aside={queue}
         position={`${idx + 1} of ${briefs.length}`}
         formats={fmts.options}
-        defaultFormat={fmts.seriesDefault}
+        // A brief drafted in a Studio session was asked for in a type (and motion); that is
+        // pre-selected. Every other brief starts on the series' default, as before.
+        defaultFormat={requestedFromTags(b.tags).format ?? fmts.seriesDefault}
         defaultPace={fmts.seriesPace}
         motions={fmts.motions}
-        defaultMotion={fmts.seriesMotion}
+        defaultMotion={requestedFromTags(b.tags).motion ?? fmts.seriesMotion}
       />
     </main>
   );
