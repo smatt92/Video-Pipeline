@@ -59,15 +59,27 @@ const bad = (l, d = '') => {
 };
 
 const cssDir = '.next/static/css';
-let cssFile;
+// Every emitted stylesheet, concatenated in name order — what the app's pages load together.
+// Picking "the last file by name" measured one file and called it the stylesheet: once
+// next/font emitted its own @font-face sheet (Kiln Glass, 08-Oct) that file sorted last, and
+// this probe measured a sheet with no tokens in it — seven steps all 16px. A probe that can
+// see only part of the CSS is the instrument error CLAUDE.md warns about; it now sees all of
+// it, and refuses to run if the tokens are not in what it loaded.
+let cssFiles;
 try {
-  cssFile = readdirSync(cssDir).filter((f) => f.endsWith('.css')).sort().pop();
+  cssFiles = readdirSync(cssDir).filter((f) => f.endsWith('.css')).sort();
+  if (!cssFiles.length) throw new Error('none');
 } catch {
   console.error('\nNo built CSS. Run `pnpm build` first — this measures the compiled output,\n' +
                 'not the source tokens, and there is nothing to measure until it exists.\n');
   process.exit(2);
 }
-const css = readFileSync(join(cssDir, cssFile), 'utf8');
+const css = cssFiles.map((f) => readFileSync(join(cssDir, f), 'utf8')).join('\n');
+const cssFile = cssFiles.join(' + ');
+if (!css.includes('--type-xs')) {
+  console.error(`\nThe built CSS (${cssFile}) carries no --type-xs: the token sheet is not in it, so nothing here could be measured.\n`);
+  process.exit(2);
+}
 
 const work = mkdtempSync(join(tmpdir(), 'kiln-scaling-'));
 
