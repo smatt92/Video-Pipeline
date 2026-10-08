@@ -65,7 +65,15 @@ export interface RoutedCall<S extends z.ZodType> {
   system: string;
   user: UserContent;
   schema: S;
+  /** Covers thinking AND text on the 5.x models — thinking tokens are billed as output. */
   maxTokens: number;
+  /**
+   * 'minimal' sends `thinking: {type: 'between_tools'}`, the lowest setting the 5.x models take
+   * ('disabled' is a 400 there). Without it Sonnet 5.5 thinks adaptively by default, and the
+   * Built Like That writer (08-Oct) spent its whole 6,000-token budget thinking: stop_reason
+   * max_tokens with ZERO characters of text, twice, ₹6 each. Ignored on models that predate it.
+   */
+  thinking?: 'minimal';
 }
 
 export interface RouterDeps {
@@ -146,6 +154,7 @@ export async function routed<S extends z.ZodType>(
         system: call.system,
         messages: [{ role: 'user', content: call.user }],
         output_config: { format: tolerantFormat(call.schema) },
+        ...(call.thinking === 'minimal' && !model.startsWith('claude-haiku-4') ? { thinking: { type: 'between_tools' } as never } : {}),
       },
       { signal: deps.signal },
     );
@@ -163,7 +172,8 @@ export async function routed<S extends z.ZodType>(
   }
   // What the model wrote, start and end — the evidence for why a call ran long or broke the JSON.
   const text = (response.content ?? []).map((b) => (b.type === 'text' ? b.text : '')).join('');
-  const glimpse = `${text.length} chars; starts ${JSON.stringify(text.slice(0, 160))} … ends ${JSON.stringify(text.slice(-240))}`;
+  const kinds = (response.content ?? []).map((b) => b.type).join(',') || 'none';
+  const glimpse = `blocks ${kinds}; ${text.length} chars of text; starts ${JSON.stringify(text.slice(0, 160))} … ends ${JSON.stringify(text.slice(-240))}`;
   if (response.stop_reason === 'max_tokens') {
     throw new RouterError('truncated', `${call.task}: hit ${call.maxTokens} tokens before finishing (${glimpse}).`, usage);
   }

@@ -149,7 +149,7 @@ const llmClient = {
     parse: async (body) => {
       const user = String(body.messages[0].content);
       const system = String(body.system ?? '');
-      llmCalls.push({ system, user });
+      llmCalls.push({ system, user, thinking: body.thinking });
       if (/3D explainers/.test(system) && writerBadJson) {
         // What the SDK does: the response comes back WITH its usage, then the format's own parse
         // runs on the text — and the SDK's parse throws on invalid JSON (hosted, 08-Oct).
@@ -236,6 +236,7 @@ try {
   const drafted = await draftBriefForSlot(db, slot.id, { db, apiKey: 'test-llm-key', usdInrRate: 88, channelId: CH, client: llmClient });
   check(drafted.ok, 'the writer’s draft becomes a brief through the channel schema', drafted.ok ? '' : drafted.error);
   const writerCall = llmCalls.find((c) => /3D explainers/.test(c.system));
+  check(writerCall?.thinking?.type === 'between_tools', 'the writer asks for the lowest thinking setting — adaptive thinking ate the whole budget on the hosted run (08-Oct)', JSON.stringify(writerCall?.thinking));
   check(writerCall && /TOPIC B91: "Train couplers"/.test(writerCall.user) && /evolution_chronological/.test(writerCall.user) && /HEDGE every number/.test(writerCall.system), 'the writer was asked under 23-engineered.v1 with the slot’s topic and the series’ variants', writerCall?.user.slice(0, 80));
   const db2 = drafted.ok ? drafted.brief : null;
   const lines = db2 ? db2.script_text.split('\n') : [];

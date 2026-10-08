@@ -142,7 +142,8 @@ export async function draftEngineeredBrief(
       system: ENGINEERED_SYSTEM,
       user: engineeredUserMessage({ series, slot: { id: slot.id, topic: slot.topic, hook: slot.hook }, narrator: narrator.name, recent: recent ?? [] }),
       schema: EngineeredDecodeSchema,
-      maxTokens: 6000,
+      maxTokens: 8000,
+      thinking: 'minimal',
     },
     { ...deps, subject: { kind: 'channel', channelId: deps.channelId, idempotencyKey: `brief:${slot.id}:${Date.now()}`, stage: '20-brief' } },
   );
