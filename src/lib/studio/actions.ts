@@ -16,6 +16,7 @@ import { getBible } from '../bureau/bible';
 import { channelPolicy } from '../screens/common';
 import { readChannelFlags } from '../settings/channel-flags';
 import { proposeIdeas, type StudioIdea } from './ideas';
+import { foldSettings, settingsFromForm } from './video-settings';
 
 /**
  * The Studio lane's writes.
@@ -77,9 +78,14 @@ export async function startSessionAction(
     // The channel the sidebar has selected. A session makes videos for that channel only, and
     // keeps it if the sidebar changes later — its briefs are on that channel's Approvals.
     const { active } = await currentChannel();
-    const brief = String(formData.get('brief') ?? '').trim();
+    // The Video settings panel's choices travel inside the first message (video-settings.ts), so
+    // draft_brief receives them the way it would receive them typed.
+    const picked = settingsFromForm((k) => formData.get(k));
+    if (!picked.ok) return { status: 'error', message: picked.message };
+    const typed = String(formData.get('brief') ?? '').trim();
+    const brief = typed ? foldSettings(typed, picked.settings) : '';
     // The title is the brief's first line, shortened — the whole brief is the first message.
-    const firstLine = brief.split(/\n/).find((l) => l.trim())?.trim() ?? '';
+    const firstLine = typed.split(/\n/).find((l) => l.trim())?.trim() ?? '';
     const title = String(formData.get('title') ?? '').trim() || (firstLine ? (firstLine.length > 80 ? `${firstLine.slice(0, 79)}…` : firstLine) : '');
     const result = await startSession(serverClient(), {
       title: title || undefined,
@@ -109,9 +115,12 @@ export async function sendTurnAction(
 ): Promise<StudioState> {
   try {
     await requireUser();
-    const text = String(formData.get('text') ?? '').trim();
-    if (!text) return { status: 'error', message: 'Nothing to send.' };
-    return await performTurn(sessionId, text);
+    const typed = String(formData.get('text') ?? '').trim();
+    if (!typed) return { status: 'error', message: 'Nothing to send.' };
+    // The composer sends the panel only when it was changed (the field is absent otherwise).
+    const picked = settingsFromForm((k) => formData.get(k));
+    if (!picked.ok) return { status: 'error', message: picked.message };
+    return await performTurn(sessionId, foldSettings(typed, picked.settings));
   } catch (err) {
     return { status: 'error', message: err instanceof Error ? err.message : String(err) };
   }

@@ -1,167 +1,138 @@
 import Link from 'next/link';
 
-import { Panel, SectionHeader } from '@/components/settings/parts';
-import { StartSessionForm } from '@/components/studio/forms';
-import { serverClient } from '@/lib/db/server';
-import { proposedSessionCap } from '@/lib/studio/actions';
+import { Filmstrip } from '@/components/studio/filmstrip';
+import { StudioPanel } from '@/components/studio/glass-studio';
+import { StudioHeader } from '@/components/studio/studio-header';
 import { Hint } from '@/components/shell/hint';
-import { listSessions, type SessionList } from '@/lib/studio/read';
+import { formatOf, motionOf, paceOf } from '@/lib/bureau/formats';
+import { getBible } from '@/lib/bureau/bible';
 import { currentChannel } from '@/lib/channels/active';
+import { serverClient } from '@/lib/db/server';
+import { channelSpend } from '@/lib/screens/common';
+import { proposedSessionCap } from '@/lib/studio/actions';
+import { listSessions, type SessionList } from '@/lib/studio/read';
 
 /**
- * The Studio lane.
+ * The Studio lane (canvas: GlassStudio), Create and Sessions.
  *
  * Addendum 01 §1: the entry is a conversation; the brain is Opus with this app's own MCP
  * server attached; the unit of work is a session rather than a job. What keeps it from
  * becoming a second codebase is that a session drafts a brief on the active channel and the
  * approver's approval starts the same episode run every video takes (studio/front-end.ts).
  *
- * Three outcomes, like the board: sessions, empty, or broken. The last is why this reads
- * through a result type rather than an array — a list that renders blank when the query
- * failed is a failure nobody sees.
+ * Create: the floating prompt panel and the Video settings panel over the ambient glow — no
+ * picture behind the controls (design README, 08-Oct). Sessions: the list, with what they
+ * spent. Three outcomes for the list: sessions, empty, or broken — a list that renders blank
+ * when the query failed is a failure nobody sees.
  */
 
 export const dynamic = 'force-dynamic';
 // The start form can send the first turn (a tool loop that drafts a brief): give it the room a turn on the session page has.
 export const maxDuration = 300;
 
-export const metadata = { title: 'Kiln — studio' };
+export const metadata = { title: 'Studio' };
 
-/**
- * The count, and what the count cannot say.
- *
- * A bare "12" reads the same after twelve sessions and after a hundred and twelve. What
- * changes when this lane is being used hard — or misconfigured — is what it has *spent* and
- * how many sessions ran into their cap. A cap that stops sessions regularly is either too
- * low or the loop is going in circles, and neither is visible from a count.
- *
- * Total spend is a sum of `cost_inr` from the spend view, so a session with no turns
- * contributes a real zero rather than an unknown — money genuinely did not move.
- */
-function SessionSummaryLine({ list }: { list: Extract<SessionList, { ok: true }> }) {
-  const totalInr = list.sessions.reduce((sum, s) => sum + s.costInr, 0);
-
-  // Capped means the cap stopped it, which the session records as its stop reason — not
-  // inferred by comparing cost to cap, because a session can stop exactly at its cap for
-  // other reasons and the row already says which.
-  const capped = list.sessions.filter((s) => /cap/i.test(s.stoppedReason ?? '')).length;
-
+function SessionRows({ list, limit }: { list: Extract<SessionList, { ok: true }>; limit?: number }) {
+  const rows = limit ? list.sessions.slice(0, limit) : list.sessions;
   return (
-    <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
-      {list.sessions.length}
-      {list.truncated && (
-        <Hint content={`Only the most recent ${list.limit} are shown, so this count is a floor rather than a total.`}>
-          <span style={{ color: 'var(--rev)' }}>+</span>
-        </Hint>
-      )}
-      {list.sessions.length > 0 && (
-        <>
-          {' · '}₹{totalInr.toFixed(2)} spent
-          {capped > 0 && (
-            <Hint content="A cap that stops sessions regularly is either set too low or the loop is going in circles. Neither is visible from a session count.">
-              <span style={{ color: 'var(--rev)' }}>{` · ${capped} hit the cap`}</span>
-            </Hint>
-          )}
-        </>
-      )}
-    </span>
+    <div className="feed">
+      {rows.map((s) => (
+        <Link key={s.id} href={`/studio/${s.id}`} className="fi link">
+          <div className="col grow" style={{ gap: 2 }}>
+            <span className="sm" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {s.title ?? 'Untitled session'}
+            </span>
+            {s.stoppedReason && <span className="xs t3">{s.stoppedReason}</span>}
+          </div>
+          <span className={`pill ${s.status === 'active' ? 's-live' : 's-draft'}`}>{s.status}</span>
+          <span className="mono xs t3" style={{ whiteSpace: 'nowrap' }}>
+            ₹{s.costInr.toFixed(2)}
+            {s.spendCapInr !== null && ` / ₹${s.spendCapInr.toFixed(0)}`}
+          </span>
+        </Link>
+      ))}
+    </div>
   );
 }
 
-export default async function StudioPage() {
-  const [list, cap, { active }] = await Promise.all([listSessions(serverClient()), proposedSessionCap(), currentChannel()]);
+export default async function StudioPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+  const { tab } = await searchParams;
+  const db = serverClient();
+  const [list, cap, { active }] = await Promise.all([listSessions(db), proposedSessionCap(), currentChannel()]);
+  const [spend, bible] = active ? await Promise.all([channelSpend(db, active.id), getBible(db, active.id).catch(() => null)]) : [null, null];
+  // The first series' own defaults, so the panel opens on what this channel usually makes.
+  const series = (bible ? Object.values(bible.series)[0] : undefined) as { visual_format?: unknown; voice_pace?: unknown; motion?: unknown } | undefined;
+  const initial = {
+    video_type: formatOf({ seriesFormat: series?.visual_format }).format,
+    motion: motionOf({ seriesMotion: series?.motion }).motion,
+    pace: paceOf({ seriesPace: series?.voice_pace }).pace,
+  };
+
+  const failed = !list.ok ? (
+    <div className="blocker" role="alert">
+      <p>
+        The session list could not be read. <span className="mono xs">{list.detail}</span>
+        <br />
+        <span>If this names a missing relation, migration 0017 has not been applied. Run `pnpm db:doctor`.</span>
+      </p>
+    </div>
+  ) : null;
+
+  if (tab === 'sessions') {
+    const capped = list.ok ? list.sessions.filter((s) => /cap/i.test(s.stoppedReason ?? '')).length : 0;
+    return (
+      <main className="main">
+        <StudioHeader tab="sessions" back={{ href: '/home', label: 'Home' }} next={{ kind: 'wait', label: 'Open on Approvals', why: 'opens a session first' }} />
+        <section className="card">
+          <div className="card-h">
+            <h1 className="h3">Sessions</h1>
+            {list.ok && (
+              <span className="mono xs t3">
+                {list.sessions.length}
+                {list.truncated && (
+                  <Hint content={`Only the most recent ${list.limit} are shown, so this count is a floor rather than a total.`}>
+                    <span style={{ color: 'var(--rev)' }}>+</span>
+                  </Hint>
+                )}
+                {list.sessions.length > 0 && ` · ₹${list.sessions.reduce((a, s) => a + s.costInr, 0).toFixed(2)} spent`}
+                {capped > 0 && ` · ${capped} hit the cap`}
+              </span>
+            )}
+          </div>
+          {failed ?? (list.ok && list.sessions.length === 0 ? (
+            <p className="card-b sm t3">No sessions yet. A session ends in a brief on Approvals; approving it there makes the video. A session that decides not to make anything still records what it cost.</p>
+          ) : list.ok ? (
+            <SessionRows list={list} />
+          ) : null)}
+        </section>
+      </main>
+    );
+  }
 
   return (
-    <div className="main">
-      <SectionHeader
-        title="Studio"
-        hint="Talk an idea through with Opus; it drafts a brief for the active channel in the video type you pick, prices it against the cap and hands it to Approvals. Approving it starts the real run — voice, pictures, graphics, cut, bundle — and the session follows it. Every turn is costed and kept as editorial evidence; the session stops at its spend cap."
-      />
-
-      <Panel className="mb-6">
-        <div
-          className="border-b px-4 py-3 text-md font-medium"
-          style={{ borderColor: 'var(--b1)' }}
-        >
-          New session{active ? ` · ${active.name}` : ''}
-        </div>
-        <div className="px-4 py-4">
-          <StartSessionForm proposedCap={cap} channelName={active?.name} />
-        </div>
-      </Panel>
-
-      <Panel>
-        <div
-          className="flex items-baseline gap-3 border-b px-4 py-3"
-          style={{ borderColor: 'var(--b1)' }}
-        >
-          <span className="text-md font-medium">Sessions</span>
-          {list.ok && (
-            <SessionSummaryLine list={list} />
-          )}
-        </div>
-
-        {!list.ok ? (
-          <div className="px-4 py-4">
-            <p className="text-sm" style={{ color: 'var(--blk)' }}>
-              The session list could not be read.
-            </p>
-            <p className="mt-1 font-mono text-2xs" style={{ color: 'var(--t3)' }}>
-              {list.detail}
-            </p>
-            <p className="mt-2 text-xs" style={{ color: 'var(--t3)' }}>
-              If this names a missing relation, migration 0017 has not been applied. Run{' '}
-              <code>pnpm db:doctor</code>.
-            </p>
-          </div>
-        ) : list.sessions.length === 0 ? (
-          <p className="px-4 py-4 text-sm" style={{ color: 'var(--t3)' }}>
-            No sessions yet. A session ends in a brief on Approvals; approving it there makes
-            the video. A session that decides not to make anything still records what it cost.
-          </p>
-        ) : (
-          <div>
-            {list.sessions.map((s) => (
-              <Link
-                key={s.id}
-                href={`/studio/${s.id}`}
-                className="grid items-baseline gap-3 border-b px-4 py-3 last:border-b-0 hover:bg-[var(--s2)]"
-                style={{
-                  gridTemplateColumns: 'minmax(0,1fr) 90px 130px 90px',
-                  borderColor: 'var(--b1)',
-                }}
-              >
-                <div className="min-w-0">
-                  <div className="truncate text-sm">{s.title ?? 'Untitled session'}</div>
-                  {s.stoppedReason && (
-                    <div
-                      className="truncate text-xs"
-                      style={{ color: 'var(--t3)' }}
-                    >
-                      {s.stoppedReason}
-                    </div>
-                  )}
-                </div>
-                <span
-                  className="font-mono text-2xs"
-                  style={{
-                    color: s.status === 'active' ? 'var(--live)' : 'var(--t3)',
-                  }}
-                >
-                  {s.status}
-                </span>
-                <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
-                  ₹{s.costInr.toFixed(2)}
-                  {s.spendCapInr !== null && ` / ₹${s.spendCapInr.toFixed(0)}`}
-                </span>
-                <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
-                  {s.turns} turn{s.turns === 1 ? '' : 's'}
-                </span>
+    <main className="main">
+      <StudioHeader tab="create" back={{ href: '/home', label: 'Home' }} next={{ kind: 'wait', label: 'Open on Approvals', why: 'appears when a brief is drafted' }} title={active ? `${active.name} · new session` : 'No channel selected'} />
+      <h1 className="sr-only">Studio — new session</h1>
+      <StudioPanel
+        mode="start"
+        proposedCap={cap}
+        channelName={active?.name}
+        prices={null}
+        perShortCap={spend?.perShortCap ?? null}
+        initial={initial}
+        left={
+          <section className="gp" aria-label="Recent sessions">
+            <div className="row sb" style={{ marginBottom: 6 }}>
+              <h2 className="h3">Recent sessions</h2>
+              <Link className="xs tlink" href="/studio?tab=sessions">
+                All
               </Link>
-            ))}
-          </div>
-        )}
-      </Panel>
-    </div>
+            </div>
+            {failed ?? (list.ok && list.sessions.length ? <SessionRows list={list} limit={6} /> : <p className="xs t3">None yet — this one will be the first.</p>)}
+          </section>
+        }
+      />
+      <Filmstrip shots={[]} episodeId={null} note="Shots appear here once the brief is approved and the run draws them — each with its picture, its line and a re-roll." />
+    </main>
   );
 }
