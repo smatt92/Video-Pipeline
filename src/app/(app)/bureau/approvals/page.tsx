@@ -89,9 +89,19 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
   const channel = await requireChannel();
   const bible = bibleOrNull(channel);
   const db = serverClient();
-  const [briefs, policy, waiting] = await Promise.all([pendingBriefs(db, channel.id), channelPolicy(db, channel.id), fallbacksWaiting(db, channel.id).catch(() => [])]);
+  // Everything the screen needs starts at once: the slots wait only on the policy (for its
+  // time zone) and the pricing only on the briefs (for the one on screen), not on each other.
+  const briefsP = pendingBriefs(db, channel.id);
+  const policyP = channelPolicy(db, channel.id);
+  const slotsP = policyP.then((p) => upcomingSlots(db, channel.id, todayIn(p?.tz ?? 'Asia/Kolkata'), 8)).catch(() => []);
+  const fmtsP = briefsP.then((bs) => {
+    const one = bs[Math.max(0, bs.findIndex((x) => x.id === id))];
+    return one ? formatOptions(db, channel.id, { series: one.series, shot_list: one.shot_list, script_text: one.script_text, lead_character: one.lead_character, hero_objects: (one as { hero_objects?: unknown }).hero_objects }) : null;
+  });
+  // A rejection the page never awaits (no briefs) must not surface as an unhandled one.
+  fmtsP.catch(() => undefined);
+  const [briefs, policy, slots, waiting] = await Promise.all([briefsP, policyP, slotsP, fallbacksWaiting(db, channel.id).catch(() => [])]);
   const tz = policy?.tz ?? 'Asia/Kolkata';
-  const slots = await upcomingSlots(db, channel.id, todayIn(tz), 8).catch(() => []);
   const briefSlots = new Set(briefs.map((b) => b.slot_id));
 
   const header = (
@@ -161,7 +171,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
   }, {});
   const policyStatus = status(b.policy);
   const variationStatus = status(b.variation);
-  const fmts = await formatOptions(db, channel.id, { series: b.series, shot_list: b.shot_list, script_text: b.script_text, lead_character: b.lead_character, hero_objects: (b as { hero_objects?: unknown }).hero_objects });
+  const fmts = (await fmtsP)!;
   const seriesName = slot?.seriesName ?? bible?.series[b.series as keyof typeof bible.series]?.name ?? b.series;
 
   const briefCard = (

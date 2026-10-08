@@ -440,17 +440,21 @@ const fellBack = new Set<string>();
  * folder that may say something else.
  */
 export async function getBible(db: Db, channelId: string): Promise<ChannelBible> {
-  const { data, error } = await db.from('channels').select('name, slug').eq('id', channelId).maybeSingle();
+  // The three reads at once: every screen with a channel waits on this, and in sequence they
+  // were three round trips. The cast read is wasted only for a channel with no database bible.
+  const [{ data, error }, { data: row, error: bErr }, { data: chars, error: cErr }] = await Promise.all([
+    db.from('channels').select('name, slug').eq('id', channelId).maybeSingle(),
+    db.from('channel_bibles').select('world, publishing, series, policy, trend_sources, version').eq('channel_id', channelId).maybeSingle(),
+    db
+      .from('channel_characters')
+      .select('slug, name, role, desk, on_screen, season_introduced, personality, accent_hex, voice, voice_brief, visual_lock, catchphrase, speech_rules, never_do, reference_frame, sort, active')
+      .eq('channel_id', channelId),
+  ]);
   if (error) throw new Error(`Reading channel ${channelId}: ${error.message}`);
   if (!data) throw new Error(`No channel ${channelId}.`);
   const slug = data.slug;
-  const { data: row, error: bErr } = await db.from('channel_bibles').select('world, publishing, series, policy, trend_sources, version').eq('channel_id', channelId).maybeSingle();
   if (!bErr && row) {
     if (!slug) throw new Error(`Channel "${data.name}" has a database bible but no slug.`);
-    const { data: chars, error: cErr } = await db
-      .from('channel_characters')
-      .select('slug, name, role, desk, on_screen, season_introduced, personality, accent_hex, voice, voice_brief, visual_lock, catchphrase, speech_rules, never_do, reference_frame, sort, active')
-      .eq('channel_id', channelId);
     if (cErr) throw new Error(`Reading the cast of ${slug}: ${cErr.message}`);
     return bibleFromRows(slug, row, chars ?? []);
   }

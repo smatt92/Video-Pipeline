@@ -19,7 +19,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
         </div>
       </header>
       <SettingsTabs />
-      <div className="col" style={{ gap: 16, maxWidth: 1100 }}>
+      <div className="col settings-body" style={{ gap: 16, maxWidth: 1100 }}>
         {children}
       </div>
     </main>

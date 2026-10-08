@@ -12,6 +12,8 @@ import { Icon } from '@/components/ui/icon';
 import { Basis, CastChip, episodeState, Gate, Pill, Stag } from '@/components/ui/tags';
 import { metricsSummary } from '@/lib/bureau/read';
 import { isRunning } from '@/lib/bureau/running';
+import { shouldAutoRefresh } from '@/lib/bureau/screen-state';
+import { LiveRefresh } from '@/components/bureau/live-status';
 import { bibleOrNull, requireChannel } from '@/lib/channels/active';
 import { serverClient } from '@/lib/db/server';
 import {
@@ -39,7 +41,7 @@ export const metadata = { title: 'Home' };
  * unknown is an em dash with the reason.
  */
 
-const IN_PRODUCTION = ['queued', 'scripting', 'shotlisting', 'estimating', 'voicing', 'generating', 'qc', 'assembling', 'awaiting_cut', 'cut_rejected', 'halted', 'failed'];
+const IN_PRODUCTION = ['queued', 'scripting', 'shotlisting', 'estimating', 'voicing', 'generating', 'qc', 'assembling', 'awaiting_cut', 'cut_rejected', 'cut_approved', 'halted', 'failed'];
 const STOPPED = new Set(['halted', 'failed']);
 
 const ALERT_DOT: Record<string, string> = {
@@ -71,13 +73,12 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const bible = bibleOrNull(channel);
   const db = serverClient();
 
-  const policy = await channelPolicy(db, channel.id);
-  const tz = policy?.tz ?? 'Asia/Kolkata';
-  const today = todayIn(tz);
-
-  const [episodes, slots, spend, basis, metrics, ypp, pendingRes, alertsRes] = await Promise.all([
+  // The policy is needed only for its time zone (the slots read); nothing else waits on it.
+  const policyP = channelPolicy(db, channel.id);
+  const [policy, episodes, slots, spend, basis, metrics, ypp, pendingRes, alertsRes] = await Promise.all([
+    policyP,
     channelEpisodes(db, channel.id, 200),
-    upcomingSlots(db, channel.id, today, 6),
+    policyP.then((p) => upcomingSlots(db, channel.id, todayIn(p?.tz ?? 'Asia/Kolkata'), 6)),
     channelSpend(db, channel.id),
     ledgerBasis(db, channel.id),
     metricsSummary(db, channel.id, range).catch(() => null),
@@ -91,6 +92,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       .order('created_at', { ascending: false })
       .limit(8),
   ]);
+  const tz = policy?.tz ?? 'Asia/Kolkata';
   const pending = pendingRes.data ?? [];
   const alerts = alertsRes.data ?? [];
 
@@ -165,6 +167,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
   return (
     <main className="main">
+      {/* Home shows every episode's state; while any of them is moving, it follows. */}
+      <LiveRefresh active={shouldAutoRefresh(episodes.map((e) => e.status))} everyMs={15_000} />
       <ScreenHeader
         channel={channel}
         crumb="Home"

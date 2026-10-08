@@ -229,6 +229,21 @@ try {
   const igRow = ready.find((x) => x.platform === 'instagram');
   check(ready.filter((x) => x.episode_id === igRow?.episode_id).map((x) => x.platform).sort().join() === 'instagram,youtube' && igRow.download_urls.cover_jpg === `https://signed.invalid/publish/${ytB}/instagram-cover.jpg`, 'Ready to schedule reads both targets for the episode, with a signed cover link');
 
+  // A bundle row whose episode is back in production (a restart after a bundle) is not ready:
+  // Ready must not offer it while the episode renders (screen-state.ts, 08-Oct).
+  {
+    const [briefB3] = await q(briefSql, [CB, 'Third brief on B: the tide comes back in.']);
+    const ytB3 = await pubFor(CB, briefB3.id, 'c');
+    const [{ episode_id: epB3 }] = await q('select episode_id from publications where id = $1', [ytB3]);
+    const before = (await readyBundles(db, CB, { presign: async (k) => `https://signed.invalid/${k}` })).filter((x) => x.episode_id === epB3).length;
+    await q(`update episodes set status = 'assembling' where id = $1`, [epB3]);
+    const during = (await readyBundles(db, CB, { presign: async (k) => `https://signed.invalid/${k}` })).filter((x) => x.episode_id === epB3).length;
+    await q(`update episodes set status = 'bundled' where id = $1`, [epB3]);
+    const after = (await readyBundles(db, CB, { presign: async (k) => `https://signed.invalid/${k}` })).filter((x) => x.episode_id === epB3).length;
+    check(before === 1 && during === 0 && after === 1, 'Ready shows a bundle while its episode is bundled, hides it while the episode is assembling, and shows it again once bundled', JSON.stringify({ before, during, after }));
+    await q('delete from publications where id = $1', [ytB3]);
+  }
+
   // afterBundle's switched-off auto path, switched on: schedules the draft, inserts nothing.
   await q('update channel_policy set instagram_publish_enabled = true where channel_id = $1', [CB]);
   const ab = await afterBundle(db, ytB, { startUpload: async () => 'run' });

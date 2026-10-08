@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 
 import { SceneDefs } from '@/components/ui/episode';
 import type { RailData } from '@/lib/shell/rail';
 
 import { CommandPalette } from './command-palette';
 import { HintProvider } from './hint';
+import { NavFeedback } from './nav-feedback';
 import { Rail } from './rail';
 import { TabBar } from './tab-bar';
 
@@ -29,6 +30,10 @@ export function AppShell({ children, data }: { children: React.ReactNode; data: 
   return (
     <HintProvider>
       <SceneDefs />
+      {/* Suspended because it reads the search params; it renders a 2px bar and nothing else. */}
+      <Suspense fallback={null}>
+        <NavFeedback />
+      </Suspense>
       <a href="#content" className="sr-only">
         Skip to content
       </a>

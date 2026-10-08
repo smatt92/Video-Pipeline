@@ -81,6 +81,10 @@ async function run(path: string, subject: Subject, f: (t: BureauToken) => Promis
     if ('error' in t) return { ok: false, message: t.error };
     const message = await f(t);
     revalidatePath(path);
+    // And the shell: the rail's and the tab bar's badges are read in the root layout, which a
+    // soft navigation never re-renders — without this an approved cut left "Cuts 1" on the
+    // rail until a full reload.
+    revalidatePath('/', 'layout');
     return { ok: true, message };
   } catch (err) {
     return { ok: false, message: err instanceof Error ? err.message : String(err) };

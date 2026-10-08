@@ -1,4 +1,5 @@
 import type { Db } from '../db/server';
+import { NOT_READY_EPISODE_STATUSES, showsOnReady } from './screen-state';
 import { storage } from '../storage';
 
 /**
@@ -93,42 +94,57 @@ export async function readyBundles(
   channelId: string,
   opts: { presign?: (key: string, downloadAs: string) => Promise<string> } = {},
 ) {
-  const { data, error } = await db
-    .from('v_ready_bundles')
-    .select('publication_id, episode_id, slot_id, slot_date, series, topic, platform, status, title, description, tags, made_for_kids, altered_content_disclosed, scheduled_for, marked_scheduled_at, bundle, created_at')
-    .eq('channel_id', channelId)
-    .order('created_at', { ascending: false })
-    .limit(50);
+  // Beside the bundles, the channel's episodes that are NOT in a ready state: a bundle row whose
+  // episode is back in production describes a cut being replaced, and Ready must not offer it
+  // (screen-state.ts). One read in parallel, so the filter costs no extra round trip.
+  const [{ data, error }, { data: notReady, error: nrErr }] = await Promise.all([
+    db
+      .from('v_ready_bundles')
+      .select('publication_id, episode_id, slot_id, slot_date, series, topic, platform, status, title, description, tags, made_for_kids, altered_content_disclosed, scheduled_for, marked_scheduled_at, bundle, created_at')
+      .eq('channel_id', channelId)
+      .order('created_at', { ascending: false })
+      .limit(50),
+    db.from('episodes').select('id, status').eq('channel_id', channelId).in('status', [...NOT_READY_EPISODE_STATUSES]),
+  ]);
   if (error) throw new Error(error.message);
-  const rows = data ?? [];
+  if (nrErr) throw new Error(nrErr.message);
+  const inProduction = new Map((notReady ?? []).map((e) => [e.id, e.status]));
+  const rows = (data ?? []).filter((r) => showsOnReady(r.episode_id ? inProduction.get(r.episode_id) ?? 'bundled' : null));
   const presign = opts.presign ?? (async (key: string, downloadAs: string) => (await storage().presignGet({ key, expiresIn: 3600, downloadAs })).url);
   return Promise.all(
     rows.map(async (r) => {
       const b = (r.bundle ?? {}) as { video_key?: string; files?: Record<string, string> };
-      const urls: Record<string, string> = {};
       const keys = { video: b.video_key, ...(b.files ?? {}) };
-      for (const [name, key] of Object.entries(keys)) {
-        if (!key) continue;
-        try {
-          urls[name] = await presign(key, key.split('/').pop() ?? 'file');
-        } catch {
-          // A URL that cannot be signed is left out, not faked; the key is still in `bundle`.
-        }
-      }
+      // Signed together, and beside the dub read: one bundle was a chain of awaits per file.
+      const signed = Promise.all(
+        Object.entries(keys).map(async ([name, key]) => {
+          if (!key) return null;
+          try {
+            return [name, await presign(key, key.split('/').pop() ?? 'file')] as const;
+          } catch {
+            // A URL that cannot be signed is left out, not faked; the key is still in `bundle`.
+            return null;
+          }
+        }),
+      );
       // Language tracks for Studio's multi-language audio upload, when dubbed.
-      const { data: dubs } = r.episode_id
-        ? await db.from('dub_jobs').select('language, status, audio_asset_id, srt_asset_id, estimate_inr').eq('episode_id', r.episode_id).eq('status', 'ready')
-        : { data: [] as never[] };
-      const dubFiles = [];
-      for (const d of dubs ?? []) {
-        const ids = [d.audio_asset_id, d.srt_asset_id].filter((x): x is string => !!x);
-        const { data: assets } = ids.length ? await db.from('assets').select('id, storage_key').in('id', ids) : { data: [] as never[] };
-        const url = async (id: string | null) => {
-          const a = (assets ?? []).find((x) => x.id === id);
-          return a ? presign(a.storage_key, a.storage_key.split('/').pop() ?? 'file').catch(() => null) : null;
-        };
-        dubFiles.push({ language: d.language, audio_url: await url(d.audio_asset_id), captions_url: await url(d.srt_asset_id), cost_inr: d.estimate_inr === null ? null : Number(d.estimate_inr), cost_label: 'rate unverified (vendor upper-bound estimate)' });
-      }
+      const dubsP = r.episode_id
+        ? db.from('dub_jobs').select('language, status, audio_asset_id, srt_asset_id, estimate_inr').eq('episode_id', r.episode_id).eq('status', 'ready')
+        : Promise.resolve({ data: [] as never[] });
+      const [pairs, { data: dubs }] = await Promise.all([signed, dubsP]);
+      const urls: Record<string, string> = Object.fromEntries(pairs.filter((p): p is NonNullable<typeof p> => p !== null));
+      const dubFiles = await Promise.all(
+        (dubs ?? []).map(async (d) => {
+          const ids = [d.audio_asset_id, d.srt_asset_id].filter((x): x is string => !!x);
+          const { data: assets } = ids.length ? await db.from('assets').select('id, storage_key').in('id', ids) : { data: [] as never[] };
+          const url = async (id: string | null) => {
+            const a = (assets ?? []).find((x) => x.id === id);
+            return a ? presign(a.storage_key, a.storage_key.split('/').pop() ?? 'file').catch(() => null) : null;
+          };
+          const [audio_url, captions_url] = await Promise.all([url(d.audio_asset_id), url(d.srt_asset_id)]);
+          return { language: d.language, audio_url, captions_url, cost_inr: d.estimate_inr === null ? null : Number(d.estimate_inr), cost_label: 'rate unverified (vendor upper-bound estimate)' };
+        }),
+      );
       return { ...r, download_urls: urls, dubs: dubFiles };
     }),
   );
@@ -145,20 +161,27 @@ function gate(value: number | null, line: number, higherIsBetter: boolean): 'pas
 
 export async function metricsSummary(db: Db, channelId: string, range: string) {
   const { from, to, label } = parseRange(range);
-  const { data: pubs } = await db
-    .from('publications')
-    .select('id, episode_id, slot_id, title, platform, status, published_at, scheduled_for')
-    .eq('channel_id', channelId)
-    .in('status', ['scheduled', 'live']);
+  // Two waves instead of six: what depends on nothing first, then what needs the publications.
+  // Home and Metrics both wait on this before they paint.
+  const [{ data: pubs }, { data: comments }, { data: channelSpend }, { data: flags }] = await Promise.all([
+    db.from('publications').select('id, episode_id, slot_id, title, platform, status, published_at, scheduled_for').eq('channel_id', channelId).in('status', ['scheduled', 'live']),
+    db.from('comments').select('character_mentions, published_at').eq('channel_id', channelId).gte('published_at', from.toISOString()),
+    db.from('v_channel_spend').select('*').eq('channel_id', channelId).maybeSingle(),
+    db.from('notifications').select('kind').eq('channel_id', channelId).in('kind', ['policy_flag', 'qc_failed']).gte('created_at', from.toISOString()),
+  ]);
   const pubIds = (pubs ?? []).map((p) => p.id);
-  const { data: snaps } = pubIds.length
-    ? await db
-        .from('metrics_snapshots')
-        .select('publication_id, age_bucket, captured_at, views, engaged_views, avg_view_pct, viewed_vs_swiped_pct, subs_gained, status')
-        .in('publication_id', pubIds)
-        .gte('captured_at', from.toISOString())
-        .order('captured_at', { ascending: false })
-    : { data: [] as never[] };
+  const epIds = (pubs ?? []).map((p) => p.episode_id).filter((x): x is string => !!x);
+  const [{ data: snaps }, { data: spend }] = await Promise.all([
+    pubIds.length
+      ? db
+          .from('metrics_snapshots')
+          .select('publication_id, age_bucket, captured_at, views, engaged_views, avg_view_pct, viewed_vs_swiped_pct, subs_gained, status')
+          .in('publication_id', pubIds)
+          .gte('captured_at', from.toISOString())
+          .order('captured_at', { ascending: false })
+      : Promise.resolve({ data: [] as never[] }),
+    epIds.length ? db.from('v_episode_spend').select('episode_id, spent_inr, unpriced_rows').in('episode_id', epIds) : Promise.resolve({ data: [] as never[] }),
+  ]);
 
   // Latest measured snapshot per publication within the range.
   const latest = new Map<string, NonNullable<typeof snaps>[number]>();
@@ -171,24 +194,13 @@ export async function metricsSummary(db: Db, channelId: string, range: string) {
   const apv = median(rows.map((r) => num(r.avg_view_pct)).filter((v): v is number => v !== null));
   const subsPer1k = views && subs !== null ? (subs / views) * 1000 : null;
 
-  const { data: comments } = await db
-    .from('comments')
-    .select('character_mentions, published_at')
-    .eq('channel_id', channelId)
-    .gte('published_at', from.toISOString());
   const mentionCounts: Record<string, number> = {};
   for (const c of comments ?? []) for (const s of c.character_mentions ?? []) mentionCounts[s] = (mentionCounts[s] ?? 0) + 1;
   const mentionsTotal = Object.values(mentionCounts).reduce((a, b) => a + b, 0);
 
-  const epIds = (pubs ?? []).map((p) => p.episode_id).filter((x): x is string => !!x);
-  const { data: spend } = epIds.length
-    ? await db.from('v_episode_spend').select('episode_id, spent_inr, unpriced_rows').in('episode_id', epIds)
-    : { data: [] as never[] };
   const priced = (spend ?? []).filter((s) => Number(s.unpriced_rows) === 0);
   const costPerShort = priced.length ? priced.reduce((n, s) => n + Number(s.spent_inr), 0) / priced.length : null;
 
-  const { data: channelSpend } = await db.from('v_channel_spend').select('*').eq('channel_id', channelId).maybeSingle();
-  const { data: flags } = await db.from('notifications').select('kind').eq('channel_id', channelId).in('kind', ['policy_flag', 'qc_failed']).gte('created_at', from.toISOString());
 
   return {
     range: label,

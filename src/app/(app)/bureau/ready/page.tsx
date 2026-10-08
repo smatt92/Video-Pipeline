@@ -1,9 +1,11 @@
+import { LiveRefresh } from '@/components/bureau/live-status';
 import { BuildInstagram, CopyButton, MarkPosted, MarkScheduled, PublishInstagram, QueueDubs } from '@/components/bureau/ready-controls';
 import { ScreenHeader } from '@/components/shell/screen-header';
 import { inr, Note } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { Pill } from '@/components/ui/tags';
 import { readyBundles } from '@/lib/bureau/read';
+import { RUNNING } from '@/lib/bureau/running';
 import { requireChannel } from '@/lib/channels/active';
 import { publishTargets } from '@/lib/channels/list';
 import { serverClient } from '@/lib/db/server';
@@ -31,7 +33,14 @@ const PUB_LABEL: Record<string, string> = { draft: 'Ready', scheduled: 'Schedule
 export default async function ReadyPage() {
   const channel = await requireChannel();
   const db = serverClient();
-  const [bundles, { targets }, igReady] = await Promise.all([readyBundles(db, channel.id), publishTargets(db, channel.id), instagramPublishReadiness(db, channel.id)]);
+  const [bundles, { targets }, igReady, { count: running }] = await Promise.all([
+    readyBundles(db, channel.id),
+    publishTargets(db, channel.id),
+    instagramPublishReadiness(db, channel.id),
+    // Episodes the worker is still moving: one of them lands here as a bundle on its own, so
+    // the screen keeps itself current while any exists (and stops when none does).
+    db.from('episodes').select('id', { count: 'exact', head: true }).eq('channel_id', channel.id).in('status', [...RUNNING]),
+  ]);
   // What the post itself wrote: the permalink once live, Meta's reason when it failed.
   const igIds = bundles.filter((b) => b.platform === 'instagram' && b.publication_id).map((b) => b.publication_id!);
   const igRows = igIds.length ? (await db.from('publications').select('id, status, external_url, error_detail').in('id', igIds)).data ?? [] : [];
@@ -52,6 +61,7 @@ export default async function ReadyPage() {
 
   return (
     <main className="main">
+      <LiveRefresh active={(running ?? 0) > 0 || bundles.some((b) => b.status === 'uploading')} everyMs={15_000} />
       <ScreenHeader
         channel={channel}
         crumb="Ready"

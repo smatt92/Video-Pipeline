@@ -8,6 +8,7 @@ import { Canister, FlatStages, runCones } from '@/components/ui/episode';
 import { CastChip, episodeState, Pill, Stag } from '@/components/ui/tags';
 import { channelGeneration, episodeClips } from '@/lib/bureau/overlay-only';
 import { isRunning, stalled } from '@/lib/bureau/running';
+import { BOARD_COLUMNS, RENDER_SUB, shouldAutoRefresh } from '@/lib/bureau/screen-state';
 import { bibleOrNull, requireChannel } from '@/lib/channels/active';
 import { serverClient } from '@/lib/db/server';
 import { castFor, channelEpisodes, shortDate, titleOf, type EpisodeRow } from '@/lib/screens/common';
@@ -22,24 +23,7 @@ export const metadata = { title: 'Board' };
  * (?f=, ?stage=), so the screen stays a Server Component and a filtered view is shareable.
  */
 
-const COLUMNS: { key: string; label: string; dot: string; statuses: string[]; empty: string }[] = [
-  { key: 'approval', label: 'Needs approval', dot: 'var(--draft)', statuses: [], empty: 'Briefs waiting for your punchline pick land here.' },
-  { key: 'render', label: 'Rendering', dot: 'var(--gen)', statuses: ['queued', 'scripting', 'shotlisting', 'estimating', 'voicing', 'generating', 'assembling'], empty: 'Nothing is rendering.' },
-  { key: 'qc', label: 'QC', dot: 'var(--gen)', statuses: ['qc'], empty: 'Loudness, captions and policy checks run here.' },
-  { key: 'cut', label: 'Needs cut review', dot: 'var(--rev)', statuses: ['awaiting_cut', 'cut_rejected'], empty: 'You watch every cut before it can be scheduled.' },
-  { key: 'ready', label: 'Ready', dot: 'var(--rdy)', statuses: ['cut_approved', 'bundled'], empty: 'Approved cuts with a publish bundle.' },
-  { key: 'scheduled', label: 'Scheduled', dot: 'var(--rdy)', statuses: ['scheduled'], empty: 'Marked scheduled with the platform link.' },
-  { key: 'live', label: 'Live', dot: 'var(--live)', statuses: ['live'], empty: 'Nothing is live yet.' },
-  { key: 'stopped', label: 'Stopped', dot: 'var(--t4)', statuses: ['halted', 'failed'], empty: 'Halted or failed runs.' },
-];
-
-const RENDER_SUB: { label: string; statuses: string[] }[] = [
-  { label: 'Queued', statuses: ['queued'] },
-  { label: 'Scripting', statuses: ['scripting', 'shotlisting', 'estimating'] },
-  { label: 'Voicing', statuses: ['voicing'] },
-  { label: 'Generating', statuses: ['generating'] },
-  { label: 'Assembling', statuses: ['assembling'] },
-];
+const COLUMNS = BOARD_COLUMNS;
 
 const FILTERS = [
   { key: 'all', label: 'All' },
@@ -62,20 +46,22 @@ export default async function BureauBoardPage({ searchParams }: { searchParams: 
   const pending = pendingRaw ?? [];
 
   const slotIds = [...new Set([...all.map((e) => e.slot), ...pending.map((b) => b.slot_id)].filter((s): s is string => !!s))];
-  const slotRows = slotIds.length ? (await db.from('slots').select('id, slot_date, seasonal_tag').in('id', slotIds)).data ?? [] : [];
-  const slotOf = new Map(slotRows.map((s) => [s.id, s]));
 
   const isBlocked = (e: EpisodeRow) => e.status === 'halted' || e.status === 'failed' || stalled(e.status, e.updatedAt);
   const eps = all.filter((e) => (f === 'blocked' ? isBlocked(e) : f === 'short' ? e.kind !== 'long_form' : f === 'long' ? e.kind === 'long_form' : true));
   const blockedN = all.filter(isBlocked).length;
 
   // Overlay-only, said where the cut exists: the channel's reasons once, each cut's own badge.
+  // One read per cut, all at once and beside the slot read — in a loop they were one round trip
+  // per finished episode, the slowest part of opening the Board.
   const CUT = ['awaiting_cut', 'cut_rejected', 'cut_approved', 'bundled', 'scheduled', 'live'];
-  const overlayOnly = new Set<string>();
-  for (const e of eps.filter((x) => CUT.includes(x.status) && x.finalRenderId)) {
-    const g = await episodeClips(db, { script_id: e.scriptId, qc: e.qc });
-    if (g?.overlayOnly) overlayOnly.add(e.id);
-  }
+  const cuts = eps.filter((x) => CUT.includes(x.status) && x.finalRenderId);
+  const [slotRows, clips] = await Promise.all([
+    slotIds.length ? db.from('slots').select('id, slot_date, seasonal_tag').in('id', slotIds).then((r) => r.data ?? []) : Promise.resolve([]),
+    Promise.all(cuts.map((e) => episodeClips(db, { script_id: e.scriptId, qc: e.qc }))),
+  ]);
+  const slotOf = new Map(slotRows.map((s) => [s.id, s]));
+  const overlayOnly = new Set(cuts.filter((_, i) => clips[i]?.overlayOnly).map((e) => e.id));
 
   const showPending = f === 'all' || f === 'short';
   const counts = new Map(COLUMNS.map((c) => [c.key, c.key === 'approval' ? (showPending ? pending.length : 0) : eps.filter((e) => c.statuses.includes(e.status)).length]));
@@ -133,7 +119,7 @@ export default async function BureauBoardPage({ searchParams }: { searchParams: 
             Review cut
           </Link>
         )}
-        {(e.status === 'cut_approved' || e.status === 'bundled') && (
+        {e.status === 'bundled' && (
           <Link className="btn sm full" href="/bureau/ready">
             Open bundle
           </Link>
@@ -188,7 +174,7 @@ export default async function BureauBoardPage({ searchParams }: { searchParams: 
 
   return (
     <main className="main">
-      <LiveRefresh active={all.some((e) => isRunning(e.status))} />
+      <LiveRefresh active={shouldAutoRefresh(all.map((e) => e.status))} />
       <ScreenHeader
         channel={channel}
         crumb="Board"

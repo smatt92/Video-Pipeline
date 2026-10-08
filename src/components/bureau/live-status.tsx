@@ -7,17 +7,43 @@ import { isRunning } from '@/lib/bureau/running';
 
 /**
  * Re-reads the page every few seconds while something is running, so a step's progress
- * ("rendering video (1 of 3) · 42%") moves without a manual reload. Stops when nothing runs.
+ * ("rendering video (1 of 3) · 42%") moves without a manual reload. Stops when nothing runs,
+ * and while the tab is hidden (a phone in a pocket polls nothing); on coming back it re-reads
+ * at once instead of waiting out the interval. `router.refresh()` keeps scroll and input state
+ * — only the server data changes.
  */
 export function LiveRefresh({ active, everyMs = 8_000 }: { active: boolean; everyMs?: number }) {
   const router = useRouter();
   useEffect(() => {
     if (!active) return;
-    const t = setInterval(() => router.refresh(), everyMs);
-    return () => clearInterval(t);
+    let t: ReturnType<typeof setInterval> | null = null;
+    const start = () => {
+      if (t === null) t = setInterval(() => router.refresh(), everyMs);
+    };
+    const stop = () => {
+      if (t !== null) clearInterval(t);
+      t = null;
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        router.refresh();
+        start();
+      } else stop();
+    };
+    if (document.visibilityState === 'visible') start();
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, [active, everyMs, router]);
   return null;
 }
+
+/** What a running status says when the worker has not written a progress line. */
+const IDLE_LINE: Record<string, string> = {
+  cut_approved: 'approved — rendering the final files and building the bundle',
+};
 
 function ago(iso: string, now: number): string {
   const s = Math.max(0, Math.round((now - new Date(iso).getTime()) / 1000));
@@ -48,7 +74,7 @@ export function LiveStatus({ status, detail, updatedAt, running: force }: { stat
         style={{ background: stale ? 'var(--rev)' : 'var(--gen)' }}
         aria-hidden
       />
-      <span style={{ color: 'var(--t2)' }}>{detail ?? `${status}…`}</span>
+      <span style={{ color: 'var(--t2)' }}>{detail ?? IDLE_LINE[status] ?? `${status}…`}</span>
       <span className="font-mono" style={{ color: stale ? 'var(--rev)' : 'var(--t3)' }}>
         last update {ago(updatedAt, now)}
         {stale ? ' — no progress for 10+ min; after 30 the Board offers Restart run' : ''}

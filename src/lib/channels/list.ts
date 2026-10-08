@@ -21,13 +21,12 @@ export interface ChannelSummary {
 }
 
 export async function listChannels(db: Db): Promise<ChannelSummary[]> {
-  const { data, error } = await db
-    .from('channels')
-    .select('id, name, handle, slug, created_at')
-    .eq('is_active', true)
-    .order('created_at', { ascending: true });
+  // Both reads at once: every screen waits on this before its own queries can start.
+  const [{ data, error }, inDb] = await Promise.all([
+    db.from('channels').select('id, name, handle, slug, created_at').eq('is_active', true).order('created_at', { ascending: true }),
+    channelsWithDbBible(db),
+  ]);
   if (error) throw new Error(`Reading channels: ${error.message}`);
-  const inDb = await channelsWithDbBible(db);
   return (data ?? []).map((c) => ({ id: c.id, name: c.name, handle: c.handle, slug: c.slug, hasBible: inDb.has(c.id) || (!!c.slug && hasBible(c.slug)) }));
 }
 

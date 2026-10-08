@@ -10,6 +10,8 @@ import { Menu } from '@/components/ui/controls';
 import { killSwitchAction } from '@/lib/bureau/ui-actions';
 import { setActiveChannelAction } from '@/lib/channels/actions';
 import { NAV, type NavItem } from '@/lib/nav';
+
+import { LinkPending } from './nav-feedback';
 import type { RailChannel, RailData } from '@/lib/shell/rail';
 
 /**
@@ -230,6 +232,7 @@ export function Rail({ data, onOpenPalette }: { data: RailData; onOpenPalette: (
             }
             return (
               <Link key={it.href} href={it.href} className={`ni${on ? ' on' : ''}`} aria-current={on ? 'page' : undefined}>
+                <LinkPending />
                 <Icon name={it.icon as IconName} />
                 <span>{it.label}</span>
                 {b && (

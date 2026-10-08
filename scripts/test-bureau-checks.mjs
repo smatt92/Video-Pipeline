@@ -342,5 +342,34 @@ console.log('\nscene stills (0021)\n');
   check(edge === 0 && JSON.stringify(kenBurns('slow pan', 3, 0.4)) === JSON.stringify(kenBurns('slow pan', 3, 0.4)), 'every camera move keeps the image covering the frame, the same way every render');
 }
 
+// ── Screen state (08-Oct: "a video is shown in Ready when it is supposed to be in generation")
+console.log('\nscreen state — where an episode shows, and when a screen follows it\n');
+{
+  const { boardColumnFor, showsOnReady, shouldAutoRefresh, BOARD_COLUMNS, RENDER_SUB } = require(`${B}/bureau/screen-state.js`);
+  const { stalled, SILENT_STALL_MS } = require(`${B}/bureau/running.js`);
+  // Expected columns written out from the pipeline: an approved cut is still being rendered.
+  const expected = {
+    queued: 'render', scripting: 'render', shotlisting: 'render', estimating: 'render', voicing: 'render', generating: 'render', assembling: 'render',
+    cut_approved: 'render', qc: 'qc', awaiting_cut: 'cut', cut_rejected: 'cut', bundled: 'ready', scheduled: 'scheduled', live: 'live', halted: 'stopped', failed: 'stopped',
+  };
+  const wrong = Object.entries(expected).filter(([st, col]) => boardColumnFor(st) !== col);
+  check(wrong.length === 0, 'every episode status lands in its Board column; an approved cut is Rendering, not Ready', JSON.stringify(wrong.map(([st]) => [st, boardColumnFor(st)])));
+  // Every status the schema allows sits in exactly one column (0037's CHECK, read from the migration).
+  const sql0037 = readSql(new URL('../supabase/migrations/0037_bureau_of_reality.sql', import.meta.url), 'utf8');
+  const block = /status\s+text not null default 'queued' check \(status in\s*\(([^)]*)\)/.exec(sql0037)?.[1] ?? '';
+  const allowed = [...block.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]).sort();
+  const counts = allowed.map((st) => BOARD_COLUMNS.filter((c) => c.statuses.includes(st)).length);
+  check(allowed.join() === Object.keys(expected).sort().join() && counts.every((n) => n === 1), 'every status the schema allows is in exactly one column', JSON.stringify({ allowed, counts }));
+  check(BOARD_COLUMNS.find((c) => c.key === 'ready').statuses.join() === 'bundled', 'the Ready column holds only episodes with a bundle');
+  check(RENDER_SUB.at(-1).statuses.join() === 'cut_approved', 'an approved cut shows under "Finishing after approval"');
+  check(shouldAutoRefresh(['bundled', 'cut_approved']) === true, 'a screen holding an approved cut keeps refreshing itself (the worker moves it next)');
+  check(shouldAutoRefresh(['bundled', 'scheduled', 'awaiting_cut', 'halted']) === false, 'nothing running → no timer');
+  check(shouldAutoRefresh(['generating']) === true && shouldAutoRefresh([]) === false, 'generating refreshes; an empty screen does not');
+  check(showsOnReady('bundled') && showsOnReady('scheduled') && showsOnReady('live') && showsOnReady(null), 'Ready shows a bundle whose episode is bundled, scheduled or live (or has no episode)');
+  check(!showsOnReady('generating') && !showsOnReady('assembling') && !showsOnReady('cut_approved') && !showsOnReady('awaiting_cut'), 'Ready does not show a bundle whose episode is back in production');
+  const now = Date.parse('2026-10-08T06:00:00Z');
+  check(stalled('cut_approved', new Date(now - SILENT_STALL_MS - 1000).toISOString(), now) === true && stalled('cut_approved', new Date(now - 60_000).toISOString(), now) === false, 'an approved cut nobody woke for 30 min reads as stalled (the Board offers Restart)');
+}
+
 console.log(failures ? `\n${failures} FAILED\n` : '\nAll Bureau rule checks passed.\n');
 process.exit(failures ? 1 : 0);

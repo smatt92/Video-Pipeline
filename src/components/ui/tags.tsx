@@ -28,7 +28,8 @@ const EPISODE_STATE: Record<string, { tone: StateTone; label: string }> = {
   qc: { tone: 'gen', label: 'Checking' },
   assembling: { tone: 'gen', label: 'Assembling' },
   awaiting_cut: { tone: 'rev', label: 'Needs cut review' },
-  cut_approved: { tone: 'rdy', label: 'Cut approved' },
+  // Approved, not yet ready: the run is rendering the deliverables and building the bundle.
+  cut_approved: { tone: 'gen', label: 'Approved · finishing' },
   cut_rejected: { tone: 'blk', label: 'Sent back' },
   bundled: { tone: 'rdy', label: 'Ready' },
   scheduled: { tone: 'rdy', label: 'Scheduled' },

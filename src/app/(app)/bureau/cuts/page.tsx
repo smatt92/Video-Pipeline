@@ -79,7 +79,29 @@ export default async function CutsPage({ searchParams }: { searchParams: Promise
 
   const e = list.find((x) => x.id === id) ?? list.find((x) => x.status === 'awaiting_cut') ?? list[0]!;
   const brief = briefOf.get(e.brief_id);
-  const recut = e.status === 'cut_rejected' ? await recutOptions(db, channel.id, e) : null;
+  // The reads for the cut on screen depend only on the episode row, so they start together
+  // here and are awaited where they are used — one after another they were most of the wait
+  // before this screen could paint.
+  const recutP = e.status === 'cut_rejected' ? recutOptions(db, channel.id, e) : Promise.resolve(null);
+  const mediaP = (async () => {
+    if (!e.final_render_id) return { url: null as string | null, dims: null as { w: number; h: number; dur: number | null } | null };
+    const { data: r } = await db.from('renders').select('asset_id, width, height, duration_s').eq('id', e.final_render_id).maybeSingle();
+    const dims = r ? { w: r.width, h: r.height, dur: r.duration_s === null ? null : Number(r.duration_s) } : null;
+    const { data: a } = r?.asset_id ? await db.from('assets').select('storage_key').eq('id', r.asset_id).maybeSingle() : { data: null };
+    const url = a ? await storage().presignGet({ key: a.storage_key, expiresIn: 3600 }).then((p) => p.url).catch(() => null) : null;
+    return { url, dims };
+  })();
+  const shotsP = e.script_id
+    ? db.from('shots').select('id, idx, render_route, duration_s, effective_duration_s, status, description').eq('script_id', e.script_id).order('idx').then((r) => r.data ?? [])
+    : Promise.resolve([]);
+  // v_episode_spend coalesces to 0, so an episode with no script (no ledger row can attach)
+  // would read as free. Absent is not zero: without a script the figure is withheld.
+  const spendP = e.script_id ? db.from('v_episode_spend').select('spent_inr, unpriced_rows').eq('episode_id', e.id).maybeSingle().then((r) => r.data) : Promise.resolve(null);
+  const genP = episodeClips(db, e);
+  const tuningP = e.status === 'awaiting_cut' && e.script_id ? pictureTuning(db, channel.id) : null;
+  // Started early, awaited later: a rejection before its await must not count as unhandled.
+  for (const p of [mediaP, shotsP, spendP, genP, tuningP]) if (p) Promise.resolve(p).catch(() => undefined);
+  const recut = await recutP;
   // The format the planner recorded (formats.ts) — read back from the plan, never re-derived here.
   const storedFormat = ((e.qc ?? {}) as { plan?: { format?: { format?: unknown; source?: unknown } } }).plan?.format;
   const parsedFormat = VisualFormatSchema.safeParse(storedFormat?.format);
@@ -107,18 +129,8 @@ export default async function CutsPage({ searchParams }: { searchParams: Promise
       : [];
   const castByShot = new Map<number, { part: number; drawn: string[]; excluded: { slug: string; reason: string }[] }[]>();
   for (const c of planObj?.cast ?? []) castByShot.set(c.idx, [...(castByShot.get(c.idx) ?? []), c]);
-  let url: string | null = null;
-  let dims: { w: number; h: number; dur: number | null } | null = null;
-  if (e.final_render_id) {
-    const { data: r } = await db.from('renders').select('asset_id, width, height, duration_s').eq('id', e.final_render_id).maybeSingle();
-    if (r) dims = { w: r.width, h: r.height, dur: r.duration_s === null ? null : Number(r.duration_s) };
-    const { data: a } = r?.asset_id ? await db.from('assets').select('storage_key').eq('id', r.asset_id).maybeSingle() : { data: null };
-    url = a ? await storage().presignGet({ key: a.storage_key, expiresIn: 3600 }).then((p) => p.url).catch(() => null) : null;
-  }
-  const { data: shotRows } = e.script_id
-    ? await db.from('shots').select('id, idx, render_route, duration_s, effective_duration_s, status, description').eq('script_id', e.script_id).order('idx')
-    : { data: [] };
-  const shots = (shotRows ?? []).map((s) => ({ ...s, dur: Number(s.effective_duration_s ?? s.duration_s) }));
+  const [{ url, dims }, shotRows] = await Promise.all([mediaP, shotsP]);
+  const shots = shotRows.map((s) => ({ ...s, dur: Number(s.effective_duration_s ?? s.duration_s) }));
   // Each picture of an illustrated shot, newest per part, as a presigned GET (rule 2: URLs
   // through Vercel, never bytes) — shown with Redraw while the cut awaits a decision.
   const redrawing = redrawInFlight(e.qc);
@@ -126,29 +138,30 @@ export default async function CutsPage({ searchParams }: { searchParams: Promise
   const lastRedraw = redrawsOf(e.qc).at(-1) ?? null;
   const pictures = new Map<string, { part: number; url: string | null }[]>();
   if (e.status === 'awaiting_cut' && e.script_id && shots.some((s) => s.render_route === 'still')) {
-    const spans = await pictureSpansFor(db, e.script_id, await pictureTuning(db, channel.id));
-    for (const s of shots.filter((x) => x.render_route === 'still')) {
-      const have = await stillsByPart(db, s.id);
-      const n = Math.max(1, spans.get(s.id)?.length ?? 1, ...[...have.keys()].map((k) => k + 1));
-      pictures.set(
-        s.id,
-        await Promise.all(
-          [...Array(n).keys()].map(async (part) => {
-            const key = have.get(part)?.storageKey;
-            return { part, url: key ? await storage().presignGet({ key, expiresIn: 3600 }).then((p) => p.url).catch(() => null) : null };
-          }),
-        ),
-      );
-    }
+    const stillShots = shots.filter((x) => x.render_route === 'still');
+    const [spans, haves] = await Promise.all([pictureSpansFor(db, e.script_id, await tuningP!), Promise.all(stillShots.map((s) => stillsByPart(db, s.id)))]);
+    const rows = await Promise.all(
+      stillShots.map(async (s, i) => {
+        const have = haves[i]!;
+        const n = Math.max(1, spans.get(s.id)?.length ?? 1, ...[...have.keys()].map((k) => k + 1));
+        return [
+          s.id,
+          await Promise.all(
+            [...Array(n).keys()].map(async (part) => {
+              const key = have.get(part)?.storageKey;
+              return { part, url: key ? await storage().presignGet({ key, expiresIn: 3600 }).then((p) => p.url).catch(() => null) : null };
+            }),
+          ),
+        ] as const;
+      }),
+    );
+    for (const [k, v] of rows) pictures.set(k, v);
   }
-  // v_episode_spend coalesces to 0, so an episode with no script (no ledger row can attach)
-  // would read as free. Absent is not zero: without a script the figure is withheld.
-  const { data: spendRow } = e.script_id ? await db.from('v_episode_spend').select('spent_inr, unpriced_rows').eq('episode_id', e.id).maybeSingle() : { data: null };
-  const spend = spendRow;
+  const spend = await spendP;
   const qcObj = (e.qc ?? {}) as { clips?: Record<string, Clip>; loudness_lufs?: number | null; loudness_target_lufs?: number | null };
   const clips = Object.values(qcObj.clips ?? {});
   const lufs = qcObj.loudness_lufs ?? null;
-  const gen = await episodeClips(db, e);
+  const gen = await genP;
   const voice = e.voice_detail as { unaligned?: number | null; lines?: number; overflow?: boolean; overflow_reason?: string; respoken_lines?: number } | null;
   const unaligned = voice?.unaligned ?? null;
   const totalS = shots.reduce((n, s) => n + s.dur, 0);

@@ -54,17 +54,16 @@ export async function formatOptions(
   channelId: string,
   brief: { series: string; shot_list: unknown; script_text: string; lead_character?: string | null; hero_objects?: unknown },
 ): Promise<{ options: FormatOption[]; seriesDefault: VisualFormat; seriesPace: VoicePace; seriesMotion: MotionLevel; motions: MotionOption[] }> {
-  const cb = await getBible(db, channelId);
+  // Independent reads, at once: Approvals waits on this whole function before it can paint,
+  // and run one after another they were four round trips before any pricing started.
+  const [cb, engineered, fx, stills] = await Promise.all([getBible(db, channelId), engineeredAvailability(db), readUsdInrRate(db), stillsAvailability(db, channelId)]);
   const series = cb.seriesFor(brief.series as never);
   const seriesDefault = formatOf({ seriesFormat: series?.visual_format }).format;
   const seriesPace = paceOf({ seriesPace: series?.voice_pace }).pace;
   const seriesMotion = motionOf({ seriesMotion: series?.motion }).motion;
-  const engineered = await engineeredAvailability(db);
   const objectSheets = heroObjectsOf(brief.hero_objects).length;
-  const motions: MotionOption[] = [];
+  let motions: MotionOption[] = [];
   const shots = PlannedShotSchema.array().safeParse(brief.shot_list);
-  const fx = await readUsdInrRate(db);
-  const stills = await stillsAvailability(db, channelId);
   const parsed = parseScript(brief.script_text, cb);
   const voChars = parsed.ok ? parsed.voText.length : brief.script_text.length;
   const cast = castAvailability(
@@ -72,27 +71,24 @@ export async function formatOptions(
     episodeCastSlugs({ lead: brief.lead_character ?? '', speakers: parsed.ok ? parsed.lines.map((l) => l.speaker) : [], shotCharacters: shots.success ? shots.data.map((s) => s.characters) : [] }),
   );
 
-  const options: FormatOption[] = [];
-  for (const format of VISUAL_FORMATS) {
+  // One pricing per format (and per motion level), all at once and kept in VISUAL_FORMATS
+  // order: each estimate reads the rate card and recipes, and in sequence they were the
+  // slowest part of opening Approvals.
+  const priceFormat = async (format: VisualFormat): Promise<FormatOption> => {
     const info = FORMAT_INFO[format];
     let note: string | null = null;
     const disabled = format === 'characters' && !cast.available ? cast.reason : format === 'engineered' && !engineered.available ? engineered.reason : null;
     if (format !== 'diagram' && !stills.available) note = `Pictures unavailable — ${stills.reason}; this would be drawn as diagrams.`;
-    if (!shots.success || !shots.data.length) {
-      options.push({ format, ...info, inr: null, note: 'The brief has no shot list to price.', disabled });
-      continue;
-    }
-    if (!fx.ok) {
-      options.push({ format, ...info, inr: null, note: 'No USD→INR rate is set, so nothing can be priced.', disabled });
-      continue;
-    }
+    if (!shots.success || !shots.data.length) return { format, ...info, inr: null, note: 'The brief has no shot list to price.', disabled };
+    if (!fx.ok) return { format, ...info, inr: null, note: 'No USD→INR rate is set, so nothing can be priced.', disabled };
+    const rate = fx.rate;
     if (format === 'engineered') {
       // Each motion level as the run will plan it (routes, then the cap fit); the format's own
       // figure is the series default's.
-      for (const motion of MOTION_LEVELS) {
+      motions = await Promise.all(MOTION_LEVELS.map(async (motion): Promise<MotionOption> => {
         const routed = routesForFormat(shots.data, 'engineered', stills.available, motion).shots;
         const wanted = routed.filter((x) => x.route === 'picture_clip').length;
-        const plan = await fittedPlan(db, { channelId, kind: 'short', shots: routed, voChars, usdInrRate: fx.rate, objectSheets });
+        const plan = await fittedPlan(db, { channelId, kind: 'short', shots: routed, voChars, usdInrRate: rate, objectSheets });
         const clips = plan.fit.shots.filter((x) => x.route === 'picture_clip').length;
         let mNote: string | null = null;
         if (plan.finalEst.total_inr === null) mNote = `Unpriced: ${plan.finalEst.unpriced.join('; ')}`;
@@ -100,18 +96,18 @@ export async function formatOptions(
           const why = [...new Set(plan.fit.swaps.filter((x) => x.from === 'picture_clip').map((x) => x.reason.replace(/^unpriced: .*/, 'no clip recipe is active or priced')))];
           mNote = `${wanted - clips} of ${wanted} clips are planned as pictures: ${why.join('; ')}.`;
         }
-        motions.push({ motion, ...MOTION_INFO[motion], inr: plan.finalEst.total_inr, clips, wanted, note: mNote });
-      }
+        return { motion, ...MOTION_INFO[motion], inr: plan.finalEst.total_inr, clips, wanted, note: mNote };
+      }));
       const pick = motions.find((m) => m.motion === seriesMotion)!;
       const eNote = note ?? (objectSheets ? null : 'This brief names no hero objects, so nothing keeps an object consistent between pictures.');
-      options.push({ format, ...info, inr: pick.inr, note: eNote, disabled });
-      continue;
+      return { format, ...info, inr: pick.inr, note: eNote, disabled };
     }
     const routed = routesForFormat(shots.data, format, stills.available).shots;
-    const est = await estimateEpisode(db, { shots: routed, voChars, usdInrRate: fx.rate, channelId });
+    const est = await estimateEpisode(db, { shots: routed, voChars, usdInrRate: rate, channelId });
     if (est.total_inr === null && !note) note = `Unpriced: ${est.unpriced.join('; ')}`;
     if (format === 'characters' && cast.available && cast.unlocked.length && !note) note = `No locked sheet yet for ${cast.unlocked.join(', ')} — left out of the pictures.`;
-    options.push({ format, ...info, inr: est.total_inr, note, disabled });
-  }
+    return { format, ...info, inr: est.total_inr, note, disabled };
+  };
+  const options = await Promise.all(VISUAL_FORMATS.map(priceFormat));
   return { options, seriesDefault, seriesPace, seriesMotion, motions };
 }

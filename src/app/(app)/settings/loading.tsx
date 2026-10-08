@@ -1,0 +1,5 @@
+import { SettingsSkeleton } from '@/components/shell/screen-skeletons';
+
+export default function Loading() {
+  return <SettingsSkeleton />;
+}

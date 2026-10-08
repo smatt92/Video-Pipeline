@@ -8,6 +8,7 @@ import { Icon, type IconName } from '@/components/ui/icon';
 import { NAV } from '@/lib/nav';
 import type { RailData } from '@/lib/shell/rail';
 
+import { LinkPending } from './nav-feedback';
 import { badgeFor, ChannelAvatar, isActive, KillSwitchRow, useSwitchChannel } from './rail';
 
 /**
@@ -35,6 +36,7 @@ export function TabBar({ data }: { data: RailData }) {
           const b = badgeFor(t, data.counts);
           return (
             <Link key={t.href} href={t.href} className={`tab${on ? ' on' : ''}`} aria-current={on ? 'page' : undefined}>
+              <LinkPending />
               <Icon name={t.icon as IconName} />
               <span>{t.label}</span>
               {b && (
@@ -131,6 +133,7 @@ function MoreSheet({ data, onClose }: { data: RailData; onClose: () => void }) {
                 const b = badgeFor(it, data.counts);
                 return (
                   <Link key={it.href} className={`mrow${isActive(pathname, it.href) ? ' on' : ''}`} href={it.href}>
+                    <LinkPending />
                     <Icon name={it.icon as IconName} />
                     <span className="grow">{it.label}</span>
                     {b && <span className={`badge ${b.red ? 'red' : 'ac'}`}>{b.n}</span>}
