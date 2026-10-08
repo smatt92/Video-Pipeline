@@ -97,6 +97,27 @@ export class RouterError extends Error {
   }
 }
 
+/**
+ * The SDK's structured-output parser THROWS when the text is not valid JSON — after the whole
+ * response, and its usage, has come back. Thrown from inside `messages.parse`, that usage never
+ * reached `writeLlmCost`: the first Built Like That draft (08-Oct) was paid for and left no
+ * ledger row (rule 5). The parse here returns null instead, so the call lands in the ledger
+ * first and then fails as `no_parse` with its stop reason, exactly like any other bad output.
+ */
+function tolerantFormat<S extends z.ZodType>(schema: S) {
+  const format = zodOutputFormat(schema);
+  return {
+    ...format,
+    parse: (content: string) => {
+      try {
+        return format.parse(content);
+      } catch {
+        return null;
+      }
+    },
+  } as typeof format;
+}
+
 export async function routed<S extends z.ZodType>(
   call: RoutedCall<S>,
   deps: RouterDeps,
@@ -124,7 +145,7 @@ export async function routed<S extends z.ZodType>(
         max_tokens: call.maxTokens,
         system: call.system,
         messages: [{ role: 'user', content: call.user }],
-        output_config: { format: zodOutputFormat(call.schema) },
+        output_config: { format: tolerantFormat(call.schema) },
       },
       { signal: deps.signal },
     );
@@ -145,7 +166,7 @@ export async function routed<S extends z.ZodType>(
   }
   const parsed = response.parsed_output;
   if (parsed === null || parsed === undefined) {
-    throw new RouterError('no_parse', `${call.task}: the response did not parse against its schema.`, usage);
+    throw new RouterError('no_parse', `${call.task}: the response did not parse as JSON against its schema (stop_reason ${response.stop_reason}, ${usage.outputTokens} output tokens).`, usage);
   }
   const checked = call.schema.safeParse(parsed);
   if (!checked.success) {

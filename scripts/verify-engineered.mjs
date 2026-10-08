@@ -142,6 +142,7 @@ const decoded = (d) => ({
   })),
 });
 let writerOutput = decoded(FIXTURE);
+let writerBadJson = false;
 const llmCalls = [];
 const llmClient = {
   messages: {
@@ -149,6 +150,13 @@ const llmClient = {
       const user = String(body.messages[0].content);
       const system = String(body.system ?? '');
       llmCalls.push({ system, user });
+      if (/3D explainers/.test(system) && writerBadJson) {
+        // What the SDK does: the response comes back WITH its usage, then the format's own parse
+        // runs on the text — and the SDK's parse throws on invalid JSON (hosted, 08-Oct).
+        const fmt = body.output_config.format;
+        const parsed_output = fmt.parse('{"premise": "an unterminated stri');
+        return { usage: { input_tokens: 1500, output_tokens: 2100 }, stop_reason: 'end_turn', parsed_output };
+      }
       if (/3D explainers/.test(system)) return { usage: { input_tokens: 1500, output_tokens: 3000 }, stop_reason: 'end_turn', parsed_output: writerOutput };
       const tags = [...user.matchAll(/^- @([A-Za-z0-9_]+) \(/gm)].map((m) => `@${m[1]}`);
       const pic = /BEAT PICTURE: (.*)/.exec(user)?.[1] ?? 'a rail yard';
@@ -247,6 +255,18 @@ try {
   const refusedDraft = await draftBriefForSlot(db, slot.id, { db, apiKey: 'test-llm-key', usdInrRate: 88, channelId: CH, client: llmClient });
   check(!refusedDraft.ok && /evolution shape/.test(refusedDraft.error) && /must end on a pass/.test(refusedDraft.error), 'a writer draft that breaks the shape is refused by the brief writer, by name', refusedDraft.ok ? 'accepted' : refusedDraft.error.slice(0, 100));
   writerOutput = decoded(FIXTURE);
+  // The first hosted draft (08-Oct) came back as invalid JSON; the SDK threw from inside
+  // messages.parse and the paid call left NO ledger row. LOAD-BEARING (rule 5): the row is
+  // read from cost_ledger, which the router writes — not from anything this harness wrote.
+  writerBadJson = true;
+  const ledgerBefore = (await q(`select count(*)::int n from cost_ledger where stage = '20-brief' and channel_id = $1`, [CH]))[0].n;
+  const badJson = await draftBriefForSlot(db, slot.id, { db, apiKey: 'test-llm-key', usdInrRate: 88, channelId: CH, client: llmClient }).then((r) => r, (e) => ({ ok: false, error: `threw: ${e.message}` }));
+  const ledgerRows = await q(`select unit, quantity from cost_ledger where stage = '20-brief' and channel_id = $1 order by occurred_at desc, unit limit 2`, [CH]);
+  const ledgerAfter = (await q(`select count(*)::int n from cost_ledger where stage = '20-brief' and channel_id = $1`, [CH]))[0].n;
+  check(!badJson.ok && /did not parse as JSON/.test(badJson.error) && /stop_reason end_turn/.test(badJson.error), 'invalid JSON from the writer is refused as no_parse with its stop reason — not thrown from inside the SDK', badJson.ok ? 'accepted' : badJson.error.slice(0, 160));
+  check(ledgerAfter - ledgerBefore === 2 && ledgerRows.some((r) => r.unit === 'output_token' && Number(r.quantity) === 2100), 'LOAD-BEARING: the unparseable call is still in the ledger, at its 2,100 output tokens (rule 5)', JSON.stringify(ledgerRows));
+  writerBadJson = false;
+
   check(!E.EngineeredDraftSchema.safeParse({ ...FIXTURE, hero_objects: [{ tag: '9bad tag', name: 'x', look: 'a test object, white' }] }).success, 'Zod refuses a hero-object tag the image model cannot take');
 
   // ═══ §3 Hedge ═══
