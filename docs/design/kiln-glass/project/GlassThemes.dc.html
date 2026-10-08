@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln Glass — colour themes</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./glass.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@200;300;400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#141413}
+.tc{display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:22px;border:0;text-align:left;cursor:pointer;color:var(--t1);font-family:var(--display);min-height:44px}
+.tc .swb{height:64px;border-radius:16px;background:var(--act);box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
+.tc.sel{box-shadow:var(--hi),inset 0 0 0 2px var(--act-solid),0 0 30px var(--g1)}
+.mini{position:relative;overflow:hidden;border-radius:22px}
+</style>
+</helmet>
+<div class="{{ rootCls }}" style="width: 1440px; height: 1100px; font-family: var(--display)">
+  <div class="amb" aria-hidden="true"><i class="o1"></i><i class="o2"></i><i class="o3"></i><i class="o4"></i></div>
+  <div class="grain" aria-hidden="true"><svg><filter id="gnt"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" stitchTiles="stitch"></feTurbulence><feColorMatrix type="saturate" values="0"></feColorMatrix></filter><rect width="100%" height="100%" filter="url(#gnt)"></rect></svg></div>
+
+  <div class="lay" style="position: absolute; inset: 0; padding: 40px 48px; display: grid; grid-template-columns: minmax(0, 1fr) 520px; gap: 32px">
+    <section class="col" style="gap: 20px; min-width: 0">
+      <div class="col" style="gap: 6px">
+        <span class="lb">Settings · Appearance · colour theme</span>
+        <span class="disp" style="font-size: 72px">{{ name }}</span>
+        <span class="t2" style="font-size: 16px; max-width: 560px">{{ blurb }}</span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
+        <div class="gp hero" style="grid-column: span 2">
+          <div class="row sb"><span class="lb">Spend this month</span><span class="mono xs t3">of ₹30,000</span></div>
+          <span class="disp num" style="font-size: 84px">₹6,412</span>
+          <div class="gauge"><i style="width: 21%"></i></div>
+        </div>
+        <div class="gp hero">
+          <span class="lb">Cost per video</span>
+          <span class="disp num" style="font-size: 64px; color: var(--t3)">—</span>
+          <span class="xs t3">No video has finished yet.</span>
+        </div>
+      </div>
+
+      <div class="gp" style="padding: 20px 22px; display: flex; flex-direction: column; gap: 16px">
+        <div class="row sb" style="flex-wrap: wrap; gap: 12px">
+          <nav class="tabs" aria-label="Sections"><a class="on" href="#home">Home</a><a href="#studio">Studio</a><a href="#approvals">Approvals</a><a href="#cuts">Cuts</a></nav>
+          <div class="seg" role="group" aria-label="Motion"><button class="on" type="button">Key</button><button type="button">Full</button></div>
+        </div>
+        <div class="row" style="gap: 10px; flex-wrap: wrap">
+          <button class="pbtn" type="button">Draft brief · ₹4–8</button>
+          <button class="gbtn" type="button">Ideas from trends</button>
+          <button class="ibtn" type="button" aria-label="Notifications, 3 unread"><svg class="ic" viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9zM10 20a2 2 0 0 0 4 0"></path></svg><span class="badge">3</span></button>
+          <div class="kill"><span class="lbl2">Kill</span><button class="trk" type="button" aria-label="Kill switch" aria-pressed="false"><span class="knob"></span></button></div>
+        </div>
+        <div class="row" style="gap: 6px; flex-wrap: wrap"><span class="st draft">Draft</span><span class="st gen">Generating</span><span class="st rev">Needs review</span><span class="st blk">Blocked</span><span class="st rdy"><svg class="ic" viewBox="0 0 24 24" style="width: 12px; height: 12px"><path d="M5 12l5 5L20 7"></path></svg>Ready</span><span class="st live">Live</span></div>
+        <div class="chain">
+          <div class="nd ok"><span class="dot"><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg></span><span class="nl">Brief</span><span class="nc">₹5</span></div>
+          <div class="nd ok"><span class="dot"><svg class="ic" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></svg></span><span class="nl">Voice</span><span class="nc">₹24</span></div>
+          <div class="nd run"><span class="dot"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 15l5-5 4 4 3-3 4 4"></path></svg></span><span class="nl">Pictures 4/12</span><span class="nc">₹18</span></div>
+          <div class="nd"><span class="dot"><svg class="ic" viewBox="0 0 24 24"><path d="M4 6h16v12H4zM10 9l5 3-5 3z"></path></svg></span><span class="nl">Clips</span><span class="nc">—</span></div>
+          <div class="nd"><span class="dot"><svg class="ic" viewBox="0 0 24 24"><path d="M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM20 4 8.1 15.9M14.5 14.5 20 20"></path></svg></span><span class="nl">Cut</span><span class="nc">—</span></div>
+          <div class="nd"><span class="dot"><svg class="ic" viewBox="0 0 24 24"><path d="M4 8l8-4 8 4v8l-8 4-8-4zM4 8l8 4 8-4M12 12v8"></path></svg></span><span class="nl">Bundle</span><span class="nc">—</span></div>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+        <div class="orb alert">
+          <div class="row" style="gap: 10px"><span class="ping"></span><span class="lb" style="color: #FFB3B8">Fallback needs approval</span></div>
+          <span class="what">3D explainer could not be made: no hero-object sheet.</span>
+          <div class="row" style="gap: 8px"><button class="pbtn" type="button" style="height: 40px">Run as illustrated</button><button class="gbtn" type="button">Leave it</button></div>
+        </div>
+        <div class="orb calm">
+          <span class="lb" style="color: #B9D3FF">Cut ready</span>
+          <span class="what">Lift safety brakes · 41 s · −16 LUFS</span>
+          <div class="row" style="gap: 8px"><button class="pbtn" type="button" style="height: 40px">Watch</button></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="gp dense" style="padding: 22px; display: flex; flex-direction: column; gap: 16px; align-self: start">
+      <div class="col" style="gap: 4px"><span class="h2">Colour theme</span><span class="xs t3">Every theme is a gradient on graphite glass. Status colours keep their meaning in all of them.</span></div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+        <sc-for list="{{ themes }}" as="t" hint-placeholder-count="6">
+          <button class="{{ t.cls }}" type="button" onClick="{{ t.pick }}" aria-pressed="{{ t.on }}">
+            <span class="swb"></span>
+            <span class="row sb"><span class="h3">{{ t.name }}</span><span class="mono xs t3">{{ t.tag }}</span></span>
+            <span class="mono xs t3">{{ t.hex }}</span>
+          </button>
+        </sc-for>
+      </div>
+      <div class="row sb" style="padding-top: 4px">
+        <span class="sm t2">Reduce transparency</span>
+        <div class="seg" role="group" aria-label="Reduce transparency"><button class="{{ glassOn }}" type="button" onClick="{{ setGlass }}">Glass</button><button class="{{ solidOn }}" type="button" onClick="{{ setSolid }}">Solid</button></div>
+      </div>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["Mint","Ember","Ocean","Aurora","Rose","Graphite"],"default":"Mint"},"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  constructor(p) {
+    super(p);
+    this.state = { pick: null, solid: false };
+  }
+  renderVals() {
+    const T = [
+      { id: 'Mint', cls: 'pa', tag: 'default', hex: '#BFF97E → #98F899 → #CCFFEA', blurb: 'The default. Lime to mint, black ink on the gradient; "ready" is a deeper green with a check so it never reads as a button.' },
+      { id: 'Ember', cls: 'pb', tag: 'warm', hex: '#FFC27A → #FF8A3D → #FF6A2B', blurb: 'Kiln fire. Blocked moves to crimson-pink so it never reads as ember.' },
+      { id: 'Ocean', cls: 'pc', tag: 'blue', hex: '#9FE2FF → #5AA8FF → #8E9BFF', blurb: 'Sky to deep blue. Generating moves to violet so it never reads as the blue action colour.' },
+      { id: 'Aurora', cls: 'pd', tag: 'violet', hex: '#E3B8FF → #A98BFF → #7FE0F0', blurb: 'Violet into cyan — the night-sky option.' },
+      { id: 'Rose', cls: 'pe', tag: 'soft', hex: '#FFD0DE → #F59AC2 → #C9A8FF', blurb: 'Pink to lilac. Blocked moves to orange-red so it never reads as rose.' },
+      { id: 'Graphite', cls: 'pf', tag: 'calm', hex: '#F6F6F4 → #C9CDD3 → #EEF0F3', blurb: 'Silver on graphite — almost no colour, for long sessions. Status colours carry all the meaning.' }
+    ];
+    const cur = this.state.pick ?? this.props.theme ?? 'Mint';
+    const t = T.find((x) => x.id === cur) ?? T[0];
+    return {
+      rootCls: 'g gen ' + t.cls + (this.state.solid ? ' solid' : ''),
+      name: t.id + ' glass',
+      blurb: t.blurb,
+      themes: T.map((x) => ({
+        name: x.id,
+        tag: x.tag,
+        hex: x.hex,
+        on: x.id === t.id,
+        cls: 'tc gp s g ' + x.cls + (x.id === t.id ? ' sel' : ''),
+        pick: () => this.setState({ pick: x.id })
+      })),
+      glassOn: this.state.solid ? '' : 'on',
+      solidOn: this.state.solid ? 'on' : '',
+      setGlass: () => this.setState({ solid: false }),
+      setSolid: () => this.setState({ solid: true })
+    };
+  }
+}
+</script>
+</body>
+</html>

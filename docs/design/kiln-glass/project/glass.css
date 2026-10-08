@@ -1,5 +1,5 @@
 /* ================= Kiln Glass — tokens + components v0.1 ================= */
-/* palette is a class on the root: .pa (Mint glass) or .pb (Ember glass)
+/* palette is a class on the root: .pa Mint · .pb Ember · .pc Ocean · .pd Aurora · .pe Rose · .pf Graphite
    glow state is a class on the root: .idle · .gen · .alert
    reduced transparency: .solid on the root, or the OS setting                */
 .g{
@@ -47,6 +47,47 @@
   --g1:rgba(255,122,48,.36);--g2:rgba(170,30,20,.34);--g3:rgba(255,190,110,.16);--gw:rgba(255,200,120,.32);
   --s-blk:#FF4D6D;          /* pushed toward crimson-pink so blocked never reads as ember */
 }
+
+/* ---- more themes (v0.2): every theme is a gradient; states keep their meaning ---- */
+/* C — Ocean glass (blue) */
+.g.pc{
+  --a1:#9FE2FF;--a2:#5AA8FF;--a3:#8E9BFF;
+  --act:linear-gradient(115deg,var(--a1) 0%,var(--a2) 52%,var(--a3) 100%);
+  --act-ink:#000;--act-solid:#5AA8FF;
+  --glass:rgba(14,20,30,.52);--glass-2:rgba(18,26,40,.68);--solid:#121A27;--solid-2:#172133;
+  --tint:linear-gradient(180deg,rgba(90,168,255,.08),rgba(90,168,255,.015));
+  --g1:rgba(70,150,255,.36);--g2:rgba(120,110,255,.24);--g3:rgba(140,225,255,.20);--gw:rgba(170,220,255,.30);
+  --s-gen:#C3A6FF;          /* generating moves to violet so it never reads as the blue action */
+}
+/* D — Aurora glass (violet → cyan) */
+.g.pd{
+  --a1:#E3B8FF;--a2:#A98BFF;--a3:#7FE0F0;
+  --act:linear-gradient(115deg,var(--a1) 0%,var(--a2) 50%,var(--a3) 100%);
+  --act-ink:#000;--act-solid:#A98BFF;
+  --glass:rgba(20,16,30,.52);--glass-2:rgba(27,22,40,.68);--solid:#191426;--solid-2:#211A33;
+  --tint:linear-gradient(180deg,rgba(169,139,255,.08),rgba(169,139,255,.015));
+  --g1:rgba(160,120,255,.34);--g2:rgba(90,210,235,.22);--g3:rgba(230,170,255,.18);--gw:rgba(200,180,255,.30);
+}
+/* E — Rose glass (pink → lilac) */
+.g.pe{
+  --a1:#FFD0DE;--a2:#F59AC2;--a3:#C9A8FF;
+  --act:linear-gradient(115deg,var(--a1) 0%,var(--a2) 50%,var(--a3) 100%);
+  --act-ink:#000;--act-solid:#F59AC2;
+  --glass:rgba(28,16,22,.52);--glass-2:rgba(37,22,30,.68);--solid:#22141B;--solid-2:#2C1A23;
+  --tint:linear-gradient(180deg,rgba(245,154,194,.08),rgba(245,154,194,.015));
+  --g1:rgba(245,140,190,.32);--g2:rgba(190,150,255,.22);--g3:rgba(255,200,215,.18);--gw:rgba(255,200,225,.28);
+  --s-blk:#FF4A3D;          /* blocked pushed to orange-red so it never reads as rose */
+}
+/* F — Graphite glass (silver, low colour) */
+.g.pf{
+  --a1:#F6F6F4;--a2:#C9CDD3;--a3:#EEF0F3;
+  --act:linear-gradient(115deg,var(--a1) 0%,var(--a2) 50%,var(--a3) 100%);
+  --act-ink:#000;--act-solid:#D7DADF;
+  --glass:rgba(20,20,22,.52);--glass-2:rgba(28,28,31,.68);--solid:#18181A;--solid-2:#202023;
+  --tint:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.01));
+  --g1:rgba(200,205,215,.18);--g2:rgba(150,155,165,.14);--g3:rgba(230,232,236,.12);--gw:rgba(255,255,255,.18);
+}
+
 /* glow state */
 .g.idle{--g1:rgba(150,152,160,.14);--g2:rgba(120,122,130,.10);--g3:rgba(100,100,110,.08);--gw:transparent}
 
