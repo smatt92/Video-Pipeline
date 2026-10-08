@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Ambient } from '@/components/glass/ambient';
 import { htmlAppearance } from '@/lib/appearance/read';
 
 import { fontVariables } from '../fonts';
@@ -28,7 +29,11 @@ export default async function SetupRootLayout({ children }: { children: React.Re
   const look = await htmlAppearance();
   return (
     <html lang="en" data-theme={look['data-theme']} className={`${fontVariables} ${look.className}`.trim()}>
-      <body>{children}</body>
+      <body>
+        {/* The setup frame sits on the same ambient glow as the app, in the theme's colours. */}
+        <Ambient />
+        <div className="lay">{children}</div>
+      </body>
     </html>
   );
 }
