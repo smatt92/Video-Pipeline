@@ -324,7 +324,7 @@ textarea.input{height:auto;padding:10px 12px;min-height:76px;resize:vertical;lin
 .fire i{position:absolute;left:0;top:0;bottom:0;border-radius:inherit;background:linear-gradient(90deg,var(--gen),color-mix(in oklch,var(--gen) 60%,white),var(--gen));background-size:200% 100%;animation:kshim 1.8s linear infinite}
 @keyframes kshim{to{background-position:-200% 0}}
 /* onboarding */
-.ob{display:flex;flex-wrap:wrap;min-height:100vh;background:var(--s0)}
+.ob{display:flex;flex-wrap:wrap;min-height:100vh;background:transparent}
 .ob-spine{flex:1 1 300px;background:var(--in);border-right:1px solid var(--b1)}
 .ob-main{flex:999 1 560px;min-width:0;padding:40px clamp(16px,4vw,64px) 64px;display:flex;flex-direction:column;gap:24px}
 .ob-col{width:100%;max-width:760px;display:flex;flex-direction:column;gap:20px}

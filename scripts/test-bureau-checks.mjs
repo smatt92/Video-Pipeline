@@ -383,5 +383,43 @@ console.log('\nambient glow — derived from rows, alert first, unreadable is no
   check(glowFrom({ running: null, halted: null, unreadAlarms: null }) === 'idle', 'counts that could not be read light nothing');
 }
 
+// ── Kiln Glass Home: the pipeline chain (08-Oct) ──────────────────────────────
+console.log('\npipeline chain — Brief → Voice → Pictures → Clips → Cut → Bundle\n');
+{
+  const { chainStates, costsByNode, nodeForStage, daysBanked, CHAIN_NODES } = require(`${B}/bureau/chain.js`);
+  const st = (status, p, spent) => chainStates(status, p, spent).map((n) => n.state).join(' ');
+  check(CHAIN_NODES.join() === 'brief,voice,pictures,clips,cut,bundle', 'six nodes, in the order an episode moves (voice before pictures)');
+  check(st('voicing') === 'ok run idle idle idle idle', 'voicing → brief done, voice running');
+  check(st('generating', { stills: { done: 4, planned: 12 }, clips: { done: 0, planned: 3 } }) === 'ok ok run idle idle idle', 'generating with pictures left → pictures running');
+  check(st('generating', { stills: { done: 12, planned: 12 }, clips: { done: 1, planned: 3 } }) === 'ok ok ok run idle idle', 'every picture drawn → clips running');
+  check(chainStates('generating', { stills: { done: 4, planned: 12 } })[2].label === 'Pictures 4/12', 'the running node says how far: Pictures 4/12');
+  check(st('awaiting_cut') === 'ok ok ok ok rev idle', 'awaiting_cut → the cut waits for you');
+  check(st('cut_rejected') === 'ok ok ok ok blk idle', 'sent back → the cut is blocked');
+  check(st('bundled') === 'ok ok ok ok ok ok' && st('live') === 'ok ok ok ok ok ok', 'bundled / live → every node done');
+  check(st('halted', { fallback: true }) === 'ok ok blk idle idle idle' && chainStates('halted', { fallback: true })[2].note === 'fallback', 'a fallback halt blocks at pictures and says "fallback"');
+  check(st('failed', {}, new Set(['brief', 'voice'])) === 'ok ok blk idle idle idle', 'a failure blocks at the first node the ledger never reached');
+  check(nodeForStage('05-still') === 'pictures' && nodeForStage('05-generate') === 'clips' && nodeForStage('06-voice') === 'voice' && nodeForStage('dub:hi') === 'bundle' && nodeForStage(null) === null, 'ledger stages map to their nodes');
+  const costs = costsByNode([{ stage: '06-voice', inr: 20 }, { stage: '06-voice', inr: 2 }, { stage: '05-generate', inr: null }, { stage: 'studio', inr: 9 }]);
+  check(costs.get('voice') === 22 && costs.get('clips') === null && !costs.has('pictures') && costs.size === 2, 'node costs sum their rows; one unpriced row makes the node unknown; a node with no row is absent, not 0');
+  check(daysBanked([{ date: '2026-10-08', status: 'bundled' }, { date: '2026-10-09', status: 'generating' }, { date: '2026-10-10', status: 'needs_approval' }, { date: '2026-10-11', status: 'bundled' }], '2026-10-08') === 2, 'days banked counts consecutive covered days from today and stops at the first gap');
+  check(daysBanked(null, '2026-10-08') === null && daysBanked([], '2026-10-08') === 0, 'unreadable slots → null; no slots → 0 days');
+}
+
+// ── Kiln Glass Studio: the Video settings panel reaches draft_brief (08-Oct) ─────
+console.log('\nstudio video settings — folded into the message, validated at the boundary\n');
+{
+  const { foldSettings, settingsFromForm } = require(new URL('../.verify-build/src/lib/studio/video-settings.js', import.meta.url).pathname);
+  const form = (o) => (k) => (k in o ? o[k] : null);
+  const ok = settingsFromForm(form({ video_type: 'engineered', motion: 'full', pace: 'brisk' }));
+  check(ok.ok && ok.settings.video_type === 'engineered', 'a valid panel parses');
+  const folded = foldSettings('Inside camera glasses', ok.settings);
+  check(folded.startsWith('Inside camera glasses\n\n') && folded.includes('video_type "engineered"') && folded.includes('motion full motion ("full")') && folded.includes('voice pace brisk'), 'the type, motion and pace are in the message the model reads', folded);
+  check(foldSettings(folded, ok.settings) === folded, 'folding twice does not repeat the line');
+  const ill = foldSettings('Paperclips', settingsFromForm(form({ video_type: 'illustrated', motion: 'full', pace: 'fast' })).settings);
+  check(!ill.includes('motion'), 'motion is said only for the 3D explainer, where it applies');
+  check(settingsFromForm(form({})).ok && settingsFromForm(form({})).settings === null && foldSettings('x', null) === 'x', 'no panel fields → the message is untouched');
+  check(!settingsFromForm(form({ video_type: 'hologram', motion: 'full', pace: 'brisk' })).ok, 'an unknown type is refused, not passed to the model');
+}
+
 console.log(failures ? `\n${failures} FAILED\n` : '\nAll Bureau rule checks passed.\n');
 process.exit(failures ? 1 : 0);

@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react';
 
+import { Ambient } from '@/components/glass/ambient';
 import { SceneDefs } from '@/components/ui/episode';
 import type { RailData } from '@/lib/shell/rail';
 
@@ -19,27 +20,6 @@ import { TopBar } from './top-bar';
  * The content column scrolls with the document rather than inside a fixed-height box, so a
  * phone's browser chrome can collapse and the page never scrolls sideways at 390px.
  */
-/**
- * The ambient layer (Kiln Glass): three drifting orbs in the theme's glow colours, the
- * generating glow, the one-shot red pulse and a static grain tile. Fixed behind every screen;
- * the shell's `data-glow` decides which of them show (glass.css). Decorative, so hidden from
- * assistive tech, and stilled by reduced motion.
- */
-export function Ambient() {
-  return (
-    <>
-      <div className="amb" aria-hidden="true">
-        <i className="o1" />
-        <i className="o2" />
-        <i className="o3" />
-        <i className="o4" />
-      </div>
-      <div className="redp" aria-hidden="true" />
-      <div className="grain" aria-hidden="true" />
-    </>
-  );
-}
-
 export function AppShell({ children, data }: { children: React.ReactNode; data: RailData }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   useEffect(() => {

@@ -44,6 +44,7 @@
     "src/lib/studio/front-end.ts",
     "src/lib/studio/token.ts",
     "src/lib/studio/read.ts",
+    "src/lib/studio/video-settings.ts",
     // The review lane, minus actions.ts for the same reason.
     "src/lib/review/timeline.ts",
     "src/lib/review/read.ts",
