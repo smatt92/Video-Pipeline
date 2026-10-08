@@ -136,20 +136,33 @@ export async function draftEngineeredBrief(
   const { slot, cb, series } = ctx;
   const narrator = narratorOf(cb, series);
   const { data: recent } = await db.from('briefs').select('premise, hook_archetype, structure_variant').eq('channel_id', deps.channelId).order('created_at', { ascending: false }).limit(14);
-  const result = await routed(
-    {
-      task: 'brief',
-      system: ENGINEERED_SYSTEM,
-      user: engineeredUserMessage({ series, slot: { id: slot.id, topic: slot.topic, hook: slot.hook }, narrator: narrator.name, recent: recent ?? [] }),
-      schema: EngineeredDecodeSchema,
-      maxTokens: 8000,
-      thinking: 'minimal',
-    },
-    { ...deps, subject: { kind: 'channel', channelId: deps.channelId, idempotencyKey: `brief:${slot.id}:${Date.now()}`, stage: '20-brief' } },
-  );
-  const draft = EngineeredDraftSchema.safeParse(draftFromDecoded(result.data));
-  if (!draft.success) return { ok: false, error: `the draft is malformed (${ENGINEERED_PROMPT_REF}): ${draft.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}` };
-  const problems = evolutionProblems(draft.data);
+  // One rewrite when the ONLY problem is length: the model overshoots the word budget it was
+  // given (the first hosted draft, 08-Oct, was 159 against 150), and a shorter retelling of a
+  // good draft is cheaper than refusing it. Any other shape problem is refused as before.
+  const userMessage = engineeredUserMessage({ series, slot: { id: slot.id, topic: slot.topic, hook: slot.hook }, narrator: narrator.name, recent: recent ?? [] });
+  let feedback = '';
+  let draft: ReturnType<typeof EngineeredDraftSchema.safeParse> | null = null;
+  let problems: string[] = [];
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const result = await routed(
+      {
+        task: 'brief',
+        system: ENGINEERED_SYSTEM,
+        user: userMessage + feedback,
+        schema: EngineeredDecodeSchema,
+        maxTokens: 8000,
+        thinking: 'minimal',
+      },
+      { ...deps, subject: { kind: 'channel', channelId: deps.channelId, idempotencyKey: `brief:${slot.id}:${Date.now()}:${attempt}`, stage: '20-brief' } },
+    );
+    draft = EngineeredDraftSchema.safeParse(draftFromDecoded(result.data));
+    if (!draft.success) return { ok: false, error: `the draft is malformed (${ENGINEERED_PROMPT_REF}): ${draft.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')}` };
+    problems = evolutionProblems(draft.data);
+    const onlyLength = problems.length > 0 && problems.every((x) => x.startsWith('the script is ') || /narration is \d+ words/.test(x));
+    if (!onlyLength || attempt === 2) break;
+    feedback = `\n\nYOUR PREVIOUS DRAFT WAS TOO LONG — ${problems.join('; ')}. Write the whole draft again, same story and beats, with every narration line shorter: at most 115 spoken words in total.`;
+  }
+  if (!draft || !draft.success) return { ok: false, error: 'no draft' };
   if (problems.length) return { ok: false, error: `the draft does not have the evolution shape (${ENGINEERED_PROMPT_REF}): ${problems.join('; ')}` };
   const ep = slot.episode ? /^S(\d+)E(\d+)$/.exec(slot.episode) : null;
   const candidate = {

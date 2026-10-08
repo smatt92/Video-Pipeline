@@ -143,6 +143,7 @@ const decoded = (d) => ({
 });
 let writerOutput = decoded(FIXTURE);
 let writerBadJson = false;
+const writerQueue = [];
 const llmCalls = [];
 const llmClient = {
   messages: {
@@ -157,6 +158,7 @@ const llmClient = {
         const parsed_output = fmt.parse('{"premise": "an unterminated stri');
         return { usage: { input_tokens: 1500, output_tokens: 2100 }, stop_reason: 'end_turn', parsed_output };
       }
+      if (/3D explainers/.test(system) && writerQueue.length) return { usage: { input_tokens: 1500, output_tokens: 3000 }, stop_reason: 'end_turn', parsed_output: writerQueue.shift() };
       if (/3D explainers/.test(system)) return { usage: { input_tokens: 1500, output_tokens: 3000 }, stop_reason: 'end_turn', parsed_output: writerOutput };
       const tags = [...user.matchAll(/^- @([A-Za-z0-9_]+) \(/gm)].map((m) => `@${m[1]}`);
       const pic = /BEAT PICTURE: (.*)/.exec(user)?.[1] ?? 'a rail yard';
@@ -268,6 +270,17 @@ try {
   check(ledgerAfter - ledgerBefore === 2 && ledgerRows.some((r) => r.unit === 'output_token' && Number(r.quantity) === 2100), 'LOAD-BEARING: the unparseable call is still in the ledger, at its 2,100 output tokens (rule 5)', JSON.stringify(ledgerRows));
   writerBadJson = false;
 
+  // Too long once (the first hosted draft: 159 words against 150): ONE rewrite, told why.
+  const padded = { ...FIXTURE, beats: FIXTURE.beats.map((b) => ({ ...b, narration: `${b.narration} and then again and again and again and again` })) };
+  const before = llmCalls.filter((c) => /3D explainers/.test(c.system)).length;
+  writerQueue.push(decoded(padded), decoded(FIXTURE));
+  const rewritten = await draftBriefForSlot(db, slot.id, { db, apiKey: 'test-llm-key', usdInrRate: 88, channelId: CH, client: llmClient });
+  const writerCalls = llmCalls.filter((c) => /3D explainers/.test(c.system)).slice(before);
+  check(rewritten.ok && writerCalls.length === 2 && /YOUR PREVIOUS DRAFT WAS TOO LONG — the script is \d+ words/.test(writerCalls[1].user) && !/TOO LONG/.test(writerCalls[0].user),
+    'a draft over the word budget is rewritten ONCE, told its length — and the rewrite becomes the brief', rewritten.ok ? `${writerCalls.length} calls` : rewritten.error);
+  writerQueue.push(decoded(padded), decoded(padded));
+  const tooLong = await draftBriefForSlot(db, slot.id, { db, apiKey: 'test-llm-key', usdInrRate: 88, channelId: CH, client: llmClient });
+  check(!tooLong.ok && /the script is \d+ words/.test(tooLong.error) && writerQueue.length === 0, 'too long twice: refused by name, no third call', tooLong.ok ? 'accepted' : tooLong.error.slice(0, 120));
   check(!E.EngineeredDraftSchema.safeParse({ ...FIXTURE, hero_objects: [{ tag: '9bad tag', name: 'x', look: 'a test object, white' }] }).success, 'Zod refuses a hero-object tag the image model cannot take');
 
   // ═══ §3 Hedge ═══
