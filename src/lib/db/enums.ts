@@ -319,7 +319,7 @@ export const dubStatus = z.enum([
 ]);
 export const memoCreator = z.enum(['agent', 'approver', 'system']);
 export const notificationKind = z.enum([
-  'briefs_pending', 'cut_ready', 'cap_80', 'policy_flag', 'qc_failed', 'kill_switch', 'info',
+  'briefs_pending', 'cut_ready', 'cap_80', 'policy_flag', 'qc_failed', 'kill_switch', 'info', 'fallback',
 ]);
 
 /** 0049: when a bundle sets the altered/synthetic flag (Settings → Publishing). No "never". */

@@ -2870,6 +2870,20 @@ export type Database = {
             referencedRelation: "episodes"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "notifications_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "v_episode_spend"
+            referencedColumns: ["episode_id"]
+          },
+          {
+            foreignKeyName: "notifications_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "v_slot_status"
+            referencedColumns: ["episode_id"]
+          },
         ]
       }
       oauth_clients: {
