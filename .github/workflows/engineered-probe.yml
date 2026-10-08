@@ -79,16 +79,15 @@ jobs:
         # the container this is usually read from cannot reach; annotations come over the API.
         shell: bash
         run: |
-          set -o pipefail
+          set +e -o pipefail
           mkdir -p out/engineered-probe
           if [ "${{ inputs.step }}" = "brief" ]; then
-            pnpm probe:engineered --brief --slot "${{ inputs.slot }}" --max-inr "${{ inputs.max_inr }}" 2>&1 | tee out/engineered-probe/output.txt
+            pnpm probe:engineered --brief --slot "${{ inputs.slot }}" --max-inr "${{ inputs.max_inr }}" 2>&1 | tee out/engineered-probe/output.txt; code=$?
           elif [ "${{ inputs.step }}" = "proof" ]; then
-            pnpm probe:engineered --proof --max-inr "${{ inputs.max_inr }}" 2>&1 | tee out/engineered-probe/output.txt
+            pnpm probe:engineered --proof --max-inr "${{ inputs.max_inr }}" 2>&1 | tee out/engineered-probe/output.txt; code=$?
           else
             echo "::error::step must be brief or proof"; exit 2
           fi
-          code=$?
           grep -v 'JPEG BASE64\|^[A-Za-z0-9+/=]\{100,\}$' out/engineered-probe/output.txt | tail -c 60000 | fold -w 3000 | while IFS= read -r line; do echo "::notice title=probe::${line//%/%25}"; done
           exit $code
 
