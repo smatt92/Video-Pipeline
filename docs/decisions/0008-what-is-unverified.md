@@ -1512,6 +1512,16 @@ the Approvals motion choice and the Cuts hero-object card in a browser; `28-obje
 worker; a whole engineered episode end to end; the narrator voice preset ("James") never
 auditioned.
 
+**First real run, 08-Oct (hosted rows, read-only select):** bundle 10 pasted; brief `80f5431b` (B26,
+lift safety brakes) drafted by the probe, approved as Full motion; episode `20d2319a` bundled. The
+three object sheets were made and locked, but **all 13 pictures were refused by the vendor** —
+"Unsupported Content-Type response header: video/mp4" on every reference URI, because every upload
+was stored as video/mp4 — so every beat fell back to the chalk overlay and no clip ran. No harness
+could see it: the stubs never check a stored object's type. Fixed in `10f579d` (labels by extension,
+`storage:retype` for stored objects, a mostly-refused 3D explainer now halts). **Still unverified:**
+a 3D picture drawn with a sheet reference on the worker path, a picture clip, an engineered cut that
+is not chalk.
+
 ## Gates, and where each can run
 
 | Gate | Runnable in this environment? |
