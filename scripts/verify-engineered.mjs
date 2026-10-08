@@ -62,6 +62,7 @@ const { createChannel, importFolderBible } = require(`${B}/channels/bible-admin.
 const { setPublishTarget } = require(`${B}/channels/add.js`);
 const { getBible } = require(`${B}/bureau/bible.js`);
 const P = require(`${B}/bureau/episode-steps.js`);
+const C = require(`${B}/bureau/control.js`);
 const F = require(`${B}/bureau/formats.js`);
 const E = require(`${B}/bureau/engineered.js`);
 const { unhedgedNumbers } = require(`${B}/bureau/hedge.js`);
@@ -605,6 +606,10 @@ try {
   check(preOpts.options.find((o) => o.format === 'engineered').disabled === pre.reason, 'Approvals disables the type with that reason');
   const p0 = await approvedEpisode('pre', { visual_format: 'engineered', motion: 'key' });
   await P.prepareScript(db, p0.episodeId, { apiKey: null, usdInrRate: 88 });
+  const p0Asked = await P.planShots(db, p0.episodeId, { usdInrRate: 88, actedBeatAvailable: false });
+  const [p0Halt] = await q('select status, status_detail from episodes where id = $1', [p0.episodeId]);
+  check(p0Asked.awaitingFallback && p0Halt.status === 'halted' && /3D explainer could not be made/.test(p0Halt.status_detail), 'the planner does not swap it for illustrated on its own — it halts and asks', JSON.stringify(p0Halt));
+  await C.acceptFormatFallback(db, approver, { startEpisode: async () => 'run_fb' }, { episode_id: p0.episodeId });
   await P.planShots(db, p0.episodeId, { usdInrRate: 88, actedBeatAvailable: false });
   const [p0Ep] = await q('select qc from episodes where id = $1', [p0.episodeId]);
   const p0Routes = (await q('select render_route from shots s join episodes e on e.script_id = s.script_id where e.id = $1', [p0.episodeId])).map((r) => r.render_route);

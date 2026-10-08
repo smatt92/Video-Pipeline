@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { FORMAT_FALLBACK_PREFIX } from '../bureau/fallbacks';
 import { routeClient } from '../auth/supabase';
 import { readSetupProgress } from '../onboarding/progress';
 import { currentChannel } from '../channels/active';
@@ -37,6 +38,8 @@ export interface RailData {
     blocked: number | null;
     ready: number | null;
     genFailed: number | null;
+    /** Unread alerts (0053). null before 0053 is pasted: cannot be counted, so no badge. */
+    unread: number | null;
   };
   /** Kill switch for the active channel. null = no policy row (or not readable). */
   kill: { on: boolean; reason: string | null } | null;
@@ -65,7 +68,7 @@ export async function railData(): Promise<RailData> {
   const empty: RailData = {
     channels: [],
     activeId: null,
-    counts: { approvals: null, cuts: null, blocked: null, ready: null, genFailed: null },
+    counts: { approvals: null, cuts: null, blocked: null, ready: null, genFailed: null, unread: null },
     kill: null,
     user: null,
     slots: [],
@@ -107,8 +110,11 @@ export async function railData(): Promise<RailData> {
   if (!active) return { ...empty, user: await userP, setup: await setupP };
   const ch = active.id;
 
-  const [approvals, cuts, blocked, ready, genFailed, kill, slots, briefs, user, setup] = await Promise.all([
+  const [briefsPending, fallbacks, unread, cuts, blocked, ready, genFailed, kill, slots, briefs, user, setup] = await Promise.all([
     countOf(db.from('briefs').select('id', { count: 'exact', head: true }).eq('channel_id', ch).eq('status', 'pending')),
+    // A format fallback waiting on the approver is an approval too (fallbacks.ts), so it counts on the badge.
+    countOf(db.from('episodes').select('id', { count: 'exact', head: true }).eq('channel_id', ch).eq('status', 'halted').like('status_detail', `${FORMAT_FALLBACK_PREFIX}%`)),
+    countOf(db.from('notifications').select('id', { count: 'exact', head: true }).eq('channel_id', ch).is('read_at', null)),
     countOf(db.from('episodes').select('id', { count: 'exact', head: true }).eq('channel_id', ch).eq('status', 'awaiting_cut')),
     countOf(db.from('episodes').select('id', { count: 'exact', head: true }).eq('channel_id', ch).in('status', ['failed', 'halted'])),
     countOf(db.from('episodes').select('id', { count: 'exact', head: true }).eq('channel_id', ch).eq('status', 'bundled')),
@@ -158,5 +164,6 @@ export async function railData(): Promise<RailData> {
     setupP,
   ]);
 
-  return { ...empty, counts: { approvals, cuts, blocked, ready, genFailed }, kill, slots, pendingBriefs: briefs, user, setup };
+  const approvals = briefsPending === null ? null : briefsPending + (fallbacks ?? 0);
+  return { ...empty, counts: { approvals, cuts, blocked, ready, genFailed, unread }, kill, slots, pendingBriefs: briefs, user, setup };
 }

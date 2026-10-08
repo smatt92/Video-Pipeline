@@ -1,6 +1,7 @@
 import Link from 'next/link';
 
 import { ApprovalDesk } from '@/components/bureau/approval-card';
+import { FallbackDecision } from '@/components/notifications/controls';
 import { ScreenHeader } from '@/components/shell/screen-header';
 import { Bust } from '@/components/ui/bust';
 import { inr, Note } from '@/components/ui/card';
@@ -10,6 +11,7 @@ import { pendingBriefs } from '@/lib/bureau/briefs';
 import { formatOptions } from '@/lib/bureau/format-estimates';
 import { bibleOrNull, requireChannel } from '@/lib/channels/active';
 import { serverClient } from '@/lib/db/server';
+import { fallbacksWaiting } from '@/lib/notifications/centre';
 import { castFor, channelPolicy, longDate, titleOf, todayIn, tzAbbrev, upcomingSlots } from '@/lib/screens/common';
 
 export const dynamic = 'force-dynamic';
@@ -87,7 +89,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
   const channel = await requireChannel();
   const bible = bibleOrNull(channel);
   const db = serverClient();
-  const [briefs, policy] = await Promise.all([pendingBriefs(db, channel.id), channelPolicy(db, channel.id)]);
+  const [briefs, policy, waiting] = await Promise.all([pendingBriefs(db, channel.id), channelPolicy(db, channel.id), fallbacksWaiting(db, channel.id).catch(() => [])]);
   const tz = policy?.tz ?? 'Asia/Kolkata';
   const slots = await upcomingSlots(db, channel.id, todayIn(tz), 8).catch(() => []);
   const briefSlots = new Set(briefs.map((b) => b.slot_id));
@@ -97,7 +99,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
       channel={channel}
       crumb="Approvals"
       title="Approvals"
-      sub={briefs.length === 0 ? 'Nothing waiting' : `${briefs.length} brief${briefs.length === 1 ? '' : 's'} waiting`}
+      sub={briefs.length + waiting.length === 0 ? 'Nothing waiting' : [briefs.length ? `${briefs.length} brief${briefs.length === 1 ? '' : 's'}` : null, waiting.length ? `${waiting.length} fallback${waiting.length === 1 ? '' : 's'}` : null].filter(Boolean).join(' · ') + ' waiting'}
       actions={
         <>
           <span className="chip on">Briefs · {briefs.length}</span>
@@ -107,10 +109,28 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
     />
   );
 
+  // Format fallbacks waiting on the approver (fallbacks.ts): an approval like a brief, above it.
+  const fallbackCards = waiting.length ? (
+    <section className="col" style={{ gap: 10 }} aria-label="Fallbacks waiting">
+      {waiting.map((w) => (
+        <article className="card card-b col" key={w.episodeId} style={{ gap: 8, borderColor: 'var(--rev)', background: 'var(--rev-wash)' }}>
+          <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+            <Pill tone="rev">Fallback needs approval</Pill>
+            <span className="mono xs t3">episode {w.episodeId.slice(0, 8)}{w.slotId ? ` · ${w.slotId}` : ''}</span>
+          </div>
+          {w.premise && <span className="sm" style={{ fontWeight: 500 }}>{w.premise}</span>}
+          <span className="sm t2">{w.reason}</span>
+          <FallbackDecision episodeId={w.episodeId} />
+        </article>
+      ))}
+    </section>
+  ) : null;
+
   if (briefs.length === 0) {
     return (
       <main className="main">
         {header}
+        {fallbackCards}
         <div className="empty" style={{ padding: 40 }}>
           <span style={{ color: 'var(--t2)', fontWeight: 500 }}>Nothing waiting</span>
           <span>New briefs land here when the agent drafts them for a slot. Approving one starts its run.</span>
@@ -411,6 +431,7 @@ export default async function ApprovalsPage({ searchParams }: { searchParams: Pr
   return (
     <main className="main">
       {header}
+      {fallbackCards}
       <ApprovalDesk
         key={b.id}
         brief={{ id: b.id, slot: b.slot_id, premise: b.premise, punchlines: (Array.isArray(b.punchlines) ? b.punchlines : []).map(String) }}

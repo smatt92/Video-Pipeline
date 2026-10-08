@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 import { afterBundle } from '@/lib/bureau/after-bundle';
 import { notify } from '@/lib/bureau/alerts';
+import { describeSwaps } from '@/lib/bureau/fallbacks';
 import {
   type AssembleDeps,
   assembleEpisode,
@@ -113,10 +114,18 @@ export const episodeTask = schemaTask({
       const acted = (await usability(db, PROVIDER_INTEGRATION[ROUTE_PROVIDERS.acted_beat.primary])).usable;
       const { data: kindRow } = await db.from('episodes').select('kind').eq('id', episodeId).single();
       const longForm = kindRow?.kind === 'long_form';
-      const plan = longForm
-        ? await planLongForm(db, episodeId, { usdInrRate })
-        : await planShots(db, episodeId, { usdInrRate, actedBeatAvailable: acted, log: logger });
+      const shortPlan = longForm ? null : await planShots(db, episodeId, { usdInrRate, actedBeatAvailable: acted, log: logger });
+      const plan = shortPlan ?? (await planLongForm(db, episodeId, { usdInrRate }));
       logger.info('shots planned', plan);
+      // A format that cannot be made is asked, not swapped (fallbacks.ts): planShots halted it.
+      if (shortPlan?.awaitingFallback) {
+        await notify(db, channelId, 'fallback', `Episode ${episodeId.slice(0, 8)} is waiting on you: ${shortPlan.awaitingFallback} Run it as illustrated, or leave it, on Notifications.`, { episodeId });
+        return { halted: 'awaiting_fallback' };
+      }
+      const planFallbacks = shortPlan ? describeSwaps(shortPlan.fallbacks) : null;
+      if (planFallbacks) {
+        await notify(db, channelId, 'fallback', `Episode ${episodeId.slice(0, 8)} was planned with fallbacks: ${planFallbacks}.`, { episodeId, dedupeKey: `fallback:plan:${episodeId}:${ctx.run.id}` });
+      }
 
       // 3. Voice — before any video, because it sets the durations
       const speak = (pass: { model?: TtsModelName; overflowReason?: string }) =>
@@ -152,11 +161,14 @@ export const episodeTask = schemaTask({
         attempt = await voiceWithOverflow(speak, overflowOn);
       }
       const voice = attempt.voice;
-      if (attempt.path === 'overflow' && voice.ok) logger.info('voiced on the second model (overflow)', { lines: voice.lines, respoken: voice.respoken });
+      if (attempt.path === 'overflow' && voice.ok) {
+        logger.info('voiced on the second model (overflow)', { lines: voice.lines, respoken: voice.respoken });
+        await notify(db, channelId, 'fallback', `Episode ${episodeId.slice(0, 8)} was voiced on the second voice model (voice overflow is on): the main model's daily limit was reached.`, { episodeId, dedupeKey: `fallback:voice:${episodeId}:${ctx.run.id}` });
+      }
       if (!voice.ok) {
         await setStatus(db, episodeId, 'halted', `${voice.code}: ${voice.detail}`);
         const hint = voice.code === 'synth_rate_limited' ? `The voice vendor's daily limit held for 24 h${overflowOn ? ' on both models' : ''}; restart the run later.` : 'Fix the voice on Voices, then restart the run.';
-        await notify(db, channelId, 'qc_failed', `Kiln stopped episode ${episodeId.slice(0, 8)} at voice: ${voice.detail} ${hint}`);
+        await notify(db, channelId, 'qc_failed', `Kiln stopped episode ${episodeId.slice(0, 8)} at voice: ${voice.detail} ${hint}`, { episodeId });
         return { halted: voice.code };
       }
 
@@ -197,8 +209,12 @@ export const episodeTask = schemaTask({
         logger.info('stills', st);
         if (st.halt) {
           await setStatus(db, episodeId, 'halted', st.halt);
-          await notify(db, channelId, 'qc_failed', `Kiln stopped episode ${episodeId.slice(0, 8)} at pictures: ${st.halt} Fix it, then restart the run.`);
+          await notify(db, channelId, 'qc_failed', `Kiln stopped episode ${episodeId.slice(0, 8)} at pictures: ${st.halt} Fix it, then restart the run.`, { episodeId });
           return { halted: 'pictures_refused' };
+        }
+        if (st.fellBack.length) {
+          const first = st.fellBack[0];
+          await notify(db, channelId, 'fallback', `Episode ${episodeId.slice(0, 8)}: ${st.fellBack.length} picture${st.fellBack.length === 1 ? '' : 's'} could not be made and ${st.fellBack.length === 1 ? 'is' : 'are'} drawn as chalk diagrams (shot ${first.idx + 1}: ${first.reason.slice(0, 160)}). Re-roll on Cuts.`, { episodeId, dedupeKey: `fallback:stills:${episodeId}:${ctx.run.id}` });
         }
       }
 
@@ -234,7 +250,7 @@ export const episodeTask = schemaTask({
           log: logger,
         });
         logger.info('qc', qc);
-        if (qc.flagged) await notify(db, channelId, 'qc_failed', `Episode ${episodeId.slice(0, 8)} · ${qc.flagged} clip${qc.flagged === 1 ? '' : 's'} failed QC after re-rolls. Regenerate or send back on Cuts.`);
+        if (qc.flagged) await notify(db, channelId, 'qc_failed', `Episode ${episodeId.slice(0, 8)} · ${qc.flagged} clip${qc.flagged === 1 ? '' : 's'} failed QC after re-rolls. Regenerate or send back on Cuts.`, { episodeId });
         if (qc.rerolled === 0) break;
       }
 
@@ -278,7 +294,7 @@ export const episodeTask = schemaTask({
       for (let attempt = 0; attempt < 3; attempt++) {
         const token = await wait.createToken({ timeout: '14d', idempotencyKey: `cut:${episodeId}:${ctx.run.id}:${attempt}`, tags: [`episode:${episodeId}`] });
         await db.from('episodes').update({ cut_wait_token: token.id, status: 'awaiting_cut', status_detail: null }).eq('id', episodeId);
-        await notify(db, channelId, 'cut_ready', `Cut ready for episode ${episodeId.slice(0, 8)} · ${(assembled.frames / FPS).toFixed(1)} s · ${lufs === null ? 'loudness — (unmeasured)' : `${lufs} LUFS`}. Watch it on Cuts.`);
+        await notify(db, channelId, 'cut_ready', `Cut ready for episode ${episodeId.slice(0, 8)} · ${(assembled.frames / FPS).toFixed(1)} s · ${lufs === null ? 'loudness — (unmeasured)' : `${lufs} LUFS`}. Watch it on Cuts.`, { episodeId });
         const decision = await wait.forToken<{ approved: boolean; note: string | null }>(token);
         if (!decision.ok) {
           await setStatus(db, episodeId, 'halted', 'cut review timed out after 14 days');
@@ -303,7 +319,7 @@ export const episodeTask = schemaTask({
           const next = await afterBundle(db, b.publicationId, {
             startUpload: async (publicationId) => (await tasks.trigger('10-publish', { publicationId, idempotencyKey: `publish:${publicationId}` })).id,
           });
-          await notify(db, channelId, 'info', `Bundle ready for episode ${episodeId.slice(0, 8)}${b.slotTime ? ` · slot ${b.slotTime}` : ''}. YouTube: ${next.youtube}. Instagram: ${ig.ok ? 'Reels draft ready' : ig.refused}. Download it on Ready.`);
+          await notify(db, channelId, 'info', `Bundle ready for episode ${episodeId.slice(0, 8)}${b.slotTime ? ` · slot ${b.slotTime}` : ''}. YouTube: ${next.youtube}. Instagram: ${ig.ok ? 'Reels draft ready' : ig.refused}. Download it on Ready.`, { episodeId });
           return { bundled: b.publicationId, ...next };
         }
         // Rejected: re-rolls queued by shot_regenerate are generated, then the cut is rebuilt.

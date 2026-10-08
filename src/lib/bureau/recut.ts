@@ -34,17 +34,26 @@ export async function stillsForRecut(db: Db, episodeId: string): Promise<RecutPl
   const stills = await stillsAvailability(db, e.channel_id);
   if (!stills.available) return { ok: false, converted: 0, reason: stills.reason };
 
-  const { data: rows, error: uErr } = await db
-    .from('shots')
-    .update({ render_route: 'still' })
-    .eq('script_id', e.script_id)
-    .eq('render_route', 'overlay')
-    .select('idx');
-  if (uErr) return { ok: false, converted: 0, reason: `the shots could not be re-planned: ${uErr.message}` };
-  const converted = rows?.length ?? 0;
-
+  // A shot that was PLANNED as a picture clip and only fell back to an overlay because its
+  // picture failed goes back to being a clip, not a still: B26 (08-Oct) was approved with
+  // full motion, every picture was refused, and the re-cut flattened its clip shots to stills —
+  // the motion Sahil picked, lost by the path meant to repair the cut. The plan's own swap
+  // record says which shots those were.
   const qc = (e.qc ?? {}) as { plan?: Record<string, unknown> };
-  const plan = { ...(qc.plan ?? {}), stills: 'available', recut: { at: new Date().toISOString(), to_still: (rows ?? []).map((r) => r.idx).sort((a, b) => a - b) } };
+  const swaps = ((qc.plan?.swaps as { idx: number; from: string; to: string }[] | undefined) ?? []);
+  const wasClip = new Set(swaps.filter((w) => w.to === 'overlay' && w.from === 'picture_clip').map((w) => w.idx));
+  const { data: overlays, error: rErr } = await db.from('shots').select('id, idx').eq('script_id', e.script_id).eq('render_route', 'overlay');
+  if (rErr) return { ok: false, converted: 0, reason: `the shots could not be read: ${rErr.message}` };
+  const toClip = (overlays ?? []).filter((r) => wasClip.has(r.idx));
+  const toStill = (overlays ?? []).filter((r) => !wasClip.has(r.idx));
+  for (const [route, list] of [['picture_clip', toClip], ['still', toStill]] as const) {
+    if (!list.length) continue;
+    const { error: uErr } = await db.from('shots').update({ render_route: route }).in('id', list.map((r) => r.id));
+    if (uErr) return { ok: false, converted: 0, reason: `the shots could not be re-planned: ${uErr.message}` };
+  }
+  const converted = toClip.length + toStill.length;
+  const sorted = (l: { idx: number }[]) => l.map((r) => r.idx).sort((a, b) => a - b);
+  const plan = { ...(qc.plan ?? {}), stills: 'available', recut: { at: new Date().toISOString(), to_still: sorted(toStill), to_clip: sorted(toClip) } };
   await db.from('episodes').update({ qc: { ...qc, plan } as unknown as Json }).eq('id', episodeId);
   return { ok: true, converted, stills: 'available' };
 }

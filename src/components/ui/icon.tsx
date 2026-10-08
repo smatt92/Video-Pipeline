@@ -49,6 +49,7 @@ export const ICONS = {
   chevron: 'M9 6l6 6-6 6',
   back: 'M15 6l-6 6 6 6',
   mail: 'M4 6h16v12H4zM4 7l8 6 8-6',
+  bell: 'M6 16V11a6 6 0 0 1 12 0v5l2 2H4zM10 21h4',
   user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
 } as const;
 

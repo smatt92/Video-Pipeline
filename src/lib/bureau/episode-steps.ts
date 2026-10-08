@@ -22,7 +22,8 @@ import { normaliseOverlay, type OverlaySpec } from '../../remotion/bureau/overla
 import type { BureauShot, BureauVideoProps } from '../../remotion/bureau/bureau-video';
 import { getBible, STORAGE_REF_PREFIX, syncCast, voiceOverrides, type ChannelBible, type Series } from './bible';
 import { estimateEpisode, isVideoRoute, PlannedShotSchema, recipeForRoute, type PlannedShot } from './estimate';
-import { formatOf, motionOf, paceOf, pictureSpans, picturesFor, routesForFormat, type PictureSpan } from './formats';
+import { FORMAT_FALLBACK_PREFIX } from './fallbacks';
+import { FORMAT_INFO, formatOf, motionOf, paceOf, pictureSpans, picturesFor, routesForFormat, type PictureSpan } from './formats';
 import { engineeredAvailability, engineeredLook, heroObjectsOf } from './engineered';
 import { graphicsOf, type ShotGraphics } from './graphics';
 import { lockedObjects, objectRefs, prepareObjectSheets } from './object-sheets';
@@ -257,11 +258,19 @@ export async function planShots(
   db: Db,
   episodeId: string,
   deps: { usdInrRate: number; actedBeatAvailable: boolean; log?: StepLog },
-): Promise<{ shots: number; swaps: { idx: number; from: string; reason: string }[]; estimateInr: number | null }> {
+): Promise<{
+  shots: number;
+  swaps: { idx: number; from: string; reason: string }[];
+  /** The swaps that made the cut cheaper or lower than planned — not the format's own routing. Told as a 'fallback' notification. */
+  fallbacks: { idx: number; from: string; to?: string; reason: string }[];
+  estimateInr: number | null;
+  /** Set when the picked format cannot be made: the episode is halted waiting for the approver (fallbacks.ts). */
+  awaitingFallback?: string;
+}> {
   const { e, b, cb } = await loadEpisode(db, episodeId);
   if (!e.script_id) throw new Error('planShots before prepareScript');
   const { count } = await db.from('shots').select('id', { count: 'exact', head: true }).eq('script_id', e.script_id);
-  if ((count ?? 0) > 0) return { shots: count ?? 0, swaps: [], estimateInr: e.estimate_inr === null ? null : Number(e.estimate_inr) };
+  if ((count ?? 0) > 0) return { shots: count ?? 0, swaps: [], fallbacks: [], estimateInr: e.estimate_inr === null ? null : Number(e.estimate_inr) };
   await setStatus(db, episodeId, 'shotlisting');
 
   const { data: script } = await db.from('scripts').select('beats, vo_text').eq('id', e.script_id).single();
@@ -291,6 +300,14 @@ export async function planShots(
     const avail = await engineeredAvailability(db);
     if (!avail.available) fmt = { format: 'illustrated', source: asked.source, requested: 'engineered', fallback_reason: avail.reason };
   }
+  // A format fallback is asked, never taken (fallbacks.ts). Before any shot row or any spend:
+  // the episode halts with the reason, and "Run as illustrated" sets qc.fallback_ok and
+  // restarts — the only way this branch is passed.
+  if (fmt.requested && !(e.qc as { fallback_ok?: unknown } | null)?.fallback_ok) {
+    const why = `${FORMAT_INFO[fmt.requested].label} could not be made — ${fmt.fallback_reason ?? 'no reason recorded'}. Kiln has not swapped it for ${FORMAT_INFO[fmt.format].label.toLowerCase()} on its own.`;
+    await setStatus(db, episodeId, 'halted', `${FORMAT_FALLBACK_PREFIX}${why}`);
+    return { shots: 0, swaps: [], fallbacks: [], estimateInr: null, awaitingFallback: why };
+  }
   const engineered = fmt.format === 'engineered';
   const motion = motionOf({ approvedEdits: b.approved_edits, seriesMotion: series.motion });
   const heroObjects = engineered ? heroObjectsOf((b as { hero_objects?: unknown }).hero_objects) : [];
@@ -300,6 +317,7 @@ export async function planShots(
   // a picture when the format draws pictures, and to the chalk overlay otherwise.
   const fallback = stills.available && fmt.format !== 'diagram' ? ('still' as const) : ('overlay' as const);
   const pre: { idx: number; from: string; reason: string; to?: string }[] = [...routed.swaps];
+  const formatSwaps = routed.swaps.length;
   const { data: chars } = await db.from('characters').select('slug, external_ref_id, reference_urls').eq('channel_id', e.channel_id);
   const withRef = new Set((chars ?? []).filter((c) => c.external_ref_id).map((c) => c.slug));
   const adjusted = routed.shots.map((s, idx) => {
@@ -365,7 +383,7 @@ export async function planShots(
       updated_at: new Date().toISOString(),
     })
     .eq('id', episodeId);
-  return { shots: rows.length, swaps, estimateInr: finalEst.total_inr };
+  return { shots: rows.length, swaps, fallbacks: [...pre.slice(formatSwaps), ...fit.swaps], estimateInr: finalEst.total_inr };
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

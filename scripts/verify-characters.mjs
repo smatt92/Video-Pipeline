@@ -44,6 +44,10 @@ const { getBible } = require(`${B}/bureau/bible.js`);
 const P = require(`${B}/bureau/episode-steps.js`);
 const S = require(`${B}/bureau/character-sheets.js`);
 const PC = require(`${B}/bureau/picture-cast.js`);
+const C = require(`${B}/bureau/control.js`);
+const FB = require(`${B}/bureau/fallbacks.js`);
+const NC = require(`${B}/notifications/centre.js`);
+const A = require(`${B}/bureau/alerts.js`);
 const { stillPromptFor, generateStillForShot } = require(`${B}/bureau/stills.js`);
 const { formatOptions } = require(`${B}/bureau/format-estimates.js`);
 const { parseScript } = require(`${B}/bureau/script-lines.js`);
@@ -158,10 +162,34 @@ try {
   check(ch0?.disabled === 'no locked character sheets — Library → Characters' && il0?.disabled === null, 'Approvals: Cartoon characters is offered, disabled, with the reason; Illustrated is not disabled', JSON.stringify(ch0));
   check(ch0?.label === 'Cartoon characters' && ch0.inr !== null && ch0.inr === il0?.inr, 'it is still priced, at exactly the illustrated figure', `${ch0?.inr} vs ${il0?.inr}`);
   const e0 = await episode('zero', 'characters');
+  // A format fallback is asked, not taken (fallbacks.ts, 08-Oct): the first plan stops.
+  const asked0 = await P.planShots(db, e0.episodeId, { usdInrRate: 88, actedBeatAvailable: false });
+  const [halt0] = await q('select status, status_detail from episodes where id = $1', [e0.episodeId]);
+  const [{ n: shots0 }] = await q('select count(*)::int as n from shots where script_id = $1', [e0.scriptId]);
+  check(asked0.awaitingFallback && halt0.status === 'halted' && halt0.status_detail.startsWith(FB.FORMAT_FALLBACK_PREFIX) && /Cartoon characters could not be made — no locked character sheets/.test(halt0.status_detail) && shots0 === 0,
+    'LOAD-BEARING (refusal): characters with no locked sheet halts waiting on the approver — no shot row, nothing spent, the reason named', JSON.stringify({ halt0, shots0 }));
+  const listed0 = await NC.fallbacksWaiting(db, CH);
+  check(listed0.length === 1 && listed0[0].episodeId === e0.episodeId, 'Notifications and Approvals list it as waiting (read from the episode row)', JSON.stringify(listed0));
+  const starts0 = [];
+  const fx0 = { startEpisode: async (id, key) => (starts0.push({ id, key }), 'run_fallback_1') };
+  let agentRefused = null;
+  try { await C.acceptFormatFallback(db, agent, fx0, { episode_id: e0.episodeId }); } catch (err) { agentRefused = err.message; }
+  check(/approver scope/.test(agentRefused ?? '') && starts0.length === 0, 'an agent token cannot accept a fallback', agentRefused);
+  const acc0 = await C.acceptFormatFallback(db, approver, fx0, { episode_id: e0.episodeId });
+  const [after0] = await q('select status, qc from episodes where id = $1', [e0.episodeId]);
+  const [log0] = await q(`select exact_text from authorship_log where action = 'format_fallback_accepted' and subject_id = $1`, [e0.episodeId]);
+  check(acc0.ok && starts0.length === 1 && after0.status === 'queued' && after0.qc.fallback_ok && /no locked character sheets/.test(log0?.exact_text ?? ''), '"Run as illustrated" sets fallback_ok, logs the decision verbatim and restarts the run once', JSON.stringify({ acc0, after0: after0.status }));
+  const sent0 = await A.notify(db, CH, 'fallback', 'verify: fallback alert', { episodeId: e0.episodeId, webhookUrl: '' });
+  const [row0] = await q(`select kind, episode_id, read_at, delivered from notifications where text = 'verify: fallback alert'`);
+  check(!sent0.delivered && row0?.kind === 'fallback' && row0.episode_id === e0.episodeId && row0.read_at === null, 'a fallback alert is written as kind fallback, linked to its episode, unread — whether or not Slack took it', JSON.stringify(row0));
+  check((await NC.unreadCount(db, CH)) === Number((await q('select count(*) as n from notifications where channel_id = $1 and read_at is null', [CH]))[0].n) && (await NC.markAllRead(db, CH)).ok && (await NC.unreadCount(db, CH)) === 0, 'the rail badge counts unread rows, and viewing the centre clears it');
+  let twice = null;
+  try { await C.acceptFormatFallback(db, approver, fx0, { episode_id: e0.episodeId }); } catch (err) { twice = err.message; }
+  check(/not waiting on a fallback decision/.test(twice ?? '') && starts0.length === 1, 'a second click is refused — it is no longer waiting', twice);
   await P.planShots(db, e0.episodeId, { usdInrRate: 88, actedBeatAvailable: false });
   const [{ qc: qc0 }] = await q('select qc from episodes where id = $1', [e0.episodeId]);
   check(qc0.plan.format.format === 'illustrated' && qc0.plan.format.requested === 'characters' && qc0.plan.format.fallback_reason === 'no locked character sheets — Library → Characters',
-    'LOAD-BEARING (refusal): the planner made it illustrated and recorded that characters was asked for, and why', JSON.stringify(qc0.plan.format));
+    'once accepted, the planner made it illustrated and recorded that characters was asked for, and why', JSON.stringify(qc0.plan.format));
   const routes0 = (await q('select render_route from shots where script_id = $1 order by idx', [e0.scriptId])).map((r) => r.render_route);
   check(routes0.length === 4 && routes0.every((r) => r === 'still'), 'every shot is still a picture', routes0.join());
   const v0 = vendor();

@@ -21,7 +21,7 @@ export interface NavItem {
   /** Canvas icon name (src/components/ui/icon.tsx). */
   readonly icon: string;
   /** Badge key the Rail fills from row counts (src/lib/shell/rail.ts). */
-  readonly badge?: 'approvals' | 'cuts' | 'blocked' | 'ready' | 'genFailed';
+  readonly badge?: 'approvals' | 'cuts' | 'blocked' | 'ready' | 'genFailed' | 'unread';
   /** Shown in the mobile tab bar rather than the More sheet. */
   readonly tab?: boolean;
 }
@@ -49,6 +49,7 @@ export const NAV: readonly NavGroup[] = [
     label: 'Bureau',
     items: [
       { href: '/home', label: 'Home', hint: 'Next slot, what needs you, spend, stages', status: ready(), icon: 'home', tab: true },
+      { href: '/notifications', label: 'Notifications', hint: 'Every alert Kiln raised: fallbacks, stops, cuts ready, bundles', status: ready(), icon: 'bell', badge: 'unread' },
       { href: '/bureau/approvals', label: 'Approvals', hint: 'Pending briefs: pick a punchline, approve or reject', status: ready(), icon: 'approvals', badge: 'approvals', tab: true },
       { href: '/bureau/cuts', label: 'Cuts', hint: 'Finished cuts: 9:16 player, shot strip, re-roll, approve', status: ready(), icon: 'cuts', badge: 'cuts', tab: true },
       { href: '/bureau/ready', label: 'Ready', hint: 'Publish bundles for YouTube and Instagram', status: ready(), icon: 'ready', badge: 'ready' },

@@ -5,6 +5,7 @@ import type { Json } from '../db/types';
 import { getBrief, resolvePunchline } from './briefs';
 import type { BureauToken } from './tokens';
 import { redrawRefusal } from './redraw-state';
+import { awaitingFallback, fallbackReason } from './fallbacks';
 import { stillsForRecut } from './recut';
 import { stalled } from './running';
 import { variationRefusal } from './variation';
@@ -164,6 +165,37 @@ export async function restartHaltedEpisode(db: Db, token: BureauToken, effects: 
     const startError = err instanceof Error ? err.message : String(err);
     return { ok: false as const, episode_id: ep.id, run_id: null, start_error: startError };
   }
+}
+
+/**
+ * "Run as illustrated": the approver accepts a format fallback planShots refused to take on
+ * its own (fallbacks.ts). Sets qc.fallback_ok — the one thing that passes planShots' gate —
+ * logs the decision verbatim, and restarts. Refused unless the episode is actually waiting on
+ * this decision, so a stray click cannot license a downgrade on some later run.
+ */
+export async function acceptFormatFallback(db: Db, token: BureauToken, effects: Effects, input: { episode_id: string }) {
+  requireApprover(token, 'format_fallback_accept');
+  const { data: ep, error } = await db.from('episodes').select('id, channel_id, status, status_detail, qc').eq('id', input.episode_id).maybeSingle();
+  if (error) throw dbError(error.message);
+  if (!ep || ep.channel_id !== token.channelId) throw new Error('No such episode on this channel.');
+  if (!awaitingFallback(ep.status, ep.status_detail)) throw new Error(`Episode is ${ep.status}, not waiting on a fallback decision.`);
+  const qc = (ep.qc ?? {}) as Record<string, unknown>;
+  const { error: uErr } = await db
+    .from('episodes')
+    .update({ qc: { ...qc, fallback_ok: { at: new Date().toISOString(), reason: fallbackReason(ep.status_detail) } } as unknown as Json })
+    .eq('id', ep.id);
+  if (uErr) throw dbError(uErr.message);
+  await db.from('authorship_log').insert({
+    channel_id: ep.channel_id,
+    actor_scope: 'approver',
+    token_id: token.id,
+    profile_id: token.profileId,
+    action: 'format_fallback_accepted',
+    subject_type: 'episode',
+    subject_id: ep.id,
+    exact_text: fallbackReason(ep.status_detail),
+  });
+  return restartHaltedEpisode(db, token, effects, { episode_id: ep.id });
 }
 
 export async function rejectBrief(db: Db, token: BureauToken, input: { brief_id: string; reason: string }) {

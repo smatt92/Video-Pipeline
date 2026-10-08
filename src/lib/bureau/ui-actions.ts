@@ -2,11 +2,13 @@
 
 import { revalidatePath } from 'next/cache';
 
+import { markAllRead } from '../notifications/centre';
+
 import { checkEmail } from '../auth/allowed';
 import { routeClient } from '../auth/supabase';
 import { serverClient } from '../db/server';
 import { youtubeVideoId } from '../publish/yt-analytics';
-import { approveBrief, decideCut, markScheduled, rejectBrief, restartHaltedEpisode, setKillSwitch, startQueuedEpisode } from './control';
+import { acceptFormatFallback, approveBrief, decideCut, markScheduled, rejectBrief, restartHaltedEpisode, setKillSwitch, startQueuedEpisode } from './control';
 import { lockVoice } from '../channels/bible-admin';
 import { productionEffects, productionObjectSheetEffects, productionSheetEffects } from './effects';
 import { applyRecutNotes } from './recut';
@@ -126,6 +128,25 @@ export async function startRunAction(episodeId: string): Promise<ActionResult> {
     const r = await startQueuedEpisode(db, t, productionEffects(db), { episode_id: episodeId });
     if (!r.ok) throw new Error(`The run did not start: ${r.start_error}`);
     return 'Run started.';
+  });
+}
+
+export async function acceptFallbackAction(episodeId: string): Promise<ActionResult> {
+  return run('/notifications', { table: 'episodes', id: episodeId }, async (t) => {
+    const db = serverClient();
+    const r = await acceptFormatFallback(db, t, productionEffects(db), { episode_id: episodeId });
+    if (!r.ok) throw new Error(`Accepted, but the run did not restart: ${r.start_error}`);
+    revalidatePath('/bureau/approvals');
+    return 'Running as illustrated. It returns to Cuts when ready.';
+  });
+}
+
+/** The notification centre was looked at: every unread alert of the channel becomes read (0053). */
+export async function markNotificationsReadAction(channelId: string): Promise<ActionResult> {
+  return run('/notifications', { channelId }, async () => {
+    const r = await markAllRead(serverClient(), channelId);
+    if (!r.ok) throw new Error(`Not marked read: ${r.detail}`);
+    return 'Marked read.';
   });
 }
 

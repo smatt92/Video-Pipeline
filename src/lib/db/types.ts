@@ -2825,8 +2825,10 @@ export type Database = {
           dedupe_key: string | null
           delivered: boolean
           detail: string | null
+          episode_id: string | null
           id: string
           kind: string
+          read_at: string | null
           text: string
         }
         Insert: {
@@ -2835,8 +2837,10 @@ export type Database = {
           dedupe_key?: string | null
           delivered: boolean
           detail?: string | null
+          episode_id?: string | null
           id?: string
           kind: string
+          read_at?: string | null
           text: string
         }
         Update: {
@@ -2845,8 +2849,10 @@ export type Database = {
           dedupe_key?: string | null
           delivered?: boolean
           detail?: string | null
+          episode_id?: string | null
           id?: string
           kind?: string
+          read_at?: string | null
           text?: string
         }
         Relationships: [
@@ -2855,6 +2861,13 @@ export type Database = {
             columns: ["channel_id"]
             isOneToOne: false
             referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "episodes"
             referencedColumns: ["id"]
           },
         ]

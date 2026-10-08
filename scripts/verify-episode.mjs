@@ -637,10 +637,21 @@ try {
   const { rows: [stillOverlay] } = await client.query('select render_route from shots where id = $1', [target.id]);
   check(/Not re-cut: .*switched off/.test(refusedOff ?? '') && keys.length === 3 && stillOverlay.render_route === 'overlay', 'with stills off, a re-cut is refused by name, nothing starts and no shot changes — it would rebuild the rejected cut', refusedOff);
   await client.query('update channel_policy set stills_enabled = true where channel_id = $1', [BUREAU_CHANNEL_ID]);
+  // B26 (08-Oct): a shot PLANNED as a picture clip that fell back to an overlay must come back
+  // as a clip, not a still. Seeded input: the overlay route and the plan's own swap record.
+  const clipShot = ep2Shots[1];
+  if (clipShot) {
+    await client.query(`update shots set render_route = 'overlay' where id = $1`, [clipShot.id]);
+    await client.query(`update episodes set qc = jsonb_set(coalesce(qc, '{}'::jsonb), '{plan}', coalesce(qc->'plan', '{}'::jsonb) || jsonb_build_object('swaps', jsonb_build_array(jsonb_build_object('idx', $2::int, 'from', 'picture_clip', 'to', 'overlay', 'reason', 'the vendor refused the still')))) where id = $1`, [ep2, clipShot.idx]);
+  }
   const r3 = await restartHaltedEpisode(db, approverTok, runner, { episode_id: ep2 });
   const { rows: [recut] } = await client.query('select status, run_id, qc from episodes where id = $1', [ep2]);
   const { rows: [nowStill] } = await client.query('select render_route from shots where id = $1', [target.id]);
   check(r3.ok && keys.length === 4 && recut.status === 'queued' && recut.run_id === r3.run_id, 'a sent-back cut restarts as a re-cut: queued, with the new run recorded', JSON.stringify({ status: recut.status, keys: keys.length }));
+  if (clipShot) {
+    const { rows: [nowClip] } = await client.query('select render_route from shots where id = $1', [clipShot.id]);
+    check(nowClip.render_route === 'picture_clip' && JSON.stringify(recut.qc?.plan?.recut?.to_clip ?? []) === JSON.stringify([clipShot.idx]), 'a shot planned as a picture clip that fell back comes back as a clip — the motion chosen at approval is not flattened to a still', JSON.stringify({ route: nowClip.render_route, recut: recut.qc?.plan?.recut }));
+  }
   check(nowStill.render_route === 'still' && JSON.stringify(recut.qc?.plan?.recut?.to_still ?? []) === JSON.stringify([target.idx]), 'LOAD-BEARING: the overlay shot is now a still and the plan names exactly that shot — without it the run rebuilds the cut that was sent back', JSON.stringify(recut.qc?.plan?.recut));
   const { rows: blk1 } = await client.query('select blocker from v_pipeline_blockers where script_id = $1', [script1.scriptId]);
   check(blk1[0]?.blocker === null, 'and for the episode that went through, the view says nothing blocks it', String(blk1[0]?.blocker));
