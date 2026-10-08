@@ -12,8 +12,10 @@ import { z } from 'zod';
  * ── Which day ────────────────────────────────────────────────────────────────
  *
  * The previous UTC day. Today's totals are not published until the day is over, so asking
- * for today is a 404 every time. A 404 for yesterday therefore means "not published yet"
- * (early in the UTC day) and is said in those words.
+ * for today is a 404 every time. Yesterday's list is published a few hours into the UTC day,
+ * so the 00:40 UTC run met a 404 for it (08-Oct) and the whole source failed. A 404 for
+ * yesterday now falls back to the day before (and its own day before), said in the detail —
+ * a day-old list is still a trend reading; no list at all was not.
  *
  * ── Velocity is the change against the day before, from one more call ────────
  *
@@ -123,14 +125,21 @@ export async function fetchWikipediaTop(languages: readonly string[], opts: Wiki
   const base = opts.baseUrl ?? DEFAULT_BASE;
   const now = opts.now ?? Date.now();
   const topN = opts.topN ?? DEFAULT_WIKIPEDIA_TOP_N;
-  const day = wikiDay(now, 1);
-  const before = wikiDay(now, 2);
   const articles: WikipediaArticle[] = [];
   const notes: string[] = [];
 
   for (const lang of languages) {
-    const top = await topFor(base, lang, day);
+    let back = 1;
+    let day = wikiDay(now, back);
+    let top = await topFor(base, lang, day);
+    if (!top.ok && /HTTP 404/.test(top.detail)) {
+      back = 2;
+      day = wikiDay(now, back);
+      top = await topFor(base, lang, day);
+      if (top.ok) notes.push(`${lang} ${wikiDay(now, 1)} not published yet — used ${day}`);
+    }
     if (!top.ok) return { ok: false, articles, detail: top.detail };
+    const before = wikiDay(now, back + 1);
     const kept = top.articles.filter((a) => isArticle(a.article)).slice(0, topN);
     if (kept.length === 0) return { ok: false, articles, detail: `${lang} ${day}: the list answered with no articles — unexpected response or an empty day` };
 

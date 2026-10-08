@@ -208,7 +208,12 @@ const wikiServer = createServer((req, res) => {
   if (!m) return send(404, { title: 'Not found.' });
   if (wikiMode === 'down') return send(500, { title: 'Internal error' });
   // NOW is 2026-08-03 12:00 UTC: yesterday is 08/02, the day before 08/01.
-  if (`${m[2]}/${m[3]}/${m[4]}` === '2026/08/02') return send(200, wikiTop(m[2], m[3], m[4], wikiMode === 'empty' ? [] : WIKI_YESTERDAY));
+  // 'late': yesterday not published yet (the 00:40 UTC run on 08-Oct); the two days before are.
+  if (wikiMode === 'late') {
+    if (`${m[2]}/${m[3]}/${m[4]}` === '2026/08/01') return send(200, wikiTop(m[2], m[3], m[4], WIKI_YESTERDAY));
+    if (`${m[2]}/${m[3]}/${m[4]}` === '2026/07/31') return send(200, wikiTop(m[2], m[3], m[4], WIKI_DAY_BEFORE));
+  }
+  if (`${m[2]}/${m[3]}/${m[4]}` === '2026/08/02' && wikiMode !== 'late') return send(200, wikiTop(m[2], m[3], m[4], wikiMode === 'empty' ? [] : WIKI_YESTERDAY));
   if (`${m[2]}/${m[3]}/${m[4]}` === '2026/08/01' && wikiMode === 'ok') return send(200, wikiTop(m[2], m[3], m[4], WIKI_DAY_BEFORE));
   return send(404, { title: 'Not found.', detail: 'The date(s) you used are valid, but we either do not have data for those date(s), or the project you asked for is not loaded yet.' });
 });
@@ -863,6 +868,19 @@ console.log('\n15. Wikipedia and Hacker News: free, keyless, mapped exactly, and
   const nps = np.sources.find((x) => x.source === 'wikipedia');
   const npv = (await client.query(`select count(*)::int as n from trend_signals where source = 'wikipedia' and channel_id = $1 and velocity is not null`, [A])).rows[0].n;
   check(nps?.ok === true && nps.count === 3 && npv === 0 && (nps.detail ?? '').startsWith('velocity unavailable for en (en 2026/08/01: HTTP 404'), 'the day before missing: views land, velocity is null (absent, not zero), and the result says why', `${npv} non-null · ${nps?.detail}`);
+
+  // b2. Yesterday not published yet (hosted, 08-Oct 00:44 UTC: the whole source failed on it):
+  // the day before is used, its own day before gives the change, and the detail says so.
+  wikiMode = 'late';
+  wikiRequests.length = 0;
+  const lt = await runTrends({ channelId: A, ...OFF, hn: null }, DEPS);
+  const lts = lt.sources.find((x) => x.source === 'wikipedia');
+  check(
+    lts?.ok === true && lts.count === 3 && /en 2026\/08\/02 not published yet — used 2026\/08\/01/.test(lts.detail ?? '') &&
+      wikiRequests.map((r) => r.path.slice(-10)).join() === '2026/08/02,2026/08/01,2026/07/31',
+    'yesterday not yet published: falls back one day, change from the day before that, and says so — not a failed source',
+    `${lts?.ok} · ${lts?.count} · ${lts?.detail} · ${wikiRequests.map((r) => r.path.slice(-10)).join(' ')}`,
+  );
 
   // c. Languages and size from the channel's config.
   wikiMode = 'ok';
