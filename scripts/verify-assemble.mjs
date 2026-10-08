@@ -229,6 +229,25 @@ if (!probeResult.ok) {
   ok('s3 round trip through the real driver', probeResult.detail);
 }
 
+// The type a stored object is SERVED with (08-Oct): every upload went up as video/mp4, and
+// Runway refused each 3D picture's reference image for it. Read back through a presigned GET
+// — the header the vendor sees — not from anything this harness wrote.
+{
+  const { putterFor } = await import(`${BUILD}/storage/put.js`);
+  const { Readable } = await import('node:stream');
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(32, 1)]);
+  const served = {};
+  for (const key of ['objects/verify/sheet.png', 'clips/verify/clip.mp4', 'audio/verify/line.mp3']) {
+    await putterFor(driver).put(key, Readable.from(key.endsWith('.png') ? png : Buffer.alloc(64, 2)));
+    const r = await fetch((await driver.presignGet({ key })).url);
+    served[key] = r.headers.get('content-type');
+    await driver.delete(key);
+  }
+  const want = { 'objects/verify/sheet.png': 'image/png', 'clips/verify/clip.mp4': 'video/mp4', 'audio/verify/line.mp3': 'audio/mpeg' };
+  if (Object.entries(want).every(([k, v]) => served[k] === v)) ok('each stored object is served with the type its key names (png → image/png, not video/mp4)', JSON.stringify(served));
+  else bad('each stored object is served with the type its key names', JSON.stringify(served));
+}
+
 const { scratchDatabase } = await import('./lib/scratch.mjs');
 const scratch = await scratchDatabase(dbUrl, 'assemble');
 const client = scratch.client;

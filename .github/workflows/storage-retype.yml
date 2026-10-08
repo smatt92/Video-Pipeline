@@ -1,0 +1,57 @@
+name: Storage retype (relabel stored objects with the type their key names)
+
+# Manual. Until 08-Oct every upload went up as video/mp4; Runway refuses a reference image
+# served with that type. This copies each mislabelled object onto itself with the right
+# Content-Type — no bytes leave the bucket, nothing is regenerated, nothing is paid for.
+# apply=false (default) only counts. See scripts/storage-retype.mjs.
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: 'true to relabel; false only counts'
+        default: 'false'
+        type: string
+
+jobs:
+  retype:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VERCEL_ACCESS_TOKEN: ${{ secrets.VERCEL_ACCESS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Production environment from Vercel (values masked)
+        run: |
+          node --input-type=module -e '
+            const team = "team_2UHmmkh8jSZXWBQg8dIICYP5";
+            const want = ["NEXT_PUBLIC_SUPABASE_URL","SUPABASE_SERVICE_ROLE_KEY","SUPABASE_S3_ACCESS_KEY_ID","SUPABASE_S3_SECRET_ACCESS_KEY","SUPABASE_STORAGE_BUCKET","SUPABASE_S3_REGION","SUPABASE_S3_ENDPOINT","SUPABASE_URL"];
+            const r = await fetch(`https://api.vercel.com/v8/projects/video-pipeline/env?target=production&decrypt=true&teamId=${team}`, { headers: { authorization: `Bearer ${process.env.VERCEL_ACCESS_TOKEN}` } });
+            if (!r.ok) { console.log(`::error::Vercel env read failed: HTTP ${r.status}`); process.exit(1); }
+            const { envs } = await r.json();
+            const fs = await import("node:fs");
+            const missing = [];
+            for (const k of want) {
+              const e = envs.find((x) => x.key === k && (x.target ?? []).includes("production") && !x.gitBranch);
+              if (!e || typeof e.value !== "string" || !e.value) { missing.push(k); continue; }
+              console.log(`::add-mask::${e.value}`);
+              fs.appendFileSync(process.env.GITHUB_ENV, `${k}<<__KILN_EOF__\n${e.value}\n__KILN_EOF__\n`);
+            }
+            console.log(`read ${want.length - missing.length} of ${want.length}${missing.length ? `; without a value: ${missing.join(", ")}` : ""}`);
+          '
+
+      - name: Retype
+        shell: bash
+        run: |
+          set +e -o pipefail
+          if [ -z "$SUPABASE_S3_ENDPOINT" ]; then export SUPABASE_S3_ENDPOINT="${SUPABASE_URL:-$NEXT_PUBLIC_SUPABASE_URL}/storage/v1/s3"; fi
+          if [ "${{ inputs.apply }}" = "true" ]; then pnpm -s storage:retype --apply 2>&1 | tee out.txt; code=$?; else pnpm -s storage:retype 2>&1 | tee out.txt; code=$?; fi
+          while IFS= read -r line; do echo "::notice title=retype::${line//%/%25}"; done < <(tail -n 8 out.txt)
+          exit $code

@@ -195,6 +195,11 @@ export const episodeTask = schemaTask({
           log: logger,
         });
         logger.info('stills', st);
+        if (st.halt) {
+          await setStatus(db, episodeId, 'halted', st.halt);
+          await notify(db, channelId, 'qc_failed', `Kiln stopped episode ${episodeId.slice(0, 8)} at pictures: ${st.halt} Fix it, then restart the run.`);
+          return { halted: 'pictures_refused' };
+        }
       }
 
       // 4–6. Generate, QC, re-roll (bounded by rerolls_max + 1 rounds)

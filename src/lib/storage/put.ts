@@ -1,5 +1,6 @@
 import type { Readable } from 'node:stream';
 
+import { contentTypeFor } from './content-type';
 import { localPathFor, writeStreamLocal } from './local';
 import { storage } from './index';
 import type { StorageDriver } from './types';
@@ -54,7 +55,9 @@ export function putterFor(driver: StorageDriver = storage()): Putter {
       // Presign and stream to it — the same URL shape a browser would use, so this
       // exercises the mechanism the browser upload depends on rather than a privileged
       // side channel that could work while that one is broken.
-      const signed = await driver.presignPut({ key, contentType: 'video/mp4' });
+      // The type follows the key (content-type.ts): everything went up as video/mp4 before.
+      const contentType = contentTypeFor(key);
+      const signed = await driver.presignPut({ key, contentType });
       const chunks: Buffer[] = [];
       for await (const chunk of body) chunks.push(Buffer.from(chunk));
       const bytes = Buffer.concat(chunks);
@@ -62,7 +65,7 @@ export function putterFor(driver: StorageDriver = storage()): Putter {
       const response = await fetch(signed.url, {
         method: 'PUT',
         body: new Uint8Array(bytes),
-        headers: { 'content-type': 'video/mp4' },
+        headers: { 'content-type': contentType },
       });
 
       if (!response.ok) {

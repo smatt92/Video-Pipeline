@@ -92,7 +92,14 @@ function Verdict({ v, x, y, unit, maxW }: { v: NonNullable<ShotGraphics['verdict
   const colour = v.pass ? PASS : FAIL;
   return (
     <div style={{ position: 'absolute', left: x, top: y, maxWidth: maxW, display: 'flex', alignItems: 'center', gap: Math.round(16 * unit), padding: `${Math.round(14 * unit)}px ${Math.round(26 * unit)}px`, background: colour, borderRadius: Math.round(26 * unit), transform: `scale(${p})`, transformOrigin: 'left center', opacity: Math.min(1, p * 1.4), boxShadow: '0 6px 20px rgba(0,0,0,0.35)' }}>
-      <span style={{ color: '#FFFFFF', fontFamily: FONT, fontWeight: 900, fontSize: Math.round(54 * unit), lineHeight: 1 }}>{v.pass ? '✓' : '✗'}</span>
+      {/* Drawn, not typed: the render's font has no ✓/✗ and the first real cut showed a box (08-Oct). */}
+      <svg width={Math.round(44 * unit)} height={Math.round(44 * unit)} viewBox="0 0 24 24" style={{ flex: 'none' }} aria-label={v.pass ? 'pass' : 'fail'}>
+        {v.pass ? (
+          <path d="M4 12.5 L9.5 18 L20 6" fill="none" stroke="#FFFFFF" strokeWidth={3.4} strokeLinecap="round" strokeLinejoin="round" />
+        ) : (
+          <path d="M6 6 L18 18 M18 6 L6 18" fill="none" stroke="#FFFFFF" strokeWidth={3.4} strokeLinecap="round" />
+        )}
+      </svg>
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         <span style={{ color: '#FFFFFF', fontFamily: FONT, fontWeight: 900, fontSize: Math.round(40 * unit), lineHeight: 1.1, whiteSpace: 'nowrap' }}>{v.text.toUpperCase()}</span>
         {v.sub && <span style={{ color: 'rgba(255,255,255,0.92)', fontFamily: FONT, fontWeight: 700, fontSize: Math.round(26 * unit), lineHeight: 1.2 }}>{v.sub}</span>}

@@ -397,7 +397,7 @@ export async function generateStills(
   db: Db,
   episodeId: string,
   deps: StillDeps,
-): Promise<{ made: number; reused: number; pictures: number; fellBack: { idx: number; reason: string }[]; partial: { idx: number; missing: number[] }[]; costInr: number }> {
+): Promise<{ made: number; reused: number; pictures: number; fellBack: { idx: number; reason: string }[]; partial: { idx: number; missing: number[] }[]; costInr: number; halt: string | null }> {
   const log = deps.log ?? quiet;
   const { e, b, cb } = await loadEpisode(db, episodeId);
   // A picture clip's picture is drawn here too (0052): it is the clip's first frame.
@@ -467,7 +467,15 @@ export async function generateStills(
     const prev = ((qc.plan?.cast as typeof castLog | undefined) ?? []).filter((x) => !castLog.some((y) => y.idx === x.idx && y.part === x.part));
     await db.from('episodes').update({ qc: { ...qc, plan: { ...(qc.plan ?? {}), cast: [...prev, ...castLog].sort((a, b2) => a.idx - b2.idx || a.part - b2.part) } } as unknown as Json }).eq('id', episodeId);
   }
-  return { made, reused, pictures: total, fellBack, partial, costInr: Math.round(costInr * 100) / 100 };
+  // A 3D explainer is not cut as chalk diagrams. The first one (B26, 08-Oct) had every picture
+  // refused by the vendor and came out as a chalk cut that read as another channel's video —
+  // the format Sahil picked, silently replaced. Half or more of the shots falling back halts
+  // the run with the reason instead; the pictures that were made are kept for the restart.
+  const shotCount = (shots ?? []).length;
+  const halt = planned === 'engineered' && shotCount > 0 && fellBack.length * 2 >= shotCount
+    ? `${fellBack.length} of ${shotCount} pictures could not be made, so this 3D explainer was not cut as chalk diagrams. First reason: ${fellBack[0].reason.slice(0, 300)}`
+    : null;
+  return { made, reused, pictures: total, fellBack, partial, costInr: Math.round(costInr * 100) / 100, halt };
 }
 
 /**

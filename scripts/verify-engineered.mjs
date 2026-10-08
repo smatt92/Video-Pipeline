@@ -409,7 +409,7 @@ try {
   const stillDeps = { usdInrRate: 88, llmKey: 'test-llm-key', llmClient, apiKey: async () => ({ ok: true, value: 'test-key' }), submit: vp.submit, wait: vp.wait, fetchBytes: vp.fetchBytes, putBytes, resolveRef };
   const picsBefore = puts.length;
   const st = await P.generateStills(db, k.episodeId, stillDeps);
-  check(st.made === FIXTURE.beats.length && st.fellBack.length === 0, 'a picture for every beat — the clip beats included (their first frame)', JSON.stringify({ made: st.made, fell: st.fellBack }));
+  check(st.made === FIXTURE.beats.length && st.fellBack.length === 0 && st.halt === null, 'a picture for every beat — the clip beats included (their first frame) — and no halt', JSON.stringify({ made: st.made, fell: st.fellBack, halt: st.halt }));
   const sheetUri = Object.fromEntries(locked.map((o) => [o.tag, `${BUCKET}${o.storage_key}`]));
   const refsOk = vp.calls.every((c, i) => {
     const want = FIXTURE.beats[i].objects;
@@ -441,6 +441,17 @@ try {
   const wagonOnly = vm.calls[1];
   check(!(wagonOnly.references ?? []).length && !/@Wagon/.test(wagonOnly.prompt) && /freight wagon/.test(wagonOnly.prompt), 'its pictures pass no reference and say "freight wagon" instead of a dangling @Wagon', wagonOnly.prompt.slice(0, 120));
   check(vm.calls[7].references?.length === 1 && vm.calls[7].references[0].tag === 'Coupler' && !/@Wagon/.test(vm.calls[7].prompt), 'a picture with both objects keeps the one that has a sheet', JSON.stringify(vm.calls[7].references));
+
+  // Every picture refused (B26, 08-Oct: the reference images were served as video/mp4): the run
+  // must HALT, not cut the 3D explainer as chalk diagrams. Driven through generateStills.
+  chosen = FIXTURE.loop_endings[2];
+  const rf = await approvedEpisode('refused', { visual_format: 'engineered', motion: 'key' });
+  await P.prepareScript(db, rf.episodeId, { apiKey: null, usdInrRate: 88 });
+  await P.planShots(db, rf.episodeId, { usdInrRate: 88, actedBeatAvailable: false });
+  const vr = vendor(() => true);
+  const rst = await P.generateStills(db, rf.episodeId, { ...stillDeps, submit: vr.submit, wait: vr.wait });
+  check(typeof rst.halt === 'string' && /could not be made, so this 3D explainer was not cut as chalk diagrams/.test(rst.halt) && /stub refused/.test(rst.halt) && rst.fellBack.length === rst.pictures,
+    'every picture refused: the stills step says HALT, naming the count and the first reason', rst.halt ?? 'no halt');
 
   // ═══ §6 Picture clips ═══
   console.log('\n6. Picture clips animate their own picture\n');
