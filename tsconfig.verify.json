@@ -38,6 +38,7 @@
     // imports (next/cache, next/headers) exist only inside the framework.
     "src/lib/studio/tools.ts",
     "src/lib/studio/mcp.ts",
+    "src/lib/studio/ideas.ts",
     "src/lib/studio/serve.ts",
     "src/lib/studio/session.ts",
     "src/lib/studio/front-end.ts",

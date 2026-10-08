@@ -12,6 +12,10 @@ import { resolveCredentials } from '../integrations/credentials';
 import { runTurn, startSession, type ToolChannel } from './session';
 import { mintSessionToken } from './token';
 import { readUsdInrRate } from '../cost/fx';
+import { getBible } from '../bureau/bible';
+import { channelPolicy } from '../screens/common';
+import { readChannelFlags } from '../settings/channel-flags';
+import { proposeIdeas, type StudioIdea } from './ideas';
 
 /**
  * The Studio lane's writes.
@@ -73,8 +77,12 @@ export async function startSessionAction(
     // The channel the sidebar has selected. A session makes videos for that channel only, and
     // keeps it if the sidebar changes later — its briefs are on that channel's Approvals.
     const { active } = await currentChannel();
+    const brief = String(formData.get('brief') ?? '').trim();
+    // The title is the brief's first line, shortened — the whole brief is the first message.
+    const firstLine = brief.split(/\n/).find((l) => l.trim())?.trim() ?? '';
+    const title = String(formData.get('title') ?? '').trim() || (firstLine ? (firstLine.length > 80 ? `${firstLine.slice(0, 79)}…` : firstLine) : '');
     const result = await startSession(serverClient(), {
-      title: String(formData.get('title') ?? '').trim() || undefined,
+      title: title || undefined,
       channelId: active?.id ?? null,
       spendCapInr: cap,
     });
@@ -82,6 +90,12 @@ export async function startSessionAction(
     if (!result.ok) return { status: 'error', message: result.detail };
 
     revalidatePath('/studio');
+    if (brief) {
+      // The session opens either way; a first turn that fails says why on the session screen
+      // and the text is in the transcript only if the turn ran.
+      const first = await performTurn(result.sessionId, brief);
+      return { status: first.status === 'ok' ? 'ok' : first.status, sessionId: result.sessionId, message: first.message };
+    }
     return { status: 'ok', sessionId: result.sessionId, message: `Session open on ${active?.name ?? 'the active channel'}. Cap ₹${cap}.` };
   } catch (err) {
     return { status: 'error', message: err instanceof Error ? err.message : String(err) };
@@ -95,74 +109,113 @@ export async function sendTurnAction(
 ): Promise<StudioState> {
   try {
     await requireUser();
-
     const text = String(formData.get('text') ?? '').trim();
     if (!text) return { status: 'error', message: 'Nothing to send.' };
+    return await performTurn(sessionId, text);
+  } catch (err) {
+    return { status: 'error', message: err instanceof Error ? err.message : String(err) };
+  }
+}
 
-    const db = serverClient();
-    const credentials = await resolveCredentials(db, 'anthropic');
-    const apiKey = credentials.values.ANTHROPIC_API_KEY;
+/**
+ * One turn of a session — shared by the composer and by the start form, which sends the box's
+ * text as the session's first message (Sahil, 08-Oct: the brief belongs where the session is
+ * opened, not in a one-line title). Callers have already checked the user.
+ */
+async function performTurn(sessionId: string, text: string): Promise<StudioState> {
+  const db = serverClient();
+  const credentials = await resolveCredentials(db, 'anthropic');
+  const apiKey = credentials.values.ANTHROPIC_API_KEY;
 
-    if (!apiKey) {
-      return {
-        status: 'error',
-        message:
-          'No Anthropic credential is configured. Settings → Integrations, then Test ' +
-          'connection — an unverified integration cannot be selected by a task.',
-      };
-    }
-
-    const secret = process.env.STUDIO_MCP_TOKEN_SECRET?.trim();
-    if (!secret) {
-      return {
-        status: 'error',
-        message:
-          'STUDIO_MCP_TOKEN_SECRET is not set, so this deployment cannot mint a token for ' +
-          'its own MCP server and the tools would be unreachable.',
-      };
-    }
-
-    // The production channel. Anthropic dials this URL from its own infrastructure, so it
-    // must be the public origin — not a preview hostname that changes on the next push,
-    // and never localhost.
-    const channel: ToolChannel = {
-      kind: 'connector',
-      url: new URL('/api/mcp', env.APP_URL).toString(),
-      token: mintSessionToken(sessionId, secret),
+  if (!apiKey) {
+    return {
+      status: 'error',
+      message:
+        'No Anthropic credential is configured. Settings → Integrations, then Test ' +
+        'connection — an unverified integration cannot be selected by a task.',
     };
+  }
 
-    // Refused the same way the missing token secret above is, rather than thrown: this
-    // file's idiom is that a configuration fault becomes a message on the screen that
-    // caused it. A turn writes cost rows, so an unset rate would put a rupee figure nobody
-    // configured onto them — and the turn is billed either way, which is why this has to
-    // stop the call rather than annotate the result.
+  const secret = process.env.STUDIO_MCP_TOKEN_SECRET?.trim();
+  if (!secret) {
+    return {
+      status: 'error',
+      message:
+        'STUDIO_MCP_TOKEN_SECRET is not set, so this deployment cannot mint a token for ' +
+        'its own MCP server and the tools would be unreachable.',
+    };
+  }
+
+  // The production channel. Anthropic dials this URL from its own infrastructure, so it
+  // must be the public origin — not a preview hostname that changes on the next push,
+  // and never localhost.
+  const channel: ToolChannel = {
+    kind: 'connector',
+    url: new URL('/api/mcp', env.APP_URL).toString(),
+    token: mintSessionToken(sessionId, secret),
+  };
+
+  // Refused, not thrown: a turn writes cost rows, so an unset rate would put a rupee figure
+  // nobody configured onto them — and the turn is billed either way.
+  const fx = await readUsdInrRate(db);
+  if (!fx.ok) {
+    return { status: 'error', message: `${fx.reason} ${fx.remedy}` };
+  }
+
+  const outcome = await runTurn(sessionId, text, {
+    db,
+    apiKey,
+    usdInrRate: fx.rate,
+    channel,
+  });
+
+  revalidatePath(`/studio/${sessionId}`);
+
+  switch (outcome.kind) {
+    case 'replied':
+      return {
+        status: 'ok',
+        message: `₹${outcome.costInr.toFixed(2)} this turn · ₹${outcome.totalInr.toFixed(2)} total`,
+      };
+    case 'capped':
+      return { status: 'capped', message: outcome.reason };
+    case 'refused':
+      return { status: 'error', message: outcome.reason };
+    case 'failed':
+      return { status: 'error', message: `${outcome.code}: ${outcome.detail}` };
+  }
+}
+
+export interface IdeasState {
+  status: 'idle' | 'ok' | 'error';
+  message?: string;
+  ideas?: StudioIdea[];
+}
+
+/**
+ * The Ideas button: five ideas for the active channel from its most relevant trends, each with
+ * a ready first message. One fast-tier call, ledgered against the channel by the router.
+ */
+export async function studioIdeasAction(): Promise<IdeasState> {
+  try {
+    await requireUser();
+    const db = serverClient();
+    const { active } = await currentChannel();
+    if (!active) return { status: 'error', message: 'Pick a channel first.' };
+    if (!active.hasBible) return { status: 'error', message: `${active.name} has no bible yet, so it has no series to suggest ideas for.` };
+    const apiKey = (await resolveCredentials(db, 'anthropic')).values.ANTHROPIC_API_KEY;
+    if (!apiKey) return { status: 'error', message: 'No Anthropic credential is configured (Settings → Integrations).' };
     const fx = await readUsdInrRate(db);
-    if (!fx.ok) {
-      return { status: 'error', message: `${fx.reason} ${fx.remedy}` };
-    }
-
-    const outcome = await runTurn(sessionId, text, {
-      db,
-      apiKey,
-      usdInrRate: fx.rate,
-      channel,
-    });
-
-    revalidatePath(`/studio/${sessionId}`);
-
-    switch (outcome.kind) {
-      case 'replied':
-        return {
-          status: 'ok',
-          message: `₹${outcome.costInr.toFixed(2)} this turn · ₹${outcome.totalInr.toFixed(2)} total`,
-        };
-      case 'capped':
-        return { status: 'capped', message: outcome.reason };
-      case 'refused':
-        return { status: 'error', message: outcome.reason };
-      case 'failed':
-        return { status: 'error', message: `${outcome.code}: ${outcome.detail}` };
-    }
+    if (!fx.ok) return { status: 'error', message: `${fx.reason} ${fx.remedy}` };
+    const [cb, flags, policy] = await Promise.all([getBible(db, active.id), readChannelFlags(db, active.id), channelPolicy(db, active.id)]);
+    const r = await proposeIdeas(
+      { id: active.id, name: active.name },
+      cb,
+      { relevanceThreshold: flags.values.relevanceThreshold, perShortCapInr: policy?.perShortCap ?? null },
+      { db, apiKey, usdInrRate: fx.rate },
+    );
+    if (!r.ok) return { status: 'error', message: r.reason };
+    return { status: 'ok', ideas: r.ideas, message: `${r.basis} · ${r.costInr === null ? 'cost —' : `₹${r.costInr.toFixed(2)}`}` };
   } catch (err) {
     return { status: 'error', message: err instanceof Error ? err.message : String(err) };
   }

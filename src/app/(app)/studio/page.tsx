@@ -22,6 +22,8 @@ import { currentChannel } from '@/lib/channels/active';
  */
 
 export const dynamic = 'force-dynamic';
+// The start form can send the first turn (a tool loop that drafts a brief): give it the room a turn on the session page has.
+export const maxDuration = 300;
 
 export const metadata = { title: 'Kiln — studio' };
 
@@ -84,7 +86,7 @@ export default async function StudioPage() {
           New session{active ? ` · ${active.name}` : ''}
         </div>
         <div className="px-4 py-4">
-          <StartSessionForm proposedCap={cap} />
+          <StartSessionForm proposedCap={cap} channelName={active?.name} />
         </div>
       </Panel>
 

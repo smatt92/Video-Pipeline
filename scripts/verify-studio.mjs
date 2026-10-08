@@ -524,6 +524,51 @@ try {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // 10b. Ideas from trends (the start form's button)
+  // ═══════════════════════════════════════════════════════════════════════════
+  console.log('\n10b. Ideas from trends\n');
+  {
+    // Inputs: three scored trends and one below the threshold. The assertions are on what
+    // proposeIdeas returns and on what it sent the model — not on these rows.
+    for (const [term, rel] of [['Smart glasses', 0.88], ['Lift accident', 0.86], ['Pressure cooker recall', 0.71], ['Football transfer', 0.2]]) {
+      await q(`insert into trend_signals (source, term, channel_id, relevance, relevance_scored_at) values ('wikipedia', $1, $2, $3, now())`, [term, BLT, rel]);
+    }
+    const sent = [];
+    const ideaClient = {
+      messages: {
+        parse: async (body) => {
+          sent.push(body);
+          return {
+            usage: { input_tokens: 900, output_tokens: 400 },
+            stop_reason: 'end_turn',
+            content: [{ type: 'text', text: '{}' }],
+            parsed_output: {
+              ideas: [
+                { series: 'inside', trend: 'Smart glasses', topic: 'What is packed inside the arm of camera smart glasses', hook: 'There is a computer hidden in your sunglasses arm.', why: 'Smart glasses are the gadget of the month.' },
+                { series: 'evolution', trend: 'Lift accident', topic: 'Why a lift with a snapped cable stops itself', hook: 'Cut the cable and the car stays put.', why: 'A lift story is in the news.' },
+                { series: 'not_a_series', trend: 'Pressure cooker recall', topic: 'Something off-channel', hook: 'Should be dropped.', why: 'No such series.' },
+              ],
+            },
+          };
+        },
+      },
+    };
+    const { proposeIdeas } = require(`${BUILD}/studio/ideas.js`);
+    const { getBible } = require(`${BUILD}/bureau/bible.js`);
+    const cb = await getBible(db, BLT);
+    const ledgerBeforeIdeas = Number((await q(`select count(*)::int n from cost_ledger where channel_id = $1 and stage = '02-concept'`, [BLT]))[0].n);
+    const r = await proposeIdeas({ id: BLT, name: 'Built Like That' }, cb, { relevanceThreshold: 0.65, perShortCapInr: 380 }, { db, apiKey: 'stub', usdInrRate: FX, client: ideaClient });
+    check(r.ok && r.ideas.length === 2 && r.ideas.every((i) => i.series !== 'not_a_series'), 'ideas on a series the channel does not run are dropped, never guessed', r.ok ? r.ideas.map((i) => i.series).join() : r.reason);
+    const userText = String(sent[0]?.messages?.[0]?.content ?? '');
+    check(userText.indexOf('Smart glasses') > -1 && userText.indexOf('Smart glasses') < userText.indexOf('Lift accident') && !userText.includes('Football transfer'), 'the model was given the trends most relevant first, and nothing below the threshold');
+    const first = r.ok ? r.ideas[0] : null;
+    check(first?.relevance === 0.88 && first.videoType === 'engineered' && /- video_type: engineered/.test(first.prompt) && /- series: inside/.test(first.prompt) && /- topic: What is packed inside the arm/.test(first.prompt) && /₹380 per-Short cap/.test(first.prompt) && /Do not approve anything/.test(first.prompt),
+      'each idea carries a first message that calls draft_brief with its own fields and the channel’s cap', first?.prompt.split('\n').slice(0, 5).join(' | '));
+    const ledgerAfterIdeas = Number((await q(`select count(*)::int n from cost_ledger where channel_id = $1 and stage = '02-concept'`, [BLT]))[0].n);
+    check(ledgerAfterIdeas === ledgerBeforeIdeas + 2, 'the one call is ledgered against the channel (input + output rows, rule 5)', `${ledgerAfterIdeas - ledgerBeforeIdeas} rows`);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // LOAD-BEARING for §4: after every tool — drafting, approving, following, re-rolling —
   // the legacy lane's artifacts do not exist beyond what this harness seeded itself.
   // ═══════════════════════════════════════════════════════════════════════════

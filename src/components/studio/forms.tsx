@@ -1,10 +1,10 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useActionState, useEffect, useRef } from 'react';
+import { useActionState, useEffect, useRef, useState, useTransition } from 'react';
 import { useFormStatus } from 'react-dom';
 
-import { sendTurnAction, startSessionAction, type StudioState } from '@/lib/studio/actions';
+import { sendTurnAction, startSessionAction, studioIdeasAction, type IdeasState, type StudioState } from '@/lib/studio/actions';
 
 /**
  * The two write surfaces of the Studio lane.
@@ -41,36 +41,103 @@ const inputStyle = {
   color: 'var(--t1)',
 };
 
-export function StartSessionForm({ proposedCap }: { proposedCap: number | null }) {
+export function StartSessionForm({ proposedCap, channelName }: { proposedCap: number | null; channelName?: string }) {
   const [state, action] = useActionState(startSessionAction, IDLE);
   const router = useRouter();
+  const [brief, setBrief] = useState('');
+  const [ideas, setIdeas] = useState<IdeasState>({ status: 'idle' });
+  const [thinking, startIdeas] = useTransition();
+  const boxRef = useRef<HTMLTextAreaElement>(null);
 
+  // A session that opened goes to its own screen, even when its first turn failed — that
+  // screen shows the transcript and the reason.
   useEffect(() => {
-    if (state.status === 'ok' && state.sessionId) router.push(`/studio/${state.sessionId}`);
+    if (state.sessionId) router.push(`/studio/${state.sessionId}`);
   }, [state, router]);
+
+  const lines = brief.split('\n').length;
 
   return (
     <form action={action} className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
-        <span
-          className="font-mono text-3xs uppercase tracking-[0.09em]"
-          style={{ color: 'var(--t3)' }}
-        >
-          Working title
-        </span>
-        <input
-          name="title"
-          placeholder="What are you trying to make?"
+        <div className="row sb" style={{ gap: 8, flexWrap: 'wrap' }}>
+          <span className="font-mono text-3xs uppercase tracking-[0.09em]" style={{ color: 'var(--t3)' }}>
+            What do you want to make?
+          </span>
+          <button
+            type="button"
+            className="btn sm"
+            disabled={thinking}
+            title={`Five ideas for ${channelName ?? 'this channel'} from its most relevant trends — one cheap call, nothing drafted`}
+            onClick={() =>
+              startIdeas(async () => {
+                setIdeas({ status: 'idle' });
+                setIdeas(await studioIdeasAction());
+              })
+            }
+          >
+            {thinking ? 'Finding ideas…' : 'Ideas from trends'}
+          </button>
+        </div>
+        <textarea
+          ref={boxRef}
+          name="brief"
+          value={brief}
+          onChange={(e) => setBrief(e.target.value)}
+          rows={Math.min(18, Math.max(6, lines + 1))}
+          placeholder={'Describe the video, or paste a full brief. It is sent as the session’s first message.\n\ne.g. 3D explainer, Full motion: what is packed inside the arm of camera smart glasses.'}
           className="input"
-          style={inputStyle}
+          style={{ ...inputStyle, resize: 'vertical', minHeight: 140, lineHeight: 1.5, fontFamily: 'inherit', whiteSpace: 'pre-wrap' }}
         />
+        <span className="text-xs" style={{ color: 'var(--t3)' }}>
+          {brief.trim() ? `${brief.trim().length} characters · opening the session sends this to Opus straight away` : 'Leave empty to open the session and type there instead.'}
+        </span>
       </div>
 
+      {ideas.status === 'error' && ideas.message && (
+        <p className="text-xs leading-relaxed" style={{ color: 'var(--blk)' }}>
+          {ideas.message}
+        </p>
+      )}
+      {ideas.status === 'ok' && ideas.ideas && (
+        <div className="flex flex-col gap-2" aria-label="Ideas from trends">
+          <span className="font-mono text-2xs" style={{ color: 'var(--t3)' }}>
+            {ideas.message}
+          </span>
+          {ideas.ideas.map((i, n) => (
+            <div key={n} className="inset col" style={{ gap: 6, padding: '10px 12px' }}>
+              <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                <span className="pill s-ac nodot">{i.seriesName}</span>
+                <span className="mono xs t3">
+                  trend: {i.trend}
+                  {i.relevance === null ? '' : ` · ${i.relevance.toFixed(2)}`}
+                </span>
+              </div>
+              <span className="sm" style={{ fontWeight: 500 }}>
+                {i.topic}
+              </span>
+              <span className="xs t2">“{i.hook}”</span>
+              <span className="xs t3">{i.why}</span>
+              <div>
+                <button
+                  type="button"
+                  className="btn sm pri"
+                  onClick={() => {
+                    setBrief(i.prompt);
+                    boxRef.current?.focus();
+                    boxRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                  }}
+                >
+                  Use this idea
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="flex flex-col gap-1">
-        <span
-          className="font-mono text-3xs uppercase tracking-[0.09em]"
-          style={{ color: 'var(--t3)' }}
-        >
+        <span className="font-mono text-3xs uppercase tracking-[0.09em]" style={{ color: 'var(--t3)' }}>
           Spend cap for this session (₹)
         </span>
         <input
@@ -81,7 +148,7 @@ export function StartSessionForm({ proposedCap }: { proposedCap: number | null }
           defaultValue={proposedCap ?? undefined}
           required
           className="input mono"
-          style={inputStyle}
+          style={{ ...inputStyle, maxWidth: 160 }}
         />
         {/* Shown, not hidden behind a default. The cap stops the session dead when it is
             reached — it does not warn — so the number is worth a person's attention once. */}
@@ -98,7 +165,7 @@ export function StartSessionForm({ proposedCap }: { proposedCap: number | null }
       )}
 
       <div>
-        <Submit label="Open session" busy="Opening…" />
+        <Submit label={brief.trim() ? 'Open session and send' : 'Open session'} busy={brief.trim() ? 'Opening and drafting… (up to a minute)' : 'Opening…'} />
       </div>
     </form>
   );
@@ -126,11 +193,11 @@ export function Composer({ sessionId, disabled }: { sessionId: string; disabled:
     <form ref={formRef} action={action} className="flex flex-col gap-2">
       <textarea
         name="text"
-        rows={3}
+        rows={5}
         required
         placeholder="Describe what you want to make, or ask what is possible."
         className="input"
-        style={inputStyle}
+        style={{ ...inputStyle, resize: 'vertical', minHeight: 110, lineHeight: 1.5, fontFamily: 'inherit' }}
       />
       <div className="flex items-center gap-3">
         <Submit label="Send" busy="Thinking…" />

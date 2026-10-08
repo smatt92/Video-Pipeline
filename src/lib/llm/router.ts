@@ -52,6 +52,9 @@ export const TASK_TIER = {
   // Scene stills (0021): a constrained rewrite checked deterministically afterwards — the
   // cheapest tier, because a wrong answer is refused by code, not trusted.
   still_prompt: 'fast',
+  // Studio's Ideas button (studio/ideas.ts): five topic lines from the top trends. A cheap
+  // suggestion the approver reads and edits before anything is drafted or paid for.
+  studio_ideas: 'fast',
 } as const satisfies Record<string, Tier>;
 export type RoutedTask = keyof typeof TASK_TIER;
 
