@@ -68,12 +68,15 @@ export function KillSwitch({
         role="switch"
         aria-checked={on}
         aria-label={name}
-        className={`trk${on ? ' on' : ''}`}
+        className="kbtn"
         disabled={pending || unknown}
         tabIndex={preview ? -1 : undefined}
         onClick={toggle}
       >
-        <span className="knob" />
+        {/* The track is a child so the button can be a 44px target on a phone around a 32px track. */}
+        <span className={`trk${on ? ' on' : ''}`}>
+          <span className="knob" />
+        </span>
       </button>
       {msg && (
         <span className="sr-only" role="status">

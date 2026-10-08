@@ -1,6 +1,6 @@
 'use client';
 
-import { useSwitchChannel } from './rail';
+import { useSwitchChannel } from './nav-parts';
 
 /** "Open Bureau of Reality" on an All channels card: sets the active channel, goes to its Home. */
 export function SwitchButton({ id, name }: { id: string; name: string }) {

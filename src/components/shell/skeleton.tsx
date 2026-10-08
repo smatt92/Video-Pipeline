@@ -83,13 +83,12 @@ export function SkelScreen({ crumb, title, mobileTitle, actions = 0, children }:
         {actions > 0 && (
           <div className="row" style={{ gap: 10 }}>
             {Array.from({ length: actions }, (_, i) => (
-              <Bar key={i} w={i === actions - 1 ? 110 : 72} h={32} style={{ borderRadius: 9 }} />
+              <Bar key={i} w={i === actions - 1 ? 110 : 72} h={40} style={{ borderRadius: 999 }} />
             ))}
           </div>
         )}
       </header>
       <header className="ph-top mob-only">
-        <div className="av all" aria-hidden="true" />
         <div className="col grow" style={{ gap: 4 }}>
           <h1 className="ttl">{mobileTitle ?? title}</h1>
           <Bar w={140} h={10} />

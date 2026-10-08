@@ -1,13 +1,11 @@
 import type { ReactNode } from 'react';
 
-import { initials } from '@/lib/shell/initials';
-
-import { MobileSearch } from './mobile-search';
 
 /**
- * Page header for the redesigned screens. Desktop: the canvas topbar — crumb with the channel
- * square and name, the title, actions on the right. Phone: the canvas `ph-top` — channel
- * avatar, title with one line under it, search. One component so the two never drift apart.
+ * Page header for the redesigned screens. Desktop: crumb with the channel square and name,
+ * the title, actions on the right. Phone: the title with one line under it — the channel,
+ * the bell and search now live on the top bar and its More sheet (Kiln Glass), so the page
+ * no longer repeats them. One component so the two never drift apart.
  */
 export function ScreenHeader({
   channel,
@@ -52,14 +50,10 @@ export function ScreenHeader({
         )}
       </header>
       <header className="ph-top mob-only">
-        <div className={channel ? 'av' : 'av all'} aria-hidden="true">
-          {channel ? initials(channel.name) : '∗'}
-        </div>
         <div className="col grow" style={{ gap: 0 }}>
           <h1 className="ttl">{mobileTitle ?? title}</h1>
           {sub && <span className="xs t3">{sub}</span>}
         </div>
-        <MobileSearch />
       </header>
     </>
   );

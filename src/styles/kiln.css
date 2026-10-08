@@ -30,9 +30,8 @@ button{font-family:inherit}
 
 /* layout */
 .app{display:flex;flex-wrap:wrap;min-height:100vh;background:var(--s0)}
-.rail-w{flex:1 1 248px;background:var(--in);border-right:1px solid var(--b1)}
 .main{flex:999 1 560px;min-width:0;padding:22px clamp(16px,3vw,40px) 56px;display:flex;flex-direction:column;gap:22px}
-.topbar{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;padding-bottom:18px;border-bottom:1px solid var(--b1)}
+.topbar{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;padding-bottom:4px}
 .crumb{display:flex;gap:8px;align-items:center;font-size:calc(12.5px * var(--ui-scale));color:var(--t3);margin-bottom:8px}
 .row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .col{display:flex;flex-direction:column;gap:8px}
@@ -49,12 +48,6 @@ button{font-family:inherit}
 .hr{height:1px;background:var(--b1)}
 .scroll-x{overflow-x:auto}
 
-/* rail */
-.rail{display:flex;flex-direction:column;gap:18px;padding:14px 12px 16px;min-height:100vh}
-.chsw{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px 8px 8px;border-radius:12px;background:var(--s1);border:1px solid var(--b1);color:var(--t1);font:inherit;text-align:left;cursor:pointer;transition:border-color var(--d1)}
-.chsw:hover{border-color:var(--b3)}
-.chsw .nm{font-size:calc(13.5px * var(--ui-scale));font-weight:600;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.chsw .hd{font:400 calc(11.5px * var(--ui-scale)) var(--mono);color:var(--t3);line-height:1.3}
 .av{position:relative;width:34px;height:34px;border-radius:9px;flex:none;display:grid;place-items:center;font:600 calc(11px * var(--ui-scale)) var(--mono);letter-spacing:0.02em;color:var(--chalk);background-color:var(--navy);background-image:linear-gradient(rgba(242,239,232,.09) 1px,transparent 1px),linear-gradient(90deg,rgba(242,239,232,.09) 1px,transparent 1px);background-size:6px 6px;box-shadow:inset 0 0 0 1px rgba(242,239,232,.18)}
 .av::after{content:"";position:absolute;right:-2px;bottom:-2px;width:9px;height:9px;border-radius:2px;background:var(--ch);box-shadow:0 0 0 2px var(--in)}
 .av.lg{width:48px;height:48px;border-radius:12px;font-size:calc(14px * var(--ui-scale))}
@@ -63,8 +56,6 @@ button{font-family:inherit}
 .av.all::after{display:none}
 .av.add{background:transparent;background-image:none;border:1px dashed var(--b3);box-shadow:none;color:var(--t3)}
 .av.add::after{display:none}
-.cmdk{display:flex;align-items:center;gap:8px;height:34px;padding:0 8px 0 10px;border-radius:9px;background:transparent;border:1px solid var(--b1);color:var(--t3);font-size:calc(13px * var(--ui-scale));width:100%;cursor:pointer}
-.cmdk .kbd{margin-left:auto}
 .kbd{display:inline-grid;place-items:center;min-width:20px;height:20px;font:500 calc(11px * var(--ui-scale)) var(--mono);padding:0 5px;border-radius:5px;border:1px solid var(--b2);color:var(--t3);background:var(--s1)}
 .nav{display:flex;flex-direction:column;gap:1px}
 .nav-h{padding:0 10px 6px}
@@ -76,7 +67,6 @@ button{font-family:inherit}
 .badge{margin-left:auto;font:500 calc(11px * var(--ui-scale)) var(--mono);min-width:20px;height:18px;padding:0 6px;border-radius:999px;display:inline-grid;place-items:center;background:var(--s3);color:var(--t2)}
 .badge.red{background:color-mix(in oklch,var(--s-blk) 22%,transparent);color:var(--blk-text)}
 .badge.ac{background:var(--act);color:var(--act-ink)}
-.rail-foot{margin-top:auto;display:flex;flex-direction:column;gap:8px}
 
 /* surfaces */
 .card{position:relative;background:var(--glass);background-image:var(--tint);-webkit-backdrop-filter:blur(var(--blur-panel)) saturate(140%);backdrop-filter:blur(var(--blur-panel)) saturate(140%);border:1px solid var(--hair);border-radius:var(--r-m);box-shadow:var(--hi),var(--e2);min-width:0}
@@ -278,14 +268,6 @@ textarea.input{height:auto;padding:10px 12px;min-height:76px;resize:vertical;lin
 .ph-top{display:flex;align-items:center;gap:10px;padding:14px 16px 10px}
 .ph-top .ttl{font-size:calc(20px * var(--ui-scale));font-weight:600;letter-spacing:-0.02em}
 .ph-body{padding:6px 16px 120px;display:flex;flex-direction:column;gap:14px}
-.tab-w{position:absolute;left:0;right:0;bottom:0;height:84px}
-.tabbar{height:84px;padding:6px 6px 24px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));background:oklch(0.125 0.006 70 / .92);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-top:1px solid var(--b1)}
-.tab{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--t3);font-size:calc(10.5px * var(--ui-scale));font-weight:500;text-decoration:none;min-height:50px;border-radius:10px}
-.tab .ic{width:22px;height:22px;stroke-width:1.5}
-.tab.on{color:var(--t1)}
-.tab.on .ic{color:var(--ac)}
-.tab .bdg{position:absolute;top:2px;left:calc(50% + 6px);min-width:17px;height:17px;padding:0 5px;border-radius:999px;font:600 calc(10px * var(--ui-scale)) var(--display);display:grid;place-items:center;background:var(--act);color:var(--act-ink)}
-.tab .bdg.red{background:var(--blk);color:#000}
 .sheet-grab{width:36px;height:5px;border-radius:3px;background:var(--b3);margin:8px auto 4px}
 .sticky-act{position:absolute;left:0;right:0;bottom:84px;padding:12px 16px;background:linear-gradient(transparent,var(--s0) 30%);display:flex;gap:10px}
 
@@ -373,10 +355,10 @@ textarea.input{height:auto;padding:10px 12px;min-height:76px;resize:vertical;lin
 /* ── App level — not on the canvas ── */
 a{color:var(--link)}
 a:hover{color:var(--t1)}
-a.btn,a.ni,a.tab,a.slot,a.lockup,a.chsw{color:inherit}
+a.btn,a.ni,a.slot,a.lockup{color:inherit}
 a.btn.pri{color:var(--act-ink)}
 :focus-visible{outline:2px solid var(--act-solid);outline-offset:3px}
-.btn:focus-visible,.pick:focus-visible,.radio-card:focus-visible,.chsw:focus-visible{outline-offset:2px}
+.btn:focus-visible,.pick:focus-visible,.radio-card:focus-visible{outline-offset:2px}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .btn.dan:hover{background:color-mix(in oklch,var(--s-blk) 22%,transparent)}
 .pill.s-gen::before{animation-timing-function:var(--e-io)}
@@ -408,19 +390,14 @@ a.btn.pri{color:var(--act-ink)}
 .can .hub{fill:var(--chalk)}
 .can.s-draft{--c:var(--draft)}.can.s-gen{--c:var(--gen)}.can.s-rev{--c:var(--rev)}.can.s-blk{--c:var(--blk)}.can.s-rdy{--c:var(--rdy)}.can.s-live{--c:var(--live)}.can.s-ac{--c:var(--ac)}
 .tblk{color:var(--blk)}
-.avatar-user{width:26px;height:26px;border-radius:50%;background:var(--s3);display:grid;place-items:center;font:600 calc(10px * var(--ui-scale)) var(--mono);color:var(--t2);flex:none}
 /* shell */
-.shell{display:flex;min-height:100dvh;background:var(--base);position:relative}
-.shell>.shell-rail{z-index:2}
+.shell{display:flex;flex-direction:column;min-height:100dvh;background:var(--base);position:relative}
 .shell>.shell-main{position:relative;z-index:2}
-.shell-rail{width:var(--rail-width);flex:none;background:var(--in);border-right:1px solid var(--b1);position:sticky;top:0;height:100dvh;overflow-y:auto}
-.shell-main{flex:1 1 auto;min-width:0}
+.shell-main{flex:1 1 auto;min-width:0;width:100%}
 .shell-tabs{display:none}
 @media (max-width:767px){
-  .shell-rail{display:none}
-  .shell-tabs{display:block;position:fixed;left:0;right:0;bottom:0;z-index:30}
-  .shell-main{padding-bottom:var(--tabbar-height)}
-  .tabbar{height:auto;min-height:var(--tabbar-height);padding-bottom:max(24px,env(safe-area-inset-bottom))}
+  .shell-tabs{display:block}
+
 }
 .mrow{display:flex;align-items:center;gap:12px;min-height:52px;padding:0 16px;color:var(--t1);text-decoration:none;border-bottom:1px solid var(--b1);background:transparent;border-left:0;border-right:0;border-top:0;width:100%;font:inherit;text-align:left;cursor:pointer}
 .mrow:last-child{border-bottom:0}
@@ -609,13 +586,11 @@ a.crow{color:var(--t1)}
    A press registers before the screen arrives; a bar runs until it has; the new screen eases
    in; a skeleton shaped like the screen stands in while its data loads. Everything here is
    motion-token driven, so the reduced-motion block in tokens.css stills all of it. */
-.ni,.tab,.mrow{-webkit-tap-highlight-color:transparent;transition:background var(--d1),color var(--d1),transform var(--d1)}
+.ni,.mrow{-webkit-tap-highlight-color:transparent;transition:background var(--d1),color var(--d1),transform var(--d1)}
 .ni:active,.mrow:active{background:var(--s3);color:var(--t1)}
-.tab:active{background:var(--s2);color:var(--t1);transform:scale(.96)}
 .lp{display:none}
 .ni:has(> .lp[data-pending]),.mrow:has(> .lp[data-pending]){background:var(--s2);color:var(--t1)}
-.ni:has(> .lp[data-pending]) .ic,.tab:has(> .lp[data-pending]) .ic,.mrow:has(> .lp[data-pending]) .ic{color:var(--ac)}
-.tab:has(> .lp[data-pending]){color:var(--t1);background:var(--s2)}
+.ni:has(> .lp[data-pending]) .ic,.mrow:has(> .lp[data-pending]) .ic{color:var(--ac)}
 .navbar{position:fixed;left:0;top:0;height:2px;width:100%;z-index:70;pointer-events:none;background:var(--act);box-shadow:0 0 10px var(--g1);transform-origin:0 50%;transform:scaleX(0);opacity:0}
 .navbar[data-phase="loading"]{opacity:1;transform:scaleX(.82);transition:transform 2.4s var(--e-out),opacity var(--d1)}
 .navbar[data-phase="done"]{opacity:0;transform:scaleX(1);transition:transform var(--d2) var(--e-out),opacity var(--d3) var(--e-out) var(--d1)}

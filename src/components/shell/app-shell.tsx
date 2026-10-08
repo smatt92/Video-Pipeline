@@ -8,13 +8,13 @@ import type { RailData } from '@/lib/shell/rail';
 import { CommandPalette } from './command-palette';
 import { HintProvider } from './hint';
 import { NavFeedback } from './nav-feedback';
-import { Rail } from './rail';
 import { TabBar } from './tab-bar';
+import { TopBar } from './top-bar';
 
 /**
- * The application frame (canvas: Rail + TabBar). Rail on the left from 768px up; the tab bar
- * and its More sheet below that. Both read the same RailData, built once per request on the
- * server, so a badge on the rail and on the tab bar can never disagree.
+ * The application frame (canvas: GlassHome, GlassHomeM). The top bar on every width; the
+ * glass tab bar and its More sheet below 768px. Both read the same RailData, built once per
+ * request on the server, so a badge on the bar and on the tab bar can never disagree.
  *
  * The content column scrolls with the document rather than inside a fixed-height box, so a
  * phone's browser chrome can collapse and the page never scrolls sideways at 390px.
@@ -60,9 +60,7 @@ export function AppShell({ children, data }: { children: React.ReactNode; data: 
       </a>
       <div className="shell" data-glow={data.glow}>
         <Ambient />
-        <div className="shell-rail">
-          <Rail data={data} onOpenPalette={() => setPaletteOpen(true)} />
-        </div>
+        <TopBar data={data} onOpenPalette={() => setPaletteOpen(true)} />
         <div className="shell-main" id="content">
           {children}
         </div>

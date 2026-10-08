@@ -9,12 +9,13 @@ import { NAV } from '@/lib/nav';
 import type { RailData } from '@/lib/shell/rail';
 
 import { LinkPending } from './nav-feedback';
-import { badgeFor, ChannelAvatar, isActive, KillSwitchRow, useSwitchChannel } from './rail';
+import { badgeFor, ChannelAvatar, isActive, useSwitchChannel } from './nav-parts';
 
 /**
- * Mobile tab bar (canvas: TabBar) — Home, Approvals, Cuts, Board, More — and the More sheet
- * (canvas: More-m): channel switcher, then every other item, grouped as on the rail. Shown
- * below 768px; the Rail is hidden there.
+ * Phone glass tab bar (canvas: GlassHomeM) — Home, Approvals, Cuts, Board, More — floating
+ * over the ambient layer, and the More sheet: search, the channel switcher, then every other
+ * screen grouped as on the top bar's More menu. Shown below 768px, where the top bar keeps
+ * only the logo, switcher, bell and kill switch.
  */
 
 const MORE_PATH = 'M3.5 12a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0M10.5 12a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0M17.5 12a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0';
@@ -30,31 +31,24 @@ export function TabBar({ data }: { data: RailData }) {
   return (
     <>
       {more && <MoreSheet data={data} onClose={() => setMore(false)} />}
-      <nav className="tabbar" aria-label="Primary">
+      <nav className="tbar gp" aria-label="Primary">
         {tabs.map((t) => {
           const on = isActive(pathname, t.href) && !more;
           const b = badgeFor(t, data.counts);
           return (
-            <Link key={t.href} href={t.href} className={`tab${on ? ' on' : ''}`} aria-current={on ? 'page' : undefined}>
+            <Link key={t.href} href={t.href} className={on ? 'on' : undefined} aria-current={on ? 'page' : undefined}>
               <LinkPending />
               <Icon name={t.icon as IconName} />
               <span>{t.label}</span>
               {b && (
-                <span className={`bdg${b.red ? ' red' : ''}`} aria-label={`${b.n} waiting`}>
+                <span className={`badge${b.red ? '' : ' act'}`} aria-label={`${b.n} waiting`}>
                   {b.n}
                 </span>
               )}
             </Link>
           );
         })}
-        <button
-          type="button"
-          className={`tab${more || !onTab ? ' on' : ''}`}
-          aria-expanded={more}
-          aria-haspopup="dialog"
-          onClick={() => setMore((m) => !m)}
-          style={{ background: 'transparent', border: 0, font: 'inherit', cursor: 'pointer' }}
-        >
+        <button type="button" className={more || !onTab ? 'on' : undefined} aria-expanded={more} aria-haspopup="dialog" onClick={() => setMore((m) => !m)}>
           <svg className="ic" viewBox="0 0 24 24" aria-hidden="true">
             <path d={MORE_PATH} />
           </svg>
@@ -91,20 +85,32 @@ function MoreSheet({ data, onClose }: { data: RailData; onClose: () => void }) {
             <Icon name="close" />
           </button>
         </div>
+        <button
+          type="button"
+          className="mrow card"
+          style={{ flex: 'none' }}
+          onClick={() => {
+            onClose();
+            window.dispatchEvent(new Event('kiln:palette'));
+          }}
+        >
+          <Icon name="search" />
+          <span className="grow">Search or jump</span>
+        </button>
         <span className="lbl">Channel</span>
         {/* flex: none — a direct child of the scrolling sheet with overflow hidden may shrink to
             nothing, and on a phone the channel list did exactly that: a hairline, no channels. */}
         <section className="card" style={{ overflow: 'hidden', flex: 'none' }}>
           <Link className={`mrow${allSelected ? ' on' : ''}`} href="/all">
-            <ChannelAvatar ch="all" size="sm" />
+            <ChannelAvatar ch="all" size="md" />
             <span className="grow">All channels</span>
             {allSelected && <Icon name="check" className="tac" />}
           </Link>
-          {data.channels.map((c) => {
+          {data.channels.map((c, i) => {
             const on = !allSelected && c.id === data.activeId;
             return (
               <button key={c.id} type="button" className={`mrow${on ? ' on' : ''}`} disabled={pending} onClick={() => go(c.id)}>
-                <ChannelAvatar ch={c} size="sm" />
+                <ChannelAvatar ch={c} size="md" alt={i % 2 === 1} />
                 <span className="col grow" style={{ gap: 0, lineHeight: 1.25 }}>
                   <span>{c.name}</span>
                   <span className="mono xs t3">{c.handle ?? 'no handle'}</span>
@@ -114,7 +120,7 @@ function MoreSheet({ data, onClose }: { data: RailData; onClose: () => void }) {
             );
           })}
           <Link className="mrow" href="/setup/basics?new=1">
-            <ChannelAvatar ch="add" size="sm" />
+            <ChannelAvatar ch="add" size="md" />
             <span className="grow t2">Add channel</span>
           </Link>
         </section>
@@ -143,7 +149,14 @@ function MoreSheet({ data, onClose }: { data: RailData; onClose: () => void }) {
             </section>
           </div>
         ))}
-        <KillSwitchRow kill={data.kill} channelId={allSelected ? null : data.activeId} compact />
+        <section className="card" style={{ overflow: 'hidden', flex: 'none' }}>
+          <form action="/auth/signout" method="post" style={{ display: 'contents' }}>
+            <button type="submit" className="mrow">
+              <Icon name="back" />
+              <span className="grow">Sign out{data.user ? ` · ${data.user.name}` : ''}</span>
+            </button>
+          </form>
+        </section>
       </div>
     </>
   );
