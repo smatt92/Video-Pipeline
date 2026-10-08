@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln Glass tokens</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./glass.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@200;300;400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#141413}
+.half{position:relative;border-radius:28px;overflow:hidden;padding:24px;min-height:520px;display:flex;flex-direction:column;gap:16px}
+.swr{display:grid;grid-template-columns:44px 1fr auto;gap:12px;align-items:center;font-size:13px}
+.sw{width:44px;height:30px;border-radius:10px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
+.card{border-radius:24px;background:rgba(255,255,255,.04);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);padding:20px;display:flex;flex-direction:column;gap:12px}
+pre{margin:0;font:400 11.5px/1.55 'Geist Mono',monospace;color:rgba(246,247,244,.8);white-space:pre-wrap}
+.gs{position:relative;height:110px;border-radius:20px;overflow:hidden;display:grid;place-items:center}
+</style>
+</helmet>
+<div class="g pa idle" style="width: 1440px; height: 1600px; padding: 56px 64px; display: flex; flex-direction: column; gap: 22px; font-family: var(--display)">
+  <div class="row sb" style="align-items: flex-end">
+    <div class="col" style="gap: 6px"><span class="lb">Kiln Glass · tokens v0.1 · CSS variables</span><span class="disp" style="font-size: 64px">Glass that never costs legibility</span></div>
+    <span class="mono xs t3">contrast measured on panel over graphite; glow peaks re-checked</span>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px">
+    <section class="g pa gen half">
+      <div class="amb"><i class="o1"></i><i class="o2"></i><i class="o3"></i><i class="o4"></i></div>
+      <div class="lay col" style="gap: 14px">
+        <div class="row sb"><span class="h2">A · Mint glass</span><button class="pbtn" type="button">Draft brief · ₹4–8</button></div>
+        <div class="gp" style="padding: 18px; display: flex; flex-direction: column; gap: 10px">
+          <div class="swr"><span class="sw" style="background: linear-gradient(115deg,#BFF97E,#98F899 50%,#CCFFEA)"></span><span>Action gradient #BFF97E → #98F899 → #CCFFEA</span><span class="mono xs">black 16.2:1+</span></div>
+          <div class="swr"><span class="sw" style="background: oklch(0.18 0.006 70)"></span><span>Graphite base oklch(0.18 0.006 70)</span><span class="mono xs">white 16.2:1</span></div>
+          <div class="swr"><span class="sw" style="background: rgba(17,24,20,.5)"></span><span>Glass rgba(17,24,20,.50) + 7% mint tint</span><span class="mono xs">blur 24</span></div>
+          <div class="swr"><span class="sw" style="background: #1E9E5A"></span><span>Ready — deeper green + check icon</span><span class="mono xs">5.1:1</span></div>
+        </div>
+        <div class="row" style="gap: 6px; flex-wrap: wrap"><span class="st draft">Draft</span><span class="st gen">Generating</span><span class="st rev">Needs review</span><span class="st blk">Blocked</span><span class="st rdy"><svg class="ic" viewBox="0 0 24 24" style="width: 12px; height: 12px"><path d="M5 12l5 5L20 7"></path></svg>Ready</span><span class="st live">Live</span></div>
+        <nav class="tabs"><button class="on" type="button">Create</button><button type="button">Sessions</button></nav>
+        <div class="orb"><span class="lb" style="color: #FFD3A0">Cut ready</span><span class="what">Lift safety brakes · 41 s · −16 LUFS</span></div>
+      </div>
+    </section>
+    <section class="g pb gen half">
+      <div class="amb"><i class="o1"></i><i class="o2"></i><i class="o3"></i><i class="o4"></i></div>
+      <div class="lay col" style="gap: 14px">
+        <div class="row sb"><span class="h2">B · Ember glass</span><button class="pbtn" type="button">Draft brief · ₹4–8</button></div>
+        <div class="gp" style="padding: 18px; display: flex; flex-direction: column; gap: 10px">
+          <div class="swr"><span class="sw" style="background: linear-gradient(115deg,#FFC27A,#FF8A3D 55%,#FF6A2B)"></span><span>Ember action #FFC27A → #FF8A3D → #FF6A2B</span><span class="mono xs">black 7.3:1+</span></div>
+          <div class="swr"><span class="sw" style="background: oklch(0.18 0.006 70)"></span><span>Same graphite base</span><span class="mono xs">white 16.6:1</span></div>
+          <div class="swr"><span class="sw" style="background: rgba(26,18,15,.52)"></span><span>Glass rgba(26,18,15,.52) + 7% ember tint</span><span class="mono xs">blur 24</span></div>
+          <div class="swr"><span class="sw" style="background: #FF4D6D"></span><span>Blocked pushed to crimson so it never reads as ember</span><span class="mono xs">5.6:1</span></div>
+        </div>
+        <div class="row" style="gap: 6px; flex-wrap: wrap"><span class="st draft">Draft</span><span class="st gen">Generating</span><span class="st rev">Needs review</span><span class="st blk">Blocked</span><span class="st rdy"><svg class="ic" viewBox="0 0 24 24" style="width: 12px; height: 12px"><path d="M5 12l5 5L20 7"></path></svg>Ready</span><span class="st live">Live</span></div>
+        <nav class="tabs"><button class="on" type="button">Create</button><button type="button">Sessions</button></nav>
+        <div class="orb"><span class="lb" style="color: #FFD3A0">Cut ready</span><span class="what">Lift safety brakes · 41 s · −16 LUFS</span></div>
+      </div>
+    </section>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px">
+    <section class="card">
+      <span class="h3">Glow is information</span>
+      <div class="gs g pa idle"><div class="amb" style="filter: blur(30px)"><i class="o1"></i><i class="o2"></i><i class="o3"></i></div><span class="lay sm">Idle · graphite, still</span></div>
+      <div class="gs g pa gen"><div class="amb" style="filter: blur(30px)"><i class="o1"></i><i class="o2"></i><i class="o3"></i><i class="o4"></i></div><span class="lay sm">Generating · brighter, warmer, breathing 6 s</span></div>
+      <div class="gs g pa idle alert"><div class="amb" style="filter: blur(30px)"><i class="o1"></i><i class="o2"></i></div><div class="redp" style="left: 50%; top: 50%; margin: -260px 0 0 -260px"></div><span class="lay sm">Needs you · one red pulse, then rests</span></div>
+    </section>
+    <section class="card">
+      <span class="h3">Type · Urbanist + Geist Mono</span>
+      <span class="disp" style="font-size: 84px">₹6,412</span>
+      <div class="kv" style="display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; font-size: 12.5px">
+        <span class="mono t3">hero</span><span>Urbanist 200 · 64–96 · −4.5%</span>
+        <span class="mono t3">h1</span><span>Urbanist 300 · 30</span>
+        <span class="mono t3">h2</span><span>Urbanist 400 · 20</span>
+        <span class="mono t3">ui</span><span>Urbanist 400–500 · 13–15</span>
+        <span class="mono t3">button</span><span>Urbanist 600 · 14 (primary only)</span>
+        <span class="mono t3">label</span><span>Urbanist 600 · 11 · +9% caps</span>
+        <span class="mono t3">data</span><span class="mono">Geist Mono 400 · 11–13 · tabular</span>
+      </div>
+    </section>
+    <section class="card">
+      <span class="h3">Radius · blur · depth · grain</span>
+      <div class="row" style="gap: 10px; align-items: flex-end">
+        <div class="col" style="gap: 4px; align-items: center"><div style="width: 44px; height: 44px; border-radius: 10px; background: rgba(255,255,255,.1)"></div><span class="mono xs t3">10</span></div>
+        <div class="col" style="gap: 4px; align-items: center"><div style="width: 44px; height: 44px; border-radius: 14px; background: rgba(255,255,255,.1)"></div><span class="mono xs t3">14</span></div>
+        <div class="col" style="gap: 4px; align-items: center"><div style="width: 44px; height: 44px; border-radius: 20px; background: rgba(255,255,255,.1)"></div><span class="mono xs t3">20</span></div>
+        <div class="col" style="gap: 4px; align-items: center"><div style="width: 56px; height: 56px; border-radius: 26px; background: rgba(255,255,255,.1)"></div><span class="mono xs t3">26 panel</span></div>
+        <div class="col" style="gap: 4px; align-items: center"><div style="width: 72px; height: 36px; border-radius: 999px; background: rgba(255,255,255,.1)"></div><span class="mono xs t3">pill</span></div>
+      </div>
+      <div class="kv" style="display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; font-size: 12.5px">
+        <span class="mono t3">blur</span><span>panel 24 · sheet 36 · never on text</span>
+        <span class="mono t3">highlight</span><span>inset 0 1px 0 white 16%</span>
+        <span class="mono t3">e1/e2/e3</span><span>2 / 30 / 60 px soft shadows</span>
+        <span class="mono t3">grain</span><span>fractal noise · 7% · overlay</span>
+        <span class="mono t3">motion</span><span>200 ms ease-in · shimmer for loading · no springs</span>
+      </div>
+    </section>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px">
+    <section class="card">
+      <span class="h3">Reduced transparency — same panel, no blur</span>
+      <div class="row" style="gap: 14px">
+        <div class="g pa gen" style="flex: 1; height: 150px; border-radius: 20px; position: relative">
+          <div class="amb" style="filter: blur(30px)"><i class="o1"></i><i class="o2"></i><i class="o4"></i></div>
+          <div class="gp lay" style="margin: 18px; padding: 16px"><span class="lb">Glass</span><span class="disp" style="font-size: 40px; display: block">₹214</span></div>
+        </div>
+        <div class="g pa gen solid" style="flex: 1; height: 150px; border-radius: 20px; position: relative">
+          <div class="amb" style="filter: blur(30px)"><i class="o1"></i><i class="o2"></i><i class="o4"></i></div>
+          <div class="gp lay" style="margin: 18px; padding: 16px"><span class="lb">Solid</span><span class="disp" style="font-size: 40px; display: block">₹214</span></div>
+        </div>
+      </div>
+      <span class="xs t3">Triggered by the OS setting or the in-app toggle. Glow drops to 35%, panels become solid tinted graphite.</span>
+    </section>
+    <section class="card">
+      <span class="h3">Next.js · globals.css excerpt</span>
+<pre>:root[data-palette="mint"]{
+  --act: linear-gradient(115deg,#BFF97E,#98F899 50%,#CCFFEA);
+  --act-ink:#000; --glass:rgba(17,24,20,.50);
+  --s-rdy:#1E9E5A;
+}
+:root[data-palette="ember"]{
+  --act: linear-gradient(115deg,#FFC27A,#FF8A3D 55%,#FF6A2B);
+  --glass:rgba(26,18,15,.52); --s-blk:#FF4D6D;
+}
+:root[data-glow="generating"] .amb .o4{opacity:1}
+@media (prefers-reduced-transparency:reduce){
+  .gp{backdrop-filter:none;background:var(--solid)}
+}</pre>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1600}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kiln Glass — Studio</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./glass.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@200;300;400;500;600;700&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#141413}
+a{color:#CCFFEA}a:hover{color:#fff}
+.bd{position:absolute;inset:0;z-index:0;background:radial-gradient(90% 80% at 30% 20%,oklch(0.24 0.008 70),var(--base) 55%,var(--base-2) 100%)}
+.bd svg{position:absolute;width:0;height:0}
+.tint{position:absolute;inset:0;z-index:1;pointer-events:none}
+.vig{position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(180deg,transparent 60%,rgba(4,5,5,.45) 100%)}
+.part{stroke:rgba(255,255,255,.22);stroke-width:1}
+.ldr{stroke:rgba(255,255,255,.45);stroke-width:1;fill:none}
+.ltx{fill:rgba(255,255,255,.78);font:500 11px 'Geist Mono',monospace;letter-spacing:.14em}
+.sec{border-top:1px solid var(--hair);padding:14px 0 2px}
+.sech{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;background:transparent;color:var(--t1);font:500 14px var(--display);padding:0;cursor:pointer}
+.sech .ic{width:16px;height:16px;color:var(--t3);transition:transform var(--dur) var(--ease)}
+.sech.cl .ic{transform:rotate(-90deg)}
+.tile{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 2px;border-radius:14px;border:0;background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px var(--hair);color:var(--t2);font:500 10.5px var(--display);cursor:pointer;line-height:1.15;text-align:center}
+.tile .ic{width:18px;height:18px}
+.tile.on{background:var(--act);color:var(--act-ink);box-shadow:none}
+.dseg{cursor:pointer;transition:transform var(--dur) var(--ease)}
+.ga1{stop-color:var(--a1)}.ga2{stop-color:var(--a2)}.ga3{stop-color:var(--a3)}
+.idea{display:flex;flex-direction:column;gap:8px;padding:16px;border-radius:20px;min-width:0}
+.rel{font:500 11px var(--mono);padding:2px 7px;border-radius:999px;background:rgba(255,255,255,.08);color:var(--t2)}
+.beat{flex:none;width:176px;height:112px;border-radius:18px;padding:8px;display:grid;grid-template-columns:52px 1fr;gap:8px;background:rgba(0,0,0,.22);box-shadow:inset 0 0 0 1px var(--hair);position:relative}
+.beat.sel{width:300px;grid-template-columns:52px 1fr;box-shadow:inset 0 0 0 2px var(--act-solid),0 0 24px var(--g1)}
+.beat .th{width:52px;height:96px;border-radius:10px;overflow:hidden;background:#0A0B0B;position:relative}
+.beat .th svg{width:100%;height:100%;display:block}
+.beat .tx{display:flex;flex-direction:column;gap:5px;min-width:0}
+.beat .ln{font-size:12.5px;line-height:1.3;color:var(--t1);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.beat .ac{display:flex;gap:4px;margin-top:auto}
+.beat .ac button{width:26px;height:26px;border-radius:50%;border:0;background:rgba(255,255,255,.08);color:var(--t2);display:grid;place-items:center;cursor:pointer}
+.beat .ac .ic{width:13px;height:13px}
+.beat .n{position:absolute;top:10px;left:12px;font:500 10px var(--mono);color:#fff;text-shadow:0 1px 3px #000}
+.beat.q .th{background:transparent;box-shadow:inset 0 0 0 1px var(--hair-2);border:0}
+.beat.q .ln{color:var(--t3)}
+.st.sm{height:20px;font-size:11px;padding:0 8px 0 6px}
+.wave{display:flex;align-items:center;gap:2px;height:22px}
+.wave i{width:2px;border-radius:1px;background:var(--act-solid);opacity:.85}
+.strip{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;padding:2px;mask-image:linear-gradient(90deg,#000 92%,transparent)}
+</style>
+</helmet>
+<div class="{{ rootCls }}" style="width: 1440px; height: 900px; font-family: var(--display)">
+  <div class="bd" aria-hidden="true">
+    <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <radialGradient id="bgR" cx=".46" cy=".42" r=".75"><stop offset="0" style="stop-color: #2B2F2D"></stop><stop offset=".55" style="stop-color: #141615"></stop><stop offset="1" style="stop-color: #070808"></stop></radialGradient>
+        <linearGradient id="shT" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color: #4A4E4C"></stop><stop offset=".45" style="stop-color: #232625"></stop><stop offset="1" style="stop-color: #0E100F"></stop></linearGradient>
+        <linearGradient id="shB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color: #3A3E3C"></stop><stop offset="1" style="stop-color: #0B0C0C"></stop></linearGradient>
+        <linearGradient id="bat" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color: #E6E8E6"></stop><stop offset=".5" style="stop-color: #A9ADAB"></stop><stop offset="1" style="stop-color: #5F6362"></stop></linearGradient>
+        <linearGradient id="pcb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color: #24604A"></stop><stop offset="1" style="stop-color: #0E2E21"></stop></linearGradient>
+        <radialGradient id="lens" cx=".4" cy=".35" r=".7"><stop offset="0" style="stop-color: #3A5C7A"></stop><stop offset=".45" style="stop-color: #0B1118"></stop><stop offset="1" style="stop-color: #020304"></stop></radialGradient>
+        <radialGradient id="key" cx=".2" cy=".1" r=".6"><stop offset="0" style="stop-color: rgba(255,255,255,.10)"></stop><stop offset="1" style="stop-color: rgba(255,255,255,0)"></stop></radialGradient>
+        <symbol id="arm" viewBox="0 0 1440 900">
+          <g transform="rotate(-12 720 340)">
+            <ellipse cx="720" cy="560" rx="520" ry="34" fill="#000" opacity=".55" style="filter: blur(18px)"></ellipse>
+            <rect class="part" x="250" y="150" width="980" height="56" rx="28" fill="url(#shT)"></rect>
+            <path d="M282 156H1196" stroke="rgba(255,255,255,.32)" stroke-width="1.2"></path>
+            <rect class="part" x="214" y="146" width="70" height="64" rx="20" fill="url(#shT)"></rect>
+            <rect class="part" x="244" y="262" width="96" height="56" rx="16" fill="#1A1C1B"></rect>
+            <circle cx="292" cy="290" r="21" fill="url(#lens)" stroke="#727776" stroke-width="2"></circle>
+            <circle cx="286" cy="284" r="5" fill="rgba(160,210,255,.65)"></circle>
+            <circle cx="327" cy="273" r="3" fill="#F6F7F4"></circle>
+            <path d="M340 292c30 0 26 20 56 20" stroke="#C7863A" stroke-width="7" fill="none" stroke-linecap="round"></path>
+            <rect class="part" x="392" y="294" width="440" height="26" rx="7" fill="url(#pcb)"></rect>
+            <rect x="440" y="282" width="78" height="16" rx="3" fill="#0D0E0E" stroke="#5A5F5D"></rect>
+            <rect x="534" y="285" width="48" height="12" rx="2" fill="#0D0E0E" stroke="#5A5F5D"></rect>
+            <rect x="600" y="287" width="22" height="9" rx="2" fill="#C9A24A"></rect><rect x="632" y="287" width="14" height="9" rx="2" fill="#C9A24A"></rect><rect x="700" y="285" width="60" height="11" rx="2" fill="#151716" stroke="#4E5351"></rect>
+            <circle cx="790" cy="306" r="3" fill="#C9A24A"></circle><circle cx="804" cy="306" r="3" fill="#C9A24A"></circle>
+            <rect class="part" x="866" y="282" width="330" height="44" rx="14" fill="url(#bat)"></rect>
+            <rect x="900" y="295" width="110" height="18" rx="4" fill="#1B1D1C"></rect>
+            <rect class="part" x="1166" y="356" width="84" height="26" rx="13" fill="#262928"></rect>
+            <circle cx="1188" cy="369" r="2" fill="#777"></circle><circle cx="1198" cy="369" r="2" fill="#777"></circle><circle cx="1208" cy="369" r="2" fill="#777"></circle><circle cx="1218" cy="369" r="2" fill="#777"></circle><circle cx="1228" cy="369" r="2" fill="#777"></circle>
+            <circle cx="262" cy="360" r="3" fill="#5D6261"></circle><circle cx="276" cy="360" r="3" fill="#5D6261"></circle>
+            <rect class="part" x="250" y="430" width="980" height="48" rx="24" fill="url(#shB)"></rect>
+            <path d="M620 446H1040" stroke="rgba(255,255,255,.14)" stroke-width="5" stroke-linecap="round"></path>
+            <path class="ldr" d="M292 262V226H200"></path><circle cx="292" cy="262" r="3" fill="#fff"></circle><text class="ltx" x="120" y="222">CAMERA</text>
+            <path class="ldr" d="M480 282V236H560"></path><circle cx="480" cy="282" r="3" fill="#fff"></circle><text class="ltx" x="566" y="240">SoC + MEMORY</text>
+            <path class="ldr" d="M1030 282V236H1110"></path><circle cx="1030" cy="282" r="3" fill="#fff"></circle><text class="ltx" x="1116" y="240">BATTERY</text>
+            <path class="ldr" d="M1208 382V408H1290"></path><circle cx="1208" cy="382" r="3" fill="#fff"></circle><text class="ltx" x="1296" y="412">SPEAKER</text>
+            <path class="ldr" d="M269 360V396H180"></path><circle cx="269" cy="360" r="3" fill="#fff"></circle><text class="ltx" x="80" y="400">HINGE MICS</text>
+            <path class="ldr" d="M820 454V510H900"></path><circle cx="820" cy="446" r="3" fill="#fff"></circle><text class="ltx" x="906" y="514">TOUCH STRIP</text>
+          </g>
+        </symbol>
+      </defs>
+    </svg>
+  </div>
+  <div class="tint" aria-hidden="true"><div class="amb"><i class="o1"></i><i class="o2"></i><i class="o3"></i><i class="o4"></i></div></div>
+  <div class="vig" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"><svg><filter id="gns"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" stitchTiles="stitch"></feTurbulence><feColorMatrix type="saturate" values="0"></feColorMatrix></filter><rect width="100%" height="100%" filter="url(#gns)"></rect></svg></div>
+
+  <div class="lay" style="position: absolute; inset: 0">
+    <header class="row sb" style="position: absolute; left: 24px; right: 24px; top: 22px; height: 48px">
+      <a class="gbtn" href="#sessions" style="height: 44px; background: rgba(10,12,11,.45); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px)"><svg class="ic" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"></path></svg>Back</a>
+      <nav class="tabs" aria-label="Studio" style="position: absolute; left: 50%; transform: translateX(-50%)"><button class="on" type="button">Create</button><button type="button">Sessions</button></nav>
+      <div class="row" style="gap: 10px">
+        <div class="col" style="gap: 2px; align-items: flex-end"><button class="pbtn off" type="button" disabled style="height: 40px">Watch cut</button></div>
+        <button class="ibtn" type="button" aria-label="Notifications, 3 unread" style="background: rgba(10,12,11,.45)"><svg class="ic" viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9zM10 20a2 2 0 0 0 4 0"></path></svg><span class="badge">3</span></button>
+        <span class="cav bl" style="width: 40px; height: 40px; border-radius: 12px; font-size: 13px; box-shadow: 0 0 0 1px rgba(255,255,255,.25)">BL</span>
+      </div>
+    </header>
+    <span class="mono xs" style="position: absolute; right: 152px; top: 74px; color: var(--t3)">opens when the cut is ready</span>
+
+    <div class="row" style="position: absolute; left: 50%; top: 196px; transform: translateX(-50%); gap: 12px; padding: 12px 20px 12px 16px; border-radius: 999px; background: rgba(6,8,7,.62); box-shadow: inset 0 0 0 1px var(--hair), 0 10px 30px rgba(0,0,0,.4)">
+      <span class="spin"></span>
+      <span style="font-size: 15px">Drawing shot 4 of 12</span>
+      <span class="t4">·</span>
+      <span class="mono sm">₹18 so far</span>
+    </div>
+    <span class="mono xs" style="position: absolute; left: 24px; top: 92px; padding: 6px 10px; border-radius: 999px; background: rgba(6,8,7,.55); color: var(--t2)">BL · Inside the arm of camera smart glasses</span>
+
+    <section style="position: absolute; left: 380px; width: 680px; top: 300px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
+      <article class="gp idea">
+        <div class="row sb"><span class="lb" style="color: var(--t2)">Smart glasses</span><span class="rel">0.88</span></div>
+        <span class="sm" style="font-weight: 500">Why camera glasses get warm on your temple</span>
+        <span class="xs t3" style="line-height: 1.35">"There's a phone's worth of chips an inch from your ear."</span>
+        <button class="gbtn sm" type="button" style="align-self: flex-start; margin-top: 2px">Use this idea</button>
+      </article>
+      <article class="gp idea">
+        <div class="row sb"><span class="lb" style="color: var(--t2)">Elevators</span><span class="rel">0.81</span></div>
+        <span class="sm" style="font-weight: 500">How a lift's counterweight saves energy</span>
+        <span class="xs t3" style="line-height: 1.35">"Half the work of every ride is done by iron you never see."</span>
+        <button class="gbtn sm" type="button" style="align-self: flex-start; margin-top: 2px">Use this idea</button>
+      </article>
+      <article class="gp idea">
+        <div class="row sb"><span class="lb" style="color: var(--t2)">Train brakes</span><span class="rel">0.74</span></div>
+        <span class="sm" style="font-weight: 500">Why a freight train needs so long to stop</span>
+        <span class="xs t3" style="line-height: 1.35">"Brakes aren't the limit. The wheels are."</span>
+        <button class="gbtn sm" type="button" style="align-self: flex-start; margin-top: 2px">Use this idea</button>
+      </article>
+    </section>
+
+    <section class="gp" style="position: absolute; left: 380px; width: 680px; bottom: 204px; padding: 16px 16px 12px 20px; border-radius: 28px; display: flex; flex-direction: column; gap: 10px">
+      <label for="pr" class="lb" style="color: var(--t2)">What do you want to make?</label>
+      <textarea id="pr" rows="{{ rows }}" onFocus="{{ focus }}" onBlur="{{ blur }}" style="resize: none; border: 0; outline: 0; background: transparent; color: var(--t1); font: 300 18px/1.4 var(--display); width: 100%">Show what's packed inside the arm of camera smart glasses — exploded 3D, part by part, ending on why they get warm.</textarea>
+      <div class="row sb">
+        <div class="row" style="gap: 6px">
+          <button class="ibtn sm" type="button" aria-label="Attach a reference image or link"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg></button>
+          <button class="ibtn sm" type="button" aria-label="Dictate"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3"></path></svg></button>
+          <button class="gbtn sm" type="button" style="background: rgba(255,255,255,.12)"><svg class="ic" viewBox="0 0 24 24" style="width: 14px; height: 14px"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"></path></svg>Ideas from trends</button>
+          <button class="ibtn sm" type="button" aria-label="Save idea to topic bank"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z"></path></svg></button>
+          <button class="ibtn sm" type="button" aria-label="Video settings" style="background: rgba(255,255,255,.14)"><svg class="ic" viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg></button>
+        </div>
+        <button class="pbtn" type="button">Draft brief · ₹4–8</button>
+      </div>
+    </section>
+
+    <aside class="gp" aria-label="Video settings" style="position: absolute; right: 24px; top: 92px; width: 320px; padding: 16px 18px 18px; border-radius: 28px">
+      <div class="row sb" style="margin-bottom: 4px"><span class="h3">Video settings</span><span class="mono xs t3">this session</span></div>
+      <div class="sec">
+        <button class="{{ h1c }}" type="button" onClick="{{ t1 }}"><span>Video type</span><svg class="ic" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"></path></svg></button>
+        <sc-if value="{{ o1 }}" hint-placeholder-val="{{ true }}">
+          <div class="col" style="gap: 6px; margin-top: 4px">
+            <svg viewBox="0 0 284 236" width="284" height="236" role="img" aria-label="{{ dialAria }}">
+              <defs><linearGradient id="dg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" class="ga1"></stop><stop offset=".5" class="ga2"></stop><stop offset="1" class="ga3"></stop></linearGradient></defs>
+              <path class="dseg" d="{{ s0.d }}" fill="{{ s0.f }}" stroke="rgba(255,255,255,.14)" transform="{{ s0.tr }}" onClick="{{ s0.pick }}"></path>
+              <path class="dseg" d="{{ s1.d }}" fill="{{ s1.f }}" stroke="rgba(255,255,255,.14)" transform="{{ s1.tr }}" onClick="{{ s1.pick }}"></path>
+              <path class="dseg" d="{{ s2.d }}" fill="{{ s2.f }}" stroke="rgba(255,255,255,.14)" transform="{{ s2.tr }}" onClick="{{ s2.pick }}"></path>
+              <path class="dseg" d="{{ s3.d }}" fill="{{ s3.f }}" stroke="rgba(255,255,255,.14)" transform="{{ s3.tr }}" onClick="{{ s3.pick }}"></path>
+              <path class="dseg" d="{{ s4.d }}" fill="{{ s4.f }}" stroke="rgba(255,255,255,.14)" transform="{{ s4.tr }}" onClick="{{ s4.pick }}"></path>
+              <text x="{{ s0.lx }}" y="{{ s0.ly }}" text-anchor="{{ s0.an }}" style="fill: {{ s0.lc }}; font: 500 11px Urbanist, sans-serif">{{ s0.l }}</text>
+              <text x="{{ s1.lx }}" y="{{ s1.ly }}" text-anchor="{{ s1.an }}" style="fill: {{ s1.lc }}; font: 500 11px Urbanist, sans-serif">{{ s1.l }}</text>
+              <text x="{{ s2.lx }}" y="{{ s2.ly }}" text-anchor="{{ s2.an }}" style="fill: {{ s2.lc }}; font: 500 11px Urbanist, sans-serif">{{ s2.l }}</text>
+              <text x="{{ s3.lx }}" y="{{ s3.ly }}" text-anchor="{{ s3.an }}" style="fill: {{ s3.lc }}; font: 500 11px Urbanist, sans-serif">{{ s3.l }}</text>
+              <text x="{{ s4.lx }}" y="{{ s4.ly }}" text-anchor="{{ s4.an }}" style="fill: {{ s4.lc }}; font: 500 11px Urbanist, sans-serif">{{ s4.l }}</text>
+              <text x="142" y="108" text-anchor="middle" style="fill: rgba(246,247,244,.6); font: 600 10px Urbanist, sans-serif; letter-spacing: .1em">{{ motionCaps }}</text>
+              <text x="142" y="134" text-anchor="middle" style="fill: #F6F7F4; font: 200 26px Urbanist, sans-serif; letter-spacing: -0.03em">₹{{ price }}</text>
+              <text x="142" y="152" text-anchor="middle" style="fill: rgba(246,247,244,.6); font: 400 11px 'Geist Mono', monospace">of ₹380</text>
+            </svg>
+            <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px">
+              <sc-for list="{{ tiles }}" as="t" hint-placeholder-count="5"><button class="{{ t.cls }}" type="button" onClick="{{ t.pick }}" aria-pressed="{{ t.on }}"><svg class="ic" viewBox="0 0 24 24"><path d="{{ t.d }}"></path></svg>{{ t.n }}</button></sc-for>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+      <div class="sec">
+        <button class="{{ h2c }}" type="button" onClick="{{ t2 }}"><span>Motion</span><svg class="ic" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"></path></svg></button>
+        <sc-if value="{{ o2 }}" hint-placeholder-val="{{ true }}">
+          <div class="row sb" style="margin-top: 10px"><div class="seg"><button class="{{ mk }}" type="button" onClick="{{ setKey }}">Key</button><button class="{{ mf }}" type="button" onClick="{{ setFull }}">Full</button></div><span class="xs t3">{{ motionNote }}</span></div>
+        </sc-if>
+      </div>
+      <div class="sec">
+        <button class="{{ h3c }}" type="button" onClick="{{ t3 }}"><span>Voice + pace</span><svg class="ic" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"></path></svg></button>
+        <sc-if value="{{ o3 }}" hint-placeholder-val="{{ true }}">
+          <div class="col" style="gap: 10px; margin-top: 10px">
+            <div class="row sb"><span class="sm">Narrator · locked</span><button class="ibtn sm" type="button" aria-label="Play voice"><svg class="ic" viewBox="0 0 24 24"><path d="M7 5l12 7-12 7z"></path></svg></button></div>
+            <div class="seg" style="align-self: flex-start"><button type="button">Normal</button><button class="on" type="button">Brisk</button><button type="button">Fast</button></div>
+          </div>
+        </sc-if>
+      </div>
+      <div class="sec" style="padding-bottom: 0">
+        <div class="row sb"><span class="h3">Cap</span><span class="mono sm">₹{{ price }} <span class="t3">of ₹380</span></span></div>
+        <div class="{{ gaugeCls }}" style="margin-top: 10px"><i style="width: {{ pct }}"></i></div>
+        <span class="xs" style="display: block; margin-top: 8px; color: {{ capColor }}">{{ capNote }}</span>
+      </div>
+    </aside>
+
+    <section class="gp dense" style="position: absolute; left: 24px; right: 24px; bottom: 18px; height: 150px; padding: 12px 12px 10px; border-radius: 28px; display: flex; flex-direction: column; gap: 8px">
+      <div style="display: flex; gap: 10px; align-items: stretch; min-height: 0">
+        <div class="strip grow">
+          <div class="beat"><div class="th"><svg viewBox="160 120 340 620" preserveAspectRatio="xMidYMid slice"><rect x="0" y="0" width="1440" height="900" fill="url(#bgR)"></rect><use href="#arm" width="1440" height="900"></use></svg><span class="n">1</span></div><div class="tx"><span class="st rdy sm"><svg class="ic" viewBox="0 0 24 24" style="width: 11px; height: 11px"><path d="M5 12l5 5L20 7"></path></svg>done</span><span class="ln">This arm is a whole phone, folded flat.</span><div class="ac"><button type="button" aria-label="Re-roll beat 1"><svg class="ic" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"></path></svg></button><button type="button" aria-label="Music for beat 1"><svg class="ic" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"></path></svg></button></div></div></div>
+          <div class="beat sel"><div class="th"><svg viewBox="200 180 200 360" preserveAspectRatio="xMidYMid slice"><rect x="0" y="0" width="1440" height="900" fill="url(#bgR)"></rect><use href="#arm" width="1440" height="900"></use></svg><span class="n">2</span></div><div class="tx"><div class="row" style="gap: 6px"><span class="st gen sm">clip</span><span class="mono xs t3">5.2 s</span></div><span class="ln">Up front, a camera smaller than your fingernail.</span><div class="wave" aria-label="Voice line waveform"><i style="height: 30%"></i><i style="height: 60%"></i><i style="height: 85%"></i><i style="height: 50%"></i><i style="height: 70%"></i><i style="height: 95%"></i><i style="height: 40%"></i><i style="height: 65%"></i><i style="height: 80%"></i><i style="height: 35%"></i><i style="height: 55%"></i><i style="height: 90%"></i><i style="height: 60%"></i><i style="height: 30%"></i><i style="height: 75%"></i><i style="height: 45%"></i><i style="height: 85%"></i><i style="height: 50%"></i><i style="height: 25%"></i><i style="height: 60%"></i><i style="height: 40%"></i><i style="height: 70%"></i><i style="height: 30%"></i><i style="height: 20%"></i></div><div class="row sb"><span class="mono xs t3">♪ Precise Pulse · bed</span><div class="ac" style="margin: 0"><button type="button" aria-label="Re-roll beat 2"><svg class="ic" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"></path></svg></button><button type="button" aria-label="Music for beat 2"><svg class="ic" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"></path></svg></button></div></div></div></div>
+          <div class="beat"><div class="th"><svg viewBox="420 160 260 470" preserveAspectRatio="xMidYMid slice" style="opacity: .45"><rect x="0" y="0" width="1440" height="900" fill="url(#bgR)"></rect><use href="#arm" width="1440" height="900"></use></svg><span class="n">3</span></div><div class="tx"><span class="st blk sm">failed</span><span class="ln">Behind it, the chip that does the thinking.</span><div class="ac"><button type="button" aria-label="Re-roll beat 3" style="background: var(--act); color: var(--act-ink)"><svg class="ic" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"></path></svg></button><span class="xs t3" style="align-self: center">board unreadable</span></div></div></div>
+          <div class="beat"><div class="th shim"><svg viewBox="860 160 300 540" preserveAspectRatio="xMidYMid slice" style="opacity: .25; filter: blur(3px)"><rect x="0" y="0" width="1440" height="900" fill="url(#bgR)"></rect><use href="#arm" width="1440" height="900"></use></svg><span class="n">4</span></div><div class="tx"><div class="row" style="gap: 6px"><span class="st gen sm">drawing</span><span class="spin" style="width: 12px; height: 12px"></span></div><span class="ln">Then a battery bent to the curve of the frame.</span></div></div>
+          <div class="beat q"><div class="th"><span class="n" style="text-shadow: none; color: var(--t3)">5</span></div><div class="tx"><span class="st draft sm">queued</span><span class="ln">Speakers aimed at your ear, not the room.</span></div></div>
+          <div class="beat q"><div class="th"><span class="n" style="text-shadow: none; color: var(--t3)">6</span></div><div class="tx"><span class="st draft sm">queued</span><span class="ln">Microphones in the hinge to hear you.</span></div></div>
+          <div class="beat q"><div class="th"><span class="n" style="text-shadow: none; color: var(--t3)">7</span></div><div class="tx"><span class="st draft sm">queued</span><span class="ln">A touch strip along the outside.</span></div></div>
+        </div>
+        <div class="col" style="gap: 8px; width: 132px; flex: none">
+          <button class="gbtn" type="button" style="height: 52px; border-radius: 18px"><svg class="ic" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"></path></svg>Music bed</button>
+          <button class="gbtn" type="button" style="height: 52px; border-radius: 18px"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg>Add beat</button>
+        </div>
+      </div>
+      <div class="row" style="gap: 10px"><div class="prog grow shim"><i style="width: 25%"></i></div><span class="mono xs t3">3 of 12 beats · 41 s planned</span></div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"palette":{"editor":"enum","options":["A","B"],"default":"A"},"generating":{"editor":"boolean","default":true},"reducedTransparency":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = { type: 4, full: true, focus: false, o1: true, o2: true, o3: false }; }
+  renderVals() {
+    const pal = (this.props.palette ?? 'A') === 'B' ? 'pb' : 'pa';
+    const gen = this.props.generating ?? true, solid = this.props.reducedTransparency ?? false;
+    const T = [
+      ['Illustrated', 'Illustrated', 140, 96, 'M4 5h16v14H4zM4 15l5-5 4 4 3-3 4 4'],
+      ['Chalk', 'Chalk diagrams', 88, 60, 'M4 20l7-16 2 5 4-2 3 13M8 14h8'],
+      ['Cinematic', 'Cinematic', 360, 240, 'M3 7h18v12H3zM3 7l3-4M9 7l3-4M15 7l3-4'],
+      ['Cartoon', 'Cartoon characters', 260, 180, 'M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM9 11h.01M15 11h.01M9 15c1.5 1.5 4.5 1.5 6 0'],
+      ['3D', '3D explainer', 312, 214, 'M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12 4 7.5']
+    ];
+    const st = this.state, sel = st.type;
+    const cx = 142, cy = 118, ro = 92, ri = 58, gap = 0.05;
+    const P = (r, a) => [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+    const seg = (i) => {
+      const a0 = -Math.PI / 2 + i * (2 * Math.PI / 5) + gap, a1 = -Math.PI / 2 + (i + 1) * (2 * Math.PI / 5) - gap, am = (a0 + a1) / 2;
+      const [x0, y0] = P(ro, a0), [x1, y1] = P(ro, a1), [x2, y2] = P(ri, a1), [x3, y3] = P(ri, a0);
+      const d = `M${x0.toFixed(1)} ${y0.toFixed(1)}A${ro} ${ro} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}A${ri} ${ri} 0 0 0 ${x3.toFixed(1)} ${y3.toFixed(1)}Z`;
+      const on = i === sel;
+      const off = on ? 8 : 0;
+      const [lx, ly] = P(ro + 18 + off, am);
+      const an = Math.abs(Math.cos(am)) < 0.25 ? 'middle' : (Math.cos(am) > 0 ? 'start' : 'end');
+      return { d, f: on ? 'url(#dg)' : 'rgba(255,255,255,.07)', tr: `translate(${(Math.cos(am) * off).toFixed(1)} ${(Math.sin(am) * off).toFixed(1)})`, lx: lx.toFixed(1), ly: (ly + 4).toFixed(1), an, l: T[i][0], lc: on ? '#F6F7F4' : 'rgba(246,247,244,.6)', pick: () => this.setState({ type: i }) };
+    };
+    const price = st.full ? T[sel][2] : T[sel][3];
+    const over = price > 380;
+    return {
+      rootCls: 'g ' + pal + (gen ? ' gen' : ' idle') + (solid ? ' solid' : ''),
+      s0: seg(0), s1: seg(1), s2: seg(2), s3: seg(3), s4: seg(4),
+      dialAria: 'Video type: ' + T[sel][1] + ', ' + (st.full ? 'full' : 'key') + ' motion, ₹' + price + ' of ₹380',
+      tiles: T.map((t, i) => ({ n: t[0], d: t[4], on: i === sel, cls: 'tile' + (i === sel ? ' on' : ''), pick: () => this.setState({ type: i }) })),
+      price, motionCaps: (st.full ? 'FULL MOTION' : 'KEY MOTION'),
+      mk: st.full ? '' : 'on', mf: st.full ? 'on' : '',
+      setKey: () => this.setState({ full: false }), setFull: () => this.setState({ full: true }),
+      motionNote: st.full ? 'every shot moves' : '4 key shots move',
+      pct: Math.min(100, Math.round(price / 380 * 100)) + '%',
+      gaugeCls: 'gauge' + (over || price / 380 > 0.9 ? ' warn' : ''),
+      capNote: over ? 'Over this video’s cap — switch to Key motion or another type.' : '₹' + (380 - price) + ' left under this video’s cap',
+      capColor: over ? '#FFB84D' : 'rgba(246,247,244,.58)',
+      rows: st.focus ? 5 : 3,
+      focus: () => this.setState({ focus: true }), blur: () => this.setState({ focus: false }),
+      o1: st.o1, o2: st.o2, o3: st.o3,
+      h1c: 'sech' + (st.o1 ? '' : ' cl'), h2c: 'sech' + (st.o2 ? '' : ' cl'), h3c: 'sech' + (st.o3 ? '' : ' cl'),
+      t1: () => this.setState({ o1: !st.o1 }), t2: () => this.setState({ o2: !st.o2 }), t3: () => this.setState({ o3: !st.o3 })
+    };
+  }
+}
+</script>
+</body>
+</html>
