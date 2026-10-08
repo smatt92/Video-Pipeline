@@ -132,8 +132,10 @@ export const episodeTask = schemaTask({
           ...pass,
         });
       // Voice overflow (Settings → Generation, 0051): on → a main-model limit re-voices the whole
-      // episode on the second model (voiceWithOverflow decides; tested there). Read once per run.
-      const overflowOn = (await readChannelFlags(db, channelId)).values.voiceOverflow;
+      // episode on the second model (voiceWithOverflow decides; tested there). Read again before
+      // every retry: a run already waiting out the limit when Sahil turns overflow on (B26,
+      // 08-Oct) must take it at its next retry, not wait out the day on the setting it began with.
+      let overflowOn = (await readChannelFlags(db, channelId)).values.voiceOverflow;
       let attempt = await voiceWithOverflow(speak, overflowOn);
       // The vendor's daily task limit (S002, 07-Oct: "Your daily task limit has been reached").
       // It is a 24-hour ROLLING window, so capacity returns hour by hour as yesterday's tasks age
@@ -146,6 +148,7 @@ export const episodeTask = schemaTask({
         const which = overflowOn ? 'both voice models’ daily limits reached' : "voice vendor's daily task limit reached";
         await setStatus(db, episodeId, 'voicing', `${which} — retrying at ${at} IST (try ${n} of ${RATE_LIMIT_RETRIES}); spoken lines are kept`);
         await wait.for({ minutes: RATE_LIMIT_RETRY_MIN });
+        overflowOn = (await readChannelFlags(db, channelId)).values.voiceOverflow;
         attempt = await voiceWithOverflow(speak, overflowOn);
       }
       const voice = attempt.voice;
