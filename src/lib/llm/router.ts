@@ -161,12 +161,15 @@ export async function routed<S extends z.ZodType>(
   if (response.stop_reason === 'refusal') {
     throw new RouterError('refusal', `${call.task}: the model declined.`, usage);
   }
+  // What the model wrote, start and end — the evidence for why a call ran long or broke the JSON.
+  const text = (response.content ?? []).map((b) => (b.type === 'text' ? b.text : '')).join('');
+  const glimpse = `${text.length} chars; starts ${JSON.stringify(text.slice(0, 160))} … ends ${JSON.stringify(text.slice(-240))}`;
   if (response.stop_reason === 'max_tokens') {
-    throw new RouterError('truncated', `${call.task}: hit ${call.maxTokens} tokens before finishing.`, usage);
+    throw new RouterError('truncated', `${call.task}: hit ${call.maxTokens} tokens before finishing (${glimpse}).`, usage);
   }
   const parsed = response.parsed_output;
   if (parsed === null || parsed === undefined) {
-    throw new RouterError('no_parse', `${call.task}: the response did not parse as JSON against its schema (stop_reason ${response.stop_reason}, ${usage.outputTokens} output tokens).`, usage);
+    throw new RouterError('no_parse', `${call.task}: the response did not parse as JSON against its schema (stop_reason ${response.stop_reason}, ${usage.outputTokens} output tokens; ${glimpse}).`, usage);
   }
   const checked = call.schema.safeParse(parsed);
   if (!checked.success) {
