@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { serverClient } from '@/lib/db/server';
 import { env } from '@/lib/env';
 import { requireUsdInrRate } from '@/lib/cost/fx';
+import { legacyLaneDisabled } from '@/lib/drivers/jobs';
 import { expectedWebhookSecret } from '@/lib/drivers/video-status';
 import { resolveDriver } from '@/lib/integrations/resolve';
 import { submitShots, type SubmitOutcome } from '@/lib/generate/submit';
@@ -67,6 +68,9 @@ export const generateTask = schemaTask({
   queue: { concurrencyLimit: 1 },
 
   run: async (payload): Promise<SubmitOutcome> => {
+    // The legacy lane submits straight to the disabled vendor with no gen_jobs row watching it.
+    // Refused here, before any key is resolved; the decision is drivers/jobs.ts's predicate.
+    if (legacyLaneDisabled()) throw new Error('05-generate is disabled: its video vendor is in DISABLED_PROVIDERS (drivers/jobs.ts). Generation runs through the episode lane.');
     const db = serverClient();
 
     // Resolved in a library function so its refusals are drivable — see

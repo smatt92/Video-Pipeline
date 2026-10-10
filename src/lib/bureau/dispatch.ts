@@ -46,7 +46,12 @@ export interface DispatchDeps {
   credentialsFor(provider: string): Promise<VerifiedCredentials>;
   submit(input: { provider: string; model: string; endpoint: string | null; params: Record<string, unknown>; credentials: Record<string, string>; webhook?: { baseUrl: string; secret: string } }): Promise<JobSubmitResult>;
   poll(input: { provider: string; requestId: string; pollRef: Record<string, string>; credentials: Record<string, string> }): Promise<JobPollResult>;
-  ingest(input: { generationId: string; assetUrl: string; headers: Record<string, string> }): Promise<IngestResult>;
+  /**
+   * Inline (harnesses) returns the result; production hands the encode to `05b-ingest` and
+   * returns `{ pending: true }`, because an ffmpeg encode inside this every-minute task held the
+   * queue for an hour per clip on S005 (10-Oct) — the job is settled from the rows next tick.
+   */
+  ingest(input: { generationId: string; assetUrl: string; headers: Record<string, string> }): Promise<IngestResult | { pending: true }>;
   webhook?: { baseUrl: string; secret: string };
   /**
    * A storage key → a short-lived GET URL the vendor can fetch. Needed for any job carrying a
@@ -69,6 +74,10 @@ export async function dispatchProvider(provider: string, max: number, deps: Disp
   const now = deps.now ?? (() => new Date());
   // Before the claim: an unverified integration leaves every job queued and untouched, and
   // says why. Nothing is claimed, so nothing burns an attempt or a cent.
+  // Nothing queued for this provider: nothing to refuse. Checking credentials anyway logged a
+  // refusal every minute for the dormant failover vendors, which read as Kiln using them.
+  const { count: waiting } = await db.from('gen_jobs').select('id', { count: 'exact', head: true }).eq('provider', provider).in('status', ['queued', 'throttled']);
+  if (waiting === 0) return { claimed: 0, submitted: 0 };
   const answer = await deps.credentialsFor(provider);
   if (!answer.ok) {
     log.error('provider refused', { provider, code: answer.code, reason: answer.reason });
@@ -248,6 +257,18 @@ export async function advanceSubmitted(provider: string, deps: DispatchDeps) {
       done++;
       continue;
     }
+    // Already confirmed by an earlier tick: settle from the rows — an asset is success, an
+    // ingest error is failure. Neither yet: poll again and hand off again, which the ingest
+    // task's idempotency key makes a no-op while the first encode is still running.
+    const { data: prior } = await db.from('generations').select('status, error_code, error_detail').eq('id', job.generation_id!).maybeSingle();
+    if (prior?.status === 'succeeded') {
+      const { data: asset } = await db.from('assets').select('id').eq('generation_id', job.generation_id!).not('normalized_at', 'is', null).limit(1).maybeSingle();
+      if (asset || prior.error_code) {
+        await settleJob(db, job, Boolean(asset), asset ? null : `${prior.error_code}: ${prior.error_detail ?? ''}`, now());
+        done++;
+        continue;
+      }
+    }
     if (!creds || !job.request_id) continue;
     const r = await deps.poll({ provider, requestId: job.request_id, pollRef: (job.poll_ref ?? {}) as Record<string, string>, credentials: creds });
     if (r.state === 'running') continue;
@@ -262,6 +283,7 @@ export async function advanceSubmitted(provider: string, deps: DispatchDeps) {
     // The poll is the vendor telling us; that is the confirmation ingest requires.
     await db.from('generations').update({ status: 'succeeded', confirmed_at: now().toISOString(), completed_at: now().toISOString() }).eq('id', job.generation_id!);
     const ing = await deps.ingest({ generationId: job.generation_id!, assetUrl: r.outputUrl, headers: r.downloadHeaders });
+    if ('pending' in ing) continue;
     await settleJob(db, job, ing.ok, ing.ok ? null : `${ing.code}: ${ing.detail}`, now());
     done++;
   }

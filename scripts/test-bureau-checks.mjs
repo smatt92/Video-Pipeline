@@ -21,7 +21,7 @@ const { modelFor, TASK_TIER } = require(`${B}/llm/router.js`);
 const { voiceRouteFor } = require(`${B}/drivers/voice-route.js`);
 const { resolvePunchline } = require(`${B}/bureau/briefs.js`);
 const { validateSegments } = require(`${B}/bureau/longform.js`);
-const { providersForRoute, failoverEnabled } = require(`${B}/drivers/jobs.js`);
+const { providersForRoute, failoverEnabled, providerDisabled, legacyLaneDisabled, submitJob } = require(`${B}/drivers/jobs.js`);
 const { videoRequestBody, imageRequestBody, clipSeconds, clipCredits } = require(`${B}/drivers/video-runway.js`);
 const { embedTexts, EMBED_ATTEMPTS } = require(`${B}/drivers/embeddings.js`);
 const { resolveReferenceFrame } = require(`${B}/bureau/dispatch.js`);
@@ -138,8 +138,11 @@ check(f.shots[2].route === 'overlay' && f.shots[1].route === 'character_beat', '
 console.log('\ngeneration on the Runway API (0015)\n');
 check(providersForRoute('character_beat', { failover: false }).join() === 'runway' && providersForRoute('money_shot', { failover: false }).join() === 'runway' && providersForRoute('acted_beat', { failover: false }).join() === 'runway',
   'failover off: every generated route goes to the one vendor and nowhere else');
-check(providersForRoute('character_beat', { failover: true }).join() === 'runway,higgsfield,fal' && providersForRoute('money_shot', { failover: true }).join() === 'runway,gemini',
-  'failover on: the dormant vendors follow, primary first');
+check(providersForRoute('character_beat', { failover: true }).join() === 'runway,fal' && providersForRoute('money_shot', { failover: true }).join() === 'runway,gemini',
+  'failover on: the dormant vendors follow, primary first — the disabled one is in no route');
+check(providerDisabled('higgsfield') && legacyLaneDisabled() && !providerDisabled('runway'), 'Higgsfield is disabled entirely (10-Oct); Runway is not');
+const off = await submitJob({ provider: 'higgsfield', model: 'm', endpoint: null, params: {}, credentials: {}, fetchImpl: async () => { throw new Error('a disabled provider must not reach the network'); } });
+check(!off.ok && off.code === 'invalid_input' && /disabled/.test(off.detail), 'submitJob refuses a disabled provider before any request', off.ok ? 'submitted' : off.detail);
 let threw = null;
 try { failoverEnabled('true'); } catch (err) { threw = err.message; }
 check(failoverEnabled(undefined) === false && failoverEnabled('on') === true && /must be "off" or "on"/.test(threw ?? ''), 'GENERATION_FAILOVER defaults off, and "true" is refused rather than read as off', threw);

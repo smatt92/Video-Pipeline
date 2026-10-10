@@ -131,6 +131,9 @@ try {
     log,
   });
   await setTimes('runway', 'null', 'null');
+  // A queued job: dispatch now returns quietly for a provider with nothing waiting, so the
+  // refusal is only reachable — and only meaningful — when there is something to refuse.
+  await client.query(`insert into gen_jobs (render_route, provider, model, params, duration_s, idempotency_key, next_attempt_at) values ('character_beat', 'runway', 'gen4_turbo', '{}', 4, 'gate-queued', now() + interval '1 day') on conflict do nothing`);
   const errors = [];
   const refused = await dispatchProvider('runway', 5, deps({ info() {}, error: (m, d) => errors.push(d) }));
   check(/^integration_unverified: The runway integration has never verified/.test(refused.refused ?? '') && refused.claimed === 0,
@@ -139,6 +142,10 @@ try {
   await setTimes('runway', "now() - interval '1 second'", 'now()');
   const accepted = await dispatchProvider('runway', 5, deps({ info() {}, error() {} }));
   check(accepted.refused === undefined, 'verified → dispatch proceeds to the claim', JSON.stringify(accepted));
+  await client.query(`delete from gen_jobs where idempotency_key = 'gate-queued'`);
+  const quiet = [];
+  const idle = await dispatchProvider('higgsfield', 5, deps({ info() {}, error: (m, d) => quiet.push(d) }));
+  check(idle.claimed === 0 && idle.refused === undefined && quiet.length === 0, 'nothing queued for a dormant provider → no credential check, no refusal logged', JSON.stringify(idle));
 
   // ═══ 4 ═══
   console.log('\n4. Embeddings refuse before the ledger row\n');

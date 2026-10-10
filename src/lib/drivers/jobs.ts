@@ -47,7 +47,8 @@ export const ROUTE_PROVIDERS: Record<GeneratedRoute, { primary: string; failover
   // A clip animated from the shot's own picture (0052, the engineered format). No failover:
   // the dormant providers were never wired for a first-frame clip of an arbitrary picture.
   picture_clip: { primary: 'runway', failover: [] },
-  character_beat: { primary: 'runway', failover: ['higgsfield', 'fal'] },
+  // Higgsfield is disabled (Sahil, 10-Oct): kept in the code for later, out of every route.
+  character_beat: { primary: 'runway', failover: [/* 'higgsfield', */ 'fal'] },
   acted_beat: { primary: 'runway', failover: [] },
   money_shot: { primary: 'runway', failover: ['gemini'] },
 };
@@ -76,6 +77,25 @@ export function providersForRoute(route: GeneratedRoute, opts: { failover?: bool
   const r = ROUTE_PROVIDERS[route];
   const failover = opts.failover ?? failoverEnabled();
   return failover ? [r.primary, ...r.failover] : [r.primary];
+}
+
+/**
+ * Providers switched off entirely — not dormant failover, off. Sahil, 10-Oct: "disable
+ * Higgsfield entirely, don't delete, we can use it later". The driver, its harnesses and its
+ * webhook stay; nothing submits to it: the dispatcher skips it (no credential check, no
+ * refusal logged every minute), `submitJob` refuses it, and the legacy 05-generate lane — the
+ * direct submit with no gen_jobs row watching it — refuses before resolving a key.
+ * To bring it back: remove it from this set and restore it in ROUTE_PROVIDERS above.
+ */
+export const DISABLED_PROVIDERS: ReadonlySet<string> = new Set(['higgsfield']);
+
+export function providerDisabled(provider: string): boolean {
+  return DISABLED_PROVIDERS.has(provider);
+}
+
+/** The legacy 05-generate lane's vendor is disabled — named here so the task need not. */
+export function legacyLaneDisabled(): boolean {
+  return providerDisabled('higgsfield');
 }
 
 /** Integration slug whose credentials a provider needs, in catalogue field order. */
@@ -201,6 +221,9 @@ export async function submitJob(input: JobSubmitInput): Promise<JobSubmitResult>
   const f = input.fetchImpl ?? fetch;
   const p = input.params;
 
+  if (providerDisabled(input.provider)) {
+    return { ok: false, code: 'invalid_input', detail: `${input.provider} is disabled in DISABLED_PROVIDERS; nothing was submitted.`, retryAfterS: null };
+  }
   switch (input.provider) {
     case 'higgsfield': {
       if (!input.webhook) {

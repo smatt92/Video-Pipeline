@@ -201,7 +201,8 @@ export async function normalise(
   );
 
   try {
-    await run('ffmpeg', args, { maxBuffer: 8 * 1024 * 1024 });
+    // A ceiling, so a stuck encode fails as a row instead of holding a worker to maxDuration.
+    await run('ffmpeg', args, { maxBuffer: 8 * 1024 * 1024, timeout: 10 * 60_000, killSignal: 'SIGKILL' });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return {

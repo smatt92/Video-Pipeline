@@ -38,6 +38,7 @@ export const ingestTask = schemaTask({
   queue: { concurrencyLimit: 4 },
 
   machine: 'small-2x',
+  maxDuration: 900,
 
   run: async (payload) => {
     const db = serverClient();
