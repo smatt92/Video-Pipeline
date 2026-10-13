@@ -12,9 +12,15 @@ import type { Db } from '../db/server';
  * No "Jev (TypeSafe)" orchestration module exists in any repository or note reachable from
  * this project (decision 0012 #12), so this is the prompt's fallback, typed:
  *
- *   judge tier   (Opus)    the policy judge, edge cases, the weekly strategy memo, vision QC
- *   writer tier  (Sonnet)  briefs, script polish, shotlists
- *   fast tier    (Haiku)   dedup, metadata, QC triage, comment mining, caption translation
+ *   judge tier   (Opus)    the policy judge, the weekly strategy memo, the legacy script draft
+ *   writer tier  (Sonnet)  briefs, shotlists, concepts, metadata, vision QC, the Studio session
+ *   fast tier    (Haiku)   script polish, dedup, QC triage, comment mining, caption translation,
+ *                          still prompts, Studio ideas
+ *
+ * The 13-Oct audit moved work down a tier only where the task is mechanical: script polish
+ * keeps the approved punchline verbatim and `scriptAcceptable` refuses anything else, so a
+ * cheaper writer cannot quietly lose it. The legacy draft lanes (concept, shotlist,
+ * metadata, script) were hard-wired to `claude-opus-5` and are named here now too.
  *
  * The task names the work; the router names the model. A caller never passes a model id,
  * so moving a task between tiers — or a tier to a new model — is one line here.
@@ -30,22 +36,31 @@ import type { Db } from '../db/server';
 export const MODELS = {
   judge: 'claude-opus-5-5',
   writer: 'claude-sonnet-5-5',
-  fast: 'claude-haiku-4-5-20251001',
+  fast: 'claude-haiku-5-5',
 } as const;
 export type Tier = keyof typeof MODELS;
 
 export const TASK_TIER = {
   policy_judge: 'judge',
   weekly_strategy: 'judge',
-  vision_qc: 'judge',
+  // The legacy lane's script draft (script/draft.ts). Stays on the judge tier on purpose:
+  // that file explains why its reasoning is the compliance defence, and says "never on cost".
+  script: 'judge',
+  // Scoring frames against a rubric; a human reviews anything it passes. Sends
+  // thinking: 'minimal' — a 600-token budget on Sonnet 5.5's default adaptive thinking is the
+  // 08-Oct writer failure waiting to happen.
+  vision_qc: 'writer',
   // The Studio session's conversation (studio/session.ts): a tool-use loop, not a routed
   // completion, but the model is still the router's to name.
-  studio_session: 'judge',
+  studio_session: 'writer',
   brief: 'writer',
-  script_polish: 'writer',
   shotlist: 'writer',
+  // The legacy lane's concept proposal (concepts/propose.ts) and publishing metadata
+  // (metadata/run.ts). Not routed() calls, but their model is named here.
+  concept: 'writer',
+  metadata: 'writer',
+  script_polish: 'fast',
   dedup: 'fast',
-  metadata: 'fast',
   qc_triage: 'fast',
   comment_mining: 'fast',
   translation: 'fast',
@@ -74,8 +89,9 @@ export interface RoutedCall<S extends z.ZodType> {
   /** Covers thinking AND text on the 5.x models — thinking tokens are billed as output. */
   maxTokens: number;
   /**
-   * 'minimal' sends `thinking: {type: 'between_tools'}`, the lowest setting the 5.x models take
-   * ('disabled' is a 400 there). Without it Sonnet 5.5 thinks adaptively by default, and the
+   * 'minimal' sends `thinking: {type: 'between_tools'}`, the lowest setting the Sonnet and Opus
+   * 5.x models take ('disabled' is a 400 there). Haiku 5.5 is the exception and ignores this:
+   * see `thinkingFor`. Without it Sonnet 5.5 thinks adaptively by default, and the
    * Built Like That writer (08-Oct) spent its whole 6,000-token budget thinking: stop_reason
    * max_tokens with ZERO characters of text, twice, ₹6 each. Ignored on models that predate it.
    */
@@ -132,6 +148,22 @@ function tolerantFormat<S extends z.ZodType>(schema: S) {
   } as typeof format;
 }
 
+/**
+ * The `thinking` field for a model, or nothing.
+ *
+ * Haiku 5.5 thinks adaptively by default — Haiku 4.5 never did — and thinking tokens count
+ * against `max_tokens`. The fast tier's budgets were sized for an answer, not for reasoning
+ * plus an answer: the still-prompt rewrite has 300 tokens. So every Haiku 5.x call sends
+ * thinking `disabled`, which that model accepts (unlike Sonnet and Opus 5.5) at its default
+ * effort. Sent explicitly, never left to the default: the default IS the behaviour being
+ * avoided.
+ */
+export function thinkingFor(model: string, thinking: 'minimal' | undefined): { thinking: never } | Record<string, never> {
+  if (model.startsWith('claude-haiku-5')) return { thinking: { type: 'disabled' } as never };
+  if (thinking === 'minimal' && !model.startsWith('claude-haiku-4')) return { thinking: { type: 'between_tools' } as never };
+  return {};
+}
+
 export async function routed<S extends z.ZodType>(
   call: RoutedCall<S>,
   deps: RouterDeps,
@@ -160,7 +192,7 @@ export async function routed<S extends z.ZodType>(
         system: call.system,
         messages: [{ role: 'user', content: call.user }],
         output_config: { format: tolerantFormat(call.schema) },
-        ...(call.thinking === 'minimal' && !model.startsWith('claude-haiku-4') ? { thinking: { type: 'between_tools' } as never } : {}),
+        ...thinkingFor(model, call.thinking),
       },
       { signal: deps.signal },
     );

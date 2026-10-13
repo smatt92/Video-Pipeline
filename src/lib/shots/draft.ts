@@ -8,6 +8,7 @@ import {
   type ShotlistPromptInput,
 } from '../prompts/04-shotlist.v1';
 import type { TokenUsage } from '../script/draft';
+import { modelFor } from '../llm/router';
 import { ShotlistSchema, resolveShotSpans, type ResolvedShot } from './schema';
 
 /**
@@ -22,7 +23,10 @@ import { ShotlistSchema, resolveShotSpans, type ResolvedShot } from './schema';
  * drafting model as a recorded fact. See the longer note in `script/draft.ts`.
  */
 
-const MODEL = 'claude-opus-5';
+// Named by the router since the 13-Oct audit (was a hard-wired 'claude-opus-5'). On Sonnet 5.5
+// the call sends thinking 'between_tools': adaptive thinking is that model's default and spent
+// a whole 6,000-token budget with no text on 08-Oct (router.ts, RoutedCall.thinking).
+const MODEL = modelFor('shotlist');
 const ENDPOINT = '/v1/messages';
 const MAX_TOKENS = 8_000;
 
@@ -80,6 +84,7 @@ export async function draftShotlist(
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: buildUserMessage(input) }],
         output_config: { format: zodOutputFormat(ShotlistSchema) },
+        thinking: { type: 'between_tools' } as never,
       },
       { signal: opts.signal },
     );

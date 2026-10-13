@@ -48,7 +48,7 @@ if (!apiKey || !dbUrl) {
   process.exit(2);
 }
 
-const { draftScript } = await import(`${BUILD}/script/draft.js`);
+const { draftScript, DRAFT_MODEL } = await import(`${BUILD}/script/draft.js`);
 const { structureHash } = await import(`${BUILD}/script/structure-hash.js`);
 const { scriptRowFor } = await import(`${BUILD}/script/run.js`);
 const { priceFromRates, llmCostRows } = await import(`${BUILD}/cost/llm.js`);
@@ -106,7 +106,7 @@ console.log(`channel  ${channel.name} · ${channel.platform} · ${channel.niche}
 const rateRows = sql(`
   select id || '|' || unit || '|' || unit_cost || '|' || is_verified
   from rate_card
-  where driver = 'anthropic' and model = 'claude-opus-5' and endpoint = '/v1/messages'
+  where driver = 'anthropic' and model = '${DRAFT_MODEL}' and endpoint = '/v1/messages'
     and effective_from <= now()
   order by unit, effective_from desc`).split('\n').filter(Boolean);
 

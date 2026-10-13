@@ -13,6 +13,7 @@ import {
   estimatedSeconds,
   type DraftedScript,
 } from './schema';
+import { modelFor } from '../llm/router';
 
 /**
  * Stage 3 — draft a script.
@@ -39,7 +40,11 @@ import {
  * is the difference between "verified" and "written".
  */
 
-const MODEL = 'claude-opus-5';
+// Named by the router since the 13-Oct audit: the judge tier, claude-opus-5-5. It stays on
+// Opus for the reason below, and the effort is pinned to `high` because that was Opus 5's
+// default and Opus 5.5 defaults one level lower, to `medium`. Moving the model must not lower
+// the reasoning by the back door.
+const MODEL = modelFor('script');
 const ENDPOINT = '/v1/messages';
 
 /** Enough for the script plus adaptive thinking. A short-form script is a few hundred
@@ -139,7 +144,7 @@ export async function draftScript(
         // "3 to 5 beats"; it cannot honour "vo_text must contain every beat". Those rules
         // are checked below, where a violation is a legible validation error rather than
         // a generation that quietly cannot terminate.
-        output_config: { format: zodOutputFormat(DraftedScriptSchema) },
+        output_config: { format: zodOutputFormat(DraftedScriptSchema), effort: 'high' },
       },
       { signal: opts.signal },
     );

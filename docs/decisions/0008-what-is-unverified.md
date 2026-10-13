@@ -1558,6 +1558,40 @@ hostname — §7); the real writers inside a session (stubbed here; the engineer
 real on 08-Oct through the probe, §34); a Studio-drafted brief approved and run to a bundle on the
 hosted project; the Studio screen and the Approvals pre-selection in a browser.
 
+### 36. Model tiers, Haiku 5.5, and the Studio prompt cache (2026-10-13, migration 0054) — RUN locally against stubs; real API NOT
+
+**What changed.** The fast tier moved from Haiku 4.5 to `claude-haiku-5-5`, and every Haiku 5.x
+call sends `thinking: {type: 'disabled'}` (`thinkingFor` in the router) because Haiku 5.5 thinks
+by default and the fast tier's budgets — 300 tokens for a still prompt — were sized for an
+answer only. Tiers: `script_polish` → fast; `vision_qc` and `studio_session` → writer (Sonnet
+5.5; vision QC sends `thinking: 'minimal'`); `policy_judge` stays judge. Four new task names
+route the legacy lane, which had `'claude-opus-5'` hard-wired: `concept`, `shotlist` and
+`metadata` → writer (each sends `between_tools`), `script` → judge (`claude-opus-5-5`, effort
+pinned `high` because Opus 5.5 defaults one level lower than Opus 5 did — "never on cost").
+The Studio session caches its system prompt, its tools and its transcript (three breakpoints),
+and `priceLlmCall` prices `cache_read_token` and `cache_write_5m_token` as their own ledger rows,
+refusing when a positive count has no rate. 0054 carries the rates, every one read from the
+published price list on 13-Oct.
+
+**What has run:** `test:bureau` — the tier table, `thinkingFor` for both families, and
+`polishScript` driven against a stubbed model and an in-memory rate card: a polish that keeps the
+punchline is used and credited to Haiku 5.5; one that rewords a single punchline turn, and one
+that drops it, are refused; all three calls are ledgered (proven to fail when the gate checks the
+approved script instead of the polished one). `verify:studio` §10c — a stubbed turn whose usage
+reports cache reads and writes: the request carries the system, last-tool and top-level
+breakpoints, four ledger rows land at the stub's exact counts, and their sum equals the rate
+card's own rows × those counts (proven to fail when cache reads are not counted).
+`verify:concepts`, `verify:metadata`, `verify:engineered`, `verify:costs` green against a local
+cluster with 0054 applied.
+
+**Unverified:** that the API accepts `thinking: {type: 'disabled'}` on `claude-haiku-5-5` — the
+published guidance says it does at the default effort, and nothing here has sent it; that a real
+Studio turn reports cache hits on its second round (the prefix is static, but only a real
+`usage.cache_read_input_tokens` proves it); the quality of a polish, a vision QC verdict, a
+concept batch, a shot list or publishing metadata on the cheaper tiers — rule 8, a real run each.
+A Haiku 5.5 prompt over 100,000 tokens would be under-priced 5x by 0054's rows (the long-context
+tier is not carried; no fast-tier task comes near it).
+
 ## Gates, and where each can run
 
 | Gate | Runnable in this environment? |

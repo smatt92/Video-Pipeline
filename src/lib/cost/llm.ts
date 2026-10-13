@@ -31,8 +31,22 @@ import { currentRate, type Rate } from './rate-card';
 
 const DRIVER = 'anthropic';
 
+/**
+ * A call's usage. The two cache counts are optional and mean different things when absent
+ * and when zero: absent is a call that cannot have touched the prompt cache (nothing asked
+ * for it), zero is a call that asked and missed. Either way no row is written for a zero —
+ * a ledger row of 0 tokens at a real rate is a charge of nothing, which is noise — but a
+ * positive count with no rate card row refuses, exactly as a missing input rate does.
+ */
+export interface LlmUsage extends TokenUsage {
+  /** `usage.cache_read_input_tokens`: billed at the cache-hit rate, not the input rate. */
+  cacheReadTokens?: number;
+  /** `usage.cache_creation_input_tokens` on a 5-minute cache: billed at 1.25x input. */
+  cacheWrite5mTokens?: number;
+}
+
 export interface LlmLedgerRow {
-  unit: 'input_token' | 'output_token';
+  unit: 'input_token' | 'output_token' | 'cache_read_token' | 'cache_write_5m_token';
   quantity: number;
   unitCostUsd: number;
   costUsd: number;
@@ -67,13 +81,29 @@ function row(unit: LlmLedgerRow['unit'], quantity: number, rate: Rate, usdInrRat
 export function priceFromRates(q: {
   inputRate: Rate;
   outputRate: Rate;
-  usage: TokenUsage;
+  /** Required exactly when `usage.cacheReadTokens` is positive. */
+  cacheReadRate?: Rate;
+  /** Required exactly when `usage.cacheWrite5mTokens` is positive. */
+  cacheWrite5mRate?: Rate;
+  usage: LlmUsage;
   usdInrRate: number;
 }): Extract<LlmPricing, { priced: true }> {
   const rows = [
     row('input_token', q.usage.inputTokens, q.inputRate, q.usdInrRate),
     row('output_token', q.usage.outputTokens, q.outputRate, q.usdInrRate),
   ];
+  // Cache tokens are NOT inside `input_tokens` — the API reports the three separately — so
+  // a call that read 9,000 tokens from cache and wrote 300 fresh ones was ledgered as 300
+  // input tokens before this. Each kind is its own row at its own rate, for the same reason
+  // input and output are: one blended row would not multiply out.
+  if ((q.usage.cacheReadTokens ?? 0) > 0) {
+    if (!q.cacheReadRate) throw new Error('priceFromRates: cache-read tokens with no cache-read rate');
+    rows.push(row('cache_read_token', q.usage.cacheReadTokens!, q.cacheReadRate, q.usdInrRate));
+  }
+  if ((q.usage.cacheWrite5mTokens ?? 0) > 0) {
+    if (!q.cacheWrite5mRate) throw new Error('priceFromRates: cache-write tokens with no cache-write rate');
+    rows.push(row('cache_write_5m_token', q.usage.cacheWrite5mTokens!, q.cacheWrite5mRate, q.usdInrRate));
+  }
 
   return {
     priced: true,
@@ -91,19 +121,30 @@ export function priceFromRates(q: {
  */
 export async function priceLlmCall(
   db: Db,
-  q: { model: string; endpoint: string; usage: TokenUsage; usdInrRate: number },
+  q: { model: string; endpoint: string; usage: LlmUsage; usdInrRate: number },
 ): Promise<LlmPricing> {
-  const [input, output] = await Promise.all([
-    currentRate(db, { driver: DRIVER, model: q.model, endpoint: q.endpoint, unit: 'input_token' }),
-    currentRate(db, { driver: DRIVER, model: q.model, endpoint: q.endpoint, unit: 'output_token' }),
+  const lookup = (unit: LlmLedgerRow['unit']) =>
+    currentRate(db, { driver: DRIVER, model: q.model, endpoint: q.endpoint, unit });
+  // A cache rate is looked up only when there are cache tokens to price. Asked for
+  // unconditionally, every uncached model would need cache rows it never uses, and a
+  // missing one would refuse calls that cannot incur the charge.
+  const [input, output, cacheRead, cacheWrite] = await Promise.all([
+    lookup('input_token'),
+    lookup('output_token'),
+    (q.usage.cacheReadTokens ?? 0) > 0 ? lookup('cache_read_token') : null,
+    (q.usage.cacheWrite5mTokens ?? 0) > 0 ? lookup('cache_write_5m_token') : null,
   ]);
 
   if (!input.found) return { priced: false, reason: input.reason, detail: input.detail };
   if (!output.found) return { priced: false, reason: output.reason, detail: output.detail };
+  if (cacheRead && !cacheRead.found) return { priced: false, reason: cacheRead.reason, detail: cacheRead.detail };
+  if (cacheWrite && !cacheWrite.found) return { priced: false, reason: cacheWrite.reason, detail: cacheWrite.detail };
 
   return priceFromRates({
     inputRate: input.rate,
     outputRate: output.rate,
+    ...(cacheRead?.found ? { cacheReadRate: cacheRead.rate } : {}),
+    ...(cacheWrite?.found ? { cacheWrite5mRate: cacheWrite.rate } : {}),
     usage: q.usage,
     usdInrRate: q.usdInrRate,
   });

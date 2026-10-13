@@ -4,6 +4,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 
 import { priceLlmCall, writeLlmCost } from '../cost/llm';
+import { modelFor } from '../llm/router';
 import type { Db } from '../db/server';
 import {
   PROMPT_REF,
@@ -54,7 +55,10 @@ import { MetadataSchema, checkUniqueness } from './schema';
  * stage refuses — and says how to get one, which is to delete the draft you did not want.
  */
 
-const MODEL = 'claude-opus-5';
+// Named by the router since the 13-Oct audit (was a hard-wired 'claude-opus-5'). On Sonnet 5.5
+// the call sends thinking 'between_tools': adaptive thinking is that model's default and spent
+// a whole 6,000-token budget with no text on 08-Oct (router.ts, RoutedCall.thinking).
+const MODEL = modelFor('metadata');
 const ENDPOINT = '/v1/messages';
 const MAX_TOKENS = 2_000;
 
@@ -274,6 +278,7 @@ export async function runMetadata(
         },
       ],
       output_config: { format: zodOutputFormat(MetadataSchema) },
+      thinking: { type: 'between_tools' } as never,
     });
   } catch (err) {
     return {
@@ -375,4 +380,4 @@ export async function runMetadata(
   };
 }
 
-export { PROMPT_REF as METADATA_PROMPT_REF };
+export { PROMPT_REF as METADATA_PROMPT_REF, MODEL as METADATA_MODEL };

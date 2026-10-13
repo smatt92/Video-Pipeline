@@ -59,7 +59,7 @@ function messageResponse({ concepts, stopReason = 'end_turn', usage }) {
     id: `msg_${randomUUID()}`,
     type: 'message',
     role: 'assistant',
-    model: 'claude-opus-5',
+    model: PROPOSE_MODEL,
     content: [{ type: 'text', text: JSON.stringify({ concepts }) }],
     stop_reason: stopReason,
     stop_sequence: null,
@@ -102,6 +102,8 @@ process.env.ANTHROPIC_API_KEY ??= 'stub-key';
 
 const BUILD = new URL('../.verify-build/src/lib', import.meta.url).pathname;
 const { runConcepts } = require(`${BUILD}/concepts/run.js`);
+// The router names the model since the 13-Oct audit; the harness prices whatever it names.
+const { PROPOSE_MODEL } = require(`${BUILD}/concepts/propose.js`);
 const { scoreTotal, validateConcepts } = require(`${BUILD}/concepts/schema.js`);
 const { readRateCard, currentRate } = require(`${BUILD}/cost/rate-card.js`);
 const { supabaseShim } = await import('./lib/supabase-shim.mjs');
@@ -129,8 +131,8 @@ await client.query(
 for (const unit of ['input_token', 'output_token']) {
   await client.query(
     `insert into rate_card (driver, model, endpoint, unit, unit_cost, currency, is_verified, source_note)
-     values ('anthropic', 'claude-opus-5', '/v1/messages', $1, 0.000005, 'USD', true, 'harness')`,
-    [unit],
+     values ('anthropic', $2, '/v1/messages', $1, 0.000005, 'USD', true, 'harness')`,
+    [unit, PROPOSE_MODEL],
   );
 }
 

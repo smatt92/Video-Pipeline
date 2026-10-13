@@ -261,7 +261,7 @@ try {
   const sessionId = started.sessionId;
   const [sessRow] = await q('select channel_id, model from studio_sessions where id = $1', [sessionId]);
   check(sessRow.channel_id === BLT, 'a session opens on its channel', `${sessionId.slice(0, 8)} → Built Like That`);
-  check(sessRow.model === 'claude-opus-5-5', 'the session model is the router’s judge tier (Opus)', sessRow.model);
+  check(sessRow.model === 'claude-sonnet-5-5', 'the session model is the router’s writer tier (Sonnet)', sessRow.model);
   const token = mintSessionToken(sessionId, SECRET);
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -583,10 +583,52 @@ try {
   // ═══════════════════════════════════════════════════════════════════════════
   // 11. A real conversational turn (optional, no drafting)
   // ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 10c. The prompt cache, priced (rule 5)
+  // ═══════════════════════════════════════════════════════════════════════════
+  console.log('\n10c. The prompt cache, priced\n');
+  {
+    // Inputs: one stubbed turn whose usage reports cache reads and writes beside input and
+    // output, as the API does. Assertions: what runTurn SENT, and the rows writeLlmCost WROTE —
+    // the latter checked against the rate card read independently, not against llm.ts.
+    const cached = await startSession(db, { title: 'cache', channelId: BLT, spendCapInr: 50 });
+    const sentBodies = [];
+    const cacheClient = {
+      messages: {
+        create: async (body) => {
+          sentBodies.push(body);
+          return {
+            id: `msg_cache_${randomUUID()}`, type: 'message', role: 'assistant', model: body.model,
+            content: [{ type: 'text', text: 'Noted.' }], stop_reason: 'end_turn', stop_sequence: null,
+            usage: { input_tokens: 120, output_tokens: 40, cache_read_input_tokens: 9000, cache_creation_input_tokens: 700 },
+          };
+        },
+      },
+    };
+    const outcome = await runTurn(cached.sessionId, 'hello', {
+      db, apiKey: 'stub', usdInrRate: FX, client: cacheClient,
+      channel: { kind: 'bridge', endpoint: ENDPOINT, token: mintSessionToken(cached.sessionId, SECRET) },
+    });
+    check(outcome.kind === 'replied', 'a stubbed turn completes', outcome.kind);
+    const b = sentBodies[0] ?? {};
+    check(Array.isArray(b.system) && b.system.length === 1 && b.system[0].cache_control?.type === 'ephemeral', 'the system prompt is sent as a cached block', JSON.stringify(b.system?.[0]?.cache_control));
+    check(b.cache_control?.type === 'ephemeral', 'a top-level breakpoint moves with the transcript', JSON.stringify(b.cache_control));
+    check(Array.isArray(b.tools) && b.tools.at(-1)?.cache_control?.type === 'ephemeral' && b.tools.slice(0, -1).every((t) => !t.cache_control), 'exactly the last tool carries a breakpoint', `${b.tools?.length} tools`);
+    const rows = await q(`select unit, quantity::int as quantity, cost_usd from cost_ledger where studio_session_id = $1 order by unit`, [cached.sessionId]);
+    const qty = Object.fromEntries(rows.map((r) => [r.unit, r.quantity]));
+    check(rows.length === 4 && qty.input_token === 120 && qty.output_token === 40 && qty.cache_read_token === 9000 && qty.cache_write_5m_token === 700,
+      'four rows: input, output, cache read and cache write, each at the stub’s exact count', JSON.stringify(qty));
+    const rates = Object.fromEntries((await q(`select unit, unit_cost from rate_card where driver = 'anthropic' and model = 'claude-sonnet-5-5' and endpoint = '/v1/messages' and is_verified order by effective_from desc`)).reverse().map((r) => [r.unit, Number(r.unit_cost)]));
+    const expectedUsd = 120 * rates.input_token + 40 * rates.output_token + 9000 * rates.cache_read_token + 700 * rates.cache_write_5m_token;
+    const gotUsd = rows.reduce((n, r) => n + Number(r.cost_usd), 0);
+    check(Math.abs(gotUsd - expectedUsd) < 1e-9 && rates.cache_read_token === 0.0000001 && rates.cache_write_5m_token === 0.0000025,
+      'the turn costs exactly its four counts × the published rates (cache hit 0.05x, 5-minute write 1.25x)', `$${gotUsd.toFixed(6)} vs $${expectedUsd.toFixed(6)}`);
+  }
+
   console.log('\n11. A real session\n');
   const apiKey = process.env.ANTHROPIC_API_KEY?.trim();
   if (!apiKey) {
-    console.log('  SKIP  no ANTHROPIC_API_KEY. With one, one Opus turn reads channel_overview over the bridge and the');
+    console.log('  SKIP  no ANTHROPIC_API_KEY. With one, one Sonnet turn reads channel_overview over the bridge and the');
     console.log('        harness checks the transcript and the ledger rows. It does not draft (that spends a writer call).\n');
   } else {
     const live = await startSession(db, { title: 'verify-studio live', channelId: BLT, spendCapInr: 50 });

@@ -12,7 +12,7 @@ import { SAFE_AREAS } from '../assemble/composition';
 import type { Db } from '../db/server';
 import type { Json } from '../db/types';
 import { billedSeconds, REFERENCE_FRAME_PARAM, type RenderRoute } from '../drivers/generation';
-import { routed } from '../llm/router';
+import { routed, type RouterDeps } from '../llm/router';
 import { POLISH_SYSTEM, PROMPT_REF } from '../prompts/20-bureau.v1';
 import { captionCues, type CaptionCue } from '../review/timeline';
 import { engineeredCues } from './engineered-captions';
@@ -102,6 +102,37 @@ export function scriptAcceptable(text: string, punchline: string, maxWords: numb
   return { ok: true, lines: p.lines, voText: p.voText };
 }
 
+/**
+ * One polish call, and the gate that decides whether its output is used.
+ *
+ * Split out of `prepareScript` so the gate can be driven directly: since the 13-Oct audit the
+ * polish runs on the fast tier, and the property that makes that safe is here, not in the
+ * model — a polished script that does not speak the approved punchline verbatim is refused
+ * and the approved script is used as written. Never throws; a failed call is a reason.
+ */
+export async function polishScript(
+  p: { series: string; punchline: string; approvedEdits: unknown; fact: unknown; base: string; maxWords: number; cast: Cast },
+  deps: RouterDeps,
+): Promise<{ ok: true; text: string; draftedBy: string } | { ok: false; reason: string }> {
+  try {
+    const r = await routed(
+      {
+        task: 'script_polish',
+        system: POLISH_SYSTEM,
+        user: `SERIES: ${p.series}\nAPPROVED PUNCHLINE (keep verbatim, land it in the button beat): ${p.punchline}\nAPPROVED EDITS: ${JSON.stringify(p.approvedEdits ?? {})}\nFACT: ${JSON.stringify(p.fact)}\n\nSCRIPT:\n${p.base}`,
+        schema: PolishSchema,
+        maxTokens: 1500,
+      },
+      deps,
+    );
+    const ok = scriptAcceptable(r.data.script_text, p.punchline, p.maxWords, p.cast);
+    if (!ok.ok) return { ok: false, reason: `polish rejected: ${ok.why}` };
+    return { ok: true, text: r.data.script_text, draftedBy: `${r.model} (${PROMPT_REF})` };
+  } catch (err) {
+    return { ok: false, reason: `polish unavailable: ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
 export async function prepareScript(
   db: Db,
   episodeId: string,
@@ -151,26 +182,15 @@ export async function prepareScript(
   if (engineered) {
     reason = 'a 3D explainer keeps its beat lines as approved (each carries its own graphics)';
   } else if (deps.apiKey) {
-    try {
-      const r = await routed(
-        {
-          task: 'script_polish',
-          system: POLISH_SYSTEM,
-          user: `SERIES: ${b.series}\nAPPROVED PUNCHLINE (keep verbatim, land it in the button beat): ${punchline}\nAPPROVED EDITS: ${JSON.stringify(b.approved_edits ?? {})}\nFACT: ${JSON.stringify(b.fact)}\n\nSCRIPT:\n${base}`,
-          schema: PolishSchema,
-          maxTokens: 1500,
-        },
-        { db, apiKey: deps.apiKey, usdInrRate: deps.usdInrRate, subject: { kind: 'channel', channelId: e.channel_id, idempotencyKey: `polish:${episodeId}`, stage: '20-script-polish' } },
-      );
-      const ok = scriptAcceptable(r.data.script_text, punchline, maxWords, cb);
-      if (ok.ok) {
-        text = r.data.script_text;
-        polished = true;
-        draftedBy = `${r.model} (${PROMPT_REF})`;
-      } else reason = `polish rejected: ${ok.why}`;
-    } catch (err) {
-      reason = `polish unavailable: ${err instanceof Error ? err.message : String(err)}`;
-    }
+    const p = await polishScript(
+      { series: b.series, punchline, approvedEdits: b.approved_edits, fact: b.fact, base, maxWords, cast: cb },
+      { db, apiKey: deps.apiKey, usdInrRate: deps.usdInrRate, subject: { kind: 'channel', channelId: e.channel_id, idempotencyKey: `polish:${episodeId}`, stage: '20-script-polish' } },
+    );
+    if (p.ok) {
+      text = p.text;
+      polished = true;
+      draftedBy = p.draftedBy;
+    } else reason = p.reason;
   } else reason = 'no model key; the approved script is used as written';
   if (reason) log.info('script polish skipped', { reason });
 

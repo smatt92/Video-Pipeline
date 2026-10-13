@@ -7,6 +7,7 @@ import {
   buildUserMessage,
   type ConceptPromptInput,
 } from '../prompts/02-concept.v1';
+import { modelFor } from '../llm/router';
 import { ProposedConceptsSchema, type ProposedConcept } from './schema';
 
 /**
@@ -33,7 +34,10 @@ import { ProposedConceptsSchema, type ProposedConcept } from './schema';
  * swappable slot — and `check:vendors` enforces the two names the rule actually lists.
  */
 
-const MODEL = 'claude-opus-5';
+// Named by the router since the 13-Oct audit (was a hard-wired 'claude-opus-5'). On Sonnet 5.5
+// the call sends thinking 'between_tools': adaptive thinking is that model's default and spent
+// a whole 6,000-token budget with no text on 08-Oct (router.ts, RoutedCall.thinking).
+const MODEL = modelFor('concept');
 const ENDPOINT = '/v1/messages';
 
 /**
@@ -111,6 +115,7 @@ export async function proposeConcepts(
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: buildUserMessage(input) }],
         output_config: { format: zodOutputFormat(ProposedConceptsSchema) },
+        thinking: { type: 'between_tools' } as never,
       },
       { signal: opts.signal },
     );

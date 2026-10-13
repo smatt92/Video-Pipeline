@@ -47,7 +47,7 @@ const model = createServer(async (req, res) => {
       id: `msg_${randomUUID()}`,
       type: 'message',
       role: 'assistant',
-      model: 'claude-opus-5',
+      model: METADATA_MODEL,
       content: [{ type: 'text', text: JSON.stringify(nextMeta) }],
       stop_reason: 'end_turn',
       stop_sequence: null,
@@ -67,7 +67,7 @@ process.env.SUPABASE_SERVICE_ROLE_KEY ??= 'harness';
 process.env.ANTHROPIC_API_KEY ??= 'stub-key';
 
 const BUILD = new URL('../.verify-build/src/lib', import.meta.url).pathname;
-const { runMetadata } = require(`${BUILD}/metadata/run.js`);
+const { runMetadata, METADATA_MODEL } = require(`${BUILD}/metadata/run.js`);
 const { titleShape, checkUniqueness } = require(`${BUILD}/metadata/schema.js`);
 const { supabaseShim } = await import('./lib/supabase-shim.mjs');
 const { scratchDatabase } = await import('./lib/scratch.mjs');
@@ -96,8 +96,8 @@ await client.query(
 for (const unit of ['input_token', 'output_token']) {
   await client.query(
     `insert into rate_card (driver, model, endpoint, unit, unit_cost, currency, is_verified, source_note)
-     values ('anthropic', 'claude-opus-5', '/v1/messages', $1, 0.000005, 'USD', true, 'harness')`,
-    [unit],
+     values ('anthropic', $2, '/v1/messages', $1, 0.000005, 'USD', true, 'harness')`,
+    [unit, METADATA_MODEL],
   );
 }
 

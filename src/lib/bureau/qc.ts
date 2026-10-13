@@ -137,6 +137,6 @@ export async function visionQc(input: { frames: string[]; referencePng: string |
     { type: 'text' as const, text: `Sampled frames (${input.frames.length}):` },
     ...input.frames.map((data) => ({ type: 'image' as const, source: { type: 'base64' as const, media_type: 'image/png' as const, data } })),
   ];
-  const r = await routed({ task: 'vision_qc', system: VISION_SYSTEM, user: content, schema: VisionSchema, maxTokens: 600 }, deps);
+  const r = await routed({ task: 'vision_qc', system: VISION_SYSTEM, user: content, schema: VisionSchema, maxTokens: 600, thinking: 'minimal' }, deps);
   return { scores: r.data, ...visionVerdict(r.data), model: r.model, costInr: r.costInr };
 }

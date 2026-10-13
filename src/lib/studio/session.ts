@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 
-import { priceLlmCall, writeLlmCost } from '../cost/llm';
+import { priceLlmCall, writeLlmCost, type LlmUsage } from '../cost/llm';
 import type { Db } from '../db/server';
 import type { Json } from '../db/types';
 import { STUDIO_TOOLS, toolDescriptors } from './tools';
@@ -79,6 +79,8 @@ export interface SessionDeps {
   usdInrRate: number;
   channel: ToolChannel;
   log?: { info(m: string, d?: unknown): void; error(m: string, d?: unknown): void };
+  /** Injected by harnesses, as in RouterDeps; production builds the SDK client. */
+  client?: Anthropic;
 }
 
 export type TurnOutcome =
@@ -184,7 +186,9 @@ export async function startSession(
   const priced = await priceLlmCall(db, {
     model: MODEL,
     endpoint: ENDPOINT,
-    usage: { inputTokens: 1, outputTokens: 1 },
+    // One of each cache kind too: every turn now reads and writes the prompt cache, so a
+    // missing cache rate would otherwise surface as an unpriceable turn after it was billed.
+    usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 1, cacheWrite5mTokens: 1 },
     usdInrRate: 1,
   });
 
@@ -287,11 +291,15 @@ export async function runTurn(
   const messages = toMessages(transcript);
   messages.push({ role: 'user', content: userText });
 
-  const client = new Anthropic({ apiKey: deps.apiKey });
+  const client = deps.client ?? new Anthropic({ apiKey: deps.apiKey });
   const toolCalls: ToolCallRecord[] = [];
 
   let inputTokens = 0;
   let outputTokens = 0;
+  // Reported apart from input_tokens, and priced apart: a cache hit is 0.05x input on this
+  // model and a 5-minute write is 1.25x. Folding them into inputTokens would misprice both.
+  let cacheReadTokens = 0;
+  let cacheWrite5mTokens = 0;
   let finalText = '';
   const appended: TranscriptEntry[] = [
     { role: 'user', content: userText, at: new Date().toISOString() },
@@ -316,6 +324,8 @@ export async function runTurn(
 
     inputTokens += response.usage.input_tokens;
     outputTokens += response.usage.output_tokens;
+    cacheReadTokens += response.usage.cache_read_input_tokens ?? 0;
+    cacheWrite5mTokens += response.usage.cache_creation_input_tokens ?? 0;
 
     // Checked before the content is read. On a refusal the blocks are not what was asked
     // for, and reading them first produces a confusing parse error in place of the reason.
@@ -326,7 +336,7 @@ export async function runTurn(
         at: new Date().toISOString(),
         stopReason: 'refusal',
       });
-      await settleTurn(db, sessionId, appended, { inputTokens, outputTokens }, deps, response.id);
+      await settleTurn(db, sessionId, appended, { inputTokens, outputTokens, cacheReadTokens, cacheWrite5mTokens }, deps, response.id);
       return {
         kind: 'refused',
         reason: 'The model declined this turn. The tokens are still billed and recorded.',
@@ -367,7 +377,7 @@ export async function runTurn(
     db,
     sessionId,
     appended,
-    { inputTokens, outputTokens },
+    { inputTokens, outputTokens, cacheReadTokens, cacheWrite5mTokens },
     deps,
     `${sessionId}:${appended.length}`,
   );
@@ -411,6 +421,20 @@ export async function runTurn(
 // The two channels
 // ═════════════════════════════════════════════════════════════════════════════
 
+/**
+ * The system prompt as a cached block.
+ *
+ * Every round of every turn re-sends the system prompt, the tools and the whole transcript —
+ * up to MAX_ROUNDS times a turn — and before the 13-Oct audit all of it was billed as fresh
+ * input every time. Three breakpoints now: the last tool (bridge channel), this block, and a
+ * top-level `cache_control` that moves with the end of the transcript. Nothing in the prompt
+ * varies per call, so the prefix is byte-stable; a timestamp or id added here would make
+ * every write a miss and every turn pay 1.25x instead of 0.05x. Keep it static.
+ */
+const CACHED_SYSTEM: Anthropic.Messages.TextBlockParam[] = [
+  { type: 'text', text: STUDIO_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+];
+
 async function callModel(
   client: Anthropic,
   messages: Anthropic.Messages.MessageParam[],
@@ -423,8 +447,11 @@ async function callModel(
     return client.beta.messages.create({
       model: MODEL,
       max_tokens: MAX_TOKENS,
-      system: STUDIO_SYSTEM_PROMPT,
+      system: CACHED_SYSTEM,
       messages,
+      // The moving breakpoint: the last block of the transcript, so the next round reads the
+      // whole conversation so far from cache. See CACHED_SYSTEM for the fixed one.
+      cache_control: { type: 'ephemeral' },
       mcp_servers: [
         {
           type: 'url',
@@ -438,19 +465,25 @@ async function callModel(
     }) as unknown as Promise<Anthropic.Messages.Message>;
   }
 
+  const tools = toolDescriptors().map((t): Anthropic.Messages.Tool => ({
+    name: t.name,
+    description: t.description,
+    input_schema: t.inputSchema as Anthropic.Messages.Tool['input_schema'],
+  }));
+  // Tools render before the system prompt, so a breakpoint on the last tool caches the tool
+  // list on its own; the system breakpoint then extends it. Both survive a transcript change.
+  if (tools.length) tools[tools.length - 1] = { ...tools[tools.length - 1], cache_control: { type: 'ephemeral' } };
+
   return client.messages.create({
     model: MODEL,
     max_tokens: MAX_TOKENS,
-    system: STUDIO_SYSTEM_PROMPT,
+    system: CACHED_SYSTEM,
     messages,
+    cache_control: { type: 'ephemeral' },
     // The same names and the same JSON Schemas the MCP server serves from `tools/list`.
     // One source (`tools.ts`), so the two channels cannot drift into describing different
     // tools to the model.
-    tools: toolDescriptors().map((t) => ({
-      name: t.name,
-      description: t.description,
-      input_schema: t.inputSchema as Anthropic.Messages.Tool['input_schema'],
-    })),
+    tools,
   });
 }
 
@@ -596,7 +629,7 @@ async function settleTurn(
   db: Db,
   sessionId: string,
   entries: TranscriptEntry[],
-  usage: { inputTokens: number; outputTokens: number },
+  usage: LlmUsage,
   deps: SessionDeps,
   idempotencyBase: string,
 ): Promise<{ ok: true; costInr: number } | { ok: false; detail: string }> {

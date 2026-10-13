@@ -17,7 +17,7 @@ const { checkVariation, isoWeek, variationRefusal } = require(`${B}/bureau/varia
 const { fitToCap } = require(`${B}/bureau/estimate.js`);
 const { parseScript, speakerSlug, punchlineTurns } = require(`${B}/bureau/script-lines.js`);
 const { characterMentions, complaintScore } = require(`${B}/bureau/comments.js`);
-const { modelFor, TASK_TIER } = require(`${B}/llm/router.js`);
+const { modelFor, TASK_TIER, thinkingFor } = require(`${B}/llm/router.js`);
 const { voiceRouteFor } = require(`${B}/drivers/voice-route.js`);
 const { resolvePunchline } = require(`${B}/bureau/briefs.js`);
 const { validateSegments } = require(`${B}/bureau/longform.js`);
@@ -209,6 +209,56 @@ const { scriptAcceptable } = require(`${B}/bureau/episode-steps.js`);
 const s003 = "Ohm: Memo. New intern, Gravity Desk. Touch nothing.\nPip: So I can't break gravity.\nMarlo: Not alone. Meet your supervisor.\nOhm: Welcome to the Gravity Desk.";
 check(scriptAcceptable(s003, "Pip: So I can't break gravity. / Marlo: Not alone. Meet your supervisor. / Ohm's lamp flickers on.", 150, CB).ok, "S003's script is accepted with the punchline it actually speaks");
 check(!scriptAcceptable(s003, "Marlo: The mug has seniority.", 150, CB).ok, 'and refused when the punchline is genuinely missing');
+
+// ── The polish keeps the punchline verbatim, on the fast tier ────────────────
+// Drives polishScript — the real request and the real gate — against a stubbed model and an
+// in-memory rate card. Inputs: the S003 script and its approved punchline. Assertions are on
+// what polishScript RETURNED and what it SENT, never on the stub's own fixture.
+{
+  const { polishScript } = require(`${B}/bureau/episode-steps.js`);
+  const S003_PUNCHLINE = "Pip: So I can't break gravity. / Marlo: Not alone. Meet your supervisor. / Ohm's lamp flickers on.";
+  const rates = { input_token: 0.0000001, output_token: 0.0000005 };
+  const ledger = [];
+  const fakeDb = {
+    from(table) {
+      if (table === 'cost_ledger') return { insert: async (rows) => { ledger.push(...rows); return { error: null }; } };
+      const f = {};
+      const qb = {
+        select: () => qb, lte: () => qb, order: () => qb, limit: () => qb, is: () => qb,
+        eq: (col, v) => { f[col] = v; return qb; },
+        maybeSingle: async () => f.model === 'claude-haiku-5-5' && f.endpoint === '/v1/messages' && rates[f.unit] !== undefined
+          ? { data: { id: `r-${f.unit}`, driver: 'anthropic', model: f.model, endpoint: f.endpoint, unit: f.unit, unit_cost: rates[f.unit], is_verified: true, source_note: null, effective_from: '2026-10-13' }, error: null }
+          : { data: null, error: null },
+      };
+      return qb;
+    },
+  };
+  const polishWith = async (scriptText) => {
+    const sent = [];
+    const client = { messages: { parse: async (body) => { sent.push(body); return { usage: { input_tokens: 400, output_tokens: 120 }, stop_reason: 'end_turn', content: [{ type: 'text', text: '{}' }], parsed_output: { script_text: scriptText } }; } } };
+    const r = await polishScript(
+      { series: 'gravity', punchline: S003_PUNCHLINE, approvedEdits: {}, fact: null, base: s003, maxWords: 150, cast: CB },
+      { db: fakeDb, apiKey: 'stub', usdInrRate: 88, client, subject: { kind: 'channel', channelId: 'c', idempotencyKey: `polish:${sent.length}:${scriptText.length}`, stage: '20-script-polish' } },
+    );
+    return { r, body: sent[0] };
+  };
+
+  const tightened = "Ohm: Memo. New intern. Touch nothing.\nPip: So I can't break gravity.\nMarlo: Not alone. Meet your supervisor.\nOhm: Welcome aboard.";
+  const kept = await polishWith(tightened);
+  check(kept.r.ok && kept.r.text === tightened && kept.r.draftedBy.startsWith('claude-haiku-5-5 '), 'a polish that keeps the punchline verbatim is used, credited to Haiku 5.5', kept.r.ok ? kept.r.draftedBy : kept.r.reason);
+  check(kept.body?.model === 'claude-haiku-5-5' && kept.body?.thinking?.type === 'disabled' && kept.body?.max_tokens === 1500, 'the polish call goes to the fast tier with thinking disabled', JSON.stringify([kept.body?.model, kept.body?.thinking]));
+  check(String(kept.body?.messages?.[0]?.content).includes(`APPROVED PUNCHLINE (keep verbatim, land it in the button beat): ${S003_PUNCHLINE}`), 'the request names the approved punchline and says verbatim');
+
+  const paraphrased = "Ohm: Memo. New intern. Touch nothing.\nPip: So gravity is off limits for me.\nMarlo: Not alone. Meet your supervisor.\nOhm: Welcome aboard.";
+  const reworded = await polishWith(paraphrased);
+  check(!reworded.r.ok && /punchline is not in the script/.test(reworded.r.reason), 'a polish that rewords one punchline turn is refused — the approved script is used as written', reworded.r.ok ? 'accepted' : reworded.r.reason);
+
+  const dropped = await polishWith("Ohm: Memo. New intern. Touch nothing.\nPip: Fine.\nOhm: Welcome aboard.");
+  check(!dropped.r.ok && /punchline is not in the script/.test(dropped.r.reason), 'and so is one that drops it');
+
+  // Rule 5 holds on the refusals too: three calls billed, six rows, at the stub's exact counts.
+  check(ledger.length === 6 && ledger.every((row) => (row.unit === 'input_token' ? row.quantity === 400 : row.quantity === 120)), 'every polish call is ledgered, refused or not — 3 calls, 6 rows', `${ledger.length} rows`);
+}
 const pC = punchlineTurns("File it under 'falling'.", 'marlo', CB);
 check(JSON.stringify(pC) === JSON.stringify([{ speaker: 'marlo', text: "File it under 'falling'." }]), 'an unlabelled punchline is one line for the lead', JSON.stringify(pC));
 const notCast = parseScript('Marlo: Note: Desk Four: closed.', CB);
@@ -221,11 +271,13 @@ check(complaintScore({ body: 'Why does the Moon get to leave whenever it wants? 
 check(complaintScore({ body: 'Why does the Moon get to leave whenever it wants? Unfair.', is_public: false, like_count: 10 }) === 0, 'a private comment scores 0 — it can never be credited');
 
 console.log('\nrouter and voice routing\n');
-check(modelFor('policy_judge') === 'claude-opus-5-5' && modelFor('weekly_strategy') === 'claude-opus-5-5', 'judge and strategy → Opus');
-check(['brief', 'script_polish', 'shotlist'].every((t) => modelFor(t) === 'claude-sonnet-5-5'), 'briefs, scripts, shotlists → Sonnet');
-check(['dedup', 'metadata', 'qc_triage', 'comment_mining'].every((t) => modelFor(t) === 'claude-haiku-4-5-20251001'), 'dedup, metadata, QC triage, comment mining → Haiku');
-check(Object.keys(TASK_TIER).length === 14 && modelFor('studio_ideas') === 'claude-haiku-4-5-20251001' && modelFor('translation') === 'claude-haiku-4-5-20251001' && modelFor('still_prompt') === 'claude-haiku-4-5-20251001', 'fourteen routed tasks; caption translation, the still rewrite and Studio ideas are fast-tier');
-check(modelFor('studio_session') === 'claude-opus-5-5', 'the Studio session → Opus, named by the router');
+check(['policy_judge', 'weekly_strategy', 'script'].every((t) => modelFor(t) === 'claude-opus-5-5'), 'the policy judge, the strategy memo and the legacy script draft → Opus');
+check(['brief', 'shotlist', 'concept', 'metadata', 'vision_qc'].every((t) => modelFor(t) === 'claude-sonnet-5-5'), 'briefs, shotlists, concepts, metadata and vision QC → Sonnet');
+check(['script_polish', 'dedup', 'qc_triage', 'comment_mining'].every((t) => modelFor(t) === 'claude-haiku-5-5'), 'script polish, dedup, QC triage, comment mining → Haiku 5.5');
+check(Object.keys(TASK_TIER).length === 16 && modelFor('studio_ideas') === 'claude-haiku-5-5' && modelFor('translation') === 'claude-haiku-5-5' && modelFor('still_prompt') === 'claude-haiku-5-5', 'sixteen routed tasks; caption translation, the still rewrite and Studio ideas are fast-tier');
+check(modelFor('studio_session') === 'claude-sonnet-5-5', 'the Studio session → Sonnet, named by the router');
+check(JSON.stringify(thinkingFor('claude-haiku-5-5', undefined)) === '{"thinking":{"type":"disabled"}}' && JSON.stringify(thinkingFor('claude-haiku-5-5', 'minimal')) === '{"thinking":{"type":"disabled"}}', 'every Haiku 5.x call sends thinking disabled, asked or not — its default would spend the budget');
+check(JSON.stringify(thinkingFor('claude-sonnet-5-5', 'minimal')) === '{"thinking":{"type":"between_tools"}}' && JSON.stringify(thinkingFor('claude-sonnet-5-5', undefined)) === '{}', 'Sonnet keeps between_tools for minimal and its default otherwise');
 check(voiceRouteFor({ name: 'Pip', voice: { provider: 'runway', preset_id: null } }).code === 'voice_not_locked', 'an unlocked preset refuses with a reason');
 check(voiceRouteFor({ name: 'Pip', voice: { provider: 'runway', preset_id: 'Maya' } }).voiceId === 'Maya', 'a locked preset routes to it');
 check(voiceRouteFor({ name: 'Pip', voice: { provider: 'elevenlabs', preset_id: null }, elevenlabs_voice_id: null }).code === 'direct_voice_missing', 'the direct path needs its id');
