@@ -158,18 +158,27 @@ export async function priceLlmCall(
  * and whether the numbers multiply out are all decided here, and none of them needs a
  * database to decide.
  */
-export function llmCostRows(subject: LlmCostSubject, pricing: Extract<LlmPricing, { priced: true }>) {
+export function llmCostRows(
+  subject: LlmCostSubject,
+  pricing: Extract<LlmPricing, { priced: true }>,
+  entryKind: 'estimate' | 'reconcile' = 'reconcile',
+) {
+  // An estimate and its reconcile are two rows about one charge, so they cannot share an
+  // idempotency key — the unique index would take the reconcile for a retry of the estimate
+  // and swallow it. The estimate's key carries the kind; the reconcile keeps the plain key
+  // every synchronous call has always written.
+  const kindTag = entryKind === 'estimate' ? ':estimate' : '';
   return pricing.rows.map((r) => ({
     driver: DRIVER,
     stage: subject.stage,
-    entry_kind: 'reconcile' as const,
+    entry_kind: entryKind,
     usd_inr_rate: pricing.usdInrRate,
     concept_id: subject.kind === 'channel' || subject.kind === 'studio' ? null : subject.conceptId,
     channel_id: subject.kind === 'channel' ? subject.channelId : null,
     script_id: subject.kind === 'script' ? subject.scriptId : null,
     studio_session_id: subject.kind === 'studio' ? subject.sessionId : subject.kind === 'channel' ? subject.studioSessionId ?? null : null,
     idempotency_key:
-      subject.kind === 'script' ? null : `${subject.idempotencyKey}:${r.unit}`,
+      subject.kind === 'script' ? null : `${subject.idempotencyKey}${kindTag}:${r.unit}`,
     unit: r.unit,
     quantity: r.quantity,
     cost_usd: r.costUsd,
@@ -267,8 +276,13 @@ export async function writeLlmCost(
   db: Db,
   subject: LlmCostSubject,
   pricing: Extract<LlmPricing, { priced: true }>,
+  /**
+   * 'estimate' only for a call whose result is not back yet — a batched call at submit
+   * (llm/batch.ts). Every synchronous call writes 'reconcile', for the reason the header gives.
+   */
+  entryKind: 'estimate' | 'reconcile' = 'reconcile',
 ): Promise<void> {
-  const rows = llmCostRows(subject, pricing);
+  const rows = llmCostRows(subject, pricing, entryKind);
 
   // ── Insert, not upsert, and this is a correction ──────────────────────────
   //

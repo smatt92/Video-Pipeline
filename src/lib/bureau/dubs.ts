@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { currentRate } from '../cost/rate-card';
 import type { Db } from '../db/server';
 import type { Json } from '../db/types';
-import { routed } from '../llm/router';
+import { routedBatch } from '../llm/batch';
 import type { CaptionCue } from '../review/timeline';
 import type { BureauVideoProps } from '../../remotion/bureau/bureau-video';
 import type { ScriptLine } from './script-lines';
@@ -47,7 +47,12 @@ export interface DubDeps {
   apiKey(): Promise<{ ok: true; value: string } | CredentialRefusal>;
   submit(input: { apiKey: string; audioUrl: string; language: 'hi' | 'es' | 'pt-BR'; speakers: number }): Promise<{ ok: true; taskId: string; estimatedCredits: number | null } | { ok: false; code: string; detail: string }>;
   wait(taskId: string, apiKey: string): Promise<{ state: 'succeeded'; outputUrl: string } | { state: 'failed'; code: string; detail: string } | { state: 'running'; vendorState: string }>;
-  translate?(lines: string[], language: string): Promise<string[]>;
+  /**
+   * The translated lines, or `{ pending: true }` when the translation is batched and not back
+   * yet — the job then waits in 'translating' and `captionDub` is called again on a later
+   * tick. A throw means no translation: the dub is ready with audio only, as before.
+   */
+  translate?(lines: string[], language: string, jobId: string): Promise<string[] | { pending: true }>;
   renderCaptions?(props: BureauVideoProps, durationInFrames: number, outputPath: string): Promise<{ ok: boolean; detail?: string }>;
   rateKey: { driver: string; model: string; endpoint: string; unit: string };
 }
@@ -114,18 +119,51 @@ export async function runDubJob(jobId: string, deps: DubDeps): Promise<{ ok: tru
     const bytes = await deps.putBytes(audioKey, createReadStream(audioPath));
     const { data: audio } = await db.from('assets').insert({ kind: 'audio', storage_key: audioKey, bytes, meta: { language: lang, role: 'dub' } as Json }).select('id').single();
     await db.from('dub_jobs').update({ status: 'rendering', audio_asset_id: audio!.id, updated_at: new Date().toISOString() }).eq('id', jobId);
+  } finally {
+    await rm(work, { recursive: true, force: true });
+  }
+  return captionDub(jobId, deps);
+}
 
+/**
+ * The caption half of a dub, from a job whose audio track exists.
+ *
+ * Split from `runDubJob` because the translation it needs is batched (llm/batch.ts): when the
+ * translator answers `pending`, the job waits in 'translating' — audio done, captions not —
+ * and the dubs cron calls this again on later ticks until the translation is back. Nothing
+ * before the audio is redone: the vendor task, its ledger row and the audio asset stay as they
+ * are.
+ */
+export async function captionDub(jobId: string, deps: DubDeps): Promise<{ ok: true; language: string; pending?: true } | { ok: false; code: string; detail: string }> {
+  const { db } = deps;
+  const { data: job } = await db.from('dub_jobs').select('*').eq('id', jobId).single();
+  if (!job) return { ok: false, code: 'not_found', detail: jobId };
+  if (!job.audio_asset_id) return fail(db, jobId, 'no_audio', 'captions were asked for before the dub had an audio track');
+  const { data: ep } = await db.from('episodes').select('id, script_id, voice_detail').eq('id', job.episode_id).single();
+  if (!ep?.script_id) return fail(db, jobId, 'no_script', 'the episode lost its script after the dub was voiced');
+  const voice = (ep.voice_detail ?? {}) as { total_s?: number };
+  const { data: script } = await db.from('scripts').select('beats').eq('id', ep.script_id).single();
+  const lines = (script!.beats as unknown as { lines: ScriptLine[] }).lines;
+  const lang = job.language as 'hi' | 'es' | 'pt-BR';
+
+  const work = await mkdtemp(join(tmpdir(), 'kiln-dub-captions-'));
+  try {
     // Line-timed captions in the target language.
     const { data: takes } = await db.from('vo_takes').select('chunk_idx, offset_s, duration_s').eq('script_id', ep.script_id).eq('language', 'en').order('chunk_idx');
     let translated: string[] | null = null;
     if (deps.translate) {
       try {
-        translated = await deps.translate(lines.map((l) => l.text), LANG_NAMES[lang]);
-        if (translated.length !== lines.length) translated = null;
+        const t = await deps.translate(lines.map((l) => l.text), LANG_NAMES[lang], jobId);
+        if (!Array.isArray(t)) {
+          await db.from('dub_jobs').update({ status: 'translating', error: 'captions: the translation is batched and is collected on a later tick; the audio is ready', updated_at: new Date().toISOString() }).eq('id', jobId);
+          return { ok: true, language: lang, pending: true };
+        }
+        translated = t.length === lines.length ? t : null;
       } catch {
         translated = null;
       }
     }
+    await db.from('dub_jobs').update({ status: 'rendering', updated_at: new Date().toISOString() }).eq('id', jobId);
     if (translated) {
       const cues: CaptionCue[] = lines.map((l, i) => {
         const t = takes?.find((x) => x.chunk_idx === l.idx);
@@ -169,16 +207,32 @@ async function fail(db: Db, jobId: string, code: string, detail: string) {
 
 const TranslationSchema = z.object({ lines: z.array(z.string()) });
 
-export async function translateLines(lines: string[], language: string, deps: { db: Db; apiKey: string; usdInrRate: number; channelId: string }): Promise<string[]> {
-  const r = await routed(
+/**
+ * The dubs cron's translator: one batched call per dub job, keyed on the job, collected on a
+ * later tick. Caption translation is never something a person waits on — the audio is ready
+ * first — so it is half price for the cost of a tick or two.
+ */
+export async function translateLinesBatched(
+  lines: string[],
+  language: string,
+  jobId: string,
+  deps: { db: Db; apiKey: string; usdInrRate: number; channelId: string },
+): Promise<string[] | { pending: true }> {
+  const r = await routedBatch(
     {
       task: 'translation',
-      system: `Translate each line of an office-comedy script into ${language} for on-screen captions. Keep jokes landing, keep character names as they are, one output line per input line, same order, no additions.`,
+      customId: `translate-${jobId}`,
+      system: translationSystem(language),
       user: lines.map((l, i) => `${i + 1}. ${l}`).join('\n'),
       schema: TranslationSchema,
       maxTokens: 2000,
     },
-    { db: deps.db, apiKey: deps.apiKey, usdInrRate: deps.usdInrRate, subject: { kind: 'channel', channelId: deps.channelId, idempotencyKey: `translate:${language}:${Date.now()}`, stage: '24-dub-captions' } },
+    { db: deps.db, apiKey: deps.apiKey, usdInrRate: deps.usdInrRate, subject: { kind: 'channel', channelId: deps.channelId, idempotencyKey: `translate-${jobId}`, stage: '24-dub-captions' } },
   );
+  if (r.state === 'pending') return { pending: true };
+  if (r.state === 'failed') throw new Error(r.reason);
   return r.data.lines;
 }
+
+const translationSystem = (language: string) =>
+  `Translate each line of an office-comedy script into ${language} for on-screen captions. Keep jokes landing, keep character names as they are, one output line per input line, same order, no additions.`;

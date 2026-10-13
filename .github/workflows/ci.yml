@@ -243,6 +243,13 @@ jobs:
       - name: Stage 9 — metadata refuses without a passing review, and measures its prompt
         run: pnpm verify:metadata "$DATABASE_URL"
 
+      # ── Batched LLM calls: estimate at submit, reconcile on collect ──────
+      # The Message Batches path (llm/batch.ts) against a stubbed batches API: refused when the
+      # batch endpoint is unpriced, one batch per key however often it is asked, estimate rows
+      # at submit and reconcile rows from the result's own usage, both at the batch rate.
+      - name: Batched calls are priced at both ends (verify:batch)
+        run: pnpm verify:batch "$DATABASE_URL"
+
       # ── A table that must never learn to hold a sentence ─────────────────
       # Addendum 04 §6: pacing_template holds structure extracted from videos we did not
       # make. Structure is not copyrightable and sentences are, and a text column here

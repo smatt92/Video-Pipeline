@@ -248,6 +248,14 @@ function builder(client, table, typesFor) {
       st.where.push(() => `${quote(c)} is ${v === null ? 'null' : v ? 'true' : 'false'}`);
       return api;
     },
+    /** PostgREST `like`: SQL LIKE, `%` the wildcard, case-sensitive. */
+    like(c, pattern) {
+      st.where.push((params) => {
+        params.push(pattern);
+        return `${quote(c)} like $${params.length}`;
+      });
+      return api;
+    },
     not(c, op, v) {
       if (op !== 'is') throw new Error(`supabaseShim: .not(${c}, '${op}') is not implemented.`);
       st.where.push(() => `${quote(c)} is not ${v === null ? 'null' : v ? 'true' : 'false'}`);
@@ -319,7 +327,7 @@ function builder(client, table, typesFor) {
   // Anything the codebase might reach for and this does not implement fails loudly. A
   // missing filter that silently did nothing would widen a scoped query and the assertion
   // above it would still pass.
-  for (const name of ['overlaps', 'like', 'ilike', 'match', 'or', 'filter', 'textSearch']) {
+  for (const name of ['overlaps', 'ilike', 'match', 'or', 'filter', 'textSearch']) {
     api[name] = () => {
       throw new Error(`supabaseShim: .${name}() is not implemented — add it rather than working around it.`);
     };

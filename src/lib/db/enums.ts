@@ -317,6 +317,8 @@ export const dubLanguage = z.enum(['hi', 'es', 'pt-BR']);
 export const dubStatus = z.enum([
   'queued', 'translating', 'voicing', 'rendering', 'ready', 'failed', 'cancelled',
 ]);
+/** 0055: an LLM call sent through the Message Batches API (src/lib/llm/batch.ts). */
+export const llmBatchStatus = z.enum(['submitting', 'submitted', 'succeeded', 'errored', 'expired', 'canceled']);
 export const memoCreator = z.enum(['agent', 'approver', 'system']);
 export const notificationKind = z.enum([
   'briefs_pending', 'cut_ready', 'cap_80', 'policy_flag', 'qc_failed', 'kill_switch', 'info', 'fallback',
@@ -389,6 +391,7 @@ export const ENUM_CONSTRAINT_MAP = {
   'dub_jobs.requested_by': briefCreator,
   'strategy_memos.created_by': memoCreator,
   'notifications.kind': notificationKind,
+  'llm_batch_requests.status': llmBatchStatus,
   'channel_policy.synthetic_disclosure': syntheticDisclosure,
   'trend_runs.trigger': trendRunTrigger,
 } as const;

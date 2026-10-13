@@ -2,7 +2,8 @@ import { z } from 'zod';
 
 import type { Db } from '../db/server';
 import { hookPattern } from '../db/enums';
-import { routed, type RouterDeps } from '../llm/router';
+import { routedBatch } from '../llm/batch';
+import { routed, type RoutedCall, type RouterDeps } from '../llm/router';
 import { BRIEF_SYSTEM, briefUserMessage, JUDGE_SYSTEM } from '../prompts/20-bureau.v1';
 import { ENGINEERED_PROMPT_REF, ENGINEERED_SYSTEM, engineeredUserMessage } from '../prompts/23-engineered.v1';
 import { getBible, type ChannelBible, type Series } from './bible';
@@ -96,6 +97,73 @@ export async function draftBriefForSlot(db: Db, slotId: string, deps: DraftDeps)
  * checks variation and prices it like any other brief.
  */
 export async function draftBrief(db: Db, input: { slot: DraftSlot; format?: VisualFormat }, deps: DraftDeps): Promise<GenerateResult> {
+  const plan = await planDraft(db, input, deps);
+  if (plan.kind === 'refused') return { ok: false, error: plan.error };
+  if (plan.kind === 'engineered') return draftEngineeredBrief(db, plan.ctx, deps);
+  const label = input.slot.id ?? `studio-${input.slot.topic.slice(0, 24)}`;
+  const result = await routed(plan.call, { ...deps, subject: writerSubject(deps, `brief:${label}:${Date.now()}`, '20-brief') });
+  return plan.finish(result.data);
+}
+
+/**
+ * The nightly safety net's draft, through the Message Batches API (llm/batch.ts).
+ *
+ * Call it on every tick with the same `dayKey`: the first call submits and returns 'pending',
+ * later ones collect, and the one after the batch has ended returns the brief (or why not).
+ * One attempt per slot per day — the same cadence the daily task always had — because the key
+ * is the slot and the day: a draft that fails validation today is redrafted tomorrow, never
+ * re-collected forever.
+ *
+ * The 3D explainer is NOT batched: its writer may rewrite once on length (two calls, the second
+ * depending on the first), so it is drafted synchronously, exactly as before.
+ */
+export async function draftBriefForSlotBatched(
+  db: Db,
+  slotId: string,
+  dayKey: string,
+  deps: DraftDeps,
+): Promise<{ state: 'pending' } | { state: 'done'; result: GenerateResult } | { state: 'failed'; reason: string }> {
+  const { data: slot } = await db
+    .from('slots')
+    .select('id, slot_date, series, topic, hook, lead, seasonal_tag, episode, kind')
+    .eq('id', slotId)
+    .eq('channel_id', deps.channelId)
+    .maybeSingle();
+  if (!slot) return { state: 'done', result: { ok: false, error: `No slot ${slotId} on this channel.` } };
+  if (slot.series === 'sequel') return { state: 'done', result: { ok: false, error: 'Sequel slots are drafted by the weekly review, not here.' } };
+  const plan = await planDraft(db, { slot }, deps);
+  if (plan.kind === 'refused') return { state: 'done', result: { ok: false, error: plan.error } };
+  if (plan.kind === 'engineered') return { state: 'done', result: await draftEngineeredBrief(db, plan.ctx, deps) };
+  const customId = briefBatchCustomId(slotId, dayKey);
+  const r = await routedBatch({ ...plan.call, customId }, { ...deps, subject: writerSubject(deps, customId, '20-brief') });
+  if (r.state === 'pending') return { state: 'pending' };
+  if (r.state === 'failed') return { state: 'failed', reason: r.reason };
+  return { state: 'done', result: plan.finish(r.data) };
+}
+
+/** 06:45 IST: the hour the daily safety net has always drafted in. Other hourly ticks only collect. */
+export const SAFETY_NET_SUBMIT_HOUR_UTC = 1;
+
+/** The slot and day a safety-net batch key names, or null for any other key. */
+export function briefBatchKey(customId: string): { slotId: string; dayKey: string } | null {
+  const m = /^brief-(.+)-(\d{8})$/.exec(customId);
+  return m ? { slotId: m[1], dayKey: m[2] } : null;
+}
+
+export const briefBatchCustomId = (slotId: string, dayKey: string) => `brief-${slotId}-${dayKey.replaceAll('-', '')}`;
+
+type DraftPlan =
+  | { kind: 'refused'; error: string }
+  | { kind: 'engineered'; ctx: Parameters<typeof draftEngineeredBrief>[1] }
+  | { kind: 'ordinary'; call: RoutedCall<typeof DraftSchema>; finish(data: z.infer<typeof DraftSchema>): GenerateResult };
+
+/**
+ * What drafting a brief for this slot will take: a refusal, the 3D explainer's writer, or the
+ * ordinary writer's one call plus what turns its output into a brief. Shared by the
+ * synchronous draft and the batched one, so the two cannot drift into asking differently.
+ * Which writer a slot gets is described on `draftBrief`.
+ */
+async function planDraft(db: Db, input: { slot: DraftSlot; format?: VisualFormat }, deps: DraftDeps): Promise<DraftPlan> {
   const { slot } = input;
   let cb: ChannelBible;
   let series: Series;
@@ -103,13 +171,12 @@ export async function draftBrief(db: Db, input: { slot: DraftSlot; format?: Visu
     cb = await getBible(db, deps.channelId);
     series = cb.seriesFor(slot.series);
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    return { kind: 'refused', error: err instanceof Error ? err.message : String(err) };
   }
-  if (!series) return { ok: false, error: `This channel runs no "${slot.series}" series.` };
-  if (slot.series === 'sequel' || slot.series === 'long_form') return { ok: false, error: `A ${slot.series} brief is assembled from aired episodes, not drafted from a topic.` };
+  if (!series) return { kind: 'refused', error: `This channel runs no "${slot.series}" series.` };
+  if (slot.series === 'sequel' || slot.series === 'long_form') return { kind: 'refused', error: `A ${slot.series} brief is assembled from aired episodes, not drafted from a topic.` };
   const seriesFormat = formatOf({ seriesFormat: series.visual_format }).format;
-  if (input.format === 'engineered' || seriesFormat === 'engineered') return draftEngineeredBrief(db, { slot, cb, series }, deps);
-  const label = slot.id ?? `studio-${slot.topic.slice(0, 24)}`;
+  if (input.format === 'engineered' || seriesFormat === 'engineered') return { kind: 'engineered', ctx: { slot, cb, series } };
 
   const leads = cb.leadsFromCalendar(slot.lead);
   // 'ohm' and 'complaint_box' are the Bureau's standing cast; on another channel they are
@@ -125,40 +192,40 @@ export async function draftBrief(db: Db, input: { slot: DraftSlot; format?: Visu
     .limit(14);
   const top = await topPerformers(db, deps.channelId, 5);
 
-  const result = await routed(
-    {
-      task: 'brief',
-      system: BRIEF_SYSTEM,
-      user: briefUserMessage({
-        series,
-        slot: { id: slot.id, date: slot.slot_date, topic: slot.topic, hook: slot.hook, lead: slot.lead, seasonal_tag: slot.seasonal_tag, episode: slot.episode },
-        cast,
-        recent: recent ?? [],
-        performers: top.performers.map((p) => ({ title: p.title, hook_archetype: p.hook_archetype, apv: p.apv })),
-      }),
-      schema: DraftSchema,
-      maxTokens: 4000,
-    },
-    { ...deps, subject: writerSubject(deps, `brief:${label}:${Date.now()}`, '20-brief') },
-  );
-
-  const ep = slot.episode ? /^S(\d+)E(\d+)$/.exec(slot.episode) : null;
-  const candidate = {
-    ...result.data,
-    slot_id: slot.id,
-    series: slot.series,
-    season: ep ? Number(ep[1]) : null,
-    episode: ep ? Number(ep[2]) : null,
-    lead_character: cb.characterBySlug(result.data.lead_character) ? result.data.lead_character : series.lead[0],
-    tags: ['drafted:server'],
-    flag: false,
-    flag_reasons: [],
+  const call: RoutedCall<typeof DraftSchema> = {
+    task: 'brief',
+    system: BRIEF_SYSTEM,
+    user: briefUserMessage({
+      series,
+      slot: { id: slot.id, date: slot.slot_date, topic: slot.topic, hook: slot.hook, lead: slot.lead, seasonal_tag: slot.seasonal_tag, episode: slot.episode },
+      cast,
+      recent: recent ?? [],
+      performers: top.performers.map((p) => ({ title: p.title, hook_archetype: p.hook_archetype, apv: p.apv })),
+    }),
+    schema: DraftSchema,
+    maxTokens: 4000,
   };
-  const parsed = briefInputSchema(cb).safeParse(candidate);
-  if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ') };
-  }
-  return { ok: true, brief: parsed.data };
+
+  const finish = (data: z.infer<typeof DraftSchema>): GenerateResult => {
+    const ep = slot.episode ? /^S(\d+)E(\d+)$/.exec(slot.episode) : null;
+    const candidate = {
+      ...data,
+      slot_id: slot.id,
+      series: slot.series,
+      season: ep ? Number(ep[1]) : null,
+      episode: ep ? Number(ep[2]) : null,
+      lead_character: cb.characterBySlug(data.lead_character) ? data.lead_character : series.lead[0],
+      tags: ['drafted:server'],
+      flag: false,
+      flag_reasons: [],
+    };
+    const parsed = briefInputSchema(cb).safeParse(candidate);
+    if (!parsed.success) {
+      return { ok: false, error: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ') };
+    }
+    return { ok: true, brief: parsed.data };
+  };
+  return { kind: 'ordinary', call, finish };
 }
 
 /** The ledger subject for a writer or judge call: the channel, and the Studio session when one asked. */

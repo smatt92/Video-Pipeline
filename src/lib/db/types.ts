@@ -2523,6 +2523,54 @@ export type Database = {
           },
         ]
       }
+      llm_batch_requests: {
+        Row: {
+          batch_id: string | null
+          custom_id: string
+          ended_at: string | null
+          error: string | null
+          max_tokens: number
+          model: string
+          result: Json | null
+          status: string
+          subject: Json
+          submitted_at: string
+          task: string
+          usage: Json | null
+          usd_inr_rate: number
+        }
+        Insert: {
+          batch_id?: string | null
+          custom_id: string
+          ended_at?: string | null
+          error?: string | null
+          max_tokens: number
+          model: string
+          result?: Json | null
+          status?: string
+          subject: Json
+          submitted_at?: string
+          task: string
+          usage?: Json | null
+          usd_inr_rate: number
+        }
+        Update: {
+          batch_id?: string | null
+          custom_id?: string
+          ended_at?: string | null
+          error?: string | null
+          max_tokens?: number
+          model?: string
+          result?: Json | null
+          status?: string
+          subject?: Json
+          submitted_at?: string
+          task?: string
+          usage?: Json | null
+          usd_inr_rate?: number
+        }
+        Relationships: []
+      }
       mcp_servers: {
         Row: {
           allowed_tools: string[] | null

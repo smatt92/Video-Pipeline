@@ -57,7 +57,7 @@ const LF_CB = require(`${B}/bureau/bible.js`).bibleForSlug('bureau-of-reality');
 const { restartHaltedEpisode, decideCut } = require(`${B}/bureau/control.js`);
 const { requestRedraw, runRedraw } = require(`${B}/bureau/redraw.js`);
 const { stillsByPart } = require(`${B}/bureau/stills.js`);
-const { runDubJob } = require(`${B}/bureau/dubs.js`);
+const { runDubJob, captionDub } = require(`${B}/bureau/dubs.js`);
 const { verifiedCredential } = require(`${B}/integrations/verify.js`);
 const { dispatchProvider, advanceSubmitted, settleEpisodes } = require(`${B}/bureau/dispatch.js`);
 const { signalQc } = require(`${B}/bureau/qc.js`);
@@ -403,6 +403,33 @@ try {
   const withDub = await call('publish_bundles', {}, approver.plaintext);
   const dubOut = withDub.result?.bundles?.find((x) => x.episode_id === ep)?.dubs?.[0];
   check(dubOut?.language === 'hi' && /rate unverified/.test(dubOut?.cost_label ?? '') && dubOut?.audio_url, 'the bundle carries the Hindi track, labelled "rate unverified"');
+
+  // Batched caption translation (llm/batch.ts): the translator answers `pending`, the job waits
+  // in 'translating' with its audio done, and a later tick's captionDub finishes the captions —
+  // without submitting to the dubbing vendor again.
+  const dqEs = await call('dub_queue', { action: 'add', episode_id: ep, languages: ['es'] }, agent.plaintext);
+  check(dqEs.result?.queued?.length === 1, 'a Spanish dub is queued');
+  const [esRow] = (await client.query(`select id from dub_jobs where episode_id = $1 and language = 'es'`, [ep])).rows;
+  const esDeps = (translate) => ({
+    db, usdInrRate: 88, presign, putBytes, download,
+    rateKey: { driver: 'runway', model: 'eleven_voice_dubbing', endpoint: '/v1/voice_dubbing', unit: 'credit' },
+    apiKey: () => verifiedCredential(db, 'runway', 'RUNWAY_API_KEY'),
+    submit: async (i) => { dubSubmits.push(i); return { ok: true, taskId: 'dub_es', estimatedCredits: 100 }; },
+    wait: async () => ({ state: 'succeeded', outputUrl: vendorUrl.replace('clip.mp4', 'dub.m4a') }),
+    translate,
+  });
+  const submitsBefore = dubSubmits.length;
+  const asked = [];
+  const pendingDub = await runDubJob(esRow.id, esDeps(async (lines, language, jobId) => { asked.push([language, jobId]); return { pending: true }; }));
+  const [esWait] = (await client.query('select status, audio_asset_id, srt_asset_id from dub_jobs where id = $1', [esRow.id])).rows;
+  check(pendingDub.ok && pendingDub.pending === true && esWait.status === 'translating' && esWait.audio_asset_id && !esWait.srt_asset_id,
+    'a batched translation leaves the job translating, with its audio done and no captions yet', `${esWait.status}, srt ${esWait.srt_asset_id ?? 'none'}`);
+  check(asked.length === 1 && asked[0][0] === 'Spanish' && asked[0][1] === esRow.id, 'the translator is asked once, keyed on the job', JSON.stringify(asked));
+  const resumed = await captionDub(esRow.id, esDeps(async (lines) => lines.map((l) => `[es] ${l}`)));
+  const [esDone] = (await client.query('select status, srt_asset_id, translated_lines from dub_jobs where id = $1', [esRow.id])).rows;
+  check(resumed.ok && !resumed.pending && esDone.status === 'ready' && esDone.srt_asset_id && esDone.translated_lines?.[0]?.startsWith('[es] '),
+    'the next tick finishes it: ready, with line-timed Spanish captions', esDone.status);
+  check(dubSubmits.length === submitsBefore + 1, 'and the dubbing vendor was submitted to once, not again on resume', `${dubSubmits.length - submitsBefore} submit(s)`);
 
   // ═══ 9c. Long-form ═══
   console.log('\n6. A long-form episode around the aired Short\n');

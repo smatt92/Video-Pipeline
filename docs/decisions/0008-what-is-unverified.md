@@ -1592,6 +1592,39 @@ concept batch, a shot list or publishing metadata on the cheaper tiers — rule 
 A Haiku 5.5 prompt over 100,000 tokens would be under-priced 5x by 0054's rows (the long-context
 tier is not carried; no fast-tier task comes near it).
 
+### 37. Batched LLM calls for the dubs cron and the brief safety net (2026-10-13, migration 0055) — RUN locally against a stubbed batches API; real API NOT
+
+**What changed.** `routedBatch()` (`src/lib/llm/batch.ts`) sends one routed call through the
+Message Batches API. Its custom_id is the call's idempotency key and the primary key of a new
+`llm_batch_requests` row (0055). At submit it refuses if the batch endpoint is unpriced (0054
+carries Haiku 5.5 and Sonnet 5.5 at the published 50%), records the row, creates a
+one-request batch and writes ESTIMATE ledger rows — input characters / 4 and `max_tokens` as
+the output bound, at the batch rate. Collection writes RECONCILE rows from the result's own
+`usage` before the output is judged; an errored or expired request writes none and its
+estimate stays open. `sweepBatches(prefix)` collects every open request whoever asked, so a
+cancelled dub or a filled slot cannot leave a billed call unreconciled. Two callers:
+`24-dubs` (caption translation — the job waits in `translating` with its audio done, and
+`captionDub` finishes it on a later tick) and `19-draft-briefs`, which now runs hourly at :15,
+submits only in the 01:15 UTC tick (06:45 IST, as before) under the key
+`brief-<slot>-<yyyymmdd>`, and collects on every tick. The 3D explainer's writer is not
+batched (it may rewrite once on length) and still drafts synchronously at 06:45.
+
+**What has run:** `verify:batch` (31 checks, in CI): the batch rates are the published ones and
+exactly half the synchronous ones; one batch per key however often it is asked; estimate and
+reconcile rows at exact quantities and the batch rate, read back from `cost_ledger` and
+recomputed from `rate_card` (proven to fail when the reconcile is priced at `/v1/messages`); an
+unpriced tier and a malformed key refused before anything is sent; errored, truncated and
+off-schema results; the sweep; and the Bureau's S001 drafted through the batch, collected into
+a brief that passes the channel's brief schema. `verify:episode` drives a Spanish dub through
+`translating` and `captionDub` to ready, with the dubbing vendor submitted to once.
+
+**Unverified:** a real batch — that the API accepts these request params (structured output
+and thinking disabled inside a batch request), how long a one-request batch takes in practice,
+and that `results()` streams as the SDK types say; the `19-draft-briefs` and `24-dubs` tasks
+themselves (no harness imports a task — the lib functions they call are what ran); the hourly
+schedule deploying. Every rupee figure on a batched call before its reconcile lands is an
+estimate and is labelled as one.
+
 ## Gates, and where each can run
 
 | Gate | Runnable in this environment? |
